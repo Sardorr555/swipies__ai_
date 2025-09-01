@@ -72,3 +72,22 @@ services:
   #   # If you're using Docker Desktop, the --add-host flag is optional. This flag makes sure that the host's internal IP gets exposed to the Prometheus container.
   #   extra_hosts:
   #     - "host.docker.internal:host-gateway"
+
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: ./web/Dockerfile
+    container_name: ragflow-frontend
+    environment:
+      - RAGFLOW_BACKEND=http://ragflow-server:9380
+    ports:
+      - "8080:80"
+    depends_on:
+      - ragflow
+    networks:
+      - ragflow
+
+networks:
+  ragflow:
+    driver: bridge

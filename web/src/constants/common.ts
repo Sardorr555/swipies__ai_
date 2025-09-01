@@ -149,7 +149,7 @@ export const SupportedPreviewDocumentTypes = [...ExceptiveType];
 //#endregion
 
 export enum Platform {
-  RAGFlow = 'RAGFlow',
+  RAGFlow = 'Swipies ai',
   Dify = 'Dify',
   FastGPT = 'FastGPT',
   Coze = 'Coze',
