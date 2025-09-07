@@ -1,6 +1,7 @@
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Play, ArrowRight, Zap, Users, Shield, Smartphone, Globe, MessageCircle } from "lucide-react";
+import { DEMO_VIDEO_URL, LINKS } from "@/config";
 
 export function Hero() {
   return (
@@ -23,13 +24,17 @@ export function Hero() {
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-          <Button size="lg" className="text-lg px-8 py-6">
-            Start Building Free
-            <ArrowRight className="ml-2 h-5 w-5" />
+          <Button asChild size="lg" className="text-lg px-8 py-6">
+            <a href={LINKS.getStarted} target="_blank" rel="noopener noreferrer">
+              Start Building Free
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </a>
           </Button>
-          <Button variant="outline" size="lg" className="text-lg px-8 py-6">
-            <Play className="mr-2 h-5 w-5" />
-            Watch Demo
+          <Button asChild variant="outline" size="lg" className="text-lg px-8 py-6">
+            <a href={DEMO_VIDEO_URL} target="_blank" rel="noopener noreferrer">
+              <Play className="mr-2 h-5 w-5" />
+              Watch Demo
+            </a>
           </Button>
         </div>
         
