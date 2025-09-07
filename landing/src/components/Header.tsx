@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Moon, Sun, Menu, Bot, ChevronDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { LINKS } from "@/config";
 
 interface HeaderProps {
   isDark: boolean;
@@ -11,7 +12,7 @@ interface HeaderProps {
   onPageChange: (page: string) => void;
 }
 
-const RAGFLOW_URL = "https://ragflow.yourdomain.tld";
+const RAGFLOW_URL = LINKS.getStarted;
 
 
 export function Header({ isDark, toggleTheme, currentPage, onPageChange }: HeaderProps) {

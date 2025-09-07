@@ -2,6 +2,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Check, Star } from "lucide-react";
+import { LINKS } from "@/config";
 
 export function Pricing() {
   const plans = [
@@ -101,11 +102,18 @@ export function Pricing() {
                 </ul>
                 
                 <Button 
+                  asChild
                   className="w-full" 
                   variant={plan.popular ? "default" : "outline"}
                   size="lg"
                 >
-                  {plan.cta}
+                  <a
+                    href={plan.cta.includes("Contact") ? LINKS.sales.contactSales : LINKS.getStarted}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {plan.cta}
+                  </a>
                 </Button>
               </CardContent>
             </Card>

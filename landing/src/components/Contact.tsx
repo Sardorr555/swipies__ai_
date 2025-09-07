@@ -1,6 +1,7 @@
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Mail, Phone, MapPin, MessageSquare } from "lucide-react";
+import { LINKS } from "@/config";
 
 export function Contact() {
   return (
@@ -29,7 +30,7 @@ export function Contact() {
                     </div>
                     <div>
                       <p className="font-medium">Email</p>
-                      <p className="text-muted-foreground">albakiev.sardobek@gmail.com</p>
+                      <p className="text-muted-foreground">{LINKS.contact.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-4">
@@ -38,7 +39,7 @@ export function Contact() {
                     </div>
                     <div>
                       <p className="font-medium">Phone</p>
-                      <p className="text-muted-foreground">+998 (90) 625-3986</p>
+                      <p className="text-muted-foreground">{LINKS.contact.phone}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-4">
@@ -48,7 +49,7 @@ export function Contact() {
                     <div>
                       <p className="font-medium">Address</p>
                       <p className="text-muted-foreground">
-                        Uzbekistan, Andijan<br />
+                        {LINKS.contact.addressLine1}<br />
                         
                       </p>
                     </div>
@@ -72,7 +73,9 @@ export function Contact() {
                     <p className="text-sm text-muted-foreground mb-3">
                       Get instant help from our support team
                     </p>
-                    <Button size="sm" variant="outline">Start Chat</Button>
+                    <Button asChild size="sm" variant="outline">
+                      <a href={LINKS.support.liveChat} target="_blank" rel="noopener noreferrer">Start Chat</a>
+                    </Button>
                   </CardContent>
                 </Card>
                 <Card>
@@ -86,7 +89,9 @@ export function Contact() {
                     <p className="text-sm text-muted-foreground mb-3">
                       Browse our documentation and guides
                     </p>
-                    <Button size="sm" variant="outline">Visit Help Center</Button>
+                    <Button asChild size="sm" variant="outline">
+                      <a href={LINKS.support.helpCenter} target="_blank" rel="noopener noreferrer">Visit Help Center</a>
+                    </Button>
                   </CardContent>
                 </Card>
                 <Card>
@@ -100,7 +105,9 @@ export function Contact() {
                     <p className="text-sm text-muted-foreground mb-3">
                       Book a personalized demo session
                     </p>
-                    <Button size="sm" variant="outline">Book Demo</Button>
+                    <Button asChild size="sm" variant="outline">
+                      <a href={LINKS.sales.bookDemo} target="_blank" rel="noopener noreferrer">Book Demo</a>
+                    </Button>
                   </CardContent>
                 </Card>
               </div>
