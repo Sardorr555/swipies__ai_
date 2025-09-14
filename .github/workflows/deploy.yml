@@ -1,0 +1,59 @@
+name: Deploy Landing to AWS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'landing/**'   # следим только за изменениями внутри landing
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  BUILD_DIR: landing/build   # теперь билд внутри папки landing
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: landing/package-lock.json
+
+      - name: Install dependencies
+        working-directory: landing
+        run: npm ci
+
+      - name: Build
+        working-directory: landing
+        run: npm run build
+
+      # --- Деплой на EC2 ---
+      - name: Setup SSH agent for EC2
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' && secrets.EC2_TARGET_DIR != '' }}
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Deploy to EC2 via rsync
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' && secrets.EC2_TARGET_DIR != '' }}
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_TARGET_DIR: ${{ secrets.EC2_TARGET_DIR }}
+          EC2_POST_DEPLOY_CMD: ${{ secrets.EC2_POST_DEPLOY_CMD }}
+        run: |
+          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "mkdir -p ${EC2_TARGET_DIR}"
+          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" "${{ env.BUILD_DIR }}/" "${EC2_USER}@${EC2_HOST}:${EC2_TARGET_DIR}/"
+          if [ -n "${EC2_POST_DEPLOY_CMD}" ]; then
+            ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "${EC2_POST_DEPLOY_CMD}"
+          fi
