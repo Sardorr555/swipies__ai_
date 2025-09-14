@@ -1,0 +1,91 @@
+name: Deploy Landing to AWS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  BUILD_DIR: build
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Configure AWS credentials (for S3/CloudFront)
+        if: ${{ secrets.S3_BUCKET != '' || secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Sync static assets to S3 (long cache)
+        if: ${{ secrets.S3_BUCKET != '' }}
+        run: |
+          aws s3 sync "${{ env.BUILD_DIR }}" "s3://${{ secrets.S3_BUCKET }}" \
+            --delete \
+            --exclude "*.html" \
+            --cache-control "max-age=31536000, public, immutable"
+
+      - name: Upload HTML files to S3 (short cache)
+        if: ${{ secrets.S3_BUCKET != '' }}
+        run: |
+          aws s3 cp "${{ env.BUILD_DIR }}" "s3://${{ secrets.S3_BUCKET }}" \
+            --recursive \
+            --exclude "*" --include "*.html" \
+            --cache-control "max-age=60, no-cache" \
+            --content-type "text/html; charset=utf-8"
+
+      - name: Create SPA routing error document (optional)
+        if: ${{ secrets.S3_BUCKET != '' }}
+        run: |
+          aws s3 website s3://${{ secrets.S3_BUCKET }} --index-document index.html --error-document index.html || true
+
+      - name: Invalidate CloudFront (optional)
+        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths '/*'
+
+      - name: Setup SSH agent for EC2 (optional)
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' && secrets.EC2_TARGET_DIR != '' }}
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Deploy to EC2 via rsync (optional)
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' && secrets.EC2_TARGET_DIR != '' }}
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_TARGET_DIR: ${{ secrets.EC2_TARGET_DIR }}
+          EC2_POST_DEPLOY_CMD: ${{ secrets.EC2_POST_DEPLOY_CMD }}
+        run: |
+          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "mkdir -p ${EC2_TARGET_DIR}"
+          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" "${{ env.BUILD_DIR }}/" "${EC2_USER}@${EC2_HOST}:${EC2_TARGET_DIR}/"
+          if [ -n "${EC2_POST_DEPLOY_CMD}" ]; then
+            ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "${EC2_POST_DEPLOY_CMD}"
+          fi
+
