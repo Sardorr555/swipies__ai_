@@ -5,12 +5,12 @@ export const DEMO_VIDEO_URL: string =
 
 
 export const LINKS = {
-  getStarted: import.meta.env.VITE_GET_STARTED_URL ?? "https://ragflow.yourdomain.tld",
+  getStarted: import.meta.env.VITE_GET_STARTED_URL ?? "https://swipies.app/",
   social: {
     twitter: import.meta.env.VITE_TWITTER_URL ?? "#",
     github: import.meta.env.VITE_GITHUB_URL ?? "#",
     linkedin: import.meta.env.VITE_LINKEDIN_URL ?? "#",
-    email: import.meta.env.VITE_SUPPORT_EMAIL ?? "support@example.com"
+    email: import.meta.env.VITE_SUPPORT_EMAIL ?? "albakiev.sardobek@gmail.com"
   },
   product: {
     features: import.meta.env.VITE_PRODUCT_FEATURES_URL ?? "#",
