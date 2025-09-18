@@ -6,10 +6,9 @@ on:
       - main
     paths:
       - 'swipies__ai_/**'
-    paths-ignore:
-      - 'swipies__ai_/landing/**'
-      - 'swipies__ai_/my-refine-app/**'
-
+      - '.github/**'
+      - '!swipies__ai_/landing/**'
+      - '!swipies__ai_/my-refine-app/**'
 jobs:
   deploy:
     runs-on: ubuntu-latest
