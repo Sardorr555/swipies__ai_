@@ -28,8 +28,9 @@ jobs:
             cd ~/swipies__ai_
 
             echo "📥 Обновляем код..."
-            git pull origin main
-            
+            git fetch origin main
+            git reset --hard origin/main
+  
             cd docker
 
             echo "🛑 Останавливаем старые контейнеры..."
