@@ -5,10 +5,10 @@ on:
     branches:
       - main
     paths:
-      - 'swipies__ai_/**'
-      - '.github/**'
+      - '**'
       - '!swipies__ai_/landing/**'
       - '!swipies__ai_/my-refine-app/**'
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
