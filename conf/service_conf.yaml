@@ -29,6 +29,27 @@ redis:
   db: 1
   password: 'infini_rag_flow'
   host: 'localhost:6379'
+
+oauth:
+  google:
+    type: "oauth2"
+    icon: "google"
+    display_name: "Google"
+    client_id: "ВАШ_GOOGLE_CLIENT_ID"
+    client_secret: "ВАШ_GOOGLE_CLIENT_SECRET"
+    authorization_url: "https://accounts.google.com/o/oauth2/v2/auth"
+    token_url: "https://oauth2.googleapis.com/token"
+    userinfo_url: "https://www.googleapis.com/oauth2/v3/userinfo"
+    scope: "openid email profile"
+    redirect_uri: "http://localhost:9380/v1/user/oauth/callback/google"
+
+  github:
+    type: "github"
+    icon: "github"
+    display_name: "GitHub"
+    client_id: "ВАШ_GITHUB_CLIENT_ID"
+    client_secret: "ВАШ_GITHUB_CLIENT_SECRET"
+    redirect_uri: "http://localhost:9380/v1/user/oauth/callback/github"
 # postgres:
 #   name: 'rag_flow'
 #   user: 'rag_flow'

@@ -11,6 +11,7 @@ import { Team } from "./components/Team";
 import { Careers } from "./components/Careers";
 import { Press } from "./components/Press";
 import { Partners } from "./components/Partners";
+import { CookieConsent } from "./components/CookieConsent";
 
 export default function App() {
   const [isDark, setIsDark] = useState(false);
@@ -99,6 +100,7 @@ export default function App() {
         onPageChange={handlePageChange}
       />
       {renderPage()}
+      <CookieConsent />
     </div>
   );
 }

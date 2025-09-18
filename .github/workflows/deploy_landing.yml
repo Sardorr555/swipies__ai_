@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'landing/**'   # следим только за изменениями внутри landing
+      - 'landing/**'
   workflow_dispatch:
 
 permissions:
@@ -13,7 +13,7 @@ permissions:
 
 env:
   NODE_VERSION: '20'
-  BUILD_DIR: landing/build   # билд внутри папки landing
+  BUILD_DIR: landing/build
 
 jobs:
   build-and-deploy:
@@ -43,20 +43,28 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Deploy to EC2 via rsync 
+      - name: Deploy to EC2 via rsync
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_TARGET_DIR: ${{ secrets.EC2_TARGET_DIR }}
           EC2_POST_DEPLOY_CMD: ${{ secrets.EC2_POST_DEPLOY_CMD }}
         run: |
-          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "mkdir -p ${EC2_TARGET_DIR}"
+          # создаём папку и выставляем права
+          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "sudo mkdir -p ${EC2_TARGET_DIR} && sudo chown -R ${EC2_USER}:${EC2_USER} ${EC2_TARGET_DIR}"
+
+          # чистим перед копированием
+          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "rm -rf ${EC2_TARGET_DIR}/*"
+
+          # копируем билд
           rsync -avz --delete \
             --exclude 'node_modules' \
             --exclude '*.map' \
             --exclude '*.log' \
             -e "ssh -o StrictHostKeyChecking=no" \
             "${{ env.BUILD_DIR }}/" "${EC2_USER}@${EC2_HOST}:${EC2_TARGET_DIR}/"
+
+          # выполняем пост-команду, если есть
           if [ -n "${EC2_POST_DEPLOY_CMD}" ]; then
-            ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "${EC2_POST_DEPLOY_CMD}"
+            ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "cd ${EC2_TARGET_DIR} && ${EC2_POST_DEPLOY_CMD}"
           fi

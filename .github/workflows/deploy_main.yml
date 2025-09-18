@@ -1,0 +1,44 @@
+name: Deploy Ragflow
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'swipies__ai_/**'   
+      - '!swipies__ai_/landing/**'
+      - '!swipies__ai_/my-refine-app/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/swipies__ai_
+
+            echo "📥 Обновляем код..."
+            git pull origin main
+            
+            cd docker
+
+            echo "🛑 Останавливаем старые контейнеры..."
+            docker compose down
+
+            echo "🐳 Собираем заново..."
+            docker compose build --no-cache
+
+            echo "🚀 Запускаем..."
+            docker compose up -d
+
+            echo "✅ Ragflow обновлён!"
