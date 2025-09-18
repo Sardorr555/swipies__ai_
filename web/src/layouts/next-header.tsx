@@ -34,7 +34,7 @@ import { useLocation } from 'umi';
 import { BellButton } from './bell-button';
 
 const handleDocHelpCLick = () => {
-  window.open('https://ragflow.io/docs/dev/category/guides', 'target');
+  window.open('https://github.com/Sardorr555/swipies__ai_', 'target');
 };
 
 export function Header() {
@@ -117,7 +117,7 @@ export function Header() {
         <a
           className="flex items-center gap-1.5 text-text-secondary"
           target="_blank"
-          href="https://github.com/infiniflow/ragflow"
+          href="https://github.com/Sardorr555/swipies__ai_.git"
           rel="noreferrer"
         >
           <Github className="size-4" />

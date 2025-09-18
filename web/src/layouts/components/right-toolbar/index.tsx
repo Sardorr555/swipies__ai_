@@ -23,11 +23,11 @@ const Circle = ({ children, ...restProps }: React.PropsWithChildren) => {
 };
 
 const handleGithubCLick = () => {
-  window.open('https://github.com/infiniflow/ragflow', 'target');
+  window.open('https://github.com/Sardorr555/swipies__ai_.git', 'target');
 };
 
 const handleDocHelpCLick = () => {
-  window.open('https://ragflow.io/docs/dev/category/guides', 'target');
+  window.open('https://github.com/Sardorr555/swipies__ai_', 'target');
 };
 
 const RightToolBar = () => {

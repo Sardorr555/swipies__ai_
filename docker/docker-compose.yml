@@ -43,6 +43,7 @@ services:
       - TZ=${TIMEZONE}
       - HF_ENDPOINT=${HF_ENDPOINT-}
       - MACOS=${MACOS-}
+      - ENABLE_DOCS=1
     networks:
       - ragflow
     restart: on-failure

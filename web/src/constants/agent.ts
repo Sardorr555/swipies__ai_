@@ -10,7 +10,7 @@ export const CodeTemplateStrMap = {
   [ProgrammingLanguage.Javascript]: `const axios = require('axios');
 async function main({}) {
   try {
-    const response = await axios.get('https://github.com/infiniflow/ragflow');
+    const response = await axios.get('https://github.com/Sardorr555/swipies__ai_.git');
     return 'Body:' + response.data;
   } catch (error) {
     return 'Error:' + error.message;

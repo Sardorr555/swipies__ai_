@@ -1,0 +1,70 @@
+name: Deploy Refine Admin to AWS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'my-refine-app/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  BUILD_DIR: my-refine-app/dist   # ⚡ У Vite билд кладётся в dist/
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: my-refine-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: my-refine-app
+        run: npm ci
+
+      - name: Build
+        working-directory: my-refine-app
+        run: npm run build
+
+      # --- Деплой на EC2 ---
+      - name: Setup SSH agent for EC2
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Deploy to EC2 via rsync
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_TARGET_DIR: ${{ secrets.EC2_ADMIN_TARGET_DIR }}  # ⚡ отдельная папка для админки
+          EC2_POST_DEPLOY_CMD: ${{ secrets.EC2_ADMIN_POST_DEPLOY_CMD }}
+        run: |
+          # создаём папку и выставляем права
+          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "sudo mkdir -p ${EC2_TARGET_DIR} && sudo chown -R ${EC2_USER}:${EC2_USER} ${EC2_TARGET_DIR}"
+
+          # чистим перед копированием
+          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "rm -rf ${EC2_TARGET_DIR}/*"
+
+          # копируем билд
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '*.map' \
+            --exclude '*.log' \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            "${{ env.BUILD_DIR }}/" "${EC2_USER}@${EC2_HOST}:${EC2_TARGET_DIR}/"
+
+          # выполняем пост-команду, если есть
+          if [ -n "${EC2_POST_DEPLOY_CMD}" ]; then
+            ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "cd ${EC2_TARGET_DIR} && ${EC2_POST_DEPLOY_CMD}"
+          fi
