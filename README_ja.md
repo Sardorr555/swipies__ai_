@@ -3,6 +3,7 @@
 <img src="web/src/assets/logo-with-text.png" width="350" alt="ragflow logo">
 </a>
 </div>
+дфывлоафдывла
 
 <p align="center">
   <a href="./README.md"><img alt="README in English" src="https://img.shields.io/badge/English-DFE0E5"></a>

@@ -5,9 +5,10 @@ on:
     branches:
       - main
     paths:
-      - 'swipies__ai_/**'   
-      - '!swipies__ai_/landing/**'
-      - '!swipies__ai_/my-refine-app/**'
+      - 'swipies__ai_/**'
+    paths-ignore:
+      - 'swipies__ai_/landing/**'
+      - 'swipies__ai_/my-refine-app/**'
 
 jobs:
   deploy:
