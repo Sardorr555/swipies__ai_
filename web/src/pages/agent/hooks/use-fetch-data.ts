@@ -15,5 +15,6 @@ export const useFetchDataOnMount = () => {
     refetch();
   }, [refetch]);
 
-  return { loading, flowDetail: data };
+  return { loading, flowDetail: data ?? {} };
+
 };

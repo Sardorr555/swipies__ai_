@@ -119,7 +119,7 @@ export default function Agent() {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>{agentDetail.title}</BreadcrumbPage>
+              <BreadcrumbPage>{agentDetail?.title || 'Loading...'}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

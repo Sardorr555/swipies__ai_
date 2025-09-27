@@ -1,0 +1,29 @@
+[Unit]
+Description=RAGFlow Landing Backend API
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=nodejs
+WorkingDirectory=/var/www/ragflow-backend
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=DB_HOST=localhost
+Environment=DB_PORT=5455
+Environment=DB_USER=root
+Environment=DB_PASSWORD=infini_rag_flow
+Environment=DB_NAME=rag_flow
+Environment=CORS_ORIGIN=http://localhost:3000
+Environment=PORT=3001
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/ragflow-backend
+
+[Install]
+WantedBy=multi-user.target
