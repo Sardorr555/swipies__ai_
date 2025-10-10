@@ -5,17 +5,17 @@
   background-color: rgba(255, 255, 255, 0.1);
 
   .loginLeft {
-    // width: 610px;
-    width: 40%;
+    width: 100%;
     background-color: rgba(255, 255, 255, 0.1);
     height: 100vh;
     display: flex;
     align-items: center;
+    justify-content: center;
   }
 
   .leftContainer {
-    width: 60%;
-    padding: 5px, 0px, 5px, 0px;
+    width: 100%;
+    padding: 20px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -25,26 +25,39 @@
     .ant-form {
       width: 100%;
       max-width: 400px;
+      margin: 0 auto;
     }
 
     .ant-form-item {
       text-align: center;
+      margin-bottom: 16px;
     }
 
     .ant-form-item-label {
+      text-align: center;
+      display: block;
+      width: 100%;
+    }
+
+    .ant-input,
+    .ant-input-password {
       text-align: center;
     }
 
     .ant-btn {
       width: 100%;
+      margin-top: 16px;
     }
 
     .ant-checkbox-wrapper {
       text-align: center;
+      display: block;
+      width: 100%;
     }
 
-    div {
+    > div {
       text-align: center;
+      width: 100%;
     }
   }
 
@@ -78,43 +91,7 @@
   }
 
   .loginRight {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    position: relative;
-    /* Remove decorative background image and overlay */
-    .pink {
-      color: #e9d7fe;
-    }
-    .rightPanel {
-      max-width: 670px;
-      .loginTitle {
-        font-size: 68px;
-        font-style: normal;
-        font-weight: 600;
-        line-height: 90px;
-        letter-spacing: -1.44px;
-      }
-      .loginDescription {
-        font-size: 20px;
-        font-style: normal;
-        font-weight: 500;
-        line-height: 30px;
-      }
-      .loginRateNumber {
-        font-size: 16px;
-        font-style: normal;
-        font-weight: 600;
-        line-height: 24px;
-      }
-      .loginRateReviews {
-        font-size: 16px;
-        font-style: normal;
-        font-weight: 500;
-        line-height: 24px;
-      }
-    }
+    display: none;
   }
 
   .loginTitle {
