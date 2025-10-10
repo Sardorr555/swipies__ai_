@@ -1,43 +1,16 @@
 <div align="center">
-<a href="https://swipies.ai/">
+<a href="https://swipies.app/">
 <img src="web/src/assets/logo-with-text.png" width="520" alt="Swipies AI logo">
 </a>
 </div>
 
-<p align="center">
-  <a href="./README.md"><img alt="README in English" src="https://img.shields.io/badge/English-DBEDFA"></a>
-  <a href="./README_zh.md"><img alt="简体中文版自述文件" src="https://img.shields.io/badge/简体中文-DFE0E5"></a>
-  <a href="./README_tzh.md"><img alt="繁體版中文自述文件" src="https://img.shields.io/badge/繁體中文-DFE0E5"></a>
-  <a href="./README_ja.md"><img alt="日本語のREADME" src="https://img.shields.io/badge/日本語-DFE0E5"></a>
-  <a href="./README_ko.md"><img alt="한국어" src="https://img.shields.io/badge/한국어-DFE0E5"></a>
-  <a href="./README_id.md"><img alt="Bahasa Indonesia" src="https://img.shields.io/badge/Bahasa Indonesia-DFE0E5"></a>
-  <a href="./README_pt_br.md"><img alt="Português(Brasil)" src="https://img.shields.io/badge/Português(Brasil)-DFE0E5"></a>
-</p>
 
-<p align="center">
-    <a href="https://x.com/intent/follow?screen_name=swipiesai" target="_blank">
-        <img src="https://img.shields.io/twitter/follow/swipiesai?logo=X&color=%20%23f5f5f5" alt="follow on X(Twitter)">
-    </a>
-    <a href="https://demo.swipies.ai" target="_blank">
-        <img alt="Static Badge" src="https://img.shields.io/badge/Online-Demo-4e6b99">
-    </a>
-    <a href="https://hub.docker.com/r/swipies/ragflow" target="_blank">
-        <img src="https://img.shields.io/docker/pulls/swipies/ragflow?label=Docker%20Pulls&color=0db7ed&logo=docker&logoColor=white&style=flat-square" alt="docker pull swipies/ragflow:latest">
-    </a>
-    <a href="https://github.com/swipies/ragflow/releases/latest">
-        <img src="https://img.shields.io/github/v/release/swipies/ragflow?color=blue&label=Latest%20Release" alt="Latest Release">
-    </a>
-    <a href="https://github.com/swipies/ragflow/blob/main/LICENSE">
-        <img height="21" src="https://img.shields.io/badge/License-Apache--2.0-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="license">
-    </a>
+
+
 </p>
 
 <h4 align="center">
-  <a href="https://swipies.ai/docs/">Documentation</a> |
-  <a href="https://github.com/swipies/ragflow/issues">Roadmap</a> |
-  <a href="https://twitter.com/swipiesai">Twitter</a> |
-  <a href="https://discord.gg/swipiesai">Discord</a> |
-  <a href="https://demo.swipies.ai">Demo</a>
+  
 </h4>
 
 #
@@ -229,17 +202,6 @@ Try our demo at [https://demo.swipies.ai](https://demo.swipies.ai).
 
    _The following output confirms a successful launch of the system:_
 
-   ```bash
-
-         ____   ___    ______ ______ __
-        / __ \ /   |  / ____// ____// /____  _      __
-       / /_/ // /| | / / __ / /_   / // __ \| | /| / /
-      / _, _// ___ |/ /_/ // __/  / // /_/ /| |/ |/ /
-     /_/ |_|/_/  |_|\____//_/    /_/ \____/ |__/|__/
-
-    * Running on all addresses (0.0.0.0)
-   ```
-
    > If you skip this confirmation step and directly log in to Swipies AI, your browser may prompt a `network anormal`
    > error because, at that moment, your Swipies AI may not be fully initialized.
 
@@ -303,7 +265,7 @@ Swipies AI uses Elasticsearch by default for storing full text and vectors. To s
 This image is approximately 2 GB in size and relies on external LLM and embedding services.
 
 ```bash
-git clone https://github.com/swipies/ragflow.git
+
 cd ragflow/
 docker build --platform linux/amd64 --build-arg LIGHTEN=1 -f Dockerfile -t swipies/ragflow:nightly-slim .
 ```
@@ -313,7 +275,7 @@ docker build --platform linux/amd64 --build-arg LIGHTEN=1 -f Dockerfile -t swipi
 This image is approximately 9 GB in size. As it includes embedding models, it relies on external LLM services only.
 
 ```bash
-git clone https://github.com/swipies/ragflow.git
+
 cd ragflow/
 docker build --platform linux/amd64 -f Dockerfile -t swipies/ragflow:nightly .
 ```
@@ -329,7 +291,6 @@ docker build --platform linux/amd64 -f Dockerfile -t swipies/ragflow:nightly .
 2. Clone the source code and install Python dependencies:
 
    ```bash
-   git clone https://github.com/swipies/ragflow.git
    cd ragflow/
    uv sync --python 3.10 --all-extras # install Swipies AI dependent python modules
    uv run download_deps.py
@@ -397,29 +358,17 @@ docker build --platform linux/amd64 -f Dockerfile -t swipies/ragflow:nightly .
 
 ## 📚 Documentation
 
-- [Quickstart](https://swipies.ai/docs/dev/)
-- [Configuration](https://swipies.ai/docs/dev/configurations)
-- [Release notes](https://swipies.ai/docs/dev/release_notes)
-- [User guides](https://swipies.ai/docs/dev/category/guides)
-- [Developer guides](https://swipies.ai/docs/dev/category/developers)
-- [References](https://swipies.ai/docs/dev/category/references)
-- [FAQs](https://swipies.ai/docs/dev/faq)
 
 ## 📜 Roadmap
 
-See the [Swipies AI Roadmap 2025](https://github.com/swipies/ragflow/issues)
 
 ## 🏄 Community
 
-- [Discord](https://discord.gg/swipiesai)
-- [Twitter](https://twitter.com/swipiesai)
-- [GitHub Discussions](https://github.com/orgs/swipies/discussions)
 
 ## 🙌 Contributing
 
 Swipies AI flourishes via open-source collaboration. In this spirit, we embrace diverse contributions from the community.
-If you would like to be a part, review our [Contribution Guidelines](https://swipies.ai/docs/dev/contributing) first.
-
+If you would like to be a part, review our [Contribution 
 ## 🙏 Acknowledgments
 
 We would like to express our gratitude to the [RAGFlow](https://github.com/infiniflow/ragflow) team at InfiniFlow for creating such an excellent open-source RAG engine. Swipies AI is built upon their solid foundation, and we appreciate their contribution to the open-source community.
