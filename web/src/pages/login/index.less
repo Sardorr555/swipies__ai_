@@ -17,6 +17,35 @@
     width: 60%;
     padding: 5px, 0px, 5px, 0px;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    .ant-form {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .ant-form-item {
+      text-align: center;
+    }
+
+    .ant-form-item-label {
+      text-align: center;
+    }
+
+    .ant-btn {
+      width: 100%;
+    }
+
+    .ant-checkbox-wrapper {
+      text-align: center;
+    }
+
+    div {
+      text-align: center;
+    }
   }
 
   .thirdPartyLoginButton {
@@ -54,23 +83,7 @@
     justify-content: center;
     flex: 1;
     position: relative;
-    &::before {
-      content: ' ';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background-color: rgba(24, 73, 169, 0.6);
-      background-image: url('@/assets/svg/login-background.svg');
-      background-size: cover;
-      background-blend-mode: multiply;
-      filter: blur(3px);
-      background-position: center;
-      z-index: -1;
-    }
-    .white {
-    }
+    /* Remove decorative background image and overlay */
     .pink {
       color: #e9d7fe;
     }
@@ -112,8 +125,8 @@
     letter-spacing: 0em;
     height: 80px;
     margin-bottom: 69px;
+    text-align: center;
 
-    // text-align: center;
     span {
       font-size: 16px;
       line-height: 24px;
