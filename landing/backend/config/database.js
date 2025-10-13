@@ -64,3 +64,4 @@ module.exports = {
   testConnection,
   initializeDatabase
 };
+

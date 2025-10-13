@@ -156,32 +156,32 @@ export function Header({ isDark, toggleTheme, currentPage, onPageChange }: Heade
                 <Menu className="h-4 w-4" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72">
-              <div className="flex flex-col space-y-4 mt-8">
+            <SheetContent side="top" className="w-full bg-card border-b">
+              <div className="flex flex-col space-y-1 pt-2 pb-3">
                 {navigation.map((item) => (
                   <button
                     key={item.name}
                     onClick={() => handleNavClick(item.href)}
-                    className={`text-left py-2 text-sm font-medium transition-colors hover:text-primary ${
+                    className={`text-left py-2 px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground rounded ${
                       (currentPage === item.href || 
                        (currentPage === "home" && ["features", "pricing"].includes(item.href)))
-                        ? "text-primary" 
-                        : "text-muted-foreground"
+                        ? "text-primary bg-accent/50" 
+                        : "text-foreground"
                     }`}
                   >
                     {item.name}
                   </button>
                 ))}
                 
-                <div className="py-2">
-                  <div className="text-sm font-medium text-muted-foreground mb-2">Company</div>
-                  <div className="pl-4 space-y-2">
+                <div className="py-1">
+                  <div className="text-xs font-medium text-muted-foreground mb-1 px-3">Company</div>
+                  <div className="space-y-1">
                     {companyPages.map((item) => (
                       <button
                         key={item.name}
                         onClick={() => handleNavClick(item.href)}
-                        className={`block text-left py-1 text-sm transition-colors hover:text-primary ${
-                          currentPage === item.href ? "text-primary" : "text-muted-foreground"
+                        className={`text-left py-2 px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground rounded ${
+                          currentPage === item.href ? "text-primary bg-accent/50" : "text-foreground"
                         }`}
                       >
                         {item.name}
@@ -192,19 +192,19 @@ export function Header({ isDark, toggleTheme, currentPage, onPageChange }: Heade
 
                 <button
                   onClick={() => handleNavClick("contact")}
-                  className={`text-left py-2 text-sm font-medium transition-colors hover:text-primary ${
+                  className={`text-left py-2 px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground rounded ${
                     (currentPage === "home" && "contact" === "contact")
-                      ? "text-primary" 
-                      : "text-muted-foreground"
+                      ? "text-primary bg-accent/50" 
+                      : "text-foreground"
                   }`}
                 >
                   Contact
                 </button>
                 
                 
-                <Button  className="mt-4" onClick={() => { setIsOpen(false); window.location.href = RAGFLOW_URL;}}>
-   Get Started
-</Button>
+                <Button size="sm" className="mt-2 w-full" onClick={() => { setIsOpen(false); window.location.href = RAGFLOW_URL;}}>
+                  Get Started
+                </Button>
               </div>
             </SheetContent>
           </Sheet>

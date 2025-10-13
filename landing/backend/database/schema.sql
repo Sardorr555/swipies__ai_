@@ -20,3 +20,4 @@ CREATE TABLE IF NOT EXISTS waitlist (
 -- Add some sample data for testing (optional)
 -- INSERT INTO waitlist (first_name, last_name, email, company, role, message) VALUES
 -- ('John', 'Doe', 'john.doe@example.com', 'Tech Corp', 'CTO', 'Interested in RAGFlow for our AI initiatives');
+

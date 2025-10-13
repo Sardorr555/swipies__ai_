@@ -92,3 +92,4 @@ const validateWaitlist = (req, res, next) => {
 module.exports = {
   validateWaitlist
 };
+
