@@ -1,5 +1,13 @@
 .pageInputNumber {
   width: 220px;
+  
+  @media (max-width: 768px) {
+    width: 180px;
+  }
+  
+  @media (max-width: 480px) {
+    width: 100%;
+  }
 }
 
 .questionIcon {
@@ -7,6 +15,11 @@
   color: rgba(0, 0, 0, 0.45);
   cursor: help;
   writing-mode: horizontal-tb;
+  
+  @media (max-width: 768px) {
+    margin-inline-start: 3px;
+    font-size: 14px;
+  }
 }
 
 .chunkMethod {

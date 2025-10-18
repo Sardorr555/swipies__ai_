@@ -1,6 +1,10 @@
 .operatorCard {
   :global(.ant-card-body) {
     padding: 10px;
+    
+    @media (max-width: 768px) {
+      padding: 8px;
+    }
   }
   .cubeIcon {
     &:hover {
@@ -13,4 +17,24 @@
   padding: 10px 4px;
   overflow: auto;
   height: calc(100vh - 80px);
+  
+  @media (max-width: 1200px) {
+    height: calc(100vh - 75px);
+    padding: 9px 3px;
+  }
+  
+  @media (max-width: 1024px) {
+    height: calc(100vh - 70px);
+    padding: 8px 3px;
+  }
+  
+  @media (max-width: 768px) {
+    height: calc(100vh - 60px);
+    padding: 6px 2px;
+  }
+  
+  @media (max-width: 480px) {
+    height: calc(100vh - 50px);
+    padding: 4px 1px;
+  }
 }

@@ -1,5 +1,17 @@
 .variableTable {
   margin-top: 14px;
+  
+  @media (max-width: 1200px) {
+    margin-top: 13px;
+  }
+  
+  @media (max-width: 768px) {
+    margin-top: 12px;
+  }
+  
+  @media (max-width: 480px) {
+    margin-top: 10px;
+  }
 }
 .editableRow {
   :global(.editable-cell) {
@@ -10,12 +22,21 @@
     padding: 5px 12px;
     cursor: pointer;
     height: 30px !important;
+    
+    @media (max-width: 768px) {
+      padding: 4px 8px;
+      height: 28px !important;
+    }
   }
   &:hover {
     :global(.editable-cell-value-wrap) {
       padding: 4px 11px;
       border: 1px solid #d9d9d9;
       border-radius: 2px;
+      
+      @media (max-width: 768px) {
+        padding: 3px 7px;
+      }
     }
   }
 }

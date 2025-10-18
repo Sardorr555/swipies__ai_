@@ -1,20 +1,46 @@
 .modelContainer {
   width: 100%;
+  
+  @media (max-width: 1200px) {
+    min-height: 100vh;
+  }
+  
   .factoryOperationWrapper {
     text-align: right;
+
+    @media (max-width: 1200px) {
+      text-align: right;
+    }
+
+    @media (max-width: 768px) {
+      text-align: center;
+    }
   }
   .modelItem {
   }
   .llmList {
     padding-top: 10px;
+
+    @media (max-width: 768px) {
+      padding-top: 8px;
+    }
   }
   .toBeAddedCard {
     border-radius: 24px;
     border: 1px solid #eaecf0;
     background: #e3f0ff;
     box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+
+    @media (max-width: 768px) {
+      border-radius: 18px;
+    }
+
     :global(.ant-card-body) {
       padding: 10px 24px;
+
+      @media (max-width: 768px) {
+        padding: 8px 16px;
+      }
     }
     .addButton {
       padding: 0;
@@ -25,8 +51,17 @@
     border: 1px solid #eaecf0;
     background: #e3f0ff2a;
     box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+
+    @media (max-width: 768px) {
+      border-radius: 18px;
+    }
+
     :global(.ant-card-body) {
       padding: 10px 24px;
+
+      @media (max-width: 768px) {
+        padding: 8px 16px;
+      }
     }
     .addButton {
       padding: 0;
@@ -37,12 +72,20 @@
     border: 1px solid #eaecf0;
     background: #e6e7eb;
     box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+
+    @media (max-width: 768px) {
+      border-radius: 12px;
+    }
   }
   .addedCardDark {
     border-radius: 18px;
     border: 1px solid #eaecf0;
     background: #e6e7eb21;
     box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+
+    @media (max-width: 768px) {
+      border-radius: 12px;
+    }
   }
   .modelDivider {
     margin: 0;
@@ -51,5 +94,10 @@
     height: 40px;
     overflow: hidden;
     font-size: 8px;
+
+    @media (max-width: 768px) {
+      height: 32px;
+      font-size: 7px;
+    }
   }
 }

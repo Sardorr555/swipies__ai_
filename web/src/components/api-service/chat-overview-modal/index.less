@@ -1,20 +1,66 @@
 .chartWrapper {
   height: 40vh;
   overflow: auto;
+  
+  @media (max-width: 768px) {
+    height: 35vh;
+  }
+  
+  @media (max-width: 480px) {
+    height: 30vh;
+  }
 }
 
 .chartItem {
   height: 300px;
   padding: 10px 0 50px;
+  
+  @media (max-width: 1200px) {
+    height: 250px;
+    padding: 8px 0 40px;
+  }
+  
+  @media (max-width: 768px) {
+    height: 200px;
+    padding: 6px 0 30px;
+  }
+  
+  @media (max-width: 480px) {
+    height: 150px;
+    padding: 4px 0 20px;
+  }
 }
 
 .chartLabel {
   display: inline-block;
   padding-left: 60px;
   padding-bottom: 20px;
+  
+  @media (max-width: 768px) {
+    padding-left: 40px;
+    padding-bottom: 16px;
+    font-size: 13px;
+  }
+  
+  @media (max-width: 480px) {
+    padding-left: 20px;
+    padding-bottom: 12px;
+    font-size: 12px;
+  }
 }
+
 .apiLinkText {
   .linkText();
   margin: 0 !important;
   background-color: rgba(255, 255, 255, 0.1);
+  
+  @media (max-width: 768px) {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
 }

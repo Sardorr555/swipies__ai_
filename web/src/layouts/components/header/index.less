@@ -5,6 +5,35 @@
   border: 1px solid #000;
   border-radius: 10px;
   cursor: pointer;
+  font-size: 14px;
+  
+  @media (max-width: 1200px) {
+    padding: 0 24px;
+    margin: 0 4px;
+    font-size: 13px;
+  }
+  
+  @media (max-width: 1024px) {
+    padding: 0 20px;
+    margin: 0 3px;
+    font-size: 12px;
+  }
+  
+  @media (max-width: 768px) {
+    height: 36px;
+    padding: 0 16px;
+    margin: 0 2px;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+  
+  @media (max-width: 480px) {
+    height: 32px;
+    padding: 0 12px;
+    margin: 0 1px;
+    border-radius: 6px;
+    font-size: 10px;
+  }
 }
 
 .checked {
@@ -19,6 +48,18 @@
 .appIcon {
   vertical-align: middle;
   max-width: 36px;
+  
+  @media (max-width: 1200px) {
+    max-width: 32px;
+  }
+  
+  @media (max-width: 768px) {
+    max-width: 28px;
+  }
+  
+  @media (max-width: 480px) {
+    max-width: 24px;
+  }
 }
 
 .appName {
@@ -28,6 +69,26 @@
   font-style: normal;
   font-weight: 600;
   line-height: 20px;
+  
+  @media (max-width: 1200px) {
+    font-size: 15px;
+    line-height: 19px;
+  }
+  
+  @media (max-width: 1024px) {
+    font-size: 14px;
+    line-height: 18px;
+  }
+  
+  @media (max-width: 768px) {
+    font-size: 12px;
+    line-height: 16px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 11px;
+    line-height: 14px;
+  }
 }
 
 .radioGroup {
@@ -38,6 +99,13 @@
     background-color: rgba(249, 249, 249, 1);
     font-weight: @fontWeight700;
     color: rgba(29, 25, 41, 1);
+    
+    @media (max-width: 768px) {
+      height: 36px;
+      line-height: 36px;
+      font-size: 12px;
+    }
+    
     &::before {
       display: none !important;
     }

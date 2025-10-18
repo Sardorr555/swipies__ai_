@@ -1,11 +1,38 @@
 .canvasWrapper {
   position: relative;
   height: calc(100% - 64px);
+  width: 100%;
+  overflow: hidden;
+  
+  @media (max-width: 1200px) {
+    height: calc(100% - 60px);
+  }
+  
+  @media (max-width: 768px) {
+    height: calc(100vh - 120px);
+  }
+  
+  @media (max-width: 480px) {
+    height: calc(100vh - 100px);
+  }
+  
   :global(.react-flow__node-group) {
     .commonNode();
     border-radius: 0 0 10px 10px;
     padding: 0;
     border: 0;
     background-color: transparent;
+    
+    @media (max-width: 768px) {
+      width: 150px;
+      padding: 8px;
+      border-radius: 0 0 8px 8px;
+    }
+  }
+  
+  :global(.react-flow__viewport) {
+    @media (max-width: 768px) {
+      transform-origin: top left;
+    }
   }
 }

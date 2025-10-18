@@ -1,15 +1,28 @@
 .popoverContent {
   width: 40vw;
+  
+  @media (max-width: 768px) {
+    width: 80vw;
+  }
 
   .popoverContentItem {
     display: flex;
     gap: 10px;
+    
+    @media (max-width: 768px) {
+      gap: 8px;
+    }
   }
 
   .popoverContentText {
     white-space: pre-line;
     max-height: 50vh;
     overflow: auto;
+    
+    @media (max-width: 768px) {
+      max-height: 40vh;
+    }
+    
     .popoverContentErrorLabel {
       color: red;
     }

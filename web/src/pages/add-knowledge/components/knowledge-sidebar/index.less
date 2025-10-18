@@ -2,6 +2,16 @@
   max-width: 288px;
   padding: 32px 24px 24px 24px;
   flex-direction: column;
+  
+  @media (max-width: 1024px) {
+    max-width: 240px;
+    padding: 24px 20px 20px 20px;
+  }
+  
+  @media (max-width: 768px) {
+    max-width: 100%;
+    padding: 16px;
+  }
 
   .sidebarTop {
     text-align: center;
@@ -12,14 +22,27 @@
       line-height: 24px;
       font-weight: @fontWeight700;
       margin-bottom: 6px;
+      
+      @media (max-width: 768px) {
+        font-size: 14px;
+        line-height: 20px;
+      }
     }
     .knowledgeDescription {
       font-size: 12px;
       font-weight: @fontWeight600;
       color: @gray8;
       margin: 0;
+      
+      @media (max-width: 768px) {
+        font-size: 11px;
+      }
     }
     padding-bottom: 20px;
+    
+    @media (max-width: 768px) {
+      padding-bottom: 16px;
+    }
   }
   .divider {
     height: 2px;
@@ -35,11 +58,20 @@
 
   .menuWrapper {
     padding-top: 10px;
+    
+    @media (max-width: 768px) {
+      padding-top: 8px;
+    }
 
     .menu {
       border: none;
       font-size: @fontSize16;
       font-weight: @fontWeight600;
+      
+      @media (max-width: 768px) {
+        font-size: 14px;
+      }
+      
       :global(.ant-menu-item) {
         display: flex;
         align-items: center;
@@ -48,16 +80,32 @@
 
     .defaultWidth {
       width: 240px;
+      
+      @media (max-width: 1024px) {
+        width: 200px;
+      }
+      
+      @media (max-width: 768px) {
+        width: 100%;
+      }
     }
 
     .minWidth {
       width: 50px;
+      
+      @media (max-width: 768px) {
+        width: 40px;
+      }
     }
 
     .menuText {
       color: @gray3;
       font-size: @fontSize14;
       font-weight: @fontWeight700;
+      
+      @media (max-width: 768px) {
+        font-size: 13px;
+      }
     }
   }
 }

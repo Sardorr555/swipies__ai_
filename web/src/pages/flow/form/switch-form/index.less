@@ -13,9 +13,28 @@
   background-color: @lightBackgroundColor;
   padding: 12px;
   border-radius: 8px;
+  
+  @media (max-width: 1200px) {
+    padding: 10px;
+    border-radius: 7px;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 8px;
+    border-radius: 6px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 6px;
+    border-radius: 5px;
+  }
 }
 
 .addButton {
   color: rgb(22, 119, 255);
   font-weight: 600;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
 }

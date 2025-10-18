@@ -3,6 +3,14 @@
     .ant-upload-list {
       max-height: 40vh;
       overflow-y: auto;
+      
+      @media (max-width: 768px) {
+        max-height: 35vh;
+      }
+      
+      @media (max-width: 480px) {
+        max-height: 30vh;
+      }
     }
   }
 }
@@ -10,4 +18,12 @@
 .uploadLimit {
   color: red;
   font-size: 12px;
+  
+  @media (max-width: 768px) {
+    font-size: 11px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 10px;
+  }
 }

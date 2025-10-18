@@ -1,23 +1,55 @@
 .messageItem {
   padding: 24px 0;
+  
+  @media (max-width: 1200px) {
+    padding: 20px 0;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 16px 0;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 12px 0;
+  }
+  
   .messageItemSection {
     display: inline-block;
   }
   .messageItemSectionLeft {
     width: 80%;
+    
+    @media (max-width: 768px) {
+      width: 100%;
+    }
   }
   .messageItemContent {
     display: inline-flex;
     gap: 20px;
     width: 100%;
+    
+    @media (max-width: 768px) {
+      gap: 12px;
+      flex-direction: column;
+    }
   }
   .messageItemContentReverse {
     flex-direction: row-reverse;
+    
+    @media (max-width: 768px) {
+      flex-direction: column;
+    }
   }
 
   .messageTextBase() {
     padding: 6px 10px;
     border-radius: 8px;
+    
+    @media (max-width: 768px) {
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    
     & > p {
       margin: 0;
     }
@@ -26,11 +58,22 @@
     .chunkText();
     .messageTextBase();
     word-break: break-word;
+    font-size: 14px;
+    
+    @media (max-width: 768px) {
+      font-size: 13px;
+    }
   }
   .messageTextDark {
     .chunkText();
     .messageTextBase();
     word-break: break-word;
+    font-size: 14px;
+    
+    @media (max-width: 768px) {
+      font-size: 13px;
+    }
+    
     :global(section.think) {
       color: rgb(166, 166, 166);
       border-left-color: rgb(78, 78, 86);
@@ -42,13 +85,26 @@
     .messageTextBase();
     word-break: break-word;
     text-align: justify;
+    font-size: 14px;
+    
+    @media (max-width: 768px) {
+      font-size: 13px;
+    }
   }
   .messageEmpty {
     width: 300px;
+    
+    @media (max-width: 768px) {
+      width: 100%;
+    }
   }
 
   .thumbnailImg {
     max-width: 20px;
+    
+    @media (max-width: 768px) {
+      max-width: 16px;
+    }
   }
 }
 

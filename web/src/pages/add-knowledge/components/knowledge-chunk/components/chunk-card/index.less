@@ -1,12 +1,21 @@
 .image {
   width: 100px !important;
   object-fit: contain;
+  
+  @media (max-width: 768px) {
+    width: 80px !important;
+  }
 }
 
 .imagePreview {
   max-width: 50vw;
   max-height: 50vh;
   object-fit: contain;
+  
+  @media (max-width: 768px) {
+    max-width: 80vw;
+    max-height: 40vh;
+  }
 }
 
 .content {

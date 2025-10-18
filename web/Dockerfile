@@ -21,6 +21,7 @@ ENV UMI_PUBLIC_PATH=${PUBLIC_PATH}
 
 # Собираем Umi (dist -> /app/dist)
 RUN npm run build
+#RUN npm run build || (echo "---- UMI LOG ----" && cat /app/node_modules/.cache/logger/umi.log && false)
 
 ########### 2) RUNTIME (Nginx) ###########
 FROM nginx:1.25-alpine

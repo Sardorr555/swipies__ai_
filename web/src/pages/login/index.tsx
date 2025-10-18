@@ -12,7 +12,6 @@ import { Button, Checkbox, Form, Input } from 'antd';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'umi';
-import RightPanel from './right-panel';
 
 import styles from './index.less';
 
@@ -195,9 +194,6 @@ const Login = () => {
             )}
           </Form>
         </div>
-      </div>
-      <div className={styles.loginRight}>
-        <RightPanel></RightPanel>
       </div>
     </div>
   );

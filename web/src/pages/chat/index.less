@@ -1,10 +1,44 @@
 .chatWrapper {
   height: 100%;
   width: 100%;
+  display: flex;
+  
+  @media (max-width: 1200px) {
+    min-height: 100vh;
+  }
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  
+  @media (max-width: 480px) {
+    min-height: 100vh;
+  }
 
   .chatAppWrapper {
     width: 288px;
     padding: 26px;
+    
+    @media (max-width: 1200px) {
+      width: 260px;
+      padding: 22px;
+    }
+    
+    @media (max-width: 1024px) {
+      width: 240px;
+      padding: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      width: 100%;
+      padding: 16px;
+      order: 2;
+    }
+    
+    @media (max-width: 480px) {
+      padding: 12px;
+    }
 
     .chatAppContent {
       overflow-y: auto;
@@ -14,6 +48,10 @@
     .chatAppCard {
       :global(.ant-card-body) {
         padding: 10px;
+        
+        @media (max-width: 768px) {
+          padding: 8px;
+        }
       }
       .cubeIcon {
         &:hover {
@@ -25,27 +63,54 @@
       :global(.ant-card-body) {
         background-color: @gray11;
         border-radius: 8px;
+        
+        @media (max-width: 768px) {
+          border-radius: 6px;
+        }
       }
     }
     .chatAppCardSelectedDark {
       :global(.ant-card-body) {
         background-color: rgba(255, 255, 255, 0.1);
         border-radius: 8px;
+        
+        @media (max-width: 768px) {
+          border-radius: 6px;
+        }
       }
     }
   }
   .chatTitleWrapper {
     width: 220px;
     padding: 26px 0;
+    
+    @media (max-width: 1024px) {
+      width: 180px;
+      padding: 20px 0;
+    }
+    
+    @media (max-width: 768px) {
+      width: 100%;
+      padding: 16px 0;
+      order: 1;
+    }
   }
 
   .chatTitle {
     padding: 5px 15px;
+    
+    @media (max-width: 768px) {
+      padding: 4px 12px;
+    }
   }
 
   .chatTitleContent {
     padding: 5px 10px;
     overflow: auto;
+    
+    @media (max-width: 768px) {
+      padding: 4px 8px;
+    }
   }
 
   .chatSpin {

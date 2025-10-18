@@ -1,10 +1,35 @@
 .title {
   flex-basis: 60px;
+  
+  @media (max-width: 1200px) {
+    flex-basis: 55px;
+    font-size: 17px;
+  }
+  
+  @media (max-width: 768px) {
+    flex-basis: 50px;
+    font-size: 16px;
+  }
+  
+  @media (max-width: 480px) {
+    flex-basis: 45px;
+    font-size: 15px;
+  }
 }
 
 .formWrapper {
   :global(.ant-form-item-label) {
     font-weight: 600;
+    
+    @media (max-width: 768px) {
+      font-size: 14px;
+    }
+  }
+  
+  :global(.ant-form-item) {
+    @media (max-width: 768px) {
+      margin-bottom: 16px;
+    }
   }
 }
 
@@ -12,10 +37,21 @@
   font-size: 14px;
   padding-top: 16px;
   font-weight: normal;
+  
+  @media (max-width: 768px) {
+    font-size: 13px;
+    padding-top: 12px;
+  }
 }
 
 .formDrawer {
   :global(.ant-drawer-content-wrapper) {
     transform: translateX(0) !important;
+  }
+  
+  @media (max-width: 768px) {
+    :global(.ant-drawer-content) {
+      padding: 16px;
+    }
   }
 }

@@ -1,6 +1,22 @@
 .fileManagerWrapper {
   width: 100%;
   padding: 32px;
+  
+  @media (max-width: 1200px) {
+    padding: 28px;
+  }
+  
+  @media (max-width: 1024px) {
+    padding: 24px;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 12px;
+  }
 }
 
 .filter {
@@ -10,11 +26,22 @@
   justify-content: space-between;
   padding: 24px 0;
   align-items: center;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 12px;
+    height: auto;
+    padding: 16px 0;
+  }
 }
 
 .deleteIconWrapper {
   width: 22px;
   text-align: center;
+  
+  @media (max-width: 768px) {
+    width: 18px;
+  }
 }
 
 .linkButton {
@@ -26,4 +53,8 @@
   color: #1677ff;
   padding: 0;
   height: auto;
+  
+  @media (max-width: 768px) {
+    font-size: 12px;
+  }
 }

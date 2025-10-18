@@ -3,9 +3,25 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  
+  @media (max-width: 1200px) {
+    height: 230px;
+  }
+  
+  @media (max-width: 768px) {
+    height: 200px;
+  }
+  
+  @media (max-width: 480px) {
+    height: 180px;
+  }
 
   .delete {
     height: 24px;
+    
+    @media (max-width: 768px) {
+      height: 20px;
+    }
   }
 
   .content {
@@ -27,6 +43,10 @@
   .titleWrapper {
     margin: 16px 0;
     overflow: hidden;
+    
+    @media (max-width: 768px) {
+      margin: 12px 0;
+    }
 
     .title {
       display: -webkit-box;
@@ -38,6 +58,16 @@
       font-weight: 600;
       color: rgba(0, 0, 0, 0.88);
       word-break: break-all;
+      
+      @media (max-width: 1024px) {
+        font-size: 20px;
+        line-height: 28px;
+      }
+      
+      @media (max-width: 768px) {
+        font-size: 18px;
+        line-height: 24px;
+      }
     }
 
     .description {
@@ -50,6 +80,11 @@
       font-weight: 600;
       line-height: 20px;
       color: rgba(0, 0, 0, 0.45);
+      
+      @media (max-width: 768px) {
+        font-size: 11px;
+        line-height: 18px;
+      }
     }
     .titledark {
       display: -webkit-box;
@@ -60,6 +95,16 @@
       line-height: 32px;
       font-weight: 600;
       word-break: break-all;
+      
+      @media (max-width: 1024px) {
+        font-size: 20px;
+        line-height: 28px;
+      }
+      
+      @media (max-width: 768px) {
+        font-size: 18px;
+        line-height: 24px;
+      }
     }
 
     .descriptiondark {
@@ -71,6 +116,11 @@
       font-size: 12px;
       font-weight: 600;
       line-height: 20px;
+      
+      @media (max-width: 768px) {
+        font-size: 11px;
+        line-height: 18px;
+      }
     }
   }
 }
@@ -83,6 +133,18 @@
   padding: 24px;
   width: 300px;
   cursor: pointer;
+  
+  @media (max-width: 1024px) {
+    width: 280px;
+    padding: 20px;
+  }
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    max-width: 100%;
+    padding: 16px;
+    border-radius: 8px;
+  }
 
   .titleWrapper {
     .title {
@@ -90,11 +152,26 @@
       line-height: 32px;
       font-weight: 600;
       word-break: break-all;
+      
+      @media (max-width: 1024px) {
+        font-size: 20px;
+        line-height: 28px;
+      }
+      
+      @media (max-width: 768px) {
+        font-size: 18px;
+        line-height: 24px;
+      }
     }
     .description {
       font-size: 12px;
       font-weight: 600;
       line-height: 20px;
+      
+      @media (max-width: 768px) {
+        font-size: 11px;
+        line-height: 18px;
+      }
     }
   }
 
@@ -116,11 +193,20 @@
     margin-right: 10px;
     font-size: 18px;
     vertical-align: middle;
+    
+    @media (max-width: 768px) {
+      margin-right: 8px;
+      font-size: 16px;
+    }
   }
   .rightText {
     font-size: 12px;
     font-weight: 600;
     vertical-align: middle;
+    
+    @media (max-width: 768px) {
+      font-size: 11px;
+    }
   }
 }
 

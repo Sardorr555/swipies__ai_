@@ -2,6 +2,11 @@
   display: flex;
   height: 100%;
   width: 100%;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+  
   .contentWrapper {
     flex: 1;
     overflow-x: auto;
@@ -10,10 +15,23 @@
     padding: 16px 20px 28px 40px;
     display: flex;
     flex-direction: column;
+    
+    @media (max-width: 1024px) {
+      padding: 14px 16px 24px 32px;
+    }
+    
+    @media (max-width: 768px) {
+      padding: 12px 16px 20px 16px;
+      height: calc(100vh - 60px);
+    }
   }
   .content {
     background-color: rgba(255, 255, 255, 0.1);
     margin-top: 16px;
     flex: 1;
+    
+    @media (max-width: 768px) {
+      margin-top: 12px;
+    }
   }
 }

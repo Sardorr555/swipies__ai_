@@ -1,13 +1,50 @@
 .chatWrapper {
   height: 100vh;
+  
+  @media (max-width: 1200px) {
+    min-height: 100vh;
+  }
+  
+  @media (max-width: 768px) {
+    min-height: 100vh;
+  }
+  
+  @media (max-width: 480px) {
+    min-height: 100vh;
+  }
 }
 
 .chatContainer {
   padding: 10px;
   box-sizing: border-box;
   height: 100%;
+  
+  @media (max-width: 1200px) {
+    padding: 8px;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 6px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 4px;
+  }
+  
   .messageContainer {
     overflow-y: auto;
     padding-right: 6px;
+    
+    @media (max-width: 1200px) {
+      padding-right: 5px;
+    }
+    
+    @media (max-width: 768px) {
+      padding-right: 4px;
+    }
+    
+    @media (max-width: 480px) {
+      padding-right: 3px;
+    }
   }
 }

@@ -1,17 +1,44 @@
 .systemInfo {
   width: 100%;
+  
+  @media (max-width: 1200px) {
+    min-height: 100vh;
+  }
+  
   .title {
     font-size: 20px;
     font-weight: 600;
+
+    @media (max-width: 1200px) {
+      font-size: 19px;
+    }
+
+    @media (max-width: 768px) {
+      font-size: 18px;
+    }
+    
+    @media (max-width: 480px) {
+      font-size: 16px;
+    }
   }
   .text {
     height: 26px;
     line-height: 26px;
+
+    @media (max-width: 768px) {
+      height: 24px;
+      line-height: 24px;
+    }
   }
   .badge {
     :global(.ant-badge-status-dot) {
       width: 10px;
       height: 10px;
+
+      @media (max-width: 768px) {
+        width: 8px;
+        height: 8px;
+      }
     }
   }
   .error {
@@ -21,13 +48,25 @@
 
 .taskBarTooltip {
   font-size: 16px;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
 }
 
 .taskBar {
   width: '100%';
   height: 200px;
+
+  @media (max-width: 768px) {
+    height: 150px;
+  }
 }
 
 .taskBarTitle {
   font-size: 16px;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
 }

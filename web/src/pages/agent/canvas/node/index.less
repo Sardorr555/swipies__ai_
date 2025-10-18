@@ -3,17 +3,35 @@
 }
 .ragNode {
   .commonNode();
+  
+  @media (max-width: 768px) {
+    width: 150px;
+    padding: 8px;
+  }
+  
   .nodeName {
     font-size: 10px;
     color: black;
+    
+    @media (max-width: 768px) {
+      font-size: 9px;
+    }
   }
   label {
     display: block;
     color: #777;
     font-size: 12px;
+    
+    @media (max-width: 768px) {
+      font-size: 11px;
+    }
   }
   .description {
     font-size: 10px;
+    
+    @media (max-width: 768px) {
+      font-size: 9px;
+    }
   }
 
   .categorizeAnchorPointText {
@@ -21,6 +39,11 @@
     top: -4px;
     left: 8px;
     white-space: nowrap;
+    
+    @media (max-width: 768px) {
+      left: 6px;
+      font-size: 9px;
+    }
   }
 }
 
@@ -59,6 +82,11 @@
   background-image: url('@/assets/svg/plus.svg');
   background-size: cover;
   background-position: center;
+  
+  @media (max-width: 768px) {
+    width: 10px;
+    height: 10px;
+  }
 }
 
 .jsonView {
@@ -66,6 +94,11 @@
   overflow: auto;
   max-width: 300px;
   max-height: 500px;
+  
+  @media (max-width: 768px) {
+    max-width: 250px;
+    max-height: 300px;
+  }
 }
 
 .logicNode {

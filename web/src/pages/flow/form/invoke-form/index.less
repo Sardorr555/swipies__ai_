@@ -7,12 +7,31 @@
     padding: 5px 12px;
     cursor: pointer;
     height: 30px !important;
+    
+    @media (max-width: 1200px) {
+      padding: 4px 10px;
+      height: 29px !important;
+    }
+    
+    @media (max-width: 768px) {
+      padding: 4px 8px;
+      height: 28px !important;
+    }
+    
+    @media (max-width: 480px) {
+      padding: 3px 6px;
+      height: 26px !important;
+    }
   }
   &:hover {
     :global(.editable-cell-value-wrap) {
       padding: 4px 11px;
       border: 1px solid #d9d9d9;
       border-radius: 2px;
+      
+      @media (max-width: 768px) {
+        padding: 3px 7px;
+      }
     }
   }
 }
@@ -26,19 +45,41 @@
     padding: 0 !important;
   }
   margin-bottom: 20px;
+  
+  @media (max-width: 768px) {
+    margin-bottom: 16px;
+  }
+  
   .title {
     font-weight: 600;
     font-size: 16px;
+    
+    @media (max-width: 768px) {
+      font-size: 14px;
+    }
   }
   .variableType {
     width: 30%;
+    
+    @media (max-width: 768px) {
+      width: 100%;
+      margin-bottom: 8px;
+    }
   }
   .variableValue {
     flex: 1;
+    
+    @media (max-width: 768px) {
+      width: 100%;
+    }
   }
 
   .addButton {
     color: rgb(22, 119, 255);
     font-weight: 600;
+    
+    @media (max-width: 768px) {
+      font-size: 14px;
+    }
   }
 }

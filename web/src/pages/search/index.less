@@ -1,10 +1,15 @@
 .searchPage {
   background-position: center;
   background-size: cover;
+  
   .card {
     width: 100%;
     :global(.ant-card-body) {
       padding: 14px;
+      
+      @media (max-width: 768px) {
+        padding: 10px;
+      }
     }
     p {
       margin: 0;
@@ -14,6 +19,11 @@
     padding: 4px 8px;
     font-size: 14px;
     cursor: pointer;
+    
+    @media (max-width: 768px) {
+      padding: 3px 6px;
+      font-size: 12px;
+    }
   }
 }
 
@@ -21,6 +31,15 @@
   position: relative;
   max-width: 400px !important;
   min-width: auto !important;
+  
+  @media (max-width: 1200px) {
+    max-width: 350px !important;
+  }
+  
+  @media (max-width: 768px) {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
 
   :global(.ant-layout-sider-children) {
     height: auto;
@@ -30,6 +49,16 @@
   .modelForm {
     display: flex;
     padding: 24px;
+    
+    @media (max-width: 1024px) {
+      padding: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      padding: 16px;
+      flex-direction: column;
+      gap: 12px;
+    }
   }
 
   .checkGroup {
@@ -41,6 +70,12 @@
     width: 100%;
     height: calc(100vh - 76px);
     overflow: auto;
+    
+    @media (max-width: 768px) {
+      height: calc(100vh - 120px);
+      padding-top: 8px;
+    }
+    
     // background-color: transparent;
     // &::-webkit-scrollbar-track {
     //   background: transparent;
@@ -52,9 +87,18 @@
   .knowledgeName {
     width: 116px;
     max-width: 270px;
+    
+    @media (max-width: 768px) {
+      width: 100%;
+      max-width: 100%;
+    }
   }
   .embeddingId {
     width: 170px;
+    
+    @media (max-width: 768px) {
+      width: 100%;
+    }
   }
 }
 
@@ -67,6 +111,15 @@
   overflow: auto;
   width: 100%;
   padding: 20px 16% 10px;
+  
+  @media (max-width: 1024px) {
+    padding: 16px 8% 8px;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 12px 4% 6px;
+  }
+  
   .hide {
     display: none;
   }
@@ -89,6 +142,10 @@
   }
   .pagination {
     padding-bottom: 16px;
+    
+    @media (max-width: 768px) {
+      padding-bottom: 12px;
+    }
   }
 }
 .answerWrapper {
@@ -128,6 +185,15 @@
   top: 30%;
   z-index: 1;
   .input();
+  
+  @media (max-width: 1024px) {
+    width: 500px;
+  }
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 .partialInput {
   width: 100%;
@@ -147,6 +213,10 @@
   display: inline-block;
   vertical-align: middle;
   width: 60px;
+  
+  @media (max-width: 768px) {
+    width: 40px;
+  }
 }
 
 .appName {
@@ -156,6 +226,15 @@
   font-style: normal;
   font-weight: 600;
   line-height: 20px;
+  
+  @media (max-width: 1024px) {
+    font-size: 32px;
+  }
+  
+  @media (max-width: 768px) {
+    font-size: 24px;
+    line-height: 16px;
+  }
 
   background: linear-gradient(to right, #095fab 10%, #25abe8 50%, #55c8dd 60%);
   background-size: auto auto;

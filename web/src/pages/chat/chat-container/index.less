@@ -1,7 +1,40 @@
 .chatContainer {
   padding: 0 0 24px 24px;
+  
+  @media (max-width: 1200px) {
+    padding: 0 0 22px 22px;
+  }
+  
+  @media (max-width: 1024px) {
+    padding: 0 0 20px 20px;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 0 0 16px 16px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0 0 12px 12px;
+  }
+  
   .messageContainer {
     overflow-y: auto;
     padding-right: 24px;
+    
+    @media (max-width: 1200px) {
+      padding-right: 22px;
+    }
+    
+    @media (max-width: 1024px) {
+      padding-right: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      padding-right: 16px;
+    }
+    
+    @media (max-width: 480px) {
+      padding-right: 12px;
+    }
   }
 }

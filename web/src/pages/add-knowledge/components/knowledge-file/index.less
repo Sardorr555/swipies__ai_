@@ -1,6 +1,14 @@
 .datasetWrapper {
   padding: 30px 30px 0;
   height: 100%;
+  
+  @media (max-width: 1024px) {
+    padding: 24px 24px 0;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 16px 16px 0;
+  }
 }
 
 .documentTable {
@@ -16,11 +24,22 @@
   justify-content: space-between;
   padding: 24px 0;
   align-items: center;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 12px;
+    height: auto;
+    padding: 16px 0;
+  }
 }
 
 .deleteIconWrapper {
   width: 22px;
   text-align: center;
+  
+  @media (max-width: 768px) {
+    width: 18px;
+  }
 }
 
 .img {
@@ -28,10 +47,19 @@
   width: 24px;
   display: inline-block;
   vertical-align: middle;
+  
+  @media (max-width: 768px) {
+    height: 20px;
+    width: 20px;
+  }
 }
 
 .column {
   min-width: 200px;
+  
+  @media (max-width: 768px) {
+    min-width: 150px;
+  }
 }
 
 .toChunks {
@@ -40,6 +68,10 @@
 
 .pageInputNumber {
   width: 220px;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+  }
 }
 
 .questionIcon {

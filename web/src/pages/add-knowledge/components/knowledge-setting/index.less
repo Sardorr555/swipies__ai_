@@ -1,5 +1,9 @@
 .tags {
   margin-bottom: 24px;
+  
+  @media (max-width: 768px) {
+    margin-bottom: 16px;
+  }
 }
 
 .preset {
@@ -9,6 +13,12 @@
   border-radius: 5px;
   padding: 5px;
   margin-bottom: 24px;
+  
+  @media (max-width: 768px) {
+    height: 60px;
+    margin-bottom: 16px;
+    flex-direction: column;
+  }
 
   .left {
     flex: 1;
@@ -19,11 +29,27 @@
     border-left: 1px solid rgba(0, 0, 0, 0.4);
     margin: 10px 0px;
     padding: 5px;
+    
+    @media (max-width: 768px) {
+      width: 100%;
+      border-left: none;
+      border-top: 1px solid rgba(0, 0, 0, 0.4);
+      margin: 5px 0px;
+    }
   }
 }
 
 .configurationWrapper {
   padding: 0 52px;
+  
+  @media (max-width: 1024px) {
+    padding: 0 32px;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 0 16px;
+  }
+  
   .buttonWrapper {
     text-align: right;
   }
@@ -38,6 +64,10 @@
   }
   .imageRow {
     margin-top: 16px;
+    
+    @media (max-width: 768px) {
+      margin-top: 12px;
+    }
   }
   .image {
     width: 100%;

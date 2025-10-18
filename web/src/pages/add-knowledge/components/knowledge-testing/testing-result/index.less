@@ -8,16 +8,38 @@
   flex-direction: column;
   justify-content: space-between;
 
+  @media (max-width: 1024px) {
+    padding: 24px 16px;
+    height: calc(100vh - 140px);
+  }
+
+  @media (max-width: 768px) {
+    padding: 20px 16px;
+    height: calc(100vh - 120px);
+  }
+
   .selectFilesCollapse {
     :global(.ant-collapse-header) {
       padding-left: 22px;
+
+      @media (max-width: 768px) {
+        padding-left: 18px;
+      }
     }
     margin-bottom: 32px;
     overflow-y: auto;
+
+    @media (max-width: 768px) {
+      margin-bottom: 24px;
+    }
   }
 
   .selectFilesTitle {
     padding-right: 10px;
+
+    @media (max-width: 768px) {
+      padding-right: 8px;
+    }
   }
 
   .similarityCircle {
@@ -27,20 +49,39 @@
     background-color: rgba(255, 255, 255, 0.1);
     font-size: 10px;
     font-weight: normal;
+
+    @media (max-width: 768px) {
+      width: 20px;
+      height: 20px;
+      font-size: 9px;
+    }
   }
 
   .similarityText {
     font-size: 12px;
     font-weight: 500;
+
+    @media (max-width: 768px) {
+      font-size: 11px;
+    }
   }
   .image {
     width: 100%;
     max-height: 30vh;
     object-fit: contain;
+
+    @media (max-width: 768px) {
+      max-height: 25vh;
+    }
   }
 }
 .imagePreview {
   display: block;
   max-width: 45vw;
   max-height: 40vh;
+
+  @media (max-width: 768px) {
+    max-width: 80vw;
+    max-height: 35vh;
+  }
 }

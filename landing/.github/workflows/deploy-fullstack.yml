@@ -120,3 +120,4 @@ jobs:
           EC2_POST_DEPLOY_CMD: ${{ secrets.EC2_POST_DEPLOY_CMD }}
         run: |
           ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "${EC2_POST_DEPLOY_CMD}"
+
