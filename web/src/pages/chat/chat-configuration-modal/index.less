@@ -16,12 +16,35 @@
 
 .variableContainer {
   padding-bottom: 20px;
+  
+  @media (max-width: 768px) {
+    padding-bottom: 16px;
+  }
+  
+  @media (max-width: 480px) {
+    padding-bottom: 12px;
+  }
+  
   .variableAlign {
     text-align: end;
+    
+    @media (max-width: 768px) {
+      text-align: center;
+    }
   }
 
   .variableLabel {
     margin-right: 14px;
+    
+    @media (max-width: 768px) {
+      margin-right: 10px;
+      font-size: 13px;
+    }
+    
+    @media (max-width: 480px) {
+      margin-right: 8px;
+      font-size: 12px;
+    }
   }
 
   .variableIcon {
@@ -29,10 +52,28 @@
     color: rgba(0, 0, 0, 0.45);
     cursor: help;
     writing-mode: horizontal-tb;
+    
+    @media (max-width: 768px) {
+      margin-inline-start: 3px;
+      font-size: 14px;
+    }
+    
+    @media (max-width: 480px) {
+      margin-inline-start: 2px;
+      font-size: 12px;
+    }
   }
 
   .variableTable {
     margin-top: 14px;
+    
+    @media (max-width: 768px) {
+      margin-top: 12px;
+    }
+    
+    @media (max-width: 480px) {
+      margin-top: 10px;
+    }
   }
   .editableRow {
     :global(.editable-cell) {
@@ -43,12 +84,32 @@
       padding: 5px 12px;
       cursor: pointer;
       height: 22px !important;
+      
+      @media (max-width: 768px) {
+        padding: 4px 10px;
+        height: 20px !important;
+        font-size: 13px;
+      }
+      
+      @media (max-width: 480px) {
+        padding: 3px 8px;
+        height: 18px !important;
+        font-size: 12px;
+      }
     }
     &:hover {
       :global(.editable-cell-value-wrap) {
         padding: 4px 11px;
         border: 1px solid #d9d9d9;
         border-radius: 2px;
+        
+        @media (max-width: 768px) {
+          padding: 3px 9px;
+        }
+        
+        @media (max-width: 480px) {
+          padding: 2px 7px;
+        }
       }
     }
   }
@@ -63,6 +124,15 @@
 
 .sliderInputNumber {
   width: 80px;
+  
+  @media (max-width: 768px) {
+    width: 70px;
+  }
+  
+  @media (max-width: 480px) {
+    width: 100%;
+    max-width: 100px;
+  }
 }
 .variableSlider {
   width: 100%;
