@@ -169,7 +169,7 @@ const Login = () => {
             >
               {title === 'login' ? t('login') : t('continue')}
             </Button>
-            {title === 'login' && channels && channels.length > 0 && (
+            {channels && channels.length > 0 && (
               <div className={styles.thirdPartyLoginButton}>
                 {channels.map((item) => (
                   <Button
