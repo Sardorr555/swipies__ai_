@@ -42,6 +42,7 @@ services:
       - HF_ENDPOINT=${HF_ENDPOINT-}
       - MACOS=${MACOS-}
       - ENABLE_DOCS=1
+      - RAGFLOW_SECRET_KEY=${RAGFLOW_SECRET_KEY}
     networks:
       - ragflow
     restart: on-failure
