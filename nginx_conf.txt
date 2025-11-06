@@ -1,0 +1,111 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name swipies.app www.swipies.app;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name swipies.app www.swipies.app;
+
+    ssl_certificate /etc/letsencrypt/live/swipies.app/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/swipies.app/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    client_max_body_size 100M;
+
+    # --- Лендинг (Vite build)
+    location ^~ /landing/ {
+        alias /home/ubuntu/swipies__ai_/landing/build/;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Ассеты из build/assets/
+    location ^~ /landing/assets/ {
+        alias /home/ubuntu/swipies__ai_/landing/build/assets/;
+        access_log off;
+        expires 30d;
+        add_header Cache-Control "public";
+        try_files $uri =404;
+    }
+
+    location = /landing/favicon.svg {
+        alias /home/ubuntu/swipies__ai_/landing/favicon.svg;
+    }
+
+    # --- Backend API (Ragflow server) - ВСЕ /v1/ запросы
+    location ^~ /v1/ {
+        proxy_pass http://127.0.0.1:9380/v1/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # --- Backend API (Ragflow server) - /api/
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:9380/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+    }
+
+    # --- WebSockets
+    location ^~ /ws/ {
+        proxy_pass http://127.0.0.1:9380/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+    }
+
+    # --- Appsmith
+    location /appsmith/ {
+        rewrite ^/appsmith(/.*)$ $1 break;
+        proxy_pass http://127.0.0.1:8081/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+
+        # Fix for websocket connections in Appsmith
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+    }
+
+    # Редирект без / в конце
+    location = /appsmith {
+        return 301 https://$host/appsmith/;
+    }
+
+    # --- Ragflow Frontend (SPA) - ДОЛЖЕН БЫТЬ ПОСЛЕДНИМ
+    location / {
+        proxy_pass http://127.0.0.1:8080/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+    }
+
+    access_log /var/log/nginx/swipies.access.log;
+    error_log /var/log/nginx/swipies.error.log warn;
+}
