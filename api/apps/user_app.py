@@ -217,7 +217,7 @@ def oauth_callback(channel):
                 # Try to log in
                 user = users[0]
                 login_user(user)
-                return redirect(f"/login?auth={user.get_id()}")
+                return redirect(f"/?auth={user.get_id()}")
 
             except Exception as e:
                 rollback_user_registration(user_id)
@@ -229,7 +229,7 @@ def oauth_callback(channel):
         user.access_token = get_uuid()
         login_user(user)
         user.save()
-        return redirect(f"/login?auth={user.get_id()}")
+        return redirect(f"/?auth={user.get_id()}")
     except Exception as e:
         logging.exception(e)
         return redirect(f"/?error={str(e)}")
@@ -308,7 +308,7 @@ def github_callback():
             # Try to log in
             user = users[0]
             login_user(user)
-            return redirect("/login?auth=%s" % user.get_id())
+            return redirect("/?auth=%s" % user.get_id())
         except Exception as e:
             rollback_user_registration(user_id)
             logging.exception(e)
@@ -319,7 +319,7 @@ def github_callback():
     user.access_token = get_uuid()
     login_user(user)
     user.save()
-    return redirect("/login?auth=%s" % user.get_id())
+    return redirect("/?auth=%s" % user.get_id())
 
 
 @manager.route("/feishu_callback", methods=["GET"])  # noqa: F821
@@ -410,7 +410,7 @@ def feishu_callback():
             # Try to log in
             user = users[0]
             login_user(user)
-            return redirect("/login?auth=%s" % user.get_id())
+            return redirect("/?auth=%s" % user.get_id())
         except Exception as e:
             rollback_user_registration(user_id)
             logging.exception(e)
@@ -421,7 +421,7 @@ def feishu_callback():
     user.access_token = get_uuid()
     login_user(user)
     user.save()
-    return redirect("/login?auth=%s" % user.get_id())
+    return redirect("/?auth=%s" % user.get_id())
 
 
 def user_info_from_feishu(access_token):
