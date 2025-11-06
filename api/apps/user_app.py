@@ -217,7 +217,11 @@ def oauth_callback(channel):
                 # Try to log in
                 user = users[0]
                 login_user(user)
-                return redirect(f"/?auth={user.get_id()}")
+                auth_token = user.get_id()
+                redirect_url = f"/?auth={auth_token}"
+                logging.info(f"OAuth new user registration successful for {user.email}, redirecting to: {redirect_url}")
+                logging.info(f"Auth token length: {len(auth_token)}")
+                return redirect(redirect_url)
 
             except Exception as e:
                 rollback_user_registration(user_id)
@@ -229,7 +233,11 @@ def oauth_callback(channel):
         user.access_token = get_uuid()
         login_user(user)
         user.save()
-        return redirect(f"/?auth={user.get_id()}")
+        auth_token = user.get_id()
+        redirect_url = f"/?auth={auth_token}"
+        logging.info(f"OAuth existing user login successful for {user.email}, redirecting to: {redirect_url}")
+        logging.info(f"Auth token length: {len(auth_token)}")
+        return redirect(redirect_url)
     except Exception as e:
         logging.exception(e)
         return redirect(f"/?error={str(e)}")
