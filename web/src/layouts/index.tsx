@@ -20,12 +20,15 @@ const App: React.FC = () => {
         <Divider orientationMargin={0} className={styles.divider} />
         <Content
           style={{
-            minHeight: 280,
+            minHeight: 'calc(100vh - 72px)',
             background: colorBgContainer,
             borderRadius: borderRadiusLG,
             overflow: 'auto',
             display: 'flex',
+            flex: 1,
+            width: '100%',
           }}
+          className="responsive-content"
         >
           <Outlet />
         </Content>

@@ -4,7 +4,7 @@ import { Datasets } from './datasets';
 
 const Home = () => {
   return (
-    <div className="mx-8">
+    <div className="mx-4 sm:mx-6 md:mx-8">
       <section>
         <NextBanner></NextBanner>
         <Datasets></Datasets>

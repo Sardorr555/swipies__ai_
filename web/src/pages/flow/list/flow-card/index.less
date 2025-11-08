@@ -1,34 +1,42 @@
 .container {
-  height: 160px;
+  height: clamp(120px, 18vh, 160px);
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   
-  @media (max-width: 1200px) {
-    height: 150px;
+  @media (max-width: 1024px) {
+    height: clamp(115px, 17vh, 150px);
+    min-height: 115px;
   }
   
   @media (max-width: 768px) {
-    height: 140px;
+    height: clamp(110px, 16vh, 140px);
+    min-height: 110px;
   }
   
   @media (max-width: 480px) {
-    height: 120px;
+    height: clamp(100px, 15vh, 120px);
+    min-height: 100px;
   }
 
   .delete {
-    height: 24px;
+    height: clamp(18px, 2.5vh, 24px);
+    min-height: 18px;
     
-    @media (max-width: 1200px) {
-      height: 22px;
+    @media (max-width: 1024px) {
+      height: clamp(17px, 2.3vh, 22px);
+      min-height: 17px;
     }
     
     @media (max-width: 768px) {
-      height: 20px;
+      height: clamp(16px, 2.2vh, 20px);
+      min-height: 16px;
     }
     
     @media (max-width: 480px) {
-      height: 18px;
+      height: clamp(15px, 2vh, 18px);
+      min-height: 15px;
     }
   }
 
@@ -50,67 +58,56 @@
 }
 
 .card {
-  border-radius: 12px;
+  border-radius: clamp(8px, 1vw, 12px);
   border: 1px solid rgba(0, 0, 0, 0.3);
   background-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
-  padding: 24px;
-  width: 300px;
+  padding: clamp(12px, 2vw, 24px);
+  width: clamp(240px, 25vw, 300px);
+  min-width: 240px;
   cursor: pointer;
-  
-  @media (max-width: 1200px) {
-    padding: 20px;
-    width: 280px;
-  }
-  
-  @media (max-width: 768px) {
-    padding: 16px;
-    width: 260px;
-  }
-  
-  @media (max-width: 480px) {
-    padding: 12px;
-    width: 240px;
-  }
+  box-sizing: border-box;
   
   @media (max-width: 1024px) {
-    width: 280px;
-    padding: 20px;
+    width: clamp(220px, 23vw, 280px);
+    padding: clamp(16px, 1.8vw, 20px);
+    min-width: 220px;
   }
   
   @media (max-width: 768px) {
     width: 100%;
     max-width: 100%;
-    padding: 16px;
-    border-radius: 8px;
+    min-width: 100%;
+    padding: clamp(12px, 1.5vw, 16px);
+    border-radius: clamp(6px, 0.8vw, 8px);
   }
 
   .titleWrapper {
     // flex: 1;
     .title {
-      font-size: 24px;
-      line-height: 32px;
+      font-size: clamp(18px, 2.5vw, 24px);
+      line-height: clamp(24px, 3.5vw, 32px);
       font-weight: 600;
       word-break: break-all;
       
       @media (max-width: 1024px) {
-        font-size: 20px;
-        line-height: 28px;
+        font-size: clamp(18px, 2.2vw, 20px);
+        line-height: clamp(24px, 3.2vw, 28px);
       }
       
       @media (max-width: 768px) {
-        font-size: 18px;
-        line-height: 24px;
+        font-size: clamp(16px, 2vw, 18px);
+        line-height: clamp(20px, 2.8vw, 24px);
       }
     }
     .description {
-      font-size: 12px;
+      font-size: clamp(11px, 1.2vw, 12px);
       font-weight: 600;
-      line-height: 20px;
+      line-height: clamp(18px, 2.2vw, 20px);
       
       @media (max-width: 768px) {
-        font-size: 11px;
-        line-height: 18px;
+        font-size: clamp(10px, 1.1vw, 11px);
+        line-height: clamp(16px, 2vw, 18px);
       }
     }
   }
@@ -130,22 +127,22 @@
     vertical-align: middle;
   }
   .leftIcon {
-    margin-right: 10px;
-    font-size: 18px;
+    margin-right: clamp(6px, 0.8vw, 10px);
+    font-size: clamp(16px, 1.8vw, 18px);
     vertical-align: middle;
     
     @media (max-width: 768px) {
-      margin-right: 8px;
-      font-size: 16px;
+      margin-right: clamp(6px, 0.7vw, 8px);
+      font-size: clamp(14px, 1.6vw, 16px);
     }
   }
   .rightText {
-    font-size: 12px;
+    font-size: clamp(11px, 1.2vw, 12px);
     font-weight: 600;
     vertical-align: middle;
     
     @media (max-width: 768px) {
-      font-size: 11px;
+      font-size: clamp(10px, 1.1vw, 11px);
     }
   }
 }

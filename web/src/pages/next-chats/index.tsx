@@ -36,7 +36,7 @@ export default function ChatList() {
 
   return (
     <section className="flex flex-col w-full flex-1">
-      <div className="px-8 pt-8">
+      <div className="px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8">
         <ListFilterBar
           title="Chat apps"
           onSearchChange={handleInputChange}
@@ -49,7 +49,7 @@ export default function ChatList() {
         </ListFilterBar>
       </div>
       <div className="flex-1 overflow-auto">
-        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 max-h-[84vh] overflow-auto px-8">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 max-h-[84vh] overflow-auto px-4 sm:px-6 md:px-8">
           {data.dialogs.map((x) => {
             return (
               <ChatCard
@@ -61,7 +61,7 @@ export default function ChatList() {
           })}
         </div>
       </div>
-      <div className="mt-8 px-8 pb-8">
+      <div className="mt-4 sm:mt-6 md:mt-8 px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
         <RAGFlowPagination
           {...pick(pagination, 'current', 'pageSize')}
           total={pagination.total}

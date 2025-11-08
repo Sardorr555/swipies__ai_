@@ -58,14 +58,15 @@ const KnowledgeList = () => {
           </span>
           <p className={styles.description}>{t('description')}</p>
         </div>
-        <Space size={'large'}>
+        <Space size={'large'} wrap className={styles.topActions}>
           <Input
             placeholder={t('searchKnowledgePlaceholder')}
             value={searchString}
-            style={{ width: 220 }}
+            style={{ width: 'clamp(180px, 25vw, 220px)', minWidth: '180px' }}
             allowClear
             onChange={handleInputChange}
             prefix={<SearchOutlined />}
+            className={styles.searchInput}
           />
 
           <Button
@@ -74,17 +75,19 @@ const KnowledgeList = () => {
             onClick={showModal}
             className={styles.topButton}
           >
-            {t('createKnowledgeBase')}
+            <span className={styles.buttonText}>{t('createKnowledgeBase')}</span>
           </Button>
         </Space>
       </div>
       <Spin spinning={loading}>
         <div
           id="scrollableDiv"
+          className={styles.scrollableContainer}
           style={{
-            height: 'calc(100vh - 250px)',
+            height: 'clamp(400px, calc(100vh - 200px), calc(100vh - 250px))',
+            minHeight: '400px',
             overflow: 'auto',
-            padding: '0 16px',
+            padding: 'clamp(8px, 1.5vw, 16px)',
           }}
         >
           <InfiniteScroll

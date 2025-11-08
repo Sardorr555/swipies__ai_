@@ -57,13 +57,17 @@ const RagHeader = () => {
   return (
     <Header
       style={{
-        padding: '0 16px',
+        padding: '0 clamp(12px, 2vw, 16px)',
         background: colorBgContainer,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        height: '72px',
+        height: 'clamp(56px, 8vh, 72px)',
+        minHeight: '56px',
+        flexWrap: 'wrap',
+        gap: '12px',
       }}
+      className="responsive-header"
     >
       <a href={window.location.origin}>
         <Space

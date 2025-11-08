@@ -1,8 +1,11 @@
 .settingWrapper {
   width: 100%;
+  max-width: 100%;
   display: flex;
+  min-height: 100vh;
+  overflow-x: hidden;
   
-  @media (max-width: 1200px) {
+  @media (max-width: 1024px) {
     min-height: 100vh;
   }
   
@@ -19,18 +22,34 @@
     height: 100%;
     overflow-y: auto;
     flex: 1;
+    width: 100%;
+    box-sizing: border-box;
+    padding: clamp(12px, 2vw, 24px);
+    
+    @media (max-width: 1024px) {
+      padding: clamp(10px, 1.5vw, 20px);
+    }
     
     @media (max-width: 768px) {
       height: calc(100vh - 60px);
+      min-height: 400px;
+      padding: clamp(8px, 1.2vw, 16px);
+    }
+    
+    @media (max-width: 480px) {
+      min-height: 350px;
+      padding: clamp(6px, 1vw, 12px);
     }
   }
 
   .itemDescription {
-    padding: 10px 0;
+    padding: clamp(8px, 1vh, 10px) 0;
     margin: 0;
+    font-size: clamp(13px, 1.2vw, 14px);
     
     @media (max-width: 768px) {
-      padding: 8px 0;
+      padding: clamp(6px, 0.8vh, 8px) 0;
+      font-size: clamp(12px, 1.1vw, 13px);
     }
   }
 }

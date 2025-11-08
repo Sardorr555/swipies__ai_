@@ -106,35 +106,39 @@ export function Header() {
   }, [navigate]);
 
   return (
-    <section className="p-5 pr-14 flex justify-between items-center ">
-      <div className="flex items-center gap-4">
+    <section className="w-full px-4 py-3 md:px-5 md:py-4 lg:px-6 lg:pr-14 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
         <img
           src={'/logo.svg'}
           alt="logo"
-          className="size-10 mr-[12]"
+          className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 cursor-pointer"
           onClick={handleLogoClick}
         />
         <a
-          className="flex items-center gap-1.5 text-text-secondary"
+          className="flex items-center gap-1 sm:gap-1.5 text-text-secondary"
           target="_blank"
           href="https://github.com/Sardorr555/swipies__ai_.git"
           rel="noreferrer"
         >
-          <Github className="size-4" />
+          <Github className="w-3 h-3 sm:w-4 sm:h-4" />
           {/* <span className=" text-base">21.5k stars</span> */}
         </a>
       </div>
-      <Segmented
-        options={options}
-        value={pathname}
-        onChange={handleChange}
-      ></Segmented>
-      <div className="flex items-center gap-5 text-text-badge">
+      <div className="w-full sm:w-auto flex-1 sm:flex-none">
+        <Segmented
+          options={options}
+          value={pathname}
+          onChange={handleChange}
+          className="w-full sm:w-auto"
+        ></Segmented>
+      </div>
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 lg:gap-5 text-text-badge flex-wrap">
         <DropdownMenu>
           <DropdownMenuTrigger>
-            <div className="flex items-center gap-1">
-              {t(`common.${camelCase(language)}`)}
-              <ChevronDown className="size-4" />
+            <div className="flex items-center gap-1 text-sm sm:text-base">
+              <span className="hidden sm:inline">{t(`common.${camelCase(language)}`)}</span>
+              <span className="sm:hidden">{language.substring(0, 2).toUpperCase()}</span>
+              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
@@ -145,18 +149,18 @@ export function Header() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant={'ghost'} onClick={handleDocHelpCLick}>
-          <CircleHelp />
+        <Button variant={'ghost'} onClick={handleDocHelpCLick} className="p-2 sm:p-2.5">
+          <CircleHelp className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
-        <Button variant={'ghost'} onClick={onThemeClick}>
-          {theme === 'light' ? <Sun /> : <Moon />}
+        <Button variant={'ghost'} onClick={onThemeClick} className="p-2 sm:p-2.5">
+          {theme === 'light' ? <Sun className="w-4 h-4 sm:w-5 sm:h-5" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
         </Button>
         <BellButton></BellButton>
         <div className="relative">
           <RAGFlowAvatar
             name={nickname}
             avatar={avatar}
-            className="size-8 cursor-pointer"
+            className="w-7 h-7 sm:w-8 sm:h-8 cursor-pointer"
             onClick={navigateToOldProfile}
           ></RAGFlowAvatar>
           {/* Temporarily hidden */}

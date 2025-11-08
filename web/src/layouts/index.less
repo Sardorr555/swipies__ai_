@@ -39,22 +39,37 @@
 }
 
 .layout {
+  min-height: 100vh;
   height: 100vh;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  overflow-x: hidden;
   
-  @media (max-width: 1200px) {
+  @media (max-width: 1024px) {
     min-height: 100vh;
+    height: auto;
   }
   
   @media (max-width: 768px) {
-    height: 100vh;
-    overflow-x: hidden;
     min-height: 100vh;
+    height: auto;
   }
   
   @media (max-width: 480px) {
     min-height: 100vh;
+    height: auto;
+  }
+}
+
+.responsive-content {
+  @media (max-width: 768px) {
+    min-height: calc(100vh - 60px) !important;
+    border-radius: 0 !important;
+  }
+  
+  @media (max-width: 480px) {
+    min-height: calc(100vh - 56px) !important;
   }
 }
 

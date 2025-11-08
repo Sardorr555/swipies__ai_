@@ -1,46 +1,59 @@
 .fileManagerWrapper {
   width: 100%;
-  padding: 32px;
-  
-  @media (max-width: 1200px) {
-    padding: 28px;
-  }
+  max-width: 100%;
+  padding: clamp(12px, 2.5vw, 32px);
+  box-sizing: border-box;
   
   @media (max-width: 1024px) {
-    padding: 24px;
+    padding: clamp(16px, 2vw, 24px);
   }
   
   @media (max-width: 768px) {
-    padding: 16px;
+    padding: clamp(12px, 1.5vw, 16px);
   }
   
   @media (max-width: 480px) {
-    padding: 12px;
+    padding: clamp(8px, 1vw, 12px);
   }
 }
 
 .filter {
-  height: 32px;
+  min-height: 32px;
+  height: auto;
   display: flex;
-  margin: 10px 0;
+  margin: clamp(8px, 1vh, 10px) 0;
   justify-content: space-between;
-  padding: 24px 0;
+  padding: clamp(12px, 2vh, 24px) 0;
   align-items: center;
+  flex-wrap: wrap;
+  gap: clamp(8px, 1.5vw, 12px);
+  width: 100%;
   
   @media (max-width: 768px) {
     flex-direction: column;
     gap: 12px;
     height: auto;
-    padding: 16px 0;
+    padding: clamp(10px, 1.5vh, 16px) 0;
+    align-items: stretch;
+  }
+  
+  @media (max-width: 480px) {
+    gap: 8px;
+    padding: clamp(8px, 1vh, 12px) 0;
   }
 }
 
 .deleteIconWrapper {
-  width: 22px;
+  width: clamp(18px, 2vw, 22px);
+  min-width: 18px;
   text-align: center;
   
   @media (max-width: 768px) {
-    width: 18px;
+    width: clamp(16px, 1.8vw, 18px);
+  }
+  
+  @media (max-width: 480px) {
+    width: 16px;
   }
 }
 
@@ -53,8 +66,17 @@
   color: #1677ff;
   padding: 0;
   height: auto;
+  font-size: clamp(12px, 1.2vw, 14px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
   
   @media (max-width: 768px) {
-    font-size: 12px;
+    font-size: clamp(11px, 1.1vw, 12px);
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 11px;
   }
 }

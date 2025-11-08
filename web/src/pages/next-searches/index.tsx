@@ -112,7 +112,7 @@ export default function SearchList() {
   };
   return (
     <section className="w-full h-full flex flex-col">
-      <div className="px-8 pt-8">
+      <div className="px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8">
         <ListFilterBar
           icon={
             <div className="rounded-sm bg-emerald-400 bg-gradient-to-t from-emerald-400 via-emerald-400 to-emerald-200 p-1 size-6 flex justify-center items-center">
@@ -135,7 +135,7 @@ export default function SearchList() {
         </ListFilterBar>
       </div>
       <div className="flex-1">
-        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 max-h-[84vh] overflow-auto px-8">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 max-h-[84vh] overflow-auto px-4 sm:px-6 md:px-8">
           {list?.data.search_apps.map((x) => {
             return (
               <SearchCard
@@ -148,7 +148,7 @@ export default function SearchList() {
         </div>
       </div>
       {list?.data.total && list?.data.total > 0 && (
-        <div className="px-8 mb-4">
+        <div className="px-4 sm:px-6 md:px-8 mb-4">
           <RAGFlowPagination
             {...pick(searchParams, 'current', 'pageSize')}
             total={list?.data.total}
@@ -167,7 +167,7 @@ export default function SearchList() {
             <Search size={14} className="font-bold m-auto" />
           </div>
         }
-        className="!w-[480px] rounded-xl"
+        className="!w-[90vw] !max-w-[480px] rounded-xl"
         titleClassName="border-none"
         footerClassName="border-none"
         showfooter={false}

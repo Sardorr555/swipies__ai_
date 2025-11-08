@@ -29,11 +29,12 @@
 
 .searchSide {
   position: relative;
-  max-width: 400px !important;
+  max-width: clamp(280px, 28vw, 400px) !important;
   min-width: auto !important;
+  width: 100%;
   
-  @media (max-width: 1200px) {
-    max-width: 350px !important;
+  @media (max-width: 1024px) {
+    max-width: clamp(260px, 26vw, 350px) !important;
   }
   
   @media (max-width: 768px) {
@@ -48,16 +49,17 @@
 
   .modelForm {
     display: flex;
-    padding: 24px;
+    padding: clamp(16px, 2vw, 24px);
+    box-sizing: border-box;
     
     @media (max-width: 1024px) {
-      padding: 20px;
+      padding: clamp(14px, 1.8vw, 20px);
     }
     
     @media (max-width: 768px) {
-      padding: 16px;
+      padding: clamp(12px, 1.5vw, 16px);
       flex-direction: column;
-      gap: 12px;
+      gap: clamp(10px, 1.2vw, 12px);
     }
   }
 
@@ -66,14 +68,21 @@
     height: 100%;
   }
   .list {
-    padding-top: 10px;
+    padding-top: clamp(8px, 1vh, 10px);
     width: 100%;
-    height: calc(100vh - 76px);
+    height: clamp(400px, calc(100vh - 76px), calc(100vh - 76px));
+    min-height: 400px;
     overflow: auto;
     
+    @media (max-width: 1024px) {
+      height: clamp(350px, calc(100vh - 70px), calc(100vh - 70px));
+      min-height: 350px;
+    }
+    
     @media (max-width: 768px) {
-      height: calc(100vh - 120px);
-      padding-top: 8px;
+      height: clamp(300px, calc(100vh - 120px), calc(100vh - 120px));
+      min-height: 300px;
+      padding-top: clamp(6px, 0.8vh, 8px);
     }
     
     // background-color: transparent;
@@ -85,19 +94,23 @@
     width: 100%;
   }
   .knowledgeName {
-    width: 116px;
-    max-width: 270px;
+    width: clamp(100px, 12vw, 116px);
+    max-width: clamp(200px, 25vw, 270px);
+    min-width: 100px;
     
     @media (max-width: 768px) {
       width: 100%;
       max-width: 100%;
+      min-width: 100%;
     }
   }
   .embeddingId {
-    width: 170px;
+    width: clamp(150px, 16vw, 170px);
+    min-width: 150px;
     
     @media (max-width: 768px) {
       width: 100%;
+      min-width: 100%;
     }
   }
 }
@@ -110,14 +123,15 @@
   height: 100%;
   overflow: auto;
   width: 100%;
-  padding: 20px 16% 10px;
+  padding: clamp(10px, 1.5vh, 20px) clamp(4%, 2vw, 16%) clamp(6px, 1vh, 10px);
+  box-sizing: border-box;
   
   @media (max-width: 1024px) {
-    padding: 16px 8% 8px;
+    padding: clamp(8px, 1.3vh, 16px) clamp(6%, 1.5vw, 8%) clamp(6px, 0.8vh, 8px);
   }
   
   @media (max-width: 768px) {
-    padding: 12px 4% 6px;
+    padding: clamp(8px, 1.2vh, 12px) clamp(3%, 1vw, 4%) clamp(4px, 0.6vh, 6px);
   }
   
   .hide {
@@ -170,31 +184,49 @@
   //   background-color: transparent;
   // }
   input {
-    height: 40px;
+    height: clamp(36px, 4.5vh, 40px);
+    min-height: 36px;
+    
+    @media (max-width: 768px) {
+      height: clamp(34px, 4vh, 38px);
+      min-height: 34px;
+    }
   }
   button {
-    height: 50px !important;
-    border-start-end-radius: 30px !important;
-    border-end-end-radius: 30px !important;
+    height: clamp(44px, 5.5vh, 50px) !important;
+    min-height: 44px;
+    border-start-end-radius: clamp(24px, 3vw, 30px) !important;
+    border-end-end-radius: clamp(24px, 3vw, 30px) !important;
+    
+    @media (max-width: 768px) {
+      height: clamp(40px, 5vh, 46px) !important;
+      min-height: 40px;
+    }
   }
 }
 
 .globalInput {
-  width: 600px;
+  width: clamp(280px, 50vw, 600px);
+  min-width: 280px;
   position: sticky;
-  top: 30%;
+  top: clamp(20%, 25vh, 30%);
   z-index: 1;
   .input();
+  box-sizing: border-box;
   
   @media (max-width: 1024px) {
-    width: 500px;
+    width: clamp(260px, 48vw, 500px);
+    min-width: 260px;
   }
   
   @media (max-width: 768px) {
     width: 100%;
     max-width: 100%;
+    min-width: 100%;
+    top: clamp(15%, 20vh, 25%);
   }
 }
+
 .partialInput {
   width: 100%;
   position: sticky;
@@ -212,28 +244,32 @@
 .appIcon {
   display: inline-block;
   vertical-align: middle;
-  width: 60px;
+  width: clamp(40px, 5vw, 60px);
+  min-width: 40px;
+  height: auto;
   
   @media (max-width: 768px) {
-    width: 40px;
+    width: clamp(32px, 4vw, 40px);
+    min-width: 32px;
   }
 }
 
 .appName {
   vertical-align: middle;
   font-family: Inter;
-  font-size: 40px;
+  font-size: clamp(24px, 4vw, 40px);
   font-style: normal;
   font-weight: 600;
-  line-height: 20px;
+  line-height: clamp(16px, 2.5vw, 20px);
   
   @media (max-width: 1024px) {
-    font-size: 32px;
+    font-size: clamp(22px, 3.5vw, 32px);
+    line-height: clamp(18px, 2.2vw, 20px);
   }
   
   @media (max-width: 768px) {
-    font-size: 24px;
-    line-height: 16px;
+    font-size: clamp(20px, 3vw, 24px);
+    line-height: clamp(14px, 2vw, 16px);
   }
 
   background: linear-gradient(to right, #095fab 10%, #25abe8 50%, #55c8dd 60%);
@@ -255,15 +291,30 @@
 }
 
 .popupMarkdown {
-  width: 60vw;
-  max-height: 40vh;
+  width: clamp(280px, 60vw, 800px);
+  min-width: 280px;
+  max-height: clamp(200px, 40vh, 500px);
+  min-height: 200px;
   overflow: auto;
+  
+  @media (max-width: 768px) {
+    width: clamp(260px, 90vw, 100%);
+    max-width: 100%;
+  }
 }
 
 .mindMapFloatButton {
-  top: 20%;
-  width: 60px;
-  height: 60px;
+  top: clamp(15%, 18vh, 20%);
+  width: clamp(44px, 5vw, 60px);
+  min-width: 44px;
+  height: clamp(44px, 5vw, 60px);
+  min-height: 44px;
+  
+  @media (max-width: 768px) {
+    width: clamp(40px, 4.5vw, 50px);
+    height: clamp(40px, 4.5vw, 50px);
+  }
+  
   :global(.ant-float-btn-content, .ant-float-btn-icon) {
     width: auto !important;
   }
