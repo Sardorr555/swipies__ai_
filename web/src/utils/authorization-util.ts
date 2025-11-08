@@ -17,6 +17,8 @@ const storage = {
   },
   setAuthorization: (value: string) => {
     localStorage.setItem(Authorization, value);
+    // Dispatch custom event to notify auth hook of changes
+    window.dispatchEvent(new Event('auth-storage-change'));
   },
   setToken: (value: string) => {
     localStorage.setItem(Token, value);
@@ -32,11 +34,15 @@ const storage = {
   },
   removeAuthorization: () => {
     localStorage.removeItem(Authorization);
+    // Dispatch custom event to notify auth hook of changes
+    window.dispatchEvent(new Event('auth-storage-change'));
   },
   removeAll: () => {
     KeySet.forEach((x) => {
       localStorage.removeItem(x);
     });
+    // Dispatch custom event to notify auth hook of changes
+    window.dispatchEvent(new Event('auth-storage-change'));
   },
   setLanguage: (lng: string) => {
     localStorage.setItem('lng', lng);
