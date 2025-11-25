@@ -35,6 +35,10 @@ const Login = () => {
   const { isLogin } = useAuth();
   useEffect(() => {
     if (isLogin) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('auth')) {
+        return;
+      }
       navigate('/');
     }
   }, [isLogin, navigate]);
@@ -181,7 +185,7 @@ const Login = () => {
                   >
                     <div className="flex items-center">
                       <SvgIcon
-                        name={item.icon || 'sso'}
+                        name={item.icon || item.channel || 'sso'}
                         width={20}
                         height={20}
                         style={{ marginRight: 5 }}
