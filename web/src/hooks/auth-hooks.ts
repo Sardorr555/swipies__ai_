@@ -1,4 +1,6 @@
 import authorizationUtil from '@/utils/authorization-util';
+import request from '@/utils/request';
+import api from '@/utils/api';
 import { message } from 'antd';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'umi';
@@ -25,41 +27,80 @@ export const useOAuthCallback = () => {
 
     const auth = currentQueryParameters.get('auth');
     if (auth) {
-      // Remove "Bearer " prefix if present (backend sends JWT token without prefix)
-      // We store it without prefix, and add prefix only when sending requests
-      const token = auth.startsWith('Bearer ') ? auth.replace('Bearer ', '') : auth;
-      
-      // Save token WITHOUT "Bearer " prefix (same as regular login)
-      // The prefix will be added automatically by getAuthorization() when making API requests
-      localStorage.setItem('Authorization', token);
-      authorizationUtil.setAuthorization(token);
-      
-      // Verify token was saved correctly
-      const savedToken = localStorage.getItem('Authorization');
-      if (!savedToken || savedToken !== token) {
-        console.error('OAuth callback: Failed to save authorization token, retrying...');
-        localStorage.setItem('Authorization', token);
-      }
-      
-      // Trigger auth state update events
-      window.dispatchEvent(new Event('auth-storage-change'));
-      
-      // Remove auth parameter from URL
-      newQueryParameters.delete('auth');
-      setSearchParams(newQueryParameters, { replace: true });
-      
-      // Navigate to knowledge page after ensuring token is saved
-      // Use a small delay to ensure React state updates propagate
-      setTimeout(() => {
-        const verifyToken = localStorage.getItem('Authorization');
-        if (verifyToken && verifyToken.trim().length > 0) {
-          navigate('/knowledge', { replace: true });
-        } else {
-          // Fallback: try one more time
+      const handleOAuthLogin = async () => {
+        try {
+          // Remove "Bearer " prefix if present (backend sends JWT token without prefix)
+          // We store it without prefix, and add prefix only when sending requests
+          const token = auth.startsWith('Bearer ') ? auth.replace('Bearer ', '') : auth;
+
+          // Save token WITHOUT "Bearer " prefix (same as regular login)
+          // The prefix will be added automatically by getAuthorization() when making API requests
           localStorage.setItem('Authorization', token);
-          navigate('/knowledge', { replace: true });
+          authorizationUtil.setAuthorization(token);
+
+          // Verify token was saved correctly
+          const savedToken = localStorage.getItem('Authorization');
+          if (!savedToken || savedToken !== token) {
+            console.error('OAuth callback: Failed to save authorization token, retrying...');
+            localStorage.setItem('Authorization', token);
+          }
+
+          // Fetch user info using the saved token
+          try {
+            const { data: userInfoResponse } = await request.get(api.user_info);
+
+            if (userInfoResponse && userInfoResponse.code === 0) {
+              const userData = userInfoResponse.data;
+
+              // Save user info and token to localStorage (matching regular login behavior)
+              const userInfo = {
+                avatar: userData.avatar,
+                name: userData.nickname,
+                email: userData.email,
+              };
+
+              authorizationUtil.setItems({
+                Authorization: token,
+                userInfo: JSON.stringify(userInfo),
+                Token: token, // Use the same token for compatibility
+              });
+
+              console.log('OAuth callback: User data saved successfully');
+            } else {
+              console.warn('OAuth callback: Failed to fetch user info, but continuing with auth token');
+            }
+          } catch (userInfoError) {
+            console.error('OAuth callback: Error fetching user info:', userInfoError);
+            // Continue anyway - we have the auth token
+          }
+
+          // Trigger auth state update events
+          window.dispatchEvent(new Event('auth-storage-change'));
+
+          // Remove auth parameter from URL
+          newQueryParameters.delete('auth');
+          setSearchParams(newQueryParameters, { replace: true });
+
+          // Navigate to knowledge page after ensuring token is saved
+          // Use a small delay to ensure React state updates propagate
+          setTimeout(() => {
+            const verifyToken = localStorage.getItem('Authorization');
+            if (verifyToken && verifyToken.trim().length > 0) {
+              navigate('/knowledge', { replace: true });
+            } else {
+              // Fallback: try one more time
+              localStorage.setItem('Authorization', token);
+              navigate('/knowledge', { replace: true });
+            }
+          }, 100);
+        } catch (error) {
+          console.error('OAuth callback error:', error);
+          message.error('Failed to complete OAuth login');
+          navigate('/login');
         }
-      }, 100);
+      };
+
+      handleOAuthLogin();
     }
   }, [
     error,
@@ -126,10 +167,10 @@ export const useAuth = () => {
         return false;
       }
     };
-    
+
     // Immediate check
     verifyAuth();
-    
+
     // Multiple delayed checks to catch rapid changes (like OAuth callback)
     const timeouts = [
       setTimeout(verifyAuth, 5),
@@ -137,7 +178,7 @@ export const useAuth = () => {
       setTimeout(verifyAuth, 50),
       setTimeout(verifyAuth, 100),
     ];
-    
+
     return () => {
       timeouts.forEach(clearTimeout);
     };
@@ -161,7 +202,7 @@ export const useAuth = () => {
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('auth-storage-change', handleCustomStorageChange);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('auth-storage-change', handleCustomStorageChange);
