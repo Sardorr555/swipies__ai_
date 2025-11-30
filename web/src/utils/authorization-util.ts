@@ -53,12 +53,28 @@ const storage = {
 };
 
 export const getAuthorization = () => {
+  // First check URL query params (for OAuth callback)
+  // Backend sends JWT token without "Bearer " prefix in URL
   const auth = getSearchValue('auth');
-  const authorization = auth
-    ? 'Bearer ' + auth
-    : storage.getAuthorization() || '';
-
-  return authorization;
+  if (auth && auth.trim().length > 0) {
+    // Remove "Bearer " prefix if present (shouldn't be, but just in case)
+    const token = auth.startsWith('Bearer ') ? auth.replace('Bearer ', '') : auth;
+    // Add "Bearer " prefix for API requests
+    return 'Bearer ' + token;
+  }
+  
+  // Then check localStorage
+  // Token is stored WITHOUT "Bearer " prefix (same as regular login)
+  const storedAuth = storage.getAuthorization();
+  if (!storedAuth || storedAuth.trim().length === 0) {
+    return '';
+  }
+  
+  // Remove "Bearer " prefix if present (shouldn't be in storage, but handle it)
+  const token = storedAuth.startsWith('Bearer ') ? storedAuth.replace('Bearer ', '') : storedAuth;
+  
+  // Add "Bearer " prefix for API requests (backend expects it in Authorization header)
+  return 'Bearer ' + token;
 };
 
 export default storage;

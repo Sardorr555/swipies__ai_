@@ -108,6 +108,22 @@ request.interceptors.response.use(
     if (data?.code === 100) {
       message.error(data?.message);
     } else if (data?.code === 401) {
+      // Check if we're in the middle of OAuth callback (auth token in URL)
+      const urlParams = new URLSearchParams(window.location.search);
+      const authToken = urlParams.get('auth');
+      
+      // Don't redirect if we have auth token in URL (OAuth callback in progress)
+      if (authToken && authToken.trim().length > 0) {
+        console.warn('401 error during OAuth callback, ignoring redirect');
+        return response;
+      }
+      
+      // Also check if we have token in localStorage but it might be invalid
+      const storedAuth = authorizationUtil.getAuthorization();
+      if (storedAuth && storedAuth.trim().length > 0) {
+        console.warn('401 error but token exists in storage, token might be invalid');
+      }
+      
       notification.error({
         message: data?.message,
         description: data?.message,
