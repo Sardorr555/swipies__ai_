@@ -29,28 +29,53 @@ export const useOAuthCallback = () => {
     if (auth) {
       const handleOAuthLogin = async () => {
         try {
+          console.log('[OAuth] ==================== OAuth Callback Start ====================');
+          console.log('[OAuth] Received auth token from URL, length:', auth.length);
+          console.log('[OAuth] Token preview:', auth.substring(0, 20) + '...');
+
           // Remove "Bearer " prefix if present (backend sends JWT token without prefix)
-          // We store it without prefix, and add prefix only when sending requests
           const token = auth.startsWith('Bearer ') ? auth.replace('Bearer ', '') : auth;
+          console.log('[OAuth] Processed token, length:', token.length);
+
+          // CRITICAL FIX: Remove auth parameter from URL FIRST!
+          // This ensures that getAuthorization() will use localStorage instead of URL param
+          console.log('[OAuth] Removing auth parameter from URL...');
+          newQueryParameters.delete('auth');
+          setSearchParams(newQueryParameters, { replace: true });
+          console.log('[OAuth] ✓ Auth parameter removed from URL');
 
           // Save token WITHOUT "Bearer " prefix (same as regular login)
-          // The prefix will be added automatically by getAuthorization() when making API requests
+          console.log('[OAuth] Saving token to localStorage...');
           localStorage.setItem('Authorization', token);
           authorizationUtil.setAuthorization(token);
+          console.log('[OAuth] ✓ Token saved to localStorage');
 
           // Verify token was saved correctly
           const savedToken = localStorage.getItem('Authorization');
           if (!savedToken || savedToken !== token) {
-            console.error('OAuth callback: Failed to save authorization token, retrying...');
+            console.error('[OAuth] ✗ Token verification FAILED! Retrying...');
             localStorage.setItem('Authorization', token);
+            const recheck = localStorage.getItem('Authorization');
+            console.log('[OAuth] Recheck result:', recheck === token ? '✓ Success' : '✗ Still failed');
+          } else {
+            console.log('[OAuth] ✓ Token verified successfully in localStorage');
           }
 
-          // Fetch user info using the saved token
+          // Small delay to ensure localStorage is written and URL is updated
+          await new Promise(resolve => setTimeout(resolve, 50));
+          console.log('[OAuth] Delay complete, proceeding to fetch user info...');
+
+          // Fetch user info using the saved token from localStorage
           try {
+            console.log('[OAuth] Making request to /v1/user/info...');
             const { data: userInfoResponse } = await request.get(api.user_info);
+            console.log('[OAuth] User info response received:', userInfoResponse);
 
             if (userInfoResponse && userInfoResponse.code === 0) {
               const userData = userInfoResponse.data;
+              console.log('[OAuth] ✓ User data received successfully');
+              console.log('[OAuth] User email:', userData.email);
+              console.log('[OAuth] User nickname:', userData.nickname);
 
               // Save user info and token to localStorage (matching regular login behavior)
               const userInfo = {
@@ -59,44 +84,65 @@ export const useOAuthCallback = () => {
                 email: userData.email,
               };
 
+              console.log('[OAuth] Saving complete user data to localStorage...');
               authorizationUtil.setItems({
                 Authorization: token,
                 userInfo: JSON.stringify(userInfo),
-                Token: token, // Use the same token for compatibility
+                Token: token,
               });
 
-              console.log('OAuth callback: User data saved successfully');
+              console.log('[OAuth] ✓ User data saved to localStorage successfully');
+              console.log('[OAuth] localStorage keys:', Object.keys(localStorage).filter(k => ['Authorization', 'userInfo', 'Token'].includes(k)));
             } else {
-              console.warn('OAuth callback: Failed to fetch user info, but continuing with auth token');
+              console.warn('[OAuth] ✗ Failed to fetch user info');
+              console.warn('[OAuth] Response code:', userInfoResponse?.code);
+              console.warn('[OAuth] Response message:', userInfoResponse?.message);
+              console.warn('[OAuth] Continuing with auth token only (no user info)');
             }
-          } catch (userInfoError) {
-            console.error('OAuth callback: Error fetching user info:', userInfoError);
+          } catch (userInfoError: any) {
+            console.error('[OAuth] ✗ Error fetching user info:', userInfoError);
+            console.error('[OAuth] Error message:', userInfoError?.message);
+            console.error('[OAuth] Error response status:', userInfoError?.response?.status);
+            console.error('[OAuth] Error response data:', userInfoError?.data);
+            console.error('[OAuth] Full error:', JSON.stringify(userInfoError, null, 2));
             // Continue anyway - we have the auth token
+            console.log('[OAuth] Continuing anyway - auth token is saved');
           }
 
           // Trigger auth state update events
           window.dispatchEvent(new Event('auth-storage-change'));
+          console.log('[OAuth] ✓ Dispatched auth-storage-change event');
 
-          // Remove auth parameter from URL
-          newQueryParameters.delete('auth');
-          setSearchParams(newQueryParameters, { replace: true });
+          // Final verification before navigation
+          const finalToken = localStorage.getItem('Authorization');
+          const finalUserInfo = localStorage.getItem('userInfo');
+          const finalTokenItem = localStorage.getItem('Token');
+          console.log('[OAuth] ==================== Final State Check ====================');
+          console.log('[OAuth] Authorization in localStorage:', !!finalToken, 'Length:', finalToken?.length);
+          console.log('[OAuth] userInfo in localStorage:', !!finalUserInfo);
+          console.log('[OAuth] Token in localStorage:', !!finalTokenItem);
+          console.log('[OAuth] All localStorage items:', Object.keys(localStorage));
 
-          // Navigate to knowledge page after ensuring token is saved
-          // Use a small delay to ensure React state updates propagate
+          if (!finalToken || finalToken.trim().length === 0) {
+            console.error('[OAuth] ✗ CRITICAL: No token in localStorage before navigation!');
+            throw new Error('Token not found in localStorage after save');
+          }
+
+          console.log('[OAuth] ✓ All checks passed, navigating to /knowledge');
+          console.log('[OAuth] ==================== OAuth Callback End ====================');
+          navigate('/knowledge', { replace: true });
+
+        } catch (error: any) {
+          console.error('[OAuth] ==================== CRITICAL ERROR ====================');
+          console.error('[OAuth] Error in OAuth callback:', error);
+          console.error('[OAuth] Error message:', error?.message);
+          console.error('[OAuth] Error stack:', error?.stack);
+          console.error('[OAuth] ===========================================================');
+          message.error('Failed to complete OAuth login: ' + (error?.message || 'Unknown error'));
           setTimeout(() => {
-            const verifyToken = localStorage.getItem('Authorization');
-            if (verifyToken && verifyToken.trim().length > 0) {
-              navigate('/knowledge', { replace: true });
-            } else {
-              // Fallback: try one more time
-              localStorage.setItem('Authorization', token);
-              navigate('/knowledge', { replace: true });
-            }
-          }, 100);
-        } catch (error) {
-          console.error('OAuth callback error:', error);
-          message.error('Failed to complete OAuth login');
-          navigate('/login');
+            console.log('[OAuth] Redirecting to /login after error');
+            navigate('/login');
+          }, 1000);
         }
       };
 
@@ -123,9 +169,10 @@ export const useAuth = () => {
       const storedAuth = localStorage.getItem('Authorization');
       const queryAuth = auth;
       const hasAuth = !!(storedAuth && storedAuth.trim().length > 0) || !!queryAuth;
+      console.log('[Auth] Initial auth state:', { hasAuth, hasStoredAuth: !!storedAuth, hasQueryAuth: !!queryAuth });
       return hasAuth;
     } catch (e) {
-      console.error('Error initializing auth state:', e);
+      console.error('[Auth] Error initializing auth state:', e);
       return null;
     }
   });
@@ -139,9 +186,10 @@ export const useAuth = () => {
       // Check if we have valid authorization (must be non-empty string)
       const hasAuth = !!(storedAuth && storedAuth.trim().length > 0) || !!queryAuth;
       setIsLogin(hasAuth);
+      console.log('[Auth] Auth status checked:', { hasAuth, hasStoredAuth: !!storedAuth, hasQueryAuth: !!queryAuth });
       return hasAuth;
     } catch (e) {
-      console.error('Error checking auth status:', e);
+      console.error('[Auth] Error checking auth status:', e);
       return false;
     }
   }, [auth]);
@@ -159,11 +207,12 @@ export const useAuth = () => {
         const queryAuth = auth;
         const hasAuth = !!(storedAuth && storedAuth.trim().length > 0) || !!queryAuth;
         if (hasAuth !== isLogin) {
+          console.log('[Auth] Auth state changed:', isLogin, '->', hasAuth);
           setIsLogin(hasAuth);
         }
         return hasAuth;
       } catch (e) {
-        console.error('Error in verifyAuth:', e);
+        console.error('[Auth] Error in verifyAuth:', e);
         return false;
       }
     };
@@ -188,12 +237,14 @@ export const useAuth = () => {
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'Authorization') {
+        console.log('[Auth] Storage change detected for Authorization key');
         checkAuthStatus();
       }
     };
 
     // Custom event for same-tab localStorage changes (dispatched by setAuthorization)
     const handleCustomStorageChange = () => {
+      console.log('[Auth] Custom auth-storage-change event received');
       // Use requestAnimationFrame to ensure DOM is ready
       requestAnimationFrame(() => {
         checkAuthStatus();
