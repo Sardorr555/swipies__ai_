@@ -34,7 +34,7 @@ import { useLocation } from 'react-router';
 import { BellButton } from './bell-button';
 
 const handleDocHelpCLick = () => {
-  window.open('https://ragflow.io/docs/dev/category/guides', 'target');
+  window.open('https://help.swipies.app/docs/dev/category/guides', 'target');
 };
 
 const PathMap = {

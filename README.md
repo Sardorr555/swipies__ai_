@@ -37,7 +37,7 @@
 </p>
 
 <h4 align="center">
-  <a href="https://ragflow.io/docs/dev/">Document</a> |
+  <a href="https://help.swipies.app/docs/dev/">Document</a> |
   <a href="https://github.com/infiniflow/ragflow/issues/12241">Roadmap</a> |
   <a href="https://twitter.com/infiniflowai">Twitter</a> |
   <a href="https://discord.gg/NjYzJD3GM3">Discord</a> |
@@ -73,7 +73,7 @@
 
 ## 💡 What is RAGFlow?
 
-[RAGFlow](https://ragflow.io/) is a leading open-source Retrieval-Augmented Generation ([RAG](https://ragflow.io/basics/what-is-rag)) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs. It offers a streamlined RAG workflow adaptable to enterprises of any scale. Powered by a converged [context engine](https://ragflow.io/basics/what-is-agent-context-engine) and pre-built agent templates, RAGFlow enables developers to transform complex data into high-fidelity, production-ready AI systems with exceptional efficiency and precision.
+[RAGFlow](https://help.swipies.app/) is a leading open-source Retrieval-Augmented Generation ([RAG](https://help.swipies.app/basics/what-is-rag)) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs. It offers a streamlined RAG workflow adaptable to enterprises of any scale. Powered by a converged [context engine](https://help.swipies.app/basics/what-is-agent-context-engine) and pre-built agent templates, RAGFlow enables developers to transform complex data into high-fidelity, production-ready AI systems with exceptional efficiency and precision.
 
 ## 🎮 Demo
 
@@ -187,7 +187,7 @@ releases! 🌟
 
 > [!CAUTION]
 > All Docker images are built for x86 platforms. We don't currently offer Docker images for ARM64.
-> If you are on an ARM64 platform, follow [this guide](https://ragflow.io/docs/dev/build_docker_image) to build a Docker image compatible with your system.
+> If you are on an ARM64 platform, follow [this guide](https://help.swipies.app/docs/dev/build_docker_image) to build a Docker image compatible with your system.
 
 > The command below downloads the `v0.24.0` edition of the RAGFlow Docker image. See the following table for descriptions of different RAGFlow editions. To download a RAGFlow edition different from `v0.24.0`, update the `RAGFLOW_IMAGE` variable accordingly in **docker/.env** before using `docker compose` to start the server.
 
@@ -245,7 +245,7 @@ releases! 🌟
 6. In [service_conf.yaml.template](./docker/service_conf.yaml.template), select the desired LLM factory in `user_default_llm` and update
    the `API_KEY` field with the corresponding API key.
 
-   > See [llm_api_key_setup](https://ragflow.io/docs/dev/llm_api_key_setup) for more information.
+   > See [llm_api_key_setup](https://help.swipies.app/docs/dev/llm_api_key_setup) for more information.
    >
 
    _The show is on!_
@@ -387,13 +387,13 @@ docker build --platform linux/amd64 \
 
 ## 📚 Documentation
 
-- [Quickstart](https://ragflow.io/docs/dev/)
-- [Configuration](https://ragflow.io/docs/dev/configurations)
-- [Release notes](https://ragflow.io/docs/dev/release_notes)
-- [User guides](https://ragflow.io/docs/dev/category/guides)
-- [Developer guides](https://ragflow.io/docs/dev/category/developers)
-- [References](https://ragflow.io/docs/dev/category/references)
-- [FAQs](https://ragflow.io/docs/dev/faq)
+- [Quickstart](https://help.swipies.app/docs/dev/)
+- [Configuration](https://help.swipies.app/docs/dev/configurations)
+- [Release notes](https://help.swipies.app/docs/dev/release_notes)
+- [User guides](https://help.swipies.app/docs/dev/category/guides)
+- [Developer guides](https://help.swipies.app/docs/dev/category/developers)
+- [References](https://help.swipies.app/docs/dev/category/references)
+- [FAQs](https://help.swipies.app/docs/dev/faq)
 
 ## 📜 Roadmap
 
@@ -408,4 +408,4 @@ See the [RAGFlow Roadmap 2026](https://github.com/infiniflow/ragflow/issues/1224
 ## 🙌 Contributing
 
 RAGFlow flourishes via open-source collaboration. In this spirit, we embrace diverse contributions from the community.
-If you would like to be a part, review our [Contribution Guidelines](https://ragflow.io/docs/dev/contributing) first.
+If you would like to be a part, review our [Contribution Guidelines](https://help.swipies.app/docs/dev/contributing) first.

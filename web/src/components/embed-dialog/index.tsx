@@ -307,8 +307,8 @@ function EmbedDialog({
             className="cursor-pointer text-accent-primary inline-block"
             href={
               isAgent
-                ? 'https://ragflow.io/docs/dev/http_api_reference#create-session-with-agent'
-                : 'https://ragflow.io/docs/dev/http_api_reference#create-session-with-chat-assistant'
+                ? 'https://help.swipies.app/docs/dev/http_api_reference#create-session-with-agent'
+                : 'https://help.swipies.app/docs/dev/http_api_reference#create-session-with-chat-assistant'
             }
             target="_blank"
             rel="noreferrer"

@@ -3,7 +3,7 @@
 
 ### (1). Deploy RAGFlow services and images
 
-[https://ragflow.io/docs/build_docker_image](https://ragflow.io/docs/build_docker_image)
+[https://help.swipies.app/docs/build_docker_image](https://help.swipies.app/docs/build_docker_image)
 
 ### (2). Configure the required environment for testing
 

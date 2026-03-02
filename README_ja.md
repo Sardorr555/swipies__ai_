@@ -37,7 +37,7 @@
 </p>
 
 <h4 align="center">
-  <a href="https://ragflow.io/docs/dev/">Document</a> |
+  <a href="https://help.swipies.app/docs/dev/">Document</a> |
   <a href="https://github.com/infiniflow/ragflow/issues/12241">Roadmap</a> |
   <a href="https://twitter.com/infiniflowai">Twitter</a> |
   <a href="https://discord.gg/NjYzJD3GM3">Discord</a> |
@@ -54,7 +54,7 @@
 
 ## 💡 RAGFlow とは？
 
-[RAGFlow](https://ragflow.io/) は、先進的な[RAG](https://ragflow.io/basics/what-is-rag)（Retrieval-Augmented Generation）技術と Agent 機能を融合し、大規模言語モデル（LLM）に優れたコンテキスト層を構築する最先端のオープンソース RAG エンジンです。あらゆる規模の企業に対応可能な合理化された RAG ワークフローを提供し、統合型[コンテキストエンジン](https://ragflow.io/basics/what-is-agent-context-engine)と事前構築されたAgentテンプレートにより、開発者が複雑なデータを驚異的な効率性と精度で高精細なプロダクションレディAIシステムへ変換することを可能にします。
+[RAGFlow](https://help.swipies.app/) は、先進的な[RAG](https://help.swipies.app/basics/what-is-rag)（Retrieval-Augmented Generation）技術と Agent 機能を融合し、大規模言語モデル（LLM）に優れたコンテキスト層を構築する最先端のオープンソース RAG エンジンです。あらゆる規模の企業に対応可能な合理化された RAG ワークフローを提供し、統合型[コンテキストエンジン](https://help.swipies.app/basics/what-is-agent-context-engine)と事前構築されたAgentテンプレートにより、開発者が複雑なデータを驚異的な効率性と精度で高精細なプロダクションレディAIシステムへ変換することを可能にします。
 
 ## 🎮 Demo
 
@@ -167,7 +167,7 @@
 
 > [!CAUTION]
 > 現在、公式に提供されているすべての Docker イメージは x86 アーキテクチャ向けにビルドされており、ARM64 用の Docker イメージは提供されていません。
-> ARM64 アーキテクチャのオペレーティングシステムを使用している場合は、[このドキュメント](https://ragflow.io/docs/dev/build_docker_image)を参照して Docker イメージを自分でビルドしてください。
+> ARM64 アーキテクチャのオペレーティングシステムを使用している場合は、[このドキュメント](https://help.swipies.app/docs/dev/build_docker_image)を参照して Docker イメージを自分でビルドしてください。
 
 > 以下のコマンドは、RAGFlow Docker イメージの v0.24.0 エディションをダウンロードします。異なる RAGFlow エディションの説明については、以下の表を参照してください。v0.24.0 とは異なるエディションをダウンロードするには、docker/.env ファイルの RAGFLOW_IMAGE 変数を適宜更新し、docker compose を使用してサーバーを起動してください。
 
@@ -221,7 +221,7 @@
    >
 3. [service_conf.yaml.template](./docker/service_conf.yaml.template) で、`user_default_llm` で希望の LLM ファクトリを選択し、`API_KEY` フィールドを対応する API キーで更新する。
 
-   > 詳しくは [llm_api_key_setup](https://ragflow.io/docs/dev/llm_api_key_setup) を参照してください。
+   > 詳しくは [llm_api_key_setup](https://help.swipies.app/docs/dev/llm_api_key_setup) を参照してください。
    >
 
    _これで初期設定完了！ショーの開幕です！_
@@ -359,13 +359,13 @@ docker build --platform linux/amd64 \
 
 ## 📚 ドキュメンテーション
 
-- [Quickstart](https://ragflow.io/docs/dev/)
-- [Configuration](https://ragflow.io/docs/dev/configurations)
-- [Release notes](https://ragflow.io/docs/dev/release_notes)
-- [User guides](https://ragflow.io/docs/dev/category/guides)
-- [Developer guides](https://ragflow.io/docs/dev/category/developers)
-- [References](https://ragflow.io/docs/dev/category/references)
-- [FAQs](https://ragflow.io/docs/dev/faq)
+- [Quickstart](https://help.swipies.app/docs/dev/)
+- [Configuration](https://help.swipies.app/docs/dev/configurations)
+- [Release notes](https://help.swipies.app/docs/dev/release_notes)
+- [User guides](https://help.swipies.app/docs/dev/category/guides)
+- [Developer guides](https://help.swipies.app/docs/dev/category/developers)
+- [References](https://help.swipies.app/docs/dev/category/references)
+- [FAQs](https://help.swipies.app/docs/dev/faq)
 
 ## 📜 ロードマップ
 
@@ -379,4 +379,4 @@ docker build --platform linux/amd64 \
 
 ## 🙌 コントリビュート
 
-RAGFlow はオープンソースのコラボレーションによって発展してきました。この精神に基づき、私たちはコミュニティからの多様なコントリビュートを受け入れています。 参加を希望される方は、まず [コントリビューションガイド](https://ragflow.io/docs/dev/contributing)をご覧ください。
+RAGFlow はオープンソースのコラボレーションによって発展してきました。この精神に基づき、私たちはコミュニティからの多様なコントリビュートを受け入れています。 参加を希望される方は、まず [コントリビューションガイド](https://help.swipies.app/docs/dev/contributing)をご覧ください。

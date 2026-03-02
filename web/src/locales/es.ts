@@ -97,7 +97,7 @@ export default {
       action: 'Acción',
       parsingStatus: 'Estado de análisis',
       parsingStatusTip:
-        'El tiempo de procesamiento de documentos varía según varios factores. Activar funciones como Knowledge Graph, RAPTOR, extracción automática de preguntas o de palabras clave aumentará significativamente el tiempo de procesamiento. Si la barra de progreso se detiene, consulte estas dos preguntas frecuentes: https://ragflow.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
+        'El tiempo de procesamiento de documentos varía según varios factores. Activar funciones como Knowledge Graph, RAPTOR, extracción automática de preguntas o de palabras clave aumentará significativamente el tiempo de procesamiento. Si la barra de progreso se detiene, consulte estas dos preguntas frecuentes: https://help.swipies.app/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
       processBeginAt: 'Proceso iniciado en',
       processDuration: 'Duración del proceso',
       progressMsg: 'Mensaje de progreso',
@@ -134,7 +134,7 @@ export default {
       toMessage: 'Falta el número de página final (excluido)',
       layoutRecognize: 'Reconocimiento de disposición',
       layoutRecognizeTip:
-        'Usa modelos visuales para el análisis de disposición y así identificar mejor la estructura del documento, encontrar dónde están los títulos, bloques de texto, imágenes y tablas. Sin esta función, solo se obtendrá el texto plano del PDF. Para más información, consulte https://ragflow.io/docs/dev/select_pdf_parser.',
+        'Usa modelos visuales para el análisis de disposición y así identificar mejor la estructura del documento, encontrar dónde están los títulos, bloques de texto, imágenes y tablas. Sin esta función, solo se obtendrá el texto plano del PDF. Para más información, consulte https://help.swipies.app/docs/dev/select_pdf_parser.',
       taskPageSize: 'Tamaño de la tarea por página',
       taskPageSizeMessage:
         '¡Por favor ingresa el tamaño de la tarea por página!',
@@ -157,7 +157,7 @@ export default {
       topKTip: `Utilizado junto con el Rerank model, esta configuración define el número de fragmentos de texto que se enviarán al modelo reranking especificado.`,
       delimiter: `Delimitadores para segmentación de texto`,
       html4excel: 'Excel a HTML',
-      html4excelTip: `Usar junto con el método de fragmentación General. Cuando está desactivado, los archivos de hoja de cálculo (XLSX, XLS (Excel 97-2003)) se analizan línea por línea como pares clave-valor. Cuando está activado, los archivos de hoja de cálculo se convierten en tablas HTML. Si la tabla original tiene más de 12 filas, el sistema la dividirá automáticamente en varias tablas HTML cada 12 filas. Para más información, consulte https://ragflow.io/docs/dev/enable_excel2html.`,
+      html4excelTip: `Usar junto con el método de fragmentación General. Cuando está desactivado, los archivos de hoja de cálculo (XLSX, XLS (Excel 97-2003)) se analizan línea por línea como pares clave-valor. Cuando está activado, los archivos de hoja de cálculo se convierten en tablas HTML. Si la tabla original tiene más de 12 filas, el sistema la dividirá automáticamente en varias tablas HTML cada 12 filas. Para más información, consulte https://help.swipies.app/docs/dev/enable_excel2html.`,
     },
 
     knowledgeConfiguration: {
@@ -217,7 +217,7 @@ export default {
       topN: 'Top N',
       topNTip: `No todos los fragmentos cuya puntuación de similitud esté por encima del "umbral de similitud" serán enviados a los LLMs. Los LLMs solo pueden ver estos "Top N" fragmentos.`,
       variable: 'Variable',
-      variableTip: `Usados junto con las API de gestión de asistentes de chat de RAGFlow, las variables pueden ayudar a desarrollar estrategias de prompt del sistema más flexibles. Las variables definidas serán utilizadas por el 'Prompt del sistema' como parte de los prompts para el LLM. {knowledge} es una variable especial reservada que representa partes recuperadas de base(s) de conocimiento especificada(s), y todas las variables deben estar rodeadas por llaves {} en el 'Prompt del sistema'. Consulte https://ragflow.io/docs/dev/set_chat_variables para obtener más detalles.`,
+      variableTip: `Usados junto con las API de gestión de asistentes de chat de RAGFlow, las variables pueden ayudar a desarrollar estrategias de prompt del sistema más flexibles. Las variables definidas serán utilizadas por el 'Prompt del sistema' como parte de los prompts para el LLM. {knowledge} es una variable especial reservada que representa partes recuperadas de base(s) de conocimiento especificada(s), y todas las variables deben estar rodeadas por llaves {} en el 'Prompt del sistema'. Consulte https://help.swipies.app/docs/dev/set_chat_variables para obtener más detalles.`,
       add: 'Agregar',
       key: 'Clave',
       optional: 'Opcional',
@@ -371,19 +371,19 @@ export default {
         'El modelo LLM de chat predeterminado que todas las nuevas bases de conocimiento utilizarán.',
       embeddingModel: 'Modelo de embeddings',
       embeddingModelTip:
-        'El modelo de incrustación predeterminado para cada nueva base de conocimiento creada. Si no puedes encontrar un modelo de incrustación en el menú desplegable, verifica si estás utilizando la edición slim de RAGFlow (que no incluye modelos de incrustación) o consulta https://ragflow.io/docs/dev/supported_models para comprobar si tu proveedor de modelos admite este modelo.',
+        'El modelo de incrustación predeterminado para cada nueva base de conocimiento creada. Si no puedes encontrar un modelo de incrustación en el menú desplegable, verifica si estás utilizando la edición slim de RAGFlow (que no incluye modelos de incrustación) o consulta https://help.swipies.app/docs/dev/supported_models para comprobar si tu proveedor de modelos admite este modelo.',
       img2txtModel: 'Modelo de img2txt',
       img2txtModelTip:
-        'El modelo predeterminado img2txt para cada base de conocimiento recién creada. Describe una imagen o video. Si no puedes encontrar un modelo en el menú desplegable, consulta https://ragflow.io/docs/dev/supported_models para ver si tu proveedor de modelos admite este modelo.',
+        'El modelo predeterminado img2txt para cada base de conocimiento recién creada. Describe una imagen o video. Si no puedes encontrar un modelo en el menú desplegable, consulta https://help.swipies.app/docs/dev/supported_models para ver si tu proveedor de modelos admite este modelo.',
       sequence2txtModel: 'Modelo de secuencia a texto',
       sequence2txtModelTip:
-        'El modelo ASR predeterminado que todas las nuevas bases de conocimiento utilizarán. Usa este modelo para transcribir voces a texto correspondiente. Si no puedes encontrar un modelo en el menú desplegable, consulta https://ragflow.io/docs/dev/supported_models para ver si tu proveedor de modelos admite este modelo.',
+        'El modelo ASR predeterminado que todas las nuevas bases de conocimiento utilizarán. Usa este modelo para transcribir voces a texto correspondiente. Si no puedes encontrar un modelo en el menú desplegable, consulta https://help.swipies.app/docs/dev/supported_models para ver si tu proveedor de modelos admite este modelo.',
       rerankModel: 'Modelo de reordenamiento',
       rerankModelTip:
-        'El modelo de rerank predeterminado para reranking de fragmentos. Si no encuentra un modelo en el menú desplegable, consulte https://ragflow.io/docs/dev/supported_models para comprobar si su proveedor de modelos es compatible con este modelo.',
+        'El modelo de rerank predeterminado para reranking de fragmentos. Si no encuentra un modelo en el menú desplegable, consulte https://help.swipies.app/docs/dev/supported_models para comprobar si su proveedor de modelos es compatible con este modelo.',
       ttsModel: 'Modelo TTS',
       ttsModelTip:
-        'El modelo de text-to-speech predeterminado. Si no encuentra un modelo en el menú desplegable, consulte https://ragflow.io/docs/dev/supported_models para comprobar si su proveedor de modelos es compatible con este modelo.',
+        'El modelo de text-to-speech predeterminado. Si no encuentra un modelo en el menú desplegable, consulte https://help.swipies.app/docs/dev/supported_models para comprobar si su proveedor de modelos es compatible con este modelo.',
       workspace: 'Espacio de trabajo',
       upgrade: 'Actualizar',
       addLlmTitle: 'Agregar LLM',

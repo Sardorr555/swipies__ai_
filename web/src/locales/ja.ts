@@ -103,7 +103,7 @@ export default {
       action: 'アクション',
       parsingStatus: 'パースステータス',
       parsingStatusTip:
-        'ドキュメントの解析時間はさまざまな要因によって異なります。Knowledge Graph、RAPTOR、自動質問抽出、自動キーワード抽出などの機能を有効にすると、処理時間が大幅に増加します。進行バーが止まった場合は、次の2つのFAQをご参照ください: https://ragflow.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
+        'ドキュメントの解析時間はさまざまな要因によって異なります。Knowledge Graph、RAPTOR、自動質問抽出、自動キーワード抽出などの機能を有効にすると、処理時間が大幅に増加します。進行バーが止まった場合は、次の2つのFAQをご参照ください: https://help.swipies.app/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
       processBeginAt: 'プロセス開始時刻',
       processDuration: '処理時間',
       progressMsg: '進行状況メッセージ',
@@ -140,7 +140,7 @@ export default {
       toMessage: '終了ページ番号が不足しています（除外）',
       layoutRecognize: 'レイアウト認識',
       layoutRecognizeTip:
-        'レイアウト分析のためにビジュアルモデルを使用し、文書の構造を理解しやすくします。詳細については、https://ragflow.io/docs/dev/select_pdf_parser をご覧ください。',
+        'レイアウト分析のためにビジュアルモデルを使用し、文書の構造を理解しやすくします。詳細については、https://help.swipies.app/docs/dev/select_pdf_parser をご覧ください。',
       taskPageSize: 'タスクページサイズ',
       taskPageSizeMessage: 'タスクページサイズを入力してください',
       taskPageSizeTip: `レイアウト認識中、PDFファイルはチャンクに分割され、処理速度を向上させるために並列処理されます。`,
@@ -165,11 +165,11 @@ export default {
       delimiterTip:
         'デリミタやセパレータは、一つまたは複数の特殊文字で構成できます。複数の文字の場合、バッククォート(``)で囲むようにしてください。たとえば、デリミタを次のように設定した場合: \\n ## ;、テキストは行末、ダブルハッシュ記号(##)、およびセミコロンで分割されます。デリミタを設定する前に、テキストのセグメンテーションとチャンキングのメカニズムを理解していることを確認してください。',
       html4excel: 'ExcelをHTMLに変換',
-      html4excelTip: `General切片方法と併用してください。無効の場合、表計算ファイル（XLSX、XLS（Excel 97-2003））は行ごとにキーと値のペアとして解析されます。有効の場合、表計算ファイルはHTML表として解析されます。元の表が12行を超える場合、システムは自動的に12行ごとに複数のHTML表に分割します。詳細については、https://ragflow.io/docs/dev/enable_excel2html をご覧ください。`,
+      html4excelTip: `General切片方法と併用してください。無効の場合、表計算ファイル（XLSX、XLS（Excel 97-2003））は行ごとにキーと値のペアとして解析されます。有効の場合、表計算ファイルはHTML表として解析されます。元の表が12行を超える場合、システムは自動的に12行ごとに複数のHTML表に分割します。詳細については、https://help.swipies.app/docs/dev/enable_excel2html をご覧ください。`,
       autoKeywords: '自動キーワード',
-      autoKeywordsTip: `各チャンクに含まれるキーワードのランキングを向上させるために、自動的にN個のキーワードを抽出します。「システムモデル設定」で指定されたチャットモデルによって追加のトークンが消費されることに注意してください。チャンクリストから追加されたキーワードを確認または更新することができます。詳細は https://ragflow.io/docs/dev/autokeyword_autoquestion をご覧ください。`,
+      autoKeywordsTip: `各チャンクに含まれるキーワードのランキングを向上させるために、自動的にN個のキーワードを抽出します。「システムモデル設定」で指定されたチャットモデルによって追加のトークンが消費されることに注意してください。チャンクリストから追加されたキーワードを確認または更新することができます。詳細は https://help.swipies.app/docs/dev/autokeyword_autoquestion をご覧ください。`,
       autoQuestions: '自動質問',
-      autoQuestionsTip: `ランキングスコアを向上させるために、「システムモデル設定」で定義されたチャットモデルを使用して、ナレッジベースのチャンクごとにN個の質問を抽出します。 これにより、追加のトークンが消費されることに注意してください。 結果はチャンクリストで表示および編集できます。 質問抽出エラーはチャンク処理をブロックしません。空の結果が元のチャンクに追加されます。詳細は https://ragflow.io/docs/dev/autokeyword_autoquestion をご覧ください。`,
+      autoQuestionsTip: `ランキングスコアを向上させるために、「システムモデル設定」で定義されたチャットモデルを使用して、ナレッジベースのチャンクごとにN個の質問を抽出します。 これにより、追加のトークンが消費されることに注意してください。 結果はチャンクリストで表示および編集できます。 質問抽出エラーはチャンク処理をブロックしません。空の結果が元のチャンクに追加されます。詳細は https://help.swipies.app/docs/dev/autokeyword_autoquestion をご覧ください。`,
     },
     knowledgeConfiguration: {
       imageTableContextWindow: '画像・表コンテキストウィンドウ',
@@ -292,7 +292,7 @@ export default {
 <p><b>エンティティタイプ</b>を設定することを忘れないでください。</p>`,
       useRaptor: 'RAPTORを使用して検索を強化',
       useRaptorTip:
-        'マルチホップ質問応答タスクでRAPTORを有効にしてください。詳細は https://ragflow.io/docs/dev/enable_raptor をご覧ください。',
+        'マルチホップ質問応答タスクでRAPTORを有効にしてください。詳細は https://help.swipies.app/docs/dev/enable_raptor をご覧ください。',
       prompt: 'プロンプト',
       promptTip:
         'LLMのタスクを説明し、どのように応答すべきかを指定し、他のさまざまな要件を概説するためにシステムプロンプトを使用します。システムプロンプトは、LLMのさまざまなデータ入力として機能するキー（変数）と共に使用されることがよくあります。使用するキーを表示するには、スラッシュ `/` または (x) ボタンを使用します。',
@@ -314,7 +314,7 @@ export default {
       randomSeedMessage: 'ランダムシードは必須です',
       entityTypes: 'エンティティタイプ',
       pageRank: 'ページランク',
-      pageRankTip: `検索時に特定の知識ベースにより高いPageRankスコアを割り当てることができます。対応するスコアは、これらの知識ベースから取得されたチャンクのハイブリッド類似度スコアに加算され、ランキングが向上します。詳細については、https://ragflow.io/docs/dev/set_page_rank を参照してください。`,
+      pageRankTip: `検索時に特定の知識ベースにより高いPageRankスコアを割り当てることができます。対応するスコアは、これらの知識ベースから取得されたチャンクのハイブリッド類似度スコアに加算され、ランキングが向上します。詳細については、https://help.swipies.app/docs/dev/set_page_rank を参照してください。`,
       paddleocrOptions: 'PaddleOCRオプション',
       paddleocrApiUrl: 'PaddleOCR API URL',
       paddleocrApiUrlTip: 'PaddleOCRサービスのAPIエンドポイントURL',
@@ -393,7 +393,7 @@ export default {
       topN: 'トップN',
       topNTip: `類似度スコアがしきい値を超えるチャンクのうち、上位N件のみがLLMに供給されます。`,
       variable: '変数',
-      variableTip: `RAGFlowのチャットアシスタント管理APIと組み合わせて使用することで、変数はより柔軟なシステムプロンプト戦略を開発するのに役立ちます。定義された変数は、LLMのプロンプトの一部として「システムプロンプト」で使用されます。{knowledge}は、指定された知識ベースから取得された部分を表す特別な予約変数であり、「システムプロンプト」ではすべての変数を波括弧{}で囲む必要があります。詳細はhttps://ragflow.io/docs/dev/set_chat_variablesを参照してください。`,
+      variableTip: `RAGFlowのチャットアシスタント管理APIと組み合わせて使用することで、変数はより柔軟なシステムプロンプト戦略を開発するのに役立ちます。定義された変数は、LLMのプロンプトの一部として「システムプロンプト」で使用されます。{knowledge}は、指定された知識ベースから取得された部分を表す特別な予約変数であり、「システムプロンプト」ではすべての変数を波括弧{}で囲む必要があります。詳細はhttps://help.swipies.app/docs/dev/set_chat_variablesを参照してください。`,
       add: '追加',
       key: 'キー',
       optional: 'オプション',
@@ -581,18 +581,18 @@ export default {
         '新しく作成されたナレッジベースが使用するデフォルトのチャットLLM。',
       embeddingModel: '埋め込みモデル',
       embeddingModelTip:
-        '新しく作成された各ナレッジベースのデフォルト埋め込みモデルです。ドロップダウンから埋め込みモデルが見つからない場合は、RAGFlowスリムエディション（埋め込みモデルを含まない）を使用しているか、https://ragflow.io/docs/dev/supported_models を確認して、モデルプロバイダーがこのモデルをサポートしているかどうかを確認してください。',
+        '新しく作成された各ナレッジベースのデフォルト埋め込みモデルです。ドロップダウンから埋め込みモデルが見つからない場合は、RAGFlowスリムエディション（埋め込みモデルを含まない）を使用しているか、https://help.swipies.app/docs/dev/supported_models を確認して、モデルプロバイダーがこのモデルをサポートしているかどうかを確認してください。',
       img2txtModel: '画像からテキストへのモデル',
       img2txtModelTip:
-        '新しく作成された知識ベースごとのデフォルトのimg2txtモデル。それは画像や動画を説明します。ドロップダウンからモデルが見つからない場合は、https://ragflow.io/docs/dev/supported_models を確認して、モデルプロバイダーがこのモデルをサポートしているかどうかを確認してください。',
+        '新しく作成された知識ベースごとのデフォルトのimg2txtモデル。それは画像や動画を説明します。ドロップダウンからモデルが見つからない場合は、https://help.swipies.app/docs/dev/supported_models を確認して、モデルプロバイダーがこのモデルをサポートしているかどうかを確認してください。',
       sequence2txtModel: 'シーケンスからテキストへのモデル',
       sequence2txtModelTip:
-        '新しく作成されたナレッジベースが使用するデフォルトのASRモデル。音声を対応するテキストに変換するために使用します。ドロップダウンからモデルが見つからない場合は、https://ragflow.io/docs/dev/supported_models を確認して、モデルプロバイダーがこのモデルをサポートしているかどうかを確認してください。',
+        '新しく作成されたナレッジベースが使用するデフォルトのASRモデル。音声を対応するテキストに変換するために使用します。ドロップダウンからモデルが見つからない場合は、https://help.swipies.app/docs/dev/supported_models を確認して、モデルプロバイダーがこのモデルをサポートしているかどうかを確認してください。',
       rerankModel: '再ランクモデル',
-      rerankModelTip: `チャンクをrerankingするためのデフォルトのrerankモデル。ドロップダウンからモデルが見つからない場合は、https://ragflow.io/docs/dev/supported_models を確認して、ご使用のモデルプロバイダーがこのモデルをサポートしているかをご確認ください。`,
+      rerankModelTip: `チャンクをrerankingするためのデフォルトのrerankモデル。ドロップダウンからモデルが見つからない場合は、https://help.swipies.app/docs/dev/supported_models を確認して、ご使用のモデルプロバイダーがこのモデルをサポートしているかをご確認ください。`,
       ttsModel: 'TTSモデル',
       ttsModelTip:
-        'デフォルトのtext-to-speechモデル。ドロップダウンからモデルが見つからない場合は、https://ragflow.io/docs/dev/supported_models を確認して、ご使用のモデルプロバイダーがこのモデルをサポートしているかをご確認ください。',
+        'デフォルトのtext-to-speechモデル。ドロップダウンからモデルが見つからない場合は、https://help.swipies.app/docs/dev/supported_models を確認して、ご使用のモデルプロバイダーがこのモデルをサポートしているかをご確認ください。',
       workspace: 'ワークスペース',
       upgrade: 'アップグレード',
       addLlmTitle: 'LLMを追加',

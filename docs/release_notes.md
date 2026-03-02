@@ -592,7 +592,7 @@ Released on February 6, 2025.
 ### New features
 
 - Supports DeepSeek R1 and DeepSeek V3.
-- GraphRAG refactor: Knowledge graph is dynamically built on an entire dataset rather than on an individual file, and automatically updated when a newly uploaded file starts parsing. See [here](https://ragflow.io/docs/dev/construct_knowledge_graph).
+- GraphRAG refactor: Knowledge graph is dynamically built on an entire dataset rather than on an individual file, and automatically updated when a newly uploaded file starts parsing. See [here](https://help.swipies.app/docs/dev/construct_knowledge_graph).
 - Adds an **Iteration** agent component and a **Research report generator** agent template. See [here](./guides/agent/agent_component_reference/iteration.mdx).
 - New UI language: Portuguese.
 - Allows setting metadata for a specific file in a dataset to enhance AI-powered chats. See [here](./guides/dataset/set_metadata.md).
@@ -650,13 +650,13 @@ This release fixes the following issues:
 
 Adds an optional parameter `"user_id"` to the following APIs:
 
-- [Create session with chat assistant](https://ragflow.io/docs/dev/http_api_reference#create-session-with-chat-assistant)
-- [Update chat assistant's session](https://ragflow.io/docs/dev/http_api_reference#update-chat-assistants-session)
-- [List chat assistant's sessions](https://ragflow.io/docs/dev/http_api_reference#list-chat-assistants-sessions)
-- [Create session with agent](https://ragflow.io/docs/dev/http_api_reference#create-session-with-agent)
-- [Converse with chat assistant](https://ragflow.io/docs/dev/http_api_reference#converse-with-chat-assistant)
-- [Converse with agent](https://ragflow.io/docs/dev/http_api_reference#converse-with-agent)
-- [List agent sessions](https://ragflow.io/docs/dev/http_api_reference#list-agent-sessions)
+- [Create session with chat assistant](https://help.swipies.app/docs/dev/http_api_reference#create-session-with-chat-assistant)
+- [Update chat assistant's session](https://help.swipies.app/docs/dev/http_api_reference#update-chat-assistants-session)
+- [List chat assistant's sessions](https://help.swipies.app/docs/dev/http_api_reference#list-chat-assistants-sessions)
+- [Create session with agent](https://help.swipies.app/docs/dev/http_api_reference#create-session-with-agent)
+- [Converse with chat assistant](https://help.swipies.app/docs/dev/http_api_reference#converse-with-chat-assistant)
+- [Converse with agent](https://help.swipies.app/docs/dev/http_api_reference#converse-with-agent)
+- [List agent sessions](https://help.swipies.app/docs/dev/http_api_reference#list-agent-sessions)
 
 ## v0.15.0
 
@@ -684,13 +684,13 @@ Released on December 18, 2024.
 
 #### HTTP APIs
 
-- [List agent sessions](https://ragflow.io/docs/dev/http_api_reference#list-agent-sessions)
-- [List agents](https://ragflow.io/docs/dev/http_api_reference#list-agents)
+- [List agent sessions](https://help.swipies.app/docs/dev/http_api_reference#list-agent-sessions)
+- [List agents](https://help.swipies.app/docs/dev/http_api_reference#list-agents)
 
 #### Python APIs
 
-- [List agent sessions](https://ragflow.io/docs/dev/python_api_reference#list-agent-sessions)
-- [List agents](https://ragflow.io/docs/dev/python_api_reference#list-agents)
+- [List agent sessions](https://help.swipies.app/docs/dev/python_api_reference#list-agent-sessions)
+- [List agents](https://help.swipies.app/docs/dev/python_api_reference#list-agents)
 
 ## v0.14.1
 
@@ -734,28 +734,28 @@ From this release onwards, **service_config.yaml.template** replaces **service_c
 This approach eliminates the need to manually update **service_config.yaml** after making changes to **.env**, facilitating dynamic environment configurations.
 
 :::danger IMPORTANT
-Ensure that you [upgrade **both** your code **and** Docker image to this release](https://ragflow.io/docs/dev/upgrade_ragflow#upgrade-ragflow-to-the-most-recent-officially-published-release) before trying this new approach.
+Ensure that you [upgrade **both** your code **and** Docker image to this release](https://help.swipies.app/docs/dev/upgrade_ragflow#upgrade-ragflow-to-the-most-recent-officially-published-release) before trying this new approach.
 :::
 
 ### API changes
 
 #### HTTP APIs
 
-- [Create session with agent](https://ragflow.io/docs/dev/http_api_reference#create-session-with-agent)
-- [Converse with agent](https://ragflow.io/docs/dev/http_api_reference#converse-with-agent)
+- [Create session with agent](https://help.swipies.app/docs/dev/http_api_reference#create-session-with-agent)
+- [Converse with agent](https://help.swipies.app/docs/dev/http_api_reference#converse-with-agent)
 
 #### Python APIs
 
-- [Create session with agent](https://ragflow.io/docs/dev/python_api_reference#create-session-with-agent)
-- [Converse with agent](https://ragflow.io/docs/dev/python_api_reference#create-session-with-agent)
+- [Create session with agent](https://help.swipies.app/docs/dev/python_api_reference#create-session-with-agent)
+- [Converse with agent](https://help.swipies.app/docs/dev/python_api_reference#create-session-with-agent)
 
 ### Documentation
 
 #### Added documents
 
-- [Configurations](https://ragflow.io/docs/dev/configurations)
+- [Configurations](https://help.swipies.app/docs/dev/configurations)
 - [Manage team members](./guides/team/manage_team_members.md)
-- [Run health check on RAGFlow's dependencies](https://ragflow.io/docs/dev/run_health_check)
+- [Run health check on RAGFlow's dependencies](https://help.swipies.app/docs/dev/run_health_check)
 
 ## v0.13.0
 
@@ -812,13 +812,13 @@ The default Docker image edition is `nightly-slim`. The following list clarifies
 - `nightly`: The full edition of the most recent tested Docker image.
 - `v0.12.0`: The full edition of the most recent **officially released** Docker image.
 
-See [Upgrade RAGFlow](https://ragflow.io/docs/dev/upgrade_ragflow) for instructions on upgrading.
+See [Upgrade RAGFlow](https://help.swipies.app/docs/dev/upgrade_ragflow) for instructions on upgrading.
 
 ### Documentation
 
 #### Added documents
 
-- [Upgrade RAGFlow](https://ragflow.io/docs/dev/upgrade_ragflow)
+- [Upgrade RAGFlow](https://help.swipies.app/docs/dev/upgrade_ragflow)
 
 ## v0.11.0
 
@@ -900,11 +900,11 @@ If you are on an ARM platform, follow [this guide](./develop/build_docker_image.
 
 #### HTTP API
 
-- [Delete documents](https://ragflow.io/docs/dev/http_api_reference#delete-documents)
+- [Delete documents](https://help.swipies.app/docs/dev/http_api_reference#delete-documents)
 
 #### Python API
 
-- [Delete documents](https://ragflow.io/docs/dev/python_api_reference#delete-documents)
+- [Delete documents](https://help.swipies.app/docs/dev/python_api_reference#delete-documents)
 
 ## v0.6.0
 
@@ -921,11 +921,11 @@ Released on May 21, 2024.
 
 #### HTTP API
 
-- [Retrieve chunks](https://ragflow.io/docs/dev/http_api_reference#retrieve-chunks)
+- [Retrieve chunks](https://help.swipies.app/docs/dev/http_api_reference#retrieve-chunks)
 
 #### Python API
 
-- [Retrieve chunks](https://ragflow.io/docs/dev/python_api_reference#retrieve-chunks)
+- [Retrieve chunks](https://help.swipies.app/docs/dev/python_api_reference#retrieve-chunks)
 
 ## v0.5.0
 

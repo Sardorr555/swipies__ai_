@@ -7,7 +7,7 @@ sidebar_custom_props: {
 ---
 # HTTP API
 
-A complete reference for RAGFlow's RESTful API. Before proceeding, please ensure you [have your RAGFlow API key ready for authentication](https://ragflow.io/docs/dev/acquire_ragflow_api_key).
+A complete reference for RAGFlow's RESTful API. Before proceeding, please ensure you [have your RAGFlow API key ready for authentication](https://help.swipies.app/docs/dev/acquire_ragflow_api_key).
 
 ---
 
@@ -557,7 +557,7 @@ curl --request POST \
       - Defaults to `DeepDOC`
     - `"tag_kb_ids"`: `array<string>`
       - IDs of datasets to be parsed using the ​​Tag chunk method.
-      - Before setting this, ensure a tag set is created and properly configured. For details, see [Use tag set](https://ragflow.io/docs/dev/use_tag_sets).
+      - Before setting this, ensure a tag set is created and properly configured. For details, see [Use tag set](https://help.swipies.app/docs/dev/use_tag_sets).
     - `"task_page_size"`: `int`
       - For PDFs only.
       - Defaults to `12`
@@ -760,7 +760,7 @@ curl --request PUT \
   - `"me"`: (Default) Only you can manage the dataset.
   - `"team"`: All team members can manage the dataset.
 - `"pagerank"`: (*Body parameter*), `int`  
-  refer to [Set page rank](https://ragflow.io/docs/dev/set_page_rank)
+  refer to [Set page rank](https://help.swipies.app/docs/dev/set_page_rank)
   - Default: `0`
   - Minimum: `0`
   - Maximum: `100`
@@ -799,7 +799,7 @@ curl --request PUT \
       - Defaults to `false`
     - `"layout_recognize"`: `string`
       - Defaults to `DeepDOC`
-    - `"tag_kb_ids"`: `array<string>` refer to [Use tag set](https://ragflow.io/docs/dev/use_tag_sets)
+    - `"tag_kb_ids"`: `array<string>` refer to [Use tag set](https://help.swipies.app/docs/dev/use_tag_sets)
       - Must include a list of dataset IDs, where each dataset is parsed using the ​​Tag Chunking Method
     - `"task_page_size"`: `int` For PDF only.
       - Defaults to `12`
@@ -2436,9 +2436,9 @@ curl --request POST \
 - `"top_k"`: (*Body parameter*), `integer`  
   The number of chunks engaged in vector cosine computation. Defaults to `1024`.
 - `"use_kg"`: (*Body parameter*), `boolean`  
-  Whether to search chunks related to the generated knowledge graph for multi-hop queries. Defaults to `False`. Before enabling this, ensure you have successfully constructed a knowledge graph for the specified datasets. See [here](https://ragflow.io/docs/dev/construct_knowledge_graph) for details.
+  Whether to search chunks related to the generated knowledge graph for multi-hop queries. Defaults to `False`. Before enabling this, ensure you have successfully constructed a knowledge graph for the specified datasets. See [here](https://help.swipies.app/docs/dev/construct_knowledge_graph) for details.
 - `"toc_enhance"`: (*Body parameter*), `boolean`  
-  Whether to search chunks with extracted table of content. Defaults to `False`. Before enabling this, ensure you have enabled `TOC_Enhance` and successfully extracted table of contents for the specified datasets. See [here](https://ragflow.io/docs/dev/enable_table_of_contents) for details.
+  Whether to search chunks with extracted table of content. Defaults to `False`. Before enabling this, ensure you have enabled `TOC_Enhance` and successfully extracted table of contents for the specified datasets. See [here](https://help.swipies.app/docs/dev/enable_table_of_contents) for details.
 - `"rerank_id"`: (*Body parameter*), `integer`  
   The ID of the rerank model.
 - `"keyword"`: (*Body parameter*), `boolean`  

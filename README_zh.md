@@ -37,7 +37,7 @@
 </p>
 
 <h4 align="center">
-  <a href="https://ragflow.io/docs/dev/">Document</a> |
+  <a href="https://help.swipies.app/docs/dev/">Document</a> |
   <a href="https://github.com/infiniflow/ragflow/issues/12241">Roadmap</a> |
   <a href="https://twitter.com/infiniflowai">Twitter</a> |
   <a href="https://discord.gg/NjYzJD3GM3">Discord</a> |
@@ -73,7 +73,7 @@
 
 ## 💡 RAGFlow 是什么？
 
-[RAGFlow](https://ragflow.io/) 是一款领先的开源检索增强生成（[RAG](https://ragflow.io/basics/what-is-rag)）引擎，通过融合前沿的 RAG 技术与 Agent 能力，为大型语言模型提供卓越的上下文层。它提供可适配任意规模企业的端到端 RAG 工作流，凭借融合式[上下文引擎](https://ragflow.io/basics/what-is-agent-context-engine)与预置的 Agent 模板，助力开发者以极致效率与精度将复杂数据转化为高可信、生产级的人工智能系统。
+[RAGFlow](https://help.swipies.app/) 是一款领先的开源检索增强生成（[RAG](https://help.swipies.app/basics/what-is-rag)）引擎，通过融合前沿的 RAG 技术与 Agent 能力，为大型语言模型提供卓越的上下文层。它提供可适配任意规模企业的端到端 RAG 工作流，凭借融合式[上下文引擎](https://help.swipies.app/basics/what-is-agent-context-engine)与预置的 Agent 模板，助力开发者以极致效率与精度将复杂数据转化为高可信、生产级的人工智能系统。
 
 ## 🎮 Demo 试用
 
@@ -187,7 +187,7 @@
 
 > [!CAUTION]
 > 请注意，目前官方提供的所有 Docker 镜像均基于 x86 架构构建，并不提供基于 ARM64 的 Docker 镜像。
-> 如果你的操作系统是 ARM64 架构，请参考[这篇文档](https://ragflow.io/docs/dev/build_docker_image)自行构建 Docker 镜像。
+> 如果你的操作系统是 ARM64 架构，请参考[这篇文档](https://help.swipies.app/docs/dev/build_docker_image)自行构建 Docker 镜像。
 
    > 运行以下命令会自动下载 RAGFlow Docker 镜像 `v0.24.0`。请参考下表查看不同 Docker 发行版的描述。如需下载不同于 `v0.24.0` 的 Docker 镜像，请在运行 `docker compose` 启动服务之前先更新 **docker/.env** 文件内的 `RAGFLOW_IMAGE` 变量。
 
@@ -245,7 +245,7 @@
    > 上面这个例子中，您只需输入 http://IP_OF_YOUR_MACHINE 即可：未改动过配置则无需输入端口（默认的 HTTP 服务端口 80）。
 6. 在 [service_conf.yaml.template](./docker/service_conf.yaml.template) 文件的 `user_default_llm` 栏配置 LLM factory，并在 `API_KEY` 栏填写和你选择的大模型相对应的 API key。
 
-   > 详见 [llm_api_key_setup](https://ragflow.io/docs/dev/llm_api_key_setup)。
+   > 详见 [llm_api_key_setup](https://help.swipies.app/docs/dev/llm_api_key_setup)。
 
    _好戏开始，接着奏乐接着舞！_
 
@@ -393,13 +393,13 @@ docker build --platform linux/amd64 \
 
 ## 📚 技术文档
 
-- [Quickstart](https://ragflow.io/docs/dev/)
-- [Configuration](https://ragflow.io/docs/dev/configurations)
-- [Release notes](https://ragflow.io/docs/dev/release_notes)
-- [User guides](https://ragflow.io/docs/dev/category/guides)
-- [Developer guides](https://ragflow.io/docs/dev/category/developers)
-- [References](https://ragflow.io/docs/dev/category/references)
-- [FAQs](https://ragflow.io/docs/dev/faq)
+- [Quickstart](https://help.swipies.app/docs/dev/)
+- [Configuration](https://help.swipies.app/docs/dev/configurations)
+- [Release notes](https://help.swipies.app/docs/dev/release_notes)
+- [User guides](https://help.swipies.app/docs/dev/category/guides)
+- [Developer guides](https://help.swipies.app/docs/dev/category/developers)
+- [References](https://help.swipies.app/docs/dev/category/references)
+- [FAQs](https://help.swipies.app/docs/dev/faq)
 
 ## 📜 路线图
 
@@ -413,7 +413,7 @@ docker build --platform linux/amd64 \
 
 ## 🙌 贡献指南
 
-RAGFlow 只有通过开源协作才能蓬勃发展。秉持这一精神,我们欢迎来自社区的各种贡献。如果您有意参与其中,请查阅我们的 [贡献者指南](https://ragflow.io/docs/dev/contributing) 。
+RAGFlow 只有通过开源协作才能蓬勃发展。秉持这一精神,我们欢迎来自社区的各种贡献。如果您有意参与其中,请查阅我们的 [贡献者指南](https://help.swipies.app/docs/dev/contributing) 。
 
 ## 🤝 商务合作
 

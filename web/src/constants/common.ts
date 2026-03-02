@@ -55,6 +55,8 @@ export const LanguageList = [
   'French',
   'Italian',
   'Bulgarian',
+  'Arabic',
+  'Uzbek',
 ];
 export const LanguageMap = {
   English: 'English',
@@ -70,6 +72,8 @@ export const LanguageMap = {
   French: 'Français',
   Italian: 'Italiano',
   Bulgarian: 'Български',
+  Arabic: 'العربية',
+  Uzbek: 'Oʻzbekcha',
 };
 
 export enum LanguageAbbreviation {
@@ -86,6 +90,8 @@ export enum LanguageAbbreviation {
   Fr = 'fr',
   It = 'it',
   Bg = 'bg',
+  Ar = 'ar',
+  Uz = 'uz',
 }
 
 export const LanguageAbbreviationMap = {
@@ -102,6 +108,8 @@ export const LanguageAbbreviationMap = {
   [LanguageAbbreviation.Fr]: 'Français',
   [LanguageAbbreviation.It]: 'Italiano',
   [LanguageAbbreviation.Bg]: 'Български',
+  [LanguageAbbreviation.Ar]: 'العربية',
+  [LanguageAbbreviation.Uz]: 'Oʻzbekcha',
 };
 
 export const LanguageTranslationMap = {
@@ -126,6 +134,8 @@ export const LanguageTranslationMap = {
   Hindi: 'hi',
   Ukrainian: 'uk',
   Bulgarian: 'bg',
+  Arabic: 'ar',
+  Uzbek: 'uz',
 };
 
 export enum FileMimeType {
@@ -184,7 +194,7 @@ export const SupportedPreviewDocumentTypes = [...ExceptiveType];
 //#endregion
 
 export enum Platform {
-  RAGFlow = 'RAGFlow',
+  RAGFlow = 'Swipies',
   Dify = 'Dify',
   FastGPT = 'FastGPT',
   Coze = 'Coze',

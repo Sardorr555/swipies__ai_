@@ -7,7 +7,7 @@ sidebar_custom_props: {
 ---
 # Python API
 
-A complete reference for RAGFlow's Python APIs. Before proceeding, please ensure you [have your RAGFlow API key ready for authentication](https://ragflow.io/docs/dev/acquire_ragflow_api_key).
+A complete reference for RAGFlow's Python APIs. Before proceeding, please ensure you [have your RAGFlow API key ready for authentication](https://help.swipies.app/docs/dev/acquire_ragflow_api_key).
 
 :::tip NOTE
 Run the following command to download the Python SDK:
@@ -355,7 +355,7 @@ A dictionary representing the attributes to update, with the following keys:
   - `"me"`: (Default) Only you can manage the dataset.
   - `"team"`: All team members can manage the dataset.
 - `"pagerank"`: (*Body parameter*), `int`  
-  refer to [Set page rank](https://ragflow.io/docs/dev/set_page_rank)
+  refer to [Set page rank](https://help.swipies.app/docs/dev/set_page_rank)
   - Default: `0`
   - Minimum: `0`
   - Maximum: `100`
