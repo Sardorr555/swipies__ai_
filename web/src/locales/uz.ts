@@ -2375,5 +2375,7 @@ Important structured information may include: names, dates, locations, events, k
         paymentFailed: 'Failed to initiate payment. Please try again.',
         paymentError: 'An error occurred while processing payment.',
     },
-},
+
 };
+
+
