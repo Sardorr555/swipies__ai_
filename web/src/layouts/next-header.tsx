@@ -161,14 +161,14 @@ export function Header() {
       <div className="flex items-center gap-5 text-text-badge" data-testid="auth-status">
         <a
           target="_blank"
-          href="https://discord.com/invite/NjYzJD3GM3"
+          href="https://discord.gg/fKuYZYJNx"
           rel="noreferrer"
         >
           <IconFontFill name="a-DiscordIconSVGVectorIcon"></IconFontFill>
         </a>
         <a
           target="_blank"
-          href="https://github.com/infiniflow/ragflow"
+          href="https://github.com/Sardorr555/swipies__ai_.git"
           rel="noreferrer"
         >
           <IconFontFill name="GitHub"></IconFontFill>
