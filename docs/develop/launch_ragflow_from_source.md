@@ -31,7 +31,7 @@ To launch a RAGFlow service from source code:
 ### Clone the RAGFlow repository
 
 ```bash
-git clone https://github.com/infiniflow/ragflow.git
+git clone https://github.com/Sardorr555/swipies__ai_.git.git
 cd ragflow/
 ```
 

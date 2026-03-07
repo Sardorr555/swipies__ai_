@@ -25,10 +25,10 @@
     <a href="https://hub.docker.com/r/infiniflow/ragflow" target="_blank">
         <img src="https://img.shields.io/docker/pulls/infiniflow/ragflow?label=Docker%20Pulls&color=0db7ed&logo=docker&logoColor=white&style=flat-square" alt="docker pull infiniflow/ragflow:v0.24.0">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/releases/latest">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/releases/latest">
         <img src="https://img.shields.io/github/v/release/infiniflow/ragflow?color=blue&label=Rilis%20Terbaru" alt="Rilis Terbaru">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/blob/main/LICENSE">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/blob/main/LICENSE">
         <img height="21" src="https://img.shields.io/badge/Lisensi-Apache--2.0-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="Lisensi">
     </a>
     <a href="https://deepwiki.com/infiniflow/ragflow">
@@ -38,7 +38,7 @@
 
 <h4 align="center">
   <a href="https://help.swipies.app/docs/dev/">Dokumentasi</a> |
-  <a href="https://github.com/infiniflow/ragflow/issues/12241">Peta Jalan</a> |
+  <a href="https://github.com/Sardorr555/swipies__ai_.git/issues/12241">Peta Jalan</a> |
   <a href="https://twitter.com/infiniflowai">Twitter</a> |
   <a href="https://discord.gg/NjYzJD3GM3">Discord</a> |
   <a href="https://demo.ragflow.io">Demo</a>
@@ -181,7 +181,7 @@ Coba demo kami di [https://demo.ragflow.io](https://demo.ragflow.io).
 2. Clone repositori:
 
    ```bash
-   $ git clone https://github.com/infiniflow/ragflow.git
+   $ git clone https://github.com/Sardorr555/swipies__ai_.git.git
    ```
 3. Bangun image Docker pre-built dan jalankan server:
 
@@ -195,7 +195,7 @@ Coba demo kami di [https://demo.ragflow.io](https://demo.ragflow.io).
    $ cd ragflow/docker
 
    # git checkout v0.24.0
-   # Opsional: gunakan tag stabil (lihat releases: https://github.com/infiniflow/ragflow/releases)
+   # Opsional: gunakan tag stabil (lihat releases: https://github.com/Sardorr555/swipies__ai_.git/releases)
    # This steps ensures the **entrypoint.sh** file in the code matches the Docker image version.
 
    # Use CPU for DeepDoc tasks:
@@ -273,7 +273,7 @@ Pembaruan konfigurasi ini memerlukan reboot semua kontainer agar efektif:
 Image ini berukuran sekitar 2 GB dan bergantung pada aplikasi LLM eksternal dan embedding.
 
 ```bash
-git clone https://github.com/infiniflow/ragflow.git
+git clone https://github.com/Sardorr555/swipies__ai_.git.git
 cd ragflow/
 docker build --platform linux/amd64 -f Dockerfile -t infiniflow/ragflow:nightly .
 ```
@@ -297,7 +297,7 @@ docker build --platform linux/amd64 \
 2. Clone kode sumber dan instal dependensi Python:
 
    ```bash
-   git clone https://github.com/infiniflow/ragflow.git
+   git clone https://github.com/Sardorr555/swipies__ai_.git.git
    cd ragflow/
    uv sync --python 3.12 # install RAGFlow dependent python modules
    uv run download_deps.py
@@ -369,7 +369,7 @@ docker build --platform linux/amd64 \
 
 ## 📜 Roadmap
 
-Lihat [Roadmap RAGFlow 2026](https://github.com/infiniflow/ragflow/issues/12241)
+Lihat [Roadmap RAGFlow 2026](https://github.com/Sardorr555/swipies__ai_.git/issues/12241)
 
 ## 🏄 Komunitas
 

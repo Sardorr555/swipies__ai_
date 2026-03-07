@@ -1,6 +1,6 @@
 # Firecrawl Integration for RAGFlow
 
-This integration adds [Firecrawl](https://firecrawl.dev)'s powerful web scraping capabilities to [RAGFlow](https://github.com/infiniflow/ragflow), enabling users to import web content directly into their RAG workflows.
+This integration adds [Firecrawl](https://firecrawl.dev)'s powerful web scraping capabilities to [RAGFlow](https://github.com/Sardorr555/swipies__ai_.git), enabling users to import web content directly into their RAG workflows.
 
 ## 🎯 **Integration Overview**
 
@@ -202,7 +202,7 @@ This integration is licensed under the same license as RAGFlow (Apache 2.0).
 ## 🆘 **Support**
 
 - **Firecrawl Documentation**: [docs.firecrawl.dev](https://docs.firecrawl.dev)
-- **RAGFlow Documentation**: [RAGFlow GitHub](https://github.com/infiniflow/ragflow)
+- **RAGFlow Documentation**: [RAGFlow GitHub](https://github.com/Sardorr555/swipies__ai_.git)
 - **Issues**: Report issues in the RAGFlow repository
 
 ## 🎉 **Acknowledgments**

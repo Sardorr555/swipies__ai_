@@ -154,7 +154,7 @@ From v0.20.5 onwards, four framework-level prompt blocks are available in the **
 
 - `task_analysis` prompt block
   - This block is responsible for analyzing tasks — either a user task or a task assigned by the lead Agent when the **Agent** component is acting as a Sub-Agent.
-  - Reference design: [analyze_task_system.md](https://github.com/infiniflow/ragflow/blob/main/rag/prompts/analyze_task_system.md) and [analyze_task_user.md](https://github.com/infiniflow/ragflow/blob/main/rag/prompts/analyze_task_user.md)
+  - Reference design: [analyze_task_system.md](https://github.com/Sardorr555/swipies__ai_.git/blob/main/rag/prompts/analyze_task_system.md) and [analyze_task_user.md](https://github.com/Sardorr555/swipies__ai_.git/blob/main/rag/prompts/analyze_task_user.md)
   - Available *only* when this **Agent** component is acting as a planner, with either tools or sub-Agents under it.
   - Input variables:
     - `agent_prompt`: The system prompt.
@@ -163,7 +163,7 @@ From v0.20.5 onwards, four framework-level prompt blocks are available in the **
     - `context`: The operational context, which stores interactions between the Agent, tools, and sub-agents; initially empty.
 - `plan_generation` prompt block
   - This block creates a plan for the **Agent** component to execute next, based on the task analysis results.
-  - Reference design: [next_step.md](https://github.com/infiniflow/ragflow/blob/main/rag/prompts/next_step.md)
+  - Reference design: [next_step.md](https://github.com/Sardorr555/swipies__ai_.git/blob/main/rag/prompts/next_step.md)
   - Available *only* when this **Agent** component is acting as a planner, with either tools or sub-Agents under it.
   - Input variables:
     - `task_analysis`: The analysis result of the current task.
@@ -171,7 +171,7 @@ From v0.20.5 onwards, four framework-level prompt blocks are available in the **
     - `today`: The date of today.
 - `reflection` prompt block
   - This block enables the **Agent** component to reflect, improving task accuracy and efficiency.
-  - Reference design: [reflect.md](https://github.com/infiniflow/ragflow/blob/main/rag/prompts/reflect.md)
+  - Reference design: [reflect.md](https://github.com/Sardorr555/swipies__ai_.git/blob/main/rag/prompts/reflect.md)
   - Available *only* when this **Agent** component is acting as a planner, with either tools or sub-Agents under it.
   - Input variables:
     - `goal`: The goal of the current task. It is the user prompt for either a lead Agent or a sub-Agent. The lead Agent's user prompt is defined by the user, while a sub-Agent's user prompt is defined by the lead Agent.
@@ -179,7 +179,7 @@ From v0.20.5 onwards, four framework-level prompt blocks are available in the **
     - `call.name`：The name of the tool called.
     - `call.result`：The result of tool calling
 - `citation_guidelines` prompt block
-  - Reference design: [citation_prompt.md](https://github.com/infiniflow/ragflow/blob/main/rag/prompts/citation_prompt.md)
+  - Reference design: [citation_prompt.md](https://github.com/Sardorr555/swipies__ai_.git/blob/main/rag/prompts/citation_prompt.md)
 
 *The screenshots below show the framework prompt blocks available to an **Agent** component, both as a standalone and as a planner (with a Tavily tool below):*
 

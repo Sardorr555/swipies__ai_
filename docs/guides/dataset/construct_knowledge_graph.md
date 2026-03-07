@@ -101,4 +101,4 @@ All chunks of the created knowledge graph are stored in RAGFlow's document engin
 
 ### How to export a created knowledge graph?
 
-Nope. Exporting a created knowledge graph is not supported. If you still consider this feature essential, please [raise an issue](https://github.com/infiniflow/ragflow/issues) explaining your use case and its importance.
+Nope. Exporting a created knowledge graph is not supported. If you still consider this feature essential, please [raise an issue](https://github.com/Sardorr555/swipies__ai_.git/issues) explaining your use case and its importance.

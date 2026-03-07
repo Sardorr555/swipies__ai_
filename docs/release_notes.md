@@ -157,7 +157,7 @@ Released on November 19, 2025.
 ### Fixed issues
 
 - A v0.22.0 issue: Users failed to parse uploaded files or switch embedding model in a dataset containing parsed files using a built-in model from a `-full` RAGFlow edition.
-- Image concatenated in Word documents. [#11310](https://github.com/infiniflow/ragflow/pull/11310)
+- Image concatenated in Word documents. [#11310](https://github.com/Sardorr555/swipies__ai_.git/pull/11310)
 - Mixed images and text were not correctly displayed in the chat history.
 
 ### Newly supported models
@@ -278,11 +278,11 @@ Released on September 10, 2025.
 
 #### HTTP APIs
 
-- Adds a body parameter `"metadata_condition"` to the [Retrieve chunks](./references/http_api_reference.md#retrieve-chunks) method, enabling metadata-based chunk filtering during retrieval. [#9877](https://github.com/infiniflow/ragflow/pull/9877)
+- Adds a body parameter `"metadata_condition"` to the [Retrieve chunks](./references/http_api_reference.md#retrieve-chunks) method, enabling metadata-based chunk filtering during retrieval. [#9877](https://github.com/Sardorr555/swipies__ai_.git/pull/9877)
 
 #### Python APIs
 
-- Adds a parameter `metadata_condition` to the [Retrieve chunks](./references/python_api_reference.md#retrieve-chunks) method, enabling metadata-based chunk filtering during retrieval. [#9877](https://github.com/infiniflow/ragflow/pull/9877)
+- Adds a parameter `metadata_condition` to the [Retrieve chunks](./references/python_api_reference.md#retrieve-chunks) method, enabling metadata-based chunk filtering during retrieval. [#9877](https://github.com/Sardorr555/swipies__ai_.git/pull/9877)
 
 ## v0.20.4
 
@@ -333,14 +333,14 @@ Released on August 20, 2025.
 
 ### New Agent templates
 
-- Report Agent: A template for generating summary reports in internal question-answering scenarios, supporting the display of tables and formulae.  [#9427](https://github.com/infiniflow/ragflow/pull/9427)
+- Report Agent: A template for generating summary reports in internal question-answering scenarios, supporting the display of tables and formulae.  [#9427](https://github.com/Sardorr555/swipies__ai_.git/pull/9427)
 
 ### Fixed issues
 
 - The timeout mechanism introduced in v0.20.0 caused tasks like GraphRAG to halt.
 - Predefined opening greeting in the **Agent** component was missing during conversations.  
 - An automatic line break issue in the prompt editor.  
-- A memory leak issue caused by PyPDF. [#9469](https://github.com/infiniflow/ragflow/pull/9469)
+- A memory leak issue caused by PyPDF. [#9469](https://github.com/Sardorr555/swipies__ai_.git/pull/9469)
 
 ### API changes
 
@@ -365,8 +365,8 @@ Released on August 8, 2025.
 ### New agent templates (both workflow and agentic)
 
 - SQL Assistant Workflow: Empowers non-technical teams (e.g., operations, product) to independently query business data.
-- Choose Your Knowledge Base Workflow: Lets users select a dataset to query during conversations. [#9325](https://github.com/infiniflow/ragflow/pull/9325)
-- Choose Your Knowledge Base Agent: Delivers higher-quality responses with extended reasoning time, suited for complex queries. [#9325](https://github.com/infiniflow/ragflow/pull/9325)
+- Choose Your Knowledge Base Workflow: Lets users select a dataset to query during conversations. [#9325](https://github.com/Sardorr555/swipies__ai_.git/pull/9325)
+- Choose Your Knowledge Base Agent: Delivers higher-quality responses with extended reasoning time, suited for complex queries. [#9325](https://github.com/Sardorr555/swipies__ai_.git/pull/9325)
 
 ### Fixed Issues
 
@@ -414,17 +414,17 @@ Released on June 23, 2025.
 ### Fixed issues
 
 - A memory leak issue during high-concurrency requests.
-- Large file parsing freezes when GraphRAG entity resolution is enabled. [#8223](https://github.com/infiniflow/ragflow/pull/8223)
-- A context error occurring when using Sandbox in standalone mode. [#8340](https://github.com/infiniflow/ragflow/pull/8340)
-- An excessive CPU usage issue caused by Ollama. [#8216](https://github.com/infiniflow/ragflow/pull/8216)
-- A bug in the Code Component. [#7949](https://github.com/infiniflow/ragflow/pull/7949)
-- Added support for models installed via Ollama or VLLM when creating a dataset through the API. [#8069](https://github.com/infiniflow/ragflow/pull/8069)
-- Enabled role-based authentication for S3 bucket access. [#8149](https://github.com/infiniflow/ragflow/pull/8149)
+- Large file parsing freezes when GraphRAG entity resolution is enabled. [#8223](https://github.com/Sardorr555/swipies__ai_.git/pull/8223)
+- A context error occurring when using Sandbox in standalone mode. [#8340](https://github.com/Sardorr555/swipies__ai_.git/pull/8340)
+- An excessive CPU usage issue caused by Ollama. [#8216](https://github.com/Sardorr555/swipies__ai_.git/pull/8216)
+- A bug in the Code Component. [#7949](https://github.com/Sardorr555/swipies__ai_.git/pull/7949)
+- Added support for models installed via Ollama or VLLM when creating a dataset through the API. [#8069](https://github.com/Sardorr555/swipies__ai_.git/pull/8069)
+- Enabled role-based authentication for S3 bucket access. [#8149](https://github.com/Sardorr555/swipies__ai_.git/pull/8149)
 
 ### Newly supported models
 
-- Qwen 3 Embedding. [#8184](https://github.com/infiniflow/ragflow/pull/8184) 
-- Voyage Multimodal 3. [#7987](https://github.com/infiniflow/ragflow/pull/7987)
+- Qwen 3 Embedding. [#8184](https://github.com/Sardorr555/swipies__ai_.git/pull/8184) 
+- Voyage Multimodal 3. [#7987](https://github.com/Sardorr555/swipies__ai_.git/pull/7987)
 
 ## v0.19.0
 
@@ -597,7 +597,7 @@ Released on February 6, 2025.
 - New UI language: Portuguese.
 - Allows setting metadata for a specific file in a dataset to enhance AI-powered chats. See [here](./guides/dataset/set_metadata.md).
 - Upgrades RAGFlow's document engine [Infinity](https://github.com/infiniflow/infinity) to v0.6.0.dev3.
-- Supports GPU acceleration for DeepDoc (see [docker-compose-gpu.yml](https://github.com/infiniflow/ragflow/blob/main/docker/docker-compose-gpu.yml)).
+- Supports GPU acceleration for DeepDoc (see [docker-compose-gpu.yml](https://github.com/Sardorr555/swipies__ai_.git/blob/main/docker/docker-compose-gpu.yml)).
 - Supports creating and referencing a **Tag** dataset as a key milestone towards bridging the semantic gap between query and response.
 
 :::danger IMPORTANT
@@ -698,7 +698,7 @@ Released on November 29, 2024.
 
 ### Improvements
 
-Adds [Infinity's configuration file](https://github.com/infiniflow/ragflow/blob/main/docker/infinity_conf.toml) to facilitate integration and customization of [Infinity](https://github.com/infiniflow/infinity) as a document engine. From this release onwards, updates to Infinity's configuration can be made directly within RAGFlow and will take effect immediately after restarting RAGFlow using `docker compose`. [#3715](https://github.com/infiniflow/ragflow/pull/3715)
+Adds [Infinity's configuration file](https://github.com/Sardorr555/swipies__ai_.git/blob/main/docker/infinity_conf.toml) to facilitate integration and customization of [Infinity](https://github.com/infiniflow/infinity) as a document engine. From this release onwards, updates to Infinity's configuration can be made directly within RAGFlow and will take effect immediately after restarting RAGFlow using `docker compose`. [#3715](https://github.com/Sardorr555/swipies__ai_.git/pull/3715)
 
 ### Fixed issues
 
@@ -716,7 +716,7 @@ Released on November 26, 2024.
 
 ### New features
 
-- Supports [Infinity](https://github.com/infiniflow/infinity) or Elasticsearch (default) as document engine for vector storage and full-text indexing. [#2894](https://github.com/infiniflow/ragflow/pull/2894)
+- Supports [Infinity](https://github.com/infiniflow/infinity) or Elasticsearch (default) as document engine for vector storage and full-text indexing. [#2894](https://github.com/Sardorr555/swipies__ai_.git/pull/2894)
 - Enhances user experience by adding more variables to the Agent and implementing auto-saving.
 - Adds a three-step translation agent template, inspired by [Andrew Ng's translation agent](https://github.com/andrewyng/translation-agent).
 - Adds an SEO-optimized blog writing agent template.
@@ -729,7 +729,7 @@ Released on November 26, 2024.
 
 ### Compatibility changes
 
-From this release onwards, **service_config.yaml.template** replaces **service_config.yaml** for configuring backend services. Upon Docker container startup, the environment variables defined in this template file are automatically populated and a **service_config.yaml** is auto-generated from it. [#3341](https://github.com/infiniflow/ragflow/pull/3341)
+From this release onwards, **service_config.yaml.template** replaces **service_config.yaml** for configuring backend services. Upon Docker container startup, the environment variables defined in this template file are automatically populated and a **service_config.yaml** is auto-generated from it. [#3341](https://github.com/Sardorr555/swipies__ai_.git/pull/3341)
 
 This approach eliminates the need to manually update **service_config.yaml** after making changes to **.env**, facilitating dynamic environment configurations.
 

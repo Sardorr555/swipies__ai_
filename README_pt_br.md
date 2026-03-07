@@ -25,10 +25,10 @@
     <a href="https://hub.docker.com/r/infiniflow/ragflow" target="_blank">
         <img src="https://img.shields.io/docker/pulls/infiniflow/ragflow?label=Docker%20Pulls&color=0db7ed&logo=docker&logoColor=white&style=flat-square" alt="docker pull infiniflow/ragflow:v0.24.0">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/releases/latest">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/releases/latest">
         <img src="https://img.shields.io/github/v/release/infiniflow/ragflow?color=blue&label=Última%20Relese" alt="Última Versão">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/blob/main/LICENSE">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/blob/main/LICENSE">
         <img height="21" src="https://img.shields.io/badge/License-Apache--2.0-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="licença">
     </a>
     <a href="https://deepwiki.com/infiniflow/ragflow">
@@ -38,7 +38,7 @@
 
 <h4 align="center">
   <a href="https://help.swipies.app/docs/dev/">Documentação</a> |
-  <a href="https://github.com/infiniflow/ragflow/issues/12241">Roadmap</a> |
+  <a href="https://github.com/Sardorr555/swipies__ai_.git/issues/12241">Roadmap</a> |
   <a href="https://twitter.com/infiniflowai">Twitter</a> |
   <a href="https://discord.gg/NjYzJD3GM3">Discord</a> |
   <a href="https://demo.ragflow.io">Demo</a>
@@ -181,7 +181,7 @@ Experimente nossa demo em [https://demo.ragflow.io](https://demo.ragflow.io).
 2. Clone o repositório:
 
    ```bash
-   $ git clone https://github.com/infiniflow/ragflow.git
+   $ git clone https://github.com/Sardorr555/swipies__ai_.git.git
    ```
 3. Inicie o servidor usando as imagens Docker pré-compiladas:
 
@@ -195,7 +195,7 @@ Experimente nossa demo em [https://demo.ragflow.io](https://demo.ragflow.io).
    $ cd ragflow/docker
 
    # git checkout v0.24.0
-   # Opcional: use uma tag estável (veja releases: https://github.com/infiniflow/ragflow/releases)
+   # Opcional: use uma tag estável (veja releases: https://github.com/Sardorr555/swipies__ai_.git/releases)
    # Esta etapa garante que o arquivo entrypoint.sh no código corresponda à versão da imagem do Docker.
 
    # Use CPU for DeepDoc tasks:
@@ -290,7 +290,7 @@ O RAGFlow usa o Elasticsearch por padrão para armazenar texto completo e vetore
 Esta imagem tem cerca de 2 GB de tamanho e depende de serviços externos de LLM e incorporação.
 
 ```bash
-git clone https://github.com/infiniflow/ragflow.git
+git clone https://github.com/Sardorr555/swipies__ai_.git.git
 cd ragflow/
 docker build --platform linux/amd64 -f Dockerfile -t infiniflow/ragflow:nightly .
 ```
@@ -314,7 +314,7 @@ docker build --platform linux/amd64 \
 2. Clone o código-fonte e instale as dependências Python:
 
    ```bash
-   git clone https://github.com/infiniflow/ragflow.git
+   git clone https://github.com/Sardorr555/swipies__ai_.git.git
    cd ragflow/
    uv sync --python 3.12 # instala os módulos Python dependentes do RAGFlow
    uv run download_deps.py
@@ -386,7 +386,7 @@ docker build --platform linux/amd64 \
 
 ## 📜 Roadmap
 
-Veja o [RAGFlow Roadmap 2026](https://github.com/infiniflow/ragflow/issues/12241)
+Veja o [RAGFlow Roadmap 2026](https://github.com/Sardorr555/swipies__ai_.git/issues/12241)
 
 ## 🏄 Comunidade
 

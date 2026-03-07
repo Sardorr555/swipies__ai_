@@ -25,10 +25,10 @@
     <a href="https://hub.docker.com/r/infiniflow/ragflow" target="_blank">
         <img src="https://img.shields.io/docker/pulls/infiniflow/ragflow?label=Docker%20Pulls&color=0db7ed&logo=docker&logoColor=white&style=flat-square" alt="docker pull infiniflow/ragflow:v0.24.0">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/releases/latest">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/releases/latest">
         <img src="https://img.shields.io/github/v/release/infiniflow/ragflow?color=blue&label=Latest%20Release" alt="Latest Release">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/blob/main/LICENSE">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/blob/main/LICENSE">
         <img height="21" src="https://img.shields.io/badge/License-Apache--2.0-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="license">
     </a>
     <a href="https://deepwiki.com/infiniflow/ragflow">
@@ -38,7 +38,7 @@
 
 <h4 align="center">
   <a href="https://help.swipies.app/docs/dev/">Document</a> |
-  <a href="https://github.com/infiniflow/ragflow/issues/12241">Roadmap</a> |
+  <a href="https://github.com/Sardorr555/swipies__ai_.git/issues/12241">Roadmap</a> |
   <a href="https://twitter.com/infiniflowai">Twitter</a> |
   <a href="https://discord.gg/NjYzJD3GM3">Discord</a> |
   <a href="https://demo.ragflow.io">Demo</a>
@@ -162,7 +162,7 @@
 2. 레포지토리를 클론하세요:
 
    ```bash
-   $ git clone https://github.com/infiniflow/ragflow.git
+   $ git clone https://github.com/Sardorr555/swipies__ai_.git.git
    ```
 
 3. 미리 빌드된 Docker 이미지를 생성하고 서버를 시작하세요:
@@ -177,7 +177,7 @@
    $ cd ragflow/docker
 
    # git checkout v0.24.0
-   # Optional: use a stable tag (see releases: https://github.com/infiniflow/ragflow/releases)
+   # Optional: use a stable tag (see releases: https://github.com/Sardorr555/swipies__ai_.git/releases)
    # 이 단계는 코드의 entrypoint.sh 파일이 Docker 이미지 버전과 일치하도록 보장합니다.
 
    # Use CPU for DeepDoc tasks:
@@ -267,7 +267,7 @@ RAGFlow 는 기본적으로 Elasticsearch 를 사용하여 전체 텍스트 및 
 이 Docker 이미지의 크기는 약 1GB이며, 외부 대형 모델과 임베딩 서비스에 의존합니다.
 
 ```bash
-git clone https://github.com/infiniflow/ragflow.git
+git clone https://github.com/Sardorr555/swipies__ai_.git.git
 cd ragflow/
 docker build --platform linux/amd64 -f Dockerfile -t infiniflow/ragflow:nightly .
 ```
@@ -292,7 +292,7 @@ docker build --platform linux/amd64 \
 2. 소스 코드를 클론하고 Python 의존성을 설치합니다:
 
    ```bash
-   git clone https://github.com/infiniflow/ragflow.git
+   git clone https://github.com/Sardorr555/swipies__ai_.git.git
    cd ragflow/
    uv sync --python 3.12 # install RAGFlow dependent python modules
    uv run download_deps.py
@@ -373,7 +373,7 @@ docker build --platform linux/amd64 \
 
 ## 📜 로드맵
 
-[RAGFlow 로드맵 2026](https://github.com/infiniflow/ragflow/issues/12241)을 확인하세요.
+[RAGFlow 로드맵 2026](https://github.com/Sardorr555/swipies__ai_.git/issues/12241)을 확인하세요.
 
 ## 🏄 커뮤니티
 

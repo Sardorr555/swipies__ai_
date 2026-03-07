@@ -173,12 +173,12 @@ This section is contributed by our community contributor [yiminghub2024](https:/
 :::
 
 1. Prepare all MCP-specific files and directories.  
-   i. Copy the [mcp/](https://github.com/infiniflow/ragflow/tree/main/mcp) directory to your local working directory.  
-   ii. Copy [docker/docker-compose.yml](https://github.com/infiniflow/ragflow/blob/main/docker/docker-compose.yml) locally.  
-   iii. Copy [docker/entrypoint.sh](https://github.com/infiniflow/ragflow/blob/main/docker/entrypoint.sh) locally.  
+   i. Copy the [mcp/](https://github.com/Sardorr555/swipies__ai_.git/tree/main/mcp) directory to your local working directory.  
+   ii. Copy [docker/docker-compose.yml](https://github.com/Sardorr555/swipies__ai_.git/blob/main/docker/docker-compose.yml) locally.  
+   iii. Copy [docker/entrypoint.sh](https://github.com/Sardorr555/swipies__ai_.git/blob/main/docker/entrypoint.sh) locally.  
    iv. Install the required dependencies using `uv`:  
        - Run `uv add mcp` or
-       - Copy [pyproject.toml](https://github.com/infiniflow/ragflow/blob/main/pyproject.toml) locally and run `uv sync --python 3.12`.
+       - Copy [pyproject.toml](https://github.com/Sardorr555/swipies__ai_.git/blob/main/pyproject.toml) locally and run `uv sync --python 3.12`.
 2. Edit **docker-compose.yml** to enable MCP (disabled by default).
 3. Launch the MCP server:
 
@@ -211,4 +211,4 @@ The use of an API key depends on the operating mode of your MCP server.
   - If launching from source, include the API key in the command. 
   - If launching from Docker, update the API key in **docker/docker-compose.yml**.
 - **Host mode**:  
-  If your RAGFlow MCP server is working in host mode, include the API key in the `headers` of your client requests to authenticate your client with the RAGFlow server. An example is available [here](https://github.com/infiniflow/ragflow/blob/main/mcp/client/client.py).
+  If your RAGFlow MCP server is working in host mode, include the API key in the `headers` of your client requests to authenticate your client with the RAGFlow server. An example is available [here](https://github.com/Sardorr555/swipies__ai_.git/blob/main/mcp/client/client.py).

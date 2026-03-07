@@ -18,7 +18,7 @@ import VerifyButton from '../../modal/verify-button';
 
 const llmFactoryToUrlMap: Partial<Record<LLMFactory, string>> = {
   [LLMFactory.Ollama]:
-    'https://github.com/infiniflow/ragflow/blob/main/docs/guides/models/deploy_local_llm.mdx',
+    'https://github.com/Sardorr555/swipies__ai_.git/blob/main/docs/guides/models/deploy_local_llm.mdx',
   [LLMFactory.Xinference]:
     'https://inference.readthedocs.io/en/latest/user_guide',
   [LLMFactory.ModelScope]:
@@ -100,7 +100,7 @@ const OllamaModal = ({
 
   const url =
     llmFactoryToUrlMap[llmFactory as LLMFactory] ||
-    'https://github.com/infiniflow/ragflow/blob/main/docs/guides/models/deploy_local_llm.mdx';
+    'https://github.com/Sardorr555/swipies__ai_.git/blob/main/docs/guides/models/deploy_local_llm.mdx';
 
   const fields = useMemo<FormFieldConfig[]>(() => {
     const getOptions = (factory: string) => {
@@ -275,7 +275,7 @@ const OllamaModal = ({
         key={`${visible}-${llmFactory}`}
         fields={fields}
         ref={formRef}
-        onSubmit={() => {}}
+        onSubmit={() => { }}
         defaultValues={defaultValues}
         labelClassName="font-normal"
       >

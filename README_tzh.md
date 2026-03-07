@@ -25,10 +25,10 @@
     <a href="https://hub.docker.com/r/infiniflow/ragflow" target="_blank">
         <img src="https://img.shields.io/docker/pulls/infiniflow/ragflow?label=Docker%20Pulls&color=0db7ed&logo=docker&logoColor=white&style=flat-square" alt="docker pull infiniflow/ragflow:v0.24.0">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/releases/latest">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/releases/latest">
         <img src="https://img.shields.io/github/v/release/infiniflow/ragflow?color=blue&label=Latest%20Release" alt="Latest Release">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/blob/main/LICENSE">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/blob/main/LICENSE">
         <img height="21" src="https://img.shields.io/badge/License-Apache--2.0-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="license">
     </a>
     <a href="https://deepwiki.com/infiniflow/ragflow">
@@ -38,7 +38,7 @@
 
 <h4 align="center">
   <a href="https://help.swipies.app/docs/dev/">Document</a> |
-  <a href="https://github.com/infiniflow/ragflow/issues/12241">Roadmap</a> |
+  <a href="https://github.com/Sardorr555/swipies__ai_.git/issues/12241">Roadmap</a> |
   <a href="https://twitter.com/infiniflowai">Twitter</a> |
   <a href="https://discord.gg/NjYzJD3GM3">Discord</a> |
   <a href="https://demo.ragflow.io">Demo</a>
@@ -180,7 +180,7 @@
 2. 克隆倉庫：
 
    ```bash
-   $ git clone https://github.com/infiniflow/ragflow.git
+   $ git clone https://github.com/Sardorr555/swipies__ai_.git.git
    ```
 3. 進入 **docker** 資料夾，利用事先編譯好的 Docker 映像啟動伺服器：
 
@@ -194,7 +194,7 @@
    $ cd ragflow/docker
 
    # git checkout v0.24.0
-   # 可選：使用穩定版標籤（查看發佈：https://github.com/infiniflow/ragflow/releases）
+   # 可選：使用穩定版標籤（查看發佈：https://github.com/Sardorr555/swipies__ai_.git/releases）
    # 此步驟確保程式碼中的 entrypoint.sh 檔案與 Docker 映像版本一致。
 
    # Use CPU for DeepDoc tasks:
@@ -299,7 +299,7 @@ RAGFlow 預設使用 Elasticsearch 儲存文字和向量資料. 如果要切換�
 本 Docker 映像大小約 2 GB 左右並且依賴外部的大模型和 embedding 服務。
 
 ```bash
-git clone https://github.com/infiniflow/ragflow.git
+git clone https://github.com/Sardorr555/swipies__ai_.git.git
 cd ragflow/
 docker build --platform linux/amd64 -f Dockerfile -t infiniflow/ragflow:nightly .
 ```
@@ -324,7 +324,7 @@ docker build --platform linux/amd64 \
 2. 下載原始碼並安裝 Python 依賴：
 
    ```bash
-   git clone https://github.com/infiniflow/ragflow.git
+   git clone https://github.com/Sardorr555/swipies__ai_.git.git
    cd ragflow/
    uv sync --python 3.12 # install RAGFlow dependent python modules
    uv run download_deps.py
@@ -400,7 +400,7 @@ docker build --platform linux/amd64 \
 
 ## 📜 路線圖
 
-詳見 [RAGFlow Roadmap 2026](https://github.com/infiniflow/ragflow/issues/12241) 。
+詳見 [RAGFlow Roadmap 2026](https://github.com/Sardorr555/swipies__ai_.git/issues/12241) 。
 
 ## 🏄 開源社群
 
@@ -421,5 +421,5 @@ RAGFlow 只有透過開源協作才能蓬勃發展。秉持這項精神,我們�
 掃二維碼加入 RAGFlow 小助手，進 RAGFlow 交流群。
 
 <p align="center">
-  <img src="https://github.com/infiniflow/ragflow/assets/7248/bccf284f-46f2-4445-9809-8f1030fb7585" width=50% height=50%>
+  <img src="https://github.com/Sardorr555/swipies__ai_.git/assets/7248/bccf284f-46f2-4445-9809-8f1030fb7585" width=50% height=50%>
 </p>

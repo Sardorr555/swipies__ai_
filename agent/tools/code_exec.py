@@ -88,7 +88,7 @@ Here's a code example for Javascript(`main` function MUST be included and export
 const axios = require('axios');
 async function main(args) {
   try {
-    const response = await axios.get('https://github.com/infiniflow/ragflow');
+    const response = await axios.get('https://github.com/Sardorr555/swipies__ai_.git');
     console.log('Body:', response.data);
   } catch (error) {
     console.error('Error:', error.message);

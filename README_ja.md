@@ -25,10 +25,10 @@
     <a href="https://hub.docker.com/r/infiniflow/ragflow" target="_blank">
         <img src="https://img.shields.io/docker/pulls/infiniflow/ragflow?label=Docker%20Pulls&color=0db7ed&logo=docker&logoColor=white&style=flat-square" alt="docker pull infiniflow/ragflow:v0.24.0">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/releases/latest">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/releases/latest">
         <img src="https://img.shields.io/github/v/release/infiniflow/ragflow?color=blue&label=Latest%20Release" alt="Latest Release">
     </a>
-    <a href="https://github.com/infiniflow/ragflow/blob/main/LICENSE">
+    <a href="https://github.com/Sardorr555/swipies__ai_.git/blob/main/LICENSE">
         <img height="21" src="https://img.shields.io/badge/License-Apache--2.0-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="license">
     </a>
     <a href="https://deepwiki.com/infiniflow/ragflow">
@@ -38,7 +38,7 @@
 
 <h4 align="center">
   <a href="https://help.swipies.app/docs/dev/">Document</a> |
-  <a href="https://github.com/infiniflow/ragflow/issues/12241">Roadmap</a> |
+  <a href="https://github.com/Sardorr555/swipies__ai_.git/issues/12241">Roadmap</a> |
   <a href="https://twitter.com/infiniflowai">Twitter</a> |
   <a href="https://discord.gg/NjYzJD3GM3">Discord</a> |
   <a href="https://demo.ragflow.io">Demo</a>
@@ -161,7 +161,7 @@
 2. リポジトリをクローンする:
 
    ```bash
-   $ git clone https://github.com/infiniflow/ragflow.git
+   $ git clone https://github.com/Sardorr555/swipies__ai_.git.git
    ```
 3. ビルド済みの Docker イメージをビルドし、サーバーを起動する:
 
@@ -175,7 +175,7 @@
    $ cd ragflow/docker
 
    # git checkout v0.24.0
-   # 任意: 安定版タグを利用 (一覧: https://github.com/infiniflow/ragflow/releases)
+   # 任意: 安定版タグを利用 (一覧: https://github.com/Sardorr555/swipies__ai_.git/releases)
    # この手順は、コード内の entrypoint.sh ファイルが Docker イメージのバージョンと一致していることを確認します。
 
    # Use CPU for DeepDoc tasks:
@@ -273,7 +273,7 @@ RAGFlow はデフォルトで Elasticsearch を使用して全文とベクトル
 この Docker イメージのサイズは約 1GB で、外部の大モデルと埋め込みサービスに依存しています。
 
 ```bash
-git clone https://github.com/infiniflow/ragflow.git
+git clone https://github.com/Sardorr555/swipies__ai_.git.git
 cd ragflow/
 docker build --platform linux/amd64 -f Dockerfile -t infiniflow/ragflow:nightly .
 ```
@@ -297,7 +297,7 @@ docker build --platform linux/amd64 \
 2. ソースコードをクローンし、Python の依存関係をインストールする:
 
    ```bash
-   git clone https://github.com/infiniflow/ragflow.git
+   git clone https://github.com/Sardorr555/swipies__ai_.git.git
    cd ragflow/
    uv sync --python 3.12 # install RAGFlow dependent python modules
    uv run download_deps.py
@@ -369,7 +369,7 @@ docker build --platform linux/amd64 \
 
 ## 📜 ロードマップ
 
-[RAGFlow ロードマップ 2026](https://github.com/infiniflow/ragflow/issues/12241) を参照
+[RAGFlow ロードマップ 2026](https://github.com/Sardorr555/swipies__ai_.git/issues/12241) を参照
 
 ## 🏄 コミュニティ
 
