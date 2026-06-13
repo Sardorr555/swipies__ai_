@@ -40,54 +40,54 @@ const PLANS = {
   plus: {
     name: 'Plus',
     pricePerMonthUzs: 199000,
-    description: 'Для активных пользователей',
+    description: 'For active users',
     features: [
-      '3 Базы знаний',
-      '1 ГБ Хранилище',
-      'До 500 запросов в день',
-      'Базовые ИИ Ассистенты',
-      'Поддержка по email',
+      '3 Knowledge Bases',
+      '1 GB Storage',
+      'Up to 500 queries/day',
+      'Basic AI Assistants',
+      'Email Support',
     ],
-    cta: 'Выбрать Plus',
+    cta: 'Choose Plus',
     disabled: false,
   },
   pro: {
     name: 'Pro',
     pricePerMonthUzs: 400000,
-    description: 'Для профессионалов и команд',
+    description: 'For professionals and teams',
     features: [
-      '10 Баз знаний',
-      '10 ГБ Хранилище',
-      'Безлимитные запросы',
-      'Продвинутые ИИ Агенты',
-      'Приоритетная поддержка',
-      'API доступ',
+      '10 Knowledge Bases',
+      '10 GB Storage',
+      'Unlimited queries',
+      'Advanced AI Agents',
+      'Priority Support',
+      'API Access',
     ],
-    cta: 'Выбрать Pro',
+    cta: 'Choose Pro',
     disabled: false,
     popular: true,
   },
   enterprise: {
     name: 'Enterprise',
     pricePerMonthUzs: 0,
-    description: 'Для организаций с особыми требованиями',
+    description: 'For organizations with advanced needs',
     features: [
-      'Безлимитные базы знаний',
-      'Безлимитное хранилище',
-      'Выделенный сервер / On-Premise',
-      'Максимальная безопасность и SLA',
-      'Персональный менеджер',
-      'Кастомные интеграции',
+      'Unlimited Knowledge Bases',
+      'Unlimited Storage',
+      'Dedicated Server / On-Premise',
+      'Maximum Security & SLA',
+      'Dedicated Account Manager',
+      'Custom Integrations',
     ],
-    cta: 'Связаться с нами',
+    cta: 'Contact Us',
     disabled: false,
   },
 };
 
 const PERIODS = [
-  { months: 1, label: '1 Месяц', discount: 0, badge: null },
-  { months: 6, label: '6 Месяцев', discount: 0.1, badge: '−10%' },
-  { months: 12, label: '1 Год', discount: 0.2, badge: '−20%' },
+  { months: 1, label: '1 Month', discount: 0, badge: null },
+  { months: 6, label: '6 Months', discount: 0.1, badge: '−10%' },
+  { months: 12, label: '1 Year', discount: 0.2, badge: '−20%' },
 ];
 
 export default function PricingPage() {
@@ -299,16 +299,16 @@ export default function PricingPage() {
             className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 transition-colors text-sm font-medium"
           >
             <LucideArrowLeft className="size-4" />
-            Назад в панель
+            Back to dashboard
           </Link>
 
           {/* Title Section */}
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-text-primary tracking-tight mb-3">
-              Тарифные планы {BRAND.name} AI
+              {BRAND.name} AI Subscription Plans
             </h1>
             <p className="text-xs sm:text-sm md:text-base text-text-secondary max-w-2xl mx-auto leading-relaxed">
-              Выберите подходящую подписку для расширения возможностей работы с искусственным интеллектом. Оплата картами Uzcard, Humo, Visa, Mastercard.
+              Choose the subscription that fits your workload. Pay securely via card using our local and international gateways.
             </p>
 
             {/* Billing Period Selector */}
@@ -347,7 +347,7 @@ export default function PricingPage() {
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
                     {formatUZS(PLANS.plus.pricePerMonthUzs)}
                   </span>
-                  <span className="text-text-secondary text-xs sm:text-sm">/мес</span>
+                  <span className="text-text-secondary text-xs sm:text-sm">/mo</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.plus.features.map((feature) => (
@@ -371,7 +371,7 @@ export default function PricingPage() {
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold text-white rounded-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] shadow-sm">
                   <LucideZap className="size-3" />
-                  Популярный
+                  Most Popular
                 </span>
               </div>
               <div>
@@ -383,7 +383,7 @@ export default function PricingPage() {
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
                     {formatUZS(PLANS.pro.pricePerMonthUzs)}
                   </span>
-                  <span className="text-text-secondary text-xs sm:text-sm">/мес</span>
+                  <span className="text-text-secondary text-xs sm:text-sm">/mo</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.pro.features.map((feature) => (
@@ -411,9 +411,9 @@ export default function PricingPage() {
                 </div>
                 <div className="mb-4">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary block">
-                    Индивидуально
+                    Enterprise
                   </span>
-                  <span className="text-text-secondary text-[11px]">Цена по запросу</span>
+                  <span className="text-text-secondary text-[11px]">Custom Pricing</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.enterprise.features.map((feature) => (
@@ -435,7 +435,7 @@ export default function PricingPage() {
         </div>
 
         <p className="text-center text-[11px] sm:text-xs text-text-secondary mt-6 pb-8">
-          Все платежи защищены и обрабатываются через платежный шлюз Atmos. Вы можете изменить или отменить подписку в любое время.
+          All payments are secured and processed via Atmos payment gateway. You can modify or cancel your subscription at any time.
         </p>
       </div>
 
