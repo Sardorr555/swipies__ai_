@@ -148,8 +148,8 @@ services:
 
   frontend:
     build:
-      context: ..
-      dockerfile: ./web/Dockerfile
+      context: ../web
+      dockerfile: Dockerfile
     container_name: ragflow-frontend
     environment:
       - RAGFLOW_BACKEND=${RAGFLOW_BACKEND:-http://ragflow-cpu:9380}
