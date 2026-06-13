@@ -37,65 +37,57 @@ const generateUUID = () => {
 };
 
 const PLANS = {
-  free: {
-    name: 'Free',
-    priceUsd: 0,
-    pricePerMonthUzs: 0,
-    description: 'Get started with basic features',
+  plus: {
+    name: 'Plus',
+    pricePerMonthUzs: 199000,
+    description: 'Для активных пользователей',
     features: [
-      '1 Knowledge Base',
-      '50 MB Storage',
-      '100 Queries/day',
-      'Basic Chat Assistant',
-      'Community Support',
+      '3 Базы знаний',
+      '1 ГБ Хранилище',
+      'До 500 запросов в день',
+      'Базовые ИИ Ассистенты',
+      'Поддержка по email',
     ],
-    cta: 'Current Plan',
-    disabled: true,
+    cta: 'Выбрать Plus',
+    disabled: false,
   },
   pro: {
     name: 'Pro',
-    priceUsd: 29,
-    pricePerMonthUzs: 370000,
-    description: 'For professionals and small teams',
+    pricePerMonthUzs: 400000,
+    description: 'Для профессионалов и команд',
     features: [
-      '10 Knowledge Bases',
-      '5 GB Storage',
-      'Unlimited Queries',
-      'Advanced AI Agents',
-      'Priority Support',
-      'Custom Branding',
-      'API Access',
+      '10 Баз знаний',
+      '10 ГБ Хранилище',
+      'Безлимитные запросы',
+      'Продвинутые ИИ Агенты',
+      'Приоритетная поддержка',
+      'API доступ',
     ],
-    cta: 'Upgrade to Pro',
+    cta: 'Выбрать Pro',
     disabled: false,
     popular: true,
   },
   enterprise: {
     name: 'Enterprise',
-    priceUsd: 99,
-    pricePerMonthUzs: 1260000,
-    description: 'For organizations with advanced needs',
+    pricePerMonthUzs: 0,
+    description: 'Для организаций с особыми требованиями',
     features: [
-      'Unlimited Knowledge Bases',
-      '50 GB Storage',
-      'Unlimited Queries',
-      'Advanced AI Agents',
-      'Dedicated Support',
-      'Custom Branding',
-      'API Access',
-      'SSO & SAML',
-      'Audit Logs',
-      'SLA Guarantee',
+      'Безлимитные базы знаний',
+      'Безлимитное хранилище',
+      'Выделенный сервер / On-Premise',
+      'Максимальная безопасность и SLA',
+      'Персональный менеджер',
+      'Кастомные интеграции',
     ],
-    cta: 'Upgrade to Enterprise',
+    cta: 'Связаться с нами',
     disabled: false,
   },
 };
 
 const PERIODS = [
-  { months: 1, label: '1 Month', discount: 0, badge: null },
-  { months: 6, label: '6 Months', discount: 0.1, badge: '−10%' },
-  { months: 12, label: '1 Year', discount: 0.2, badge: '−20%' },
+  { months: 1, label: '1 Месяц', discount: 0, badge: null },
+  { months: 6, label: '6 Месяцев', discount: 0.1, badge: '−10%' },
+  { months: 12, label: '1 Год', discount: 0.2, badge: '−20%' },
 ];
 
 export default function PricingPage() {
@@ -103,7 +95,7 @@ export default function PricingPage() {
   const userEmail = userInfo?.email || '';
 
   const [selectedPeriod, setSelectedPeriod] = useState(1);
-  const [activePlanKey, setActivePlanKey] = useState<'pro' | 'enterprise' | null>(null);
+  const [activePlanKey, setActivePlanKey] = useState<'plus' | 'pro' | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [step, setStep] = useState<'card' | 'processing_card' | 'otp' | 'processing_otp' | 'success'>('card');
   const [cardNumber, setCardNumber] = useState('');
@@ -134,7 +126,11 @@ export default function PricingPage() {
   const isVisaOrMastercard =
     !isLocalCard && (cleanCardNumber.startsWith('4') || cleanCardNumber.startsWith('5'));
 
-  const handleOpenCheckout = (key: 'pro' | 'enterprise') => {
+  const handleOpenCheckout = (key: 'plus' | 'pro' | 'enterprise') => {
+    if (key === 'enterprise') {
+      window.open('https://t.me/swipies_ai', '_blank');
+      return;
+    }
     setActivePlanKey(key);
     setIsModalOpen(true);
     setStep('card');
@@ -294,150 +290,152 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-body p-4 sm:p-6 md:p-8 overflow-y-auto">
-      <div className="max-w-6xl mx-auto">
-        {/* Back Link */}
-        <Link
-          to={Routes.Root}
-          className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 sm:mb-8 transition-colors text-sm font-medium"
-        >
-          <LucideArrowLeft className="size-4" />
-          Back to Dashboard
-        </Link>
+    <div className="min-h-screen bg-bg-body p-4 sm:p-6 md:p-8 lg:p-12 overflow-y-auto flex flex-col items-center justify-start">
+      <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col justify-between">
+        <div>
+          {/* Back Link */}
+          <Link
+            to={Routes.Root}
+            className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 sm:mb-8 transition-colors text-sm font-medium"
+          >
+            <LucideArrowLeft className="size-4" />
+            Назад в панель
+          </Link>
 
-        {/* Title Section */}
-        <div className="text-center mb-8 sm:mb-12">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-text-primary tracking-tight mb-4">
-            Upgrade Your {BRAND.name} Plan
-          </h1>
-          <p className="text-sm sm:text-base md:text-lg text-text-secondary max-w-2xl mx-auto leading-relaxed">
-            Choose the subscription that fits your workload. Pay securely via card using our local and international gateways.
-          </p>
+          {/* Title Section */}
+          <div className="text-center mb-8 sm:mb-12">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-text-primary tracking-tight mb-4">
+              Тарифные планы {BRAND.name} AI
+            </h1>
+            <p className="text-sm sm:text-base md:text-lg text-text-secondary max-w-2xl mx-auto leading-relaxed">
+              Выберите подходящую подписку для расширения возможностей работы с искусственным интеллектом. Оплата картами Uzcard, Humo, Visa, Mastercard.
+            </p>
 
-          {/* Billing Period Selector */}
-          <div className="inline-flex items-center gap-2 bg-bg-component border border-border p-1.5 rounded-xl mt-6 sm:mt-8">
-            {PERIODS.map((period) => (
-              <button
-                key={period.months}
-                onClick={() => setSelectedPeriod(period.months)}
-                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all relative ${
-                  selectedPeriod === period.months
-                    ? 'bg-[#478AF5] text-white shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-body'
-                }`}
-              >
-                {period.badge && (
-                  <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
-                    {period.badge}
+            {/* Billing Period Selector */}
+            <div className="inline-flex items-center gap-2 bg-bg-component border border-border p-1.5 rounded-xl mt-6 sm:mt-8">
+              {PERIODS.map((period) => (
+                <button
+                  key={period.months}
+                  onClick={() => setSelectedPeriod(period.months)}
+                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all relative ${
+                    selectedPeriod === period.months
+                      ? 'bg-[#478AF5] text-white shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-body'
+                  }`}
+                >
+                  {period.badge && (
+                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                      {period.badge}
+                    </span>
+                  )}
+                  {period.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Pricing Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 xl:gap-10 items-stretch max-w-6xl mx-auto">
+            {/* Plus Card */}
+            <div className="border border-border bg-bg-component rounded-2xl p-6 sm:p-8 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg">
+              <div>
+                <div className="mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary mb-1">{PLANS.plus.name}</h3>
+                  <p className="text-sm text-text-secondary">{PLANS.plus.description}</p>
+                </div>
+                <div className="mb-6">
+                  <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary">
+                    {formatUZS(PLANS.plus.pricePerMonthUzs)}
                   </span>
-                )}
-                {period.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Pricing Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 items-stretch">
-          {/* Free Card */}
-          <div className="border border-border bg-bg-component rounded-2xl p-6 sm:p-8 flex flex-col justify-between transition-all hover:border-text-secondary">
-            <div>
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-text-primary mb-1">{PLANS.free.name}</h3>
-                <p className="text-sm text-text-secondary">{PLANS.free.description}</p>
-              </div>
-              <div className="mb-6">
-                <span className="text-3xl sm:text-4xl font-extrabold text-text-primary">
-                  ${PLANS.free.priceUsd}
-                </span>
-                <span className="text-text-secondary text-sm">/month</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                {PLANS.free.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-sm text-text-secondary">
-                    <LucideCheck className="size-4.5 text-[#42D7E7] shrink-0 mt-0.5" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <Button className="w-full" variant="outline" disabled>
-              {PLANS.free.cta}
-            </Button>
-          </div>
-
-          {/* Pro Card */}
-          <div className="relative border-[#478AF5] bg-gradient-to-b from-[#478AF5]/5 to-[#42D7E7]/5 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-md transition-all hover:shadow-xl scale-[1.01] md:scale-[1.02]">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white rounded-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] shadow-sm">
-                <LucideZap className="size-3" />
-                Most Popular
-              </span>
-            </div>
-            <div>
-              <div className="mb-6 mt-2">
-                <h3 className="text-xl font-bold text-text-primary mb-1">{PLANS.pro.name}</h3>
-                <p className="text-sm text-text-secondary">{PLANS.pro.description}</p>
-              </div>
-              <div className="mb-6">
-                <span className="text-3xl sm:text-4xl font-extrabold text-text-primary">
-                  {formatUZS(PLANS.pro.pricePerMonthUzs)}
-                </span>
-                <span className="text-text-secondary text-sm">/month</span>
-                <div className="text-xs text-[#478AF5] font-medium mt-1">
-                  ~ ${PLANS.pro.priceUsd} USD
+                  <span className="text-text-secondary text-sm">/мес</span>
                 </div>
+                <ul className="space-y-3 mb-8">
+                  {PLANS.plus.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5 text-sm text-text-secondary">
+                      <LucideCheck className="size-4.5 text-[#42D7E7] shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="space-y-3 mb-8">
-                {PLANS.pro.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-sm text-text-secondary">
-                    <LucideCheck className="size-4.5 text-[#42D7E7] shrink-0 mt-0.5" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
+              <Button
+                className="w-full bg-[#478AF5]/10 hover:bg-[#478AF5]/20 text-[#478AF5] border border-[#478AF5]/20 font-bold py-3.5 rounded-xl transition-all"
+                onClick={() => handleOpenCheckout('plus')}
+              >
+                {PLANS.plus.cta}
+              </Button>
             </div>
-            <Button
-              className="w-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md border-0"
-              onClick={() => handleOpenCheckout('pro')}
-            >
-              {PLANS.pro.cta}
-            </Button>
-          </div>
 
-          {/* Enterprise Card */}
-          <div className="border border-border bg-bg-component rounded-2xl p-6 sm:p-8 flex flex-col justify-between transition-all hover:border-[#478AF5]">
-            <div>
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-text-primary mb-1">{PLANS.enterprise.name}</h3>
-                <p className="text-sm text-text-secondary">{PLANS.enterprise.description}</p>
-              </div>
-              <div className="mb-6">
-                <span className="text-3xl sm:text-4xl font-extrabold text-text-primary">
-                  {formatUZS(PLANS.enterprise.pricePerMonthUzs)}
+            {/* Pro Card */}
+            <div className="relative border-2 border-[#478AF5] bg-gradient-to-b from-[#478AF5]/5 to-[#42D7E7]/5 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-md transition-all hover:shadow-xl scale-[1.01] md:scale-[1.02]">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white rounded-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] shadow-sm">
+                  <LucideZap className="size-3" />
+                  Популярный
                 </span>
-                <span className="text-text-secondary text-sm">/month</span>
-                <div className="text-xs text-text-secondary mt-1">
-                  ~ ${PLANS.enterprise.priceUsd} USD
-                </div>
               </div>
-              <ul className="space-y-3 mb-8">
-                {PLANS.enterprise.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-sm text-text-secondary">
-                    <LucideCheck className="size-4.5 text-[#42D7E7] shrink-0 mt-0.5" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
+              <div>
+                <div className="mb-6 mt-2">
+                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary mb-1">{PLANS.pro.name}</h3>
+                  <p className="text-sm text-text-secondary">{PLANS.pro.description}</p>
+                </div>
+                <div className="mb-6">
+                  <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary">
+                    {formatUZS(PLANS.pro.pricePerMonthUzs)}
+                  </span>
+                  <span className="text-text-secondary text-sm">/мес</span>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {PLANS.pro.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5 text-sm text-text-secondary">
+                      <LucideCheck className="size-4.5 text-[#42D7E7] shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                className="w-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md border-0 font-bold py-3.5 rounded-xl transition-all"
+                onClick={() => handleOpenCheckout('pro')}
+              >
+                {PLANS.pro.cta}
+              </Button>
             </div>
-            <Button className="w-full" variant="outline" onClick={() => handleOpenCheckout('enterprise')}>
-              {PLANS.enterprise.cta}
-            </Button>
+
+            {/* Enterprise Card */}
+            <div className="border border-border bg-bg-component rounded-2xl p-6 sm:p-8 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg">
+              <div>
+                <div className="mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary mb-1">{PLANS.enterprise.name}</h3>
+                  <p className="text-sm text-text-secondary">{PLANS.enterprise.description}</p>
+                </div>
+                <div className="mb-6">
+                  <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary block">
+                    Индивидуально
+                  </span>
+                  <span className="text-text-secondary text-xs">Цена по запросу</span>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {PLANS.enterprise.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5 text-sm text-text-secondary">
+                      <LucideCheck className="size-4.5 text-[#42D7E7] shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                className="w-full bg-bg-component text-text-primary hover:bg-bg-body border border-border font-bold py-3.5 rounded-xl transition-all"
+                onClick={() => handleOpenCheckout('enterprise')}
+              >
+                {PLANS.enterprise.cta}
+              </Button>
+            </div>
           </div>
         </div>
 
         <p className="text-center text-xs sm:text-sm text-text-secondary mt-12">
-          Secure bank processing by Atmos. Cancel or upgrade your plan anytime.
+          Все платежи защищены и обрабатываются через платежный шлюз Atmos. Вы можете изменить или отменить подписку в любое время.
         </p>
       </div>
 
