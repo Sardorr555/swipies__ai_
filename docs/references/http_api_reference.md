@@ -7,7 +7,7 @@ sidebar_custom_props: {
 ---
 # HTTP API
 
-A complete reference for RAGFlow's RESTful API. Before proceeding, please ensure you [have your RAGFlow API key ready for authentication](https://ragflow.io/docs/dev/acquire_ragflow_api_key).
+A complete reference for Swipies's RESTful API. Before proceeding, please ensure you [have your Swipies API key ready for authentication](https://ragflow.io/docs/dev/acquire_ragflow_api_key).
 
 ---
 
@@ -613,7 +613,7 @@ curl --request POST \
   - Must not be included when `"chunk_method"` is specified.
 
 - `"pipeline_id"`: (*Body parameter*), `string`
-  The ingestion pipeline ID. Can be found in the corresponding URL in the RAGFlow UI.
+  The ingestion pipeline ID. Can be found in the corresponding URL in the Swipies UI.
   - Required (along with `"parse_type"`) if specifying an ingestion pipeline.
   - Must be a 32-character lowercase hexadecimal string, e.g., `"d0bebe30ae2211f0970942010a8e0005"`.
   - Must not be included when `"chunk_method"` is specified.
@@ -646,7 +646,7 @@ Success:
         "embedding_model": "BAAI/bge-large-zh-v1.5@BAAI",
         "id": "3b4de7d4241d11f0a6a79f24fc270c7f",
         "language": "English",
-        "name": "RAGFlow example",
+        "name": "Swipies example",
         "pagerank": 0,
         "parser_config": {
             "chunk_token_num": 128,
@@ -2757,7 +2757,7 @@ curl --request POST \
      --header 'Authorization: Bearer <YOUR_API_KEY>' \
      --data '
      {
-          "question": "What is advantage of ragflow?",
+          "question": "What is advantage of Swipies?",
           "dataset_ids": ["b2a62730759d11ef987d0242ac120004"],
           "document_ids": ["77df9ef4759a11ef8bdd0242ac120004"],
           "metadata_condition": {
@@ -6687,7 +6687,7 @@ Failure
 
 **GET** `/api/v1/system/healthz`
 
-Check the health status of RAGFlow's dependencies (database, Redis, document engine, object storage).
+Check the health status of Swipies's dependencies (database, Redis, document engine, object storage).
 
 :::caution DEPRECATED
 The previous endpoint `GET /v1/system/healthz` is deprecated. Please use this endpoint instead.

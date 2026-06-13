@@ -9,6 +9,9 @@ services:
     profiles:
       - cpu
     image: ${RAGFLOW_IMAGE}
+    build:
+      context: ..
+      dockerfile: Dockerfile
     # Example configuration to set up an MCP server:
     # command:
     #   - --enable-mcpserver
@@ -34,6 +37,8 @@ services:
       - ${SVR_WEB_HTTPS_PORT}:443
       - ${SVR_HTTP_PORT}:9380
       - ${ADMIN_SVR_HTTP_PORT}:9381
+      - 5678:5678
+      - 5679:5679
       - ${SVR_MCP_PORT}:9382 # entry for MCP (host_port:docker_port). The docker_port must match the value you set for `mcp-port` above.
       - ${GO_HTTP_PORT}:9384
       - ${GO_ADMIN_PORT}:9383
@@ -42,6 +47,7 @@ services:
       # - ./nginx/ragflow.conf:/etc/nginx/conf.d/ragflow.conf
       # - ./nginx/proxy.conf:/etc/nginx/proxy.conf
       # - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ../history_data_agent:/ragflow/history_data_agent
       - ./service_conf.yaml.template:/ragflow/conf/service_conf.yaml.template
       - ./entrypoint.sh:/ragflow/entrypoint.sh
     env_file: .env
@@ -60,6 +66,9 @@ services:
     profiles:
       - gpu
     image: ${RAGFLOW_IMAGE}
+    build:
+      context: ..
+      dockerfile: Dockerfile
     # Example configuration to set up an MCP server:
     # command:
     #   - --enable-mcpserver
@@ -84,12 +93,15 @@ services:
       - ${SVR_WEB_HTTPS_PORT}:443
       - ${SVR_HTTP_PORT}:9380
       - ${ADMIN_SVR_HTTP_PORT}:9381
+      - 5678:5678
+      - 5679:5679
       - ${SVR_MCP_PORT}:9382 # entry for MCP (host_port:docker_port). The docker_port must match the value you set for `mcp-port` above.
     volumes:
       - ./ragflow-logs:/ragflow/logs
       # - ./nginx/ragflow.conf:/etc/nginx/conf.d/ragflow.conf
       # - ./nginx/proxy.conf:/etc/nginx/proxy.conf
       # - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ../history_data_agent:/ragflow/history_data_agent
       - ./service_conf.yaml.template:/ragflow/conf/service_conf.yaml.template
       - ./entrypoint.sh:/ragflow/entrypoint.sh
     env_file: .env
@@ -133,3 +145,16 @@ services:
   #           - driver: nvidia
   #             count: all
   #             capabilities: [gpu]
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: ./web/Dockerfile
+    container_name: ragflow-frontend
+    environment:
+      - RAGFLOW_BACKEND=${RAGFLOW_BACKEND:-http://ragflow-cpu:9380}
+    ports:
+      - "${SVR_WEB_HTTP_PORT}:80"
+    networks:
+      - ragflow
+    restart: unless-stopped

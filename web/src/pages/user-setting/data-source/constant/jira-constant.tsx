@@ -1,5 +1,6 @@
 import { FormFieldType } from '@/components/dynamic-form';
 import { TFunction } from 'i18next';
+import { BRAND } from '@/constants/branding';
 
 export const jiraConstant = (t: TFunction) => [
   {
@@ -44,7 +45,7 @@ export const jiraConstant = (t: TFunction) => [
     name: 'config.project_key',
     type: FormFieldType.Text,
     required: false,
-    placeholder: 'RAGFlow',
+    placeholder: BRAND.name,
     tooltip: t('setting.jiraProjectKeyTip'),
   },
   {

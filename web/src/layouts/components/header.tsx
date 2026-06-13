@@ -1,5 +1,6 @@
 import { IconFontFill } from '@/components/icon-font';
 import { RAGFlowAvatar } from '@/components/ragflow-avatar';
+import { BRAND } from '@/constants/branding';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -62,8 +63,13 @@ export function Header({
         <Link
           to={Routes.Root}
           aria-current={pathname === Routes.Root ? 'page' : undefined}
+          className="flex items-center gap-2 hover:opacity-90 transition-opacity"
         >
-          <img src={'/logo.svg'} alt="RAGFlow logo" className="size-10" />
+          <img src={'/logo.svg'} alt={`${BRAND.name} logo`} className="size-10" />
+          <div className="flex flex-col text-left">
+            <span className="text-xl font-bold tracking-tight text-text-primary leading-none">{BRAND.name}</span>
+            <span className="text-[10px] text-text-secondary leading-none mt-0.5">{BRAND.slogan}</span>
+          </div>
         </Link>
       </div>
 

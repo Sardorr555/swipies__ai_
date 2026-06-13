@@ -29,6 +29,7 @@ import { Routes } from '@/routes';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isEmpty, trim } from 'lodash';
 import { ExternalLink } from 'lucide-react';
+import { BRAND } from '@/constants/branding';
 import { memo, useCallback, useMemo } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -435,7 +436,7 @@ window.addEventListener('message',e=>{
                       name="widgetFooterText"
                       label="Footer text"
                     >
-                      <Input placeholder="Powered by RAGFlow"></Input>
+                      <Input placeholder={`Powered by ${BRAND.name}`}></Input>
                     </RAGFlowFormItem>
                     <RAGFlowFormItem
                       name="widgetFooterLink"

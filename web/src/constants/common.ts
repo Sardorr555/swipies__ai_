@@ -168,7 +168,7 @@ export enum FileMimeType {
   Mdx = 'text/markdown',
 }
 
-export const Domain = 'cloud.ragflow.io';
+export const Domain = 'cloud.swipies.io';
 
 //#region file preview
 export const Images = [
@@ -199,7 +199,7 @@ export const SupportedPreviewDocumentTypes = [...ExceptiveType];
 //#endregion
 
 export enum Platform {
-  RAGFlow = 'RAGFlow',
+  Swipies = 'Swipies',
   Dify = 'Dify',
   FastGPT = 'FastGPT',
   Coze = 'Coze',

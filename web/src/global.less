@@ -61,3 +61,32 @@ body,
   scrollbar-width: thin;
   scrollbar-color: initial;
 }
+
+/* Premium SaaS UI Transitions and Shadows */
+button,
+.button,
+input,
+select,
+textarea,
+.card,
+.bg-component {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgb(var(--accent-primary)) !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary), 0.15) !important;
+}
+
+.card:hover,
+.bg-component:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+.dark .card:hover,
+.dark .bg-component:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}

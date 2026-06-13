@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import message from '@/components/ui/message';
 import { SharedFrom } from '@/constants/chat';
+import { Domain } from '@/constants/common';
 import { useSetModalState } from '@/hooks/common-hooks';
 import { useNavigatePage } from '@/hooks/logic-hooks/navigate-hooks';
 import { useSetAgent } from '@/hooks/use-agent-request';
@@ -344,7 +345,7 @@ export default function Agent() {
                 {t('flow.setting')}
               </AgentDropdownMenuItem>
               {isPipeline ||
-                (location.hostname !== 'cloud.ragflow.io' && (
+                (location.hostname !== Domain && (
                   <>
                     <DropdownMenuSeparator />
                     <AgentDropdownMenuItem onClick={showEmbedModal}>

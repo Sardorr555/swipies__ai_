@@ -11,6 +11,7 @@ import { CheckCircle, FolderOpen, Globe, Loader2, XCircle } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { BRAND } from '@/constants/branding';
 import { validateSkillFormat } from '../hooks';
 import type { ValidationError } from '../types';
 import { findJunkFiles } from '../validation';
@@ -645,8 +646,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
         t('skills.validation.valid') || 'Valid skill format',
       );
 
-      // 4. Upload to RAGFlow
-      setGitProgress('Uploading to RAGFlow...');
+      // 4. Upload to Swipies
+      setGitProgress(`Uploading to ${BRAND.name}...`);
       const skillName =
         validation.name || repo.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
 

@@ -31,6 +31,7 @@ import { z } from 'zod';
 import { BgSvg } from './bg';
 import FlipCard3D, { FlipFaceContext } from './card';
 import './index.less';
+import { BRAND } from '@/constants/branding';
 
 type LoginFormContentProps = {
   isLoginPage: boolean;
@@ -370,7 +371,7 @@ const Login = () => {
                 className="size-8 mr-[12] cursor-pointer"
               />
             </div>
-            <div className="text-xl font-bold self-center">RAGFlow</div>
+            <div className="text-xl font-bold self-center">{BRAND.name}</div>
           </div>
           <h1 className="text-[36px] font-medium  text-center mb-2">
             {t('title')}

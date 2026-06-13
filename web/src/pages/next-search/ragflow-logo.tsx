@@ -40,6 +40,8 @@ function EmbedIcon() {
   );
 }
 
+import { BRAND } from '@/constants/branding';
+
 export function RAGFlowLogo({
   onClick,
   showEmbedIcon = true,
@@ -52,10 +54,10 @@ export function RAGFlowLogo({
       <h1
         onClick={onClick}
         className={cn(
-          'text-4xl font-bold bg-gradient-to-l from-[#40EBE3] to-[#4A51FF] bg-clip-text',
+          'text-4xl font-bold bg-gradient-to-l from-[#40EBE3] to-[#4A51FF] bg-clip-text cursor-pointer',
         )}
       >
-        RAGFlow
+        {BRAND.name}
       </h1>
       {showEmbedIcon && <EmbedIcon></EmbedIcon>}
     </div>
