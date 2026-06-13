@@ -16,7 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { TenantRole } from '@/pages/user-setting/constants';
 import { Routes } from '@/routes';
-import { LucideChevronDown, LucideCircleHelp } from 'lucide-react';
+import { LucideChevronDown, LucideCircleHelp, LucideZap } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router';
 import { BellButton } from './bell-button';
@@ -79,6 +79,15 @@ export function Header({
         className="flex items-center justify-end gap-4 text-text-badge"
         data-testid="auth-status"
       >
+        <Link
+          to={Routes.Pricing}
+          className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold text-white rounded-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
+          data-testid="upgrade-button"
+        >
+          <LucideZap className="size-4" />
+          Upgrade
+        </Link>
+
         <a
           className="p-2 text-text-secondary hover:text-text-primary focus-visible:text-text-primary"
           target="_blank"

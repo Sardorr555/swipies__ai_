@@ -74,6 +74,7 @@ export enum Routes {
   AdminWhitelist = `${Admin}/whitelist`,
   AdminRoles = `${Admin}/roles`,
   AdminMonitoring = `${Admin}/monitoring`,
+  Pricing = '/pricing',
 }
 
 const defaultRouteFallback = (
@@ -114,6 +115,11 @@ const routeConfigOptions = [
   {
     path: '/login-next',
     Component: () => import('@/pages/login-next'),
+    layout: false,
+  },
+  {
+    path: '/pricing',
+    Component: () => import('@/pages/pricing'),
     layout: false,
   },
   {
