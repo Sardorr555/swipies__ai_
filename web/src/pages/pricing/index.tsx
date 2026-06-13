@@ -290,41 +290,41 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-body p-4 sm:p-6 md:p-8 lg:p-12 overflow-y-auto flex flex-col items-center justify-start">
-      <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col justify-between">
+    <div className="w-full h-screen bg-bg-body overflow-y-auto p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col items-center justify-start">
+      <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 sm:gap-8">
         <div>
           {/* Back Link */}
           <Link
             to={Routes.Root}
-            className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 sm:mb-8 transition-colors text-sm font-medium"
+            className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 transition-colors text-sm font-medium"
           >
             <LucideArrowLeft className="size-4" />
             Назад в панель
           </Link>
 
           {/* Title Section */}
-          <div className="text-center mb-8 sm:mb-12">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-text-primary tracking-tight mb-4">
+          <div className="text-center mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-text-primary tracking-tight mb-3">
               Тарифные планы {BRAND.name} AI
             </h1>
-            <p className="text-sm sm:text-base md:text-lg text-text-secondary max-w-2xl mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm md:text-base text-text-secondary max-w-2xl mx-auto leading-relaxed">
               Выберите подходящую подписку для расширения возможностей работы с искусственным интеллектом. Оплата картами Uzcard, Humo, Visa, Mastercard.
             </p>
 
             {/* Billing Period Selector */}
-            <div className="inline-flex items-center gap-2 bg-bg-component border border-border p-1.5 rounded-xl mt-6 sm:mt-8">
+            <div className="inline-flex items-center gap-2 bg-bg-component border border-border p-1 rounded-xl mt-4 sm:mt-6">
               {PERIODS.map((period) => (
                 <button
                   key={period.months}
                   onClick={() => setSelectedPeriod(period.months)}
-                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all relative ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all relative ${
                     selectedPeriod === period.months
                       ? 'bg-[#478AF5] text-white shadow-sm'
                       : 'text-text-secondary hover:text-text-primary hover:bg-bg-body'
                   }`}
                 >
                   {period.badge && (
-                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
                       {period.badge}
                     </span>
                   )}
@@ -335,31 +335,31 @@ export default function PricingPage() {
           </div>
 
           {/* Pricing Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 xl:gap-10 items-stretch max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch max-w-6xl mx-auto w-full">
             {/* Plus Card */}
-            <div className="border border-border bg-bg-component rounded-2xl p-6 sm:p-8 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg">
+            <div className="border border-border bg-bg-component rounded-2xl p-5 sm:p-6 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg min-h-[480px]">
               <div>
-                <div className="mb-6">
-                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary mb-1">{PLANS.plus.name}</h3>
-                  <p className="text-sm text-text-secondary">{PLANS.plus.description}</p>
+                <div className="mb-4">
+                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">{PLANS.plus.name}</h3>
+                  <p className="text-xs text-text-secondary">{PLANS.plus.description}</p>
                 </div>
-                <div className="mb-6">
-                  <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary">
+                <div className="mb-4">
+                  <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
                     {formatUZS(PLANS.plus.pricePerMonthUzs)}
                   </span>
-                  <span className="text-text-secondary text-sm">/мес</span>
+                  <span className="text-text-secondary text-xs sm:text-sm">/мес</span>
                 </div>
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-2 mb-6">
                   {PLANS.plus.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2.5 text-sm text-text-secondary">
-                      <LucideCheck className="size-4.5 text-[#42D7E7] shrink-0 mt-0.5" />
+                    <li key={feature} className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary">
+                      <LucideCheck className="size-4 text-[#42D7E7] shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
               </div>
               <Button
-                className="w-full bg-[#478AF5]/10 hover:bg-[#478AF5]/20 text-[#478AF5] border border-[#478AF5]/20 font-bold py-3.5 rounded-xl transition-all"
+                className="w-full bg-[#478AF5]/10 hover:bg-[#478AF5]/20 text-[#478AF5] border border-[#478AF5]/20 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
                 onClick={() => handleOpenCheckout('plus')}
               >
                 {PLANS.plus.cta}
@@ -367,35 +367,35 @@ export default function PricingPage() {
             </div>
 
             {/* Pro Card */}
-            <div className="relative border-2 border-[#478AF5] bg-gradient-to-b from-[#478AF5]/5 to-[#42D7E7]/5 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-md transition-all hover:shadow-xl scale-[1.01] md:scale-[1.02]">
+            <div className="relative border-2 border-[#478AF5] bg-gradient-to-b from-[#478AF5]/5 to-[#42D7E7]/5 rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-md transition-all hover:shadow-xl scale-[1.01] md:scale-[1.02] min-h-[480px]">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white rounded-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] shadow-sm">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold text-white rounded-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] shadow-sm">
                   <LucideZap className="size-3" />
                   Популярный
                 </span>
               </div>
               <div>
-                <div className="mb-6 mt-2">
-                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary mb-1">{PLANS.pro.name}</h3>
-                  <p className="text-sm text-text-secondary">{PLANS.pro.description}</p>
+                <div className="mb-4 mt-2">
+                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">{PLANS.pro.name}</h3>
+                  <p className="text-xs text-text-secondary">{PLANS.pro.description}</p>
                 </div>
-                <div className="mb-6">
-                  <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary">
+                <div className="mb-4">
+                  <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
                     {formatUZS(PLANS.pro.pricePerMonthUzs)}
                   </span>
-                  <span className="text-text-secondary text-sm">/мес</span>
+                  <span className="text-text-secondary text-xs sm:text-sm">/мес</span>
                 </div>
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-2 mb-6">
                   {PLANS.pro.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2.5 text-sm text-text-secondary">
-                      <LucideCheck className="size-4.5 text-[#42D7E7] shrink-0 mt-0.5" />
+                    <li key={feature} className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary">
+                      <LucideCheck className="size-4 text-[#42D7E7] shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
               </div>
               <Button
-                className="w-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md border-0 font-bold py-3.5 rounded-xl transition-all"
+                className="w-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md border-0 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
                 onClick={() => handleOpenCheckout('pro')}
               >
                 {PLANS.pro.cta}
@@ -403,29 +403,29 @@ export default function PricingPage() {
             </div>
 
             {/* Enterprise Card */}
-            <div className="border border-border bg-bg-component rounded-2xl p-6 sm:p-8 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg">
+            <div className="border border-border bg-bg-component rounded-2xl p-5 sm:p-6 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg min-h-[480px]">
               <div>
-                <div className="mb-6">
-                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary mb-1">{PLANS.enterprise.name}</h3>
-                  <p className="text-sm text-text-secondary">{PLANS.enterprise.description}</p>
+                <div className="mb-4">
+                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">{PLANS.enterprise.name}</h3>
+                  <p className="text-xs text-text-secondary">{PLANS.enterprise.description}</p>
                 </div>
-                <div className="mb-6">
-                  <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary block">
+                <div className="mb-4">
+                  <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary block">
                     Индивидуально
                   </span>
-                  <span className="text-text-secondary text-xs">Цена по запросу</span>
+                  <span className="text-text-secondary text-[11px]">Цена по запросу</span>
                 </div>
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-2 mb-6">
                   {PLANS.enterprise.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2.5 text-sm text-text-secondary">
-                      <LucideCheck className="size-4.5 text-[#42D7E7] shrink-0 mt-0.5" />
+                    <li key={feature} className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary">
+                      <LucideCheck className="size-4 text-[#42D7E7] shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
               </div>
               <Button
-                className="w-full bg-bg-component text-text-primary hover:bg-bg-body border border-border font-bold py-3.5 rounded-xl transition-all"
+                className="w-full bg-bg-component text-text-primary hover:bg-bg-body border border-border font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
                 onClick={() => handleOpenCheckout('enterprise')}
               >
                 {PLANS.enterprise.cta}
@@ -434,7 +434,7 @@ export default function PricingPage() {
           </div>
         </div>
 
-        <p className="text-center text-xs sm:text-sm text-text-secondary mt-12">
+        <p className="text-center text-[11px] sm:text-xs text-text-secondary mt-6 pb-8">
           Все платежи защищены и обрабатываются через платежный шлюз Atmos. Вы можете изменить или отменить подписку в любое время.
         </p>
       </div>
