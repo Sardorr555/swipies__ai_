@@ -27,22 +27,19 @@ jobs:
             set -e
             cd ~/swipies__ai_
 
-            echo "📥 Обновляем код для ветки swipies_25..."
+            echo "📥 Обновляем код..."
             git fetch origin swipies_25
             git reset --hard origin/swipies_25
-  
+
             cd docker
 
-            echo "🐳 Собираем контейнеры (с кэшем для экономии ресурсов EC2)..."
-            # Собираем новые образы параллельно, пока старые контейнеры продолжают обслуживать пользователей
-            docker compose build
+            echo "🐳 Собираем новые образы..."
+            docker compose build --no-cache
 
-            echo "🚀 Перезапускаем только изменившиеся сервисы (без простоя/downtime)..."
-            # docker compose up -d автоматически обновит только изменившиеся контейнеры за секунду.
-            # Мы НЕ используем 'docker compose down', чтобы база данных и другие службы работали без сбоев.
-            docker compose up -d
+            echo "🚀 Перезапускаем без даунтайма..."
+            docker compose up -d --remove-orphans
 
-            echo "🧹 Очищаем старый кэш и неиспользуемые образы..."
+            echo "🧹 Чистим старые образы..."
             docker image prune -f
 
-            echo "✅ Ragflow успешно обновлён и доступен!"
+            echo "✅ Ragflow обновлён!"
