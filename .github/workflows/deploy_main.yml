@@ -1,44 +1,48 @@
-name: Deploy Swipies AI
+name: Deploy Ragflow
 
 on:
   push:
     branches:
       - swipies_25
+    paths:
+      - '**'
+      - '!swipies__ai_/landing/**'
+      - '!swipies__ai_/appsmith/**'
 
 jobs:
   deploy:
-    name: Deploy to EC2 Production
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "=== Starting Swipies AI Deployment ==="
+            set -e
             cd ~/swipies__ai_
-            
-            echo "1. Pulling latest changes from swipies_25..."
+
+            echo "📥 Обновляем код для ветки swipies_25..."
             git fetch origin swipies_25
             git reset --hard origin/swipies_25
-            
+  
             cd docker
-            
-            echo "2. Rebuilding and launching frontend container..."
-            # Rebuilding only the frontend to ensure backend remains completely unaffected and online
-            docker compose up -d --build --no-deps frontend
-            
-            echo "3. Cleaning up unused docker images and cache to save space..."
+
+            echo "🐳 Собираем контейнеры (с кэшем для экономии ресурсов EC2)..."
+            # Собираем новые образы параллельно, пока старые контейнеры продолжают обслуживать пользователей
+            docker compose build
+
+            echo "🚀 Перезапускаем только изменившиеся сервисы (без простоя/downtime)..."
+            # docker compose up -d автоматически обновит только изменившиеся контейнеры за секунду.
+            # Мы НЕ используем 'docker compose down', чтобы база данных и другие службы работали без сбоев.
+            docker compose up -d
+
+            echo "🧹 Очищаем старый кэш и неиспользуемые образы..."
             docker image prune -f
-            
-            echo "4. Checking container status..."
-            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-            
-            echo "=== Deployment Completed Successfully ==="
+
+            echo "✅ Ragflow успешно обновлён и доступен!"
