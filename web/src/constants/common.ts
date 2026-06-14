@@ -58,6 +58,7 @@ export const LanguageList = [
   'Bulgarian',
   'Arabic',
   'Turkish',
+  'Uzbek',
 ];
 export const LanguageMap = {
   English: 'English',
@@ -76,6 +77,7 @@ export const LanguageMap = {
   Bulgarian: 'Български',
   Arabic: 'العربية',
   Turkish: 'Türkçe',
+  Uzbek: 'Oʻzbekcha',
 };
 
 export enum LanguageAbbreviation {
@@ -94,6 +96,7 @@ export enum LanguageAbbreviation {
   Bg = 'bg',
   Ar = 'ar',
   Tr = 'tr',
+  Uz = 'uz',
 }
 
 export const LanguageAbbreviationMap = {
@@ -112,6 +115,7 @@ export const LanguageAbbreviationMap = {
   [LanguageAbbreviation.Bg]: 'Български',
   [LanguageAbbreviation.Ar]: 'العربية',
   [LanguageAbbreviation.Tr]: 'Türkçe',
+  [LanguageAbbreviation.Uz]: 'Oʻzbekcha',
 };
 
 export const LanguageTranslationMap = {
@@ -141,6 +145,7 @@ export const LanguageTranslationMap = {
   Bulgarian: 'bg',
   Arabic: 'ar',
   Turkish: 'tr',
+  Uzbek: 'uz',
 };
 
 export enum FileMimeType {
