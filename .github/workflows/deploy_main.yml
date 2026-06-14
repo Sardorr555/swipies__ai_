@@ -1,0 +1,44 @@
+name: Deploy Swipies AI
+
+on:
+  push:
+    branches:
+      - swipies_25
+
+jobs:
+  deploy:
+    name: Deploy to EC2 Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            echo "=== Starting Swipies AI Deployment ==="
+            cd ~/swipies__ai_
+            
+            echo "1. Pulling latest changes from swipies_25..."
+            git fetch origin swipies_25
+            git reset --hard origin/swipies_25
+            
+            cd docker
+            
+            echo "2. Rebuilding and launching frontend container..."
+            # Rebuilding only the frontend to ensure backend remains completely unaffected and online
+            docker compose up -d --build --no-deps frontend
+            
+            echo "3. Cleaning up unused docker images and cache to save space..."
+            docker image prune -f
+            
+            echo "4. Checking container status..."
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            
+            echo "=== Deployment Completed Successfully ==="
