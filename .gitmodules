@@ -1,0 +1,3 @@
+[submodule "atmos payment system"]
+	path = atmos payment system
+	url = https://github.com/Sardorr555/payment_atmos.git

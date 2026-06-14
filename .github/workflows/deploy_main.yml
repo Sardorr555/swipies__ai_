@@ -34,8 +34,8 @@ jobs:
 
             cd docker
 
-            echo "🐳 Собираем новые образы..."
-            docker compose build --no-cache
+            echo "🐳 Собираем новые образы (с кэшированием для скорости)..."
+            docker compose build
 
             echo "🚀 Перезапускаем без даунтайма..."
             docker compose up -d --remove-orphans
