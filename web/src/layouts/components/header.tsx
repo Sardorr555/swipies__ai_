@@ -91,19 +91,13 @@ export function Header({
         <a
           className="p-2 text-text-secondary hover:text-text-primary focus-visible:text-text-primary"
           target="_blank"
-          href="https://discord.com/invite/NjYzJD3GM3"
+          href="https://t.me/swipies_ai"
           rel="noreferrer noopener"
+          aria-label="Telegram"
         >
-          <IconFontFill name="a-DiscordIconSVGVectorIcon" />
-        </a>
-
-        <a
-          className="p-2 text-text-secondary hover:text-text-primary focus-visible:text-text-primary"
-          target="_blank"
-          href="https://github.com/infiniflow/ragflow"
-          rel="noreferrer noopener"
-        >
-          <IconFontFill name="GitHub" />
+          <svg viewBox="0 0 24 24" className="size-5" fill="currentColor">
+            <path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.578.192l-8.533 7.701-.33 4.955c.488 0 .702-.223.974-.488l2.338-2.275 4.866 3.59c.898.496 1.543.241 1.766-.83l3.195-15.059c.328-1.311-.497-1.903-1.357-1.517z"/>
+          </svg>
         </a>
 
         <DropdownMenu>
