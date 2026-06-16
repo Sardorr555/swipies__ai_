@@ -14,6 +14,7 @@ import { Link } from 'react-router';
 import { Routes } from '@/routes';
 import { useState, useEffect } from 'react';
 import { useFetchUserInfo } from '@/hooks/use-user-setting-request';
+import { useTranslation } from 'react-i18next';
 
 // UZS Formatter
 const formatUZS = (amount: number) => {
@@ -36,61 +37,348 @@ const generateUUID = () => {
   });
 };
 
-const PLANS = {
-  plus: {
-    name: 'Plus',
-    pricePerMonthUzs: 199000,
-    description: 'For active users',
-    features: [
-      '3 Knowledge Bases',
-      '1 GB Storage',
-      'Up to 500 queries/day',
-      'Basic AI Assistants',
-      'Email Support',
-    ],
-    cta: 'Choose Plus',
-    disabled: false,
+const pricingTranslations = {
+  en: {
+    backToDashboard: 'Back to dashboard',
+    title: 'AI Subscription Plans',
+    subtitle: 'Choose the subscription that fits your workload. Pay securely via card using our local and international gateways.',
+    oneMonth: '1 Month',
+    sixMonths: '6 Months',
+    oneYear: '1 Year',
+    mo: '/mo',
+    customPricing: 'Custom Pricing',
+    popularBadge: 'Most Popular',
+    secureFooter: 'All payments are secured and processed via Atmos payment gateway. You can modify or cancel your subscription at any time.',
+    checkoutTitle: 'Pay via Atmos',
+    checkoutSubtitle: 'Uzcard, Humo, Visa or Mastercard',
+    checkoutPlan: 'Plan',
+    checkoutTotal: 'Total price',
+    cardNumber: 'Card Number',
+    expiryDate: 'Expiry Date',
+    cvc: 'CVC',
+    cardholderName: 'Cardholder Name',
+    processing: 'Processing...',
+    payNow: 'Pay Now',
+    otpTitle: 'Confirm Payment',
+    otpSubtitle: 'An SMS with a 6-digit verification code was sent to your phone',
+    verifying: 'Verifying...',
+    confirmOtp: 'Confirm OTP',
+    cancelUseAnother: 'Cancel and use another card',
+    paymentSuccessful: 'Payment Successful!',
+    successSubtitle: 'Your transaction has been processed securely.',
+    subActivated: 'Subscription Activated',
+    subDelayed: 'Payment was completed successfully, but there was an activation delay. Please contact support.',
+    continueToSwipies: 'Continue to Swipies',
+    protectedByAtmos: 'Protected by Atmos Secure',
+    plans: {
+      plus: {
+        name: 'Plus',
+        description: 'For active users',
+        features: [
+          '3 Knowledge Bases',
+          '1 GB Storage',
+          'Up to 500 queries/day',
+          'Basic AI Assistants',
+          'Email Support',
+        ],
+        cta: 'Choose Plus',
+      },
+      pro: {
+        name: 'Pro',
+        description: 'For professionals and teams',
+        features: [
+          '10 Knowledge Bases',
+          '10 GB Storage',
+          'Unlimited queries',
+          'Advanced AI Agents',
+          'Priority Support',
+          'API Access',
+        ],
+        cta: 'Choose Pro',
+      },
+      enterprise: {
+        name: 'Enterprise',
+        description: 'For organizations with advanced needs',
+        features: [
+          'Unlimited Knowledge Bases',
+          'Unlimited Storage',
+          'Dedicated Server / On-Premise',
+          'Maximum Security & SLA',
+          'Dedicated Account Manager',
+          'Custom Integrations',
+        ],
+        cta: 'Contact Us',
+      }
+    }
   },
-  pro: {
-    name: 'Pro',
-    pricePerMonthUzs: 400000,
-    description: 'For professionals and teams',
-    features: [
-      '10 Knowledge Bases',
-      '10 GB Storage',
-      'Unlimited queries',
-      'Advanced AI Agents',
-      'Priority Support',
-      'API Access',
-    ],
-    cta: 'Choose Pro',
-    disabled: false,
-    popular: true,
+  ru: {
+    backToDashboard: 'Назад на главную',
+    title: 'Планы подписки AI',
+    subtitle: 'Выберите подписку, соответствующую вашей нагрузке. Безопасная оплата картой через местные и международные шлюзы.',
+    oneMonth: '1 месяц',
+    sixMonths: '6 месяцев',
+    oneYear: '1 год',
+    mo: '/мес',
+    customPricing: 'Индивидуальная цена',
+    popularBadge: 'Самый популярный',
+    secureFooter: 'Все платежи защищены и обрабатываются через платежный шлюз Atmos. Вы можете изменить или отменить подписку в любое время.',
+    checkoutTitle: 'Оплата через Atmos',
+    checkoutSubtitle: 'Uzcard, Humo, Visa или Mastercard',
+    checkoutPlan: 'Тариф',
+    checkoutTotal: 'Итого к оплате',
+    cardNumber: 'Номер карты',
+    expiryDate: 'Срок действия',
+    cvc: 'CVC',
+    cardholderName: 'Имя держателя карты',
+    processing: 'Обработка...',
+    payNow: 'Оплатить сейчас',
+    otpTitle: 'Подтверждение платежа',
+    otpSubtitle: 'SMS с 6-значным кодом подтверждения отправлено на ваш телефон',
+    verifying: 'Проверка...',
+    confirmOtp: 'Подтвердить код',
+    cancelUseAnother: 'Отмена и другая карта',
+    paymentSuccessful: 'Оплата прошла успешно!',
+    successSubtitle: 'Ваша транзакция была безопасно обработана.',
+    subActivated: 'Подписка активирована',
+    subDelayed: 'Платеж успешно завершен, но произошла задержка активации. Пожалуйста, свяжитесь с поддержкой.',
+    continueToSwipies: 'Продолжить в Swipies',
+    protectedByAtmos: 'Защищено Atmos Secure',
+    plans: {
+      plus: {
+        name: 'Plus',
+        description: 'Для активных пользователей',
+        features: [
+          '3 базы знаний',
+          '1 ГБ хранилища',
+          'До 500 запросов в день',
+          'Базовые ИИ-ассистенты',
+          'Поддержка по почте',
+        ],
+        cta: 'Выбрать Plus',
+      },
+      pro: {
+        name: 'Pro',
+        description: 'Для профессионалов и команд',
+        features: [
+          '10 баз знаний',
+          '10 ГБ хранилища',
+          'Безлимитные запросы',
+          'Продвинутые ИИ-агенты',
+          'Приоритетная поддержка',
+          'Доступ к API',
+        ],
+        cta: 'Выбрать Pro',
+      },
+      enterprise: {
+        name: 'Enterprise',
+        description: 'Для организаций с особыми потребностями',
+        features: [
+          'Безлимитные базы знаний',
+          'Безлимитное хранилище',
+          'Выделенный сервер / On-Premise',
+          'Максимальная безопасность и SLA',
+          'Персональный менеджер',
+          'Кастомные интеграции',
+        ],
+        cta: 'Связаться с нами',
+      }
+    }
   },
-  enterprise: {
-    name: 'Enterprise',
-    pricePerMonthUzs: 0,
-    description: 'For organizations with advanced needs',
-    features: [
-      'Unlimited Knowledge Bases',
-      'Unlimited Storage',
-      'Dedicated Server / On-Premise',
-      'Maximum Security & SLA',
-      'Dedicated Account Manager',
-      'Custom Integrations',
-    ],
-    cta: 'Contact Us',
-    disabled: false,
+  uz: {
+    backToDashboard: 'Boshqaruv paneliga qaytish',
+    title: 'AI obuna rejalari',
+    subtitle: 'Ish yukingizga mos keladigan obunani tanlang. Mahalliy va xalqaro toʻlov tizimlari orqali karta bilan xavfsiz toʻlang.',
+    oneMonth: '1 oy',
+    sixMonths: '6 oy',
+    oneYear: '1 yil',
+    mo: '/oy',
+    customPricing: 'Maxsus narxlar',
+    popularBadge: 'Eng ommabop',
+    secureFooter: 'Barcha toʻlovlar xavfsiz va Atmos toʻlov shlyuzi orqali amalga oshiriladi. Obunangizni istalgan vaqtda oʻzgartirishingiz yoki bekor qilishingiz mumkin.',
+    checkoutTitle: 'Atmos orqali toʻlash',
+    checkoutSubtitle: 'Uzcard, Humo, Visa yoki Mastercard',
+    checkoutPlan: 'Tarif',
+    checkoutTotal: 'Jami toʻlov',
+    cardNumber: 'Karta raqami',
+    expiryDate: 'Amal qilish muddati',
+    cvc: 'CVC',
+    cardholderName: 'Karta egasining ismi',
+    processing: 'Jarayonda...',
+    payNow: 'Hozir toʻlash',
+    otpTitle: 'Toʻlovni tasdiqlash',
+    otpSubtitle: 'Telefoningizga 6 xonali tasdiqlash kodi yozilgan SMS yuborildi',
+    verifying: 'Tasdiqlanmoqda...',
+    confirmOtp: 'OTP kodini tasdiqlash',
+    cancelUseAnother: 'Bekor qilish va boshqa karta',
+    paymentSuccessful: 'Toʻlov muvaffaqiyatli bajarildi!',
+    successSubtitle: 'Tranzaksiyangiz xavfsiz tarzda amalga oshirildi.',
+    subActivated: 'Obuna faollashtirildi',
+    subDelayed: 'Toʻlov muvaffaqiyatli yakunlandi, ammo faollashtirishda kechikish yuz berdi. Iltimos, qoʻllab-quvvatlash xizmatiga murojaat qiling.',
+    continueToSwipies: 'Swipies-da davom etish',
+    protectedByAtmos: 'Atmos Secure himoyasi ostida',
+    plans: {
+      plus: {
+        name: 'Plus',
+        description: 'Faol foydalanuvchilar uchun',
+        features: [
+          '3 ta bilimlar bazasi',
+          '1 GB saqlash joyi',
+          'Kuniga 500 tagacha soʻrov',
+          'Asosiy AI yordamchilari',
+          'Email orqali qoʻllab-quvvatlash',
+        ],
+        cta: 'Plus-ni tanlang',
+      },
+      pro: {
+        name: 'Pro',
+        description: 'Professionallar va jamoalar uchun',
+        features: [
+          '10 ta bilimlar bazasi',
+          '10 GB saqlash joyi',
+          'Cheksiz soʻrovlar',
+          'Kengaytirilgan AI agentlari',
+          'Ustuvor yordam',
+          'API kirish',
+        ],
+        cta: 'Pro-ni tanlang',
+      },
+      enterprise: {
+        name: 'Enterprise',
+        description: 'Kengaytirilgan ehtiyojlarga ega tashkilotlar uchun',
+        features: [
+          'Cheksiz bilimlar bazalari',
+          'Cheksiz saqlash joyi',
+          'Maxsus server / On-Premise',
+          'Maksimal xavfsizlik va SLA',
+          'Shaxsiy menejer',
+          'Maxsus integratsiyalar',
+        ],
+        cta: 'Biz bilan bogʻlaning',
+      }
+    }
   },
+  zh: {
+    backToDashboard: '返回仪表板',
+    title: 'AI 订阅计划',
+    subtitle: '选择适合您工作负载的订阅。通过我们的本地和国际网关使用卡安全支付。',
+    oneMonth: '1个月',
+    sixMonths: '6个月',
+    oneYear: '1年',
+    mo: '/月',
+    customPricing: '定制价格',
+    popularBadge: '最受欢迎',
+    secureFooter: '所有支付均通过 Atmos 支付网关安全处理。您可以随时修改或取消您的订阅。',
+    checkoutTitle: '通过 Atmos 支付',
+    checkoutSubtitle: 'Uzcard, Humo, Visa 或 Mastercard',
+    checkoutPlan: '计划',
+    checkoutTotal: '总价',
+    cardNumber: '卡号',
+    expiryDate: '有效期',
+    cvc: 'CVC',
+    cardholderName: '持卡人姓名',
+    processing: '处理中...',
+    payNow: '立即支付',
+    otpTitle: '确认支付',
+    otpSubtitle: '包含 6 位数验证码的短信已发送至您的手机',
+    verifying: '验证中...',
+    confirmOtp: '确认验证码',
+    cancelUseAnother: '取消并使用其他卡',
+    paymentSuccessful: '支付成功！',
+    successSubtitle: '您的交易已安全处理。',
+    subActivated: '订阅已激活',
+    subDelayed: '支付已成功完成，但激活出现延迟。请联系客服。',
+    continueToSwipies: '继续使用 Swipies',
+    protectedByAtmos: '受 Atmos 安全保护',
+    plans: {
+      plus: {
+        name: 'Plus',
+        description: '适合活跃用户',
+        features: [
+          '3 个知识库',
+          '1 GB 存储空间',
+          '每天最多 500 次查询',
+          '基础 AI 助手',
+          '电子邮件支持',
+        ],
+        cta: '选择 Plus',
+      },
+      pro: {
+        name: 'Pro',
+        description: '适合专业人士和团队',
+        features: [
+          '10 个知识库',
+          '10 GB 存储空间',
+          '无限次查询',
+          '高级 AI 智能体',
+          '优先支持',
+          'API 访问权限',
+        ],
+        cta: '选择 Pro',
+      },
+      enterprise: {
+        name: 'Enterprise',
+        description: '适合有高级需求的企业',
+        features: [
+          '无限个知识库',
+          '无限存储空间',
+          '专用服务器 / 私有化部署',
+          '最高安全级别与 SLA',
+          '专属客户经理',
+          '定制化集成',
+        ],
+        cta: '联系我们',
+      }
+    }
+  }
 };
 
-const PERIODS = [
-  { months: 1, label: '1 Month', discount: 0, badge: null },
-  { months: 6, label: '6 Months', discount: 0.1, badge: '−10%' },
-  { months: 12, label: '1 Year', discount: 0.2, badge: '−20%' },
-];
-
 export default function PricingPage() {
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language || 'en';
+  const lang = currentLang.startsWith('ru')
+    ? 'ru'
+    : currentLang.startsWith('uz')
+    ? 'uz'
+    : currentLang.startsWith('zh')
+    ? 'zh'
+    : 'en';
+
+  const tPrice = pricingTranslations[lang];
+
+  const PLANS = {
+    plus: {
+      name: tPrice.plans.plus.name,
+      pricePerMonthUzs: 199000,
+      description: tPrice.plans.plus.description,
+      features: tPrice.plans.plus.features,
+      cta: tPrice.plans.plus.cta,
+      disabled: false,
+    },
+    pro: {
+      name: tPrice.plans.pro.name,
+      pricePerMonthUzs: 400000,
+      description: tPrice.plans.pro.description,
+      features: tPrice.plans.pro.features,
+      cta: tPrice.plans.pro.cta,
+      disabled: false,
+      popular: true,
+    },
+    enterprise: {
+      name: tPrice.plans.enterprise.name,
+      pricePerMonthUzs: 0,
+      description: tPrice.plans.enterprise.description,
+      features: tPrice.plans.enterprise.features,
+      cta: tPrice.plans.enterprise.cta,
+      disabled: false,
+    },
+  };
+
+  const PERIODS = [
+    { months: 1, label: tPrice.oneMonth, discount: 0, badge: null },
+    { months: 6, label: tPrice.sixMonths, discount: 0.1, badge: '−10%' },
+    { months: 12, label: tPrice.oneYear, discount: 0.2, badge: '−20%' },
+  ];
+
   const { data: userInfo } = useFetchUserInfo();
   const userEmail = userInfo?.email || '';
 
@@ -299,16 +587,16 @@ export default function PricingPage() {
             className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 transition-colors text-sm font-medium"
           >
             <LucideArrowLeft className="size-4" />
-            Back to dashboard
+            {tPrice.backToDashboard}
           </Link>
 
           {/* Title Section */}
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-text-primary tracking-tight mb-3">
-              {BRAND.name} AI Subscription Plans
+              {BRAND.name} {tPrice.title}
             </h1>
             <p className="text-xs sm:text-sm md:text-base text-text-secondary max-w-2xl mx-auto leading-relaxed">
-              Choose the subscription that fits your workload. Pay securely via card using our local and international gateways.
+              {tPrice.subtitle}
             </p>
 
             {/* Billing Period Selector */}
@@ -347,7 +635,7 @@ export default function PricingPage() {
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
                     {formatUZS(PLANS.plus.pricePerMonthUzs)}
                   </span>
-                  <span className="text-text-secondary text-xs sm:text-sm">/mo</span>
+                  <span className="text-text-secondary text-xs sm:text-sm">{tPrice.mo}</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.plus.features.map((feature) => (
@@ -371,7 +659,7 @@ export default function PricingPage() {
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold text-white rounded-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] shadow-sm">
                   <LucideZap className="size-3" />
-                  Most Popular
+                  {tPrice.popularBadge}
                 </span>
               </div>
               <div>
@@ -383,7 +671,7 @@ export default function PricingPage() {
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
                     {formatUZS(PLANS.pro.pricePerMonthUzs)}
                   </span>
-                  <span className="text-text-secondary text-xs sm:text-sm">/mo</span>
+                  <span className="text-text-secondary text-xs sm:text-sm">{tPrice.mo}</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.pro.features.map((feature) => (
@@ -411,9 +699,9 @@ export default function PricingPage() {
                 </div>
                 <div className="mb-4">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary block">
-                    Enterprise
+                    {PLANS.enterprise.name}
                   </span>
-                  <span className="text-text-secondary text-[11px]">Custom Pricing</span>
+                  <span className="text-text-secondary text-[11px]">{tPrice.customPricing}</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.enterprise.features.map((feature) => (
@@ -435,7 +723,7 @@ export default function PricingPage() {
         </div>
 
         <p className="text-center text-[11px] sm:text-xs text-text-secondary mt-6 pb-8">
-          All payments are secured and processed via Atmos payment gateway. You can modify or cancel your subscription at any time.
+          {tPrice.secureFooter}
         </p>
       </div>
 
@@ -460,22 +748,22 @@ export default function PricingPage() {
                   <div className="w-12 h-12 rounded-full bg-[#478AF5]/10 flex items-center justify-center mx-auto mb-3">
                     <CreditCard className="w-6 h-6 text-[#478AF5]" />
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary">Pay via Atmos</h3>
+                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary">{tPrice.checkoutTitle}</h3>
                   <p className="text-text-secondary text-xs sm:text-sm mt-1">
-                    Uzcard, Humo, Visa or Mastercard
+                    {tPrice.checkoutSubtitle}
                   </p>
                 </div>
 
                 {/* Summary Box */}
                 <div className="bg-bg-body border border-border rounded-xl p-4 mb-6 text-sm">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-text-secondary">Plan:</span>
+                    <span className="text-text-secondary">{tPrice.checkoutPlan}:</span>
                     <span className="font-semibold text-text-primary">
                       {activePlan.name} ({activePeriod.label})
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-text-secondary">Total price:</span>
+                    <span className="text-text-secondary">{tPrice.checkoutTotal}:</span>
                     <span className="font-bold text-[#478AF5] text-base sm:text-lg">
                       {formatUZS(finalAmount)}
                     </span>
@@ -485,7 +773,7 @@ export default function PricingPage() {
                 <form onSubmit={handleCardSubmit} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-text-secondary mb-1">
-                      Card Number
+                      {tPrice.cardNumber}
                     </label>
                     <input
                       type="text"
@@ -502,7 +790,7 @@ export default function PricingPage() {
                   <div className={isVisaOrMastercard ? 'grid grid-cols-2 gap-4' : 'w-full'}>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1">
-                        Expiry Date
+                        {tPrice.expiryDate}
                       </label>
                       <input
                         type="text"
@@ -519,7 +807,7 @@ export default function PricingPage() {
                     {isVisaOrMastercard && (
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1">
-                          CVC
+                          {tPrice.cvc}
                         </label>
                         <input
                           type="password"
@@ -537,7 +825,7 @@ export default function PricingPage() {
                   {isVisaOrMastercard && (
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1">
-                        Cardholder Name
+                        {tPrice.cardholderName}
                       </label>
                       <input
                         type="text"
@@ -561,10 +849,10 @@ export default function PricingPage() {
                     {step === 'processing_card' ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Processing...
+                        {tPrice.processing}
                       </>
                     ) : (
-                      'Pay Now'
+                      tPrice.payNow
                     )}
                   </Button>
                 </form>
@@ -577,9 +865,9 @@ export default function PricingPage() {
                 <div className="w-12 h-12 rounded-full bg-[#478AF5]/10 flex items-center justify-center mx-auto mb-3">
                   <ShieldCheck className="w-6 h-6 text-[#478AF5]" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-text-primary">Confirm Payment</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-text-primary">{tPrice.otpTitle}</h3>
                 <p className="text-text-secondary text-xs sm:text-sm mt-2 mb-6">
-                  An SMS with a 6-digit verification code was sent to your phone
+                  {tPrice.otpSubtitle}
                   {maskedPhone ? ` (${maskedPhone})` : ''}.
                 </p>
 
@@ -606,10 +894,10 @@ export default function PricingPage() {
                     {step === 'processing_otp' ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Verifying...
+                        {tPrice.verifying}
                       </>
                     ) : (
-                      'Confirm OTP'
+                      tPrice.confirmOtp
                     )}
                   </Button>
 
@@ -619,7 +907,7 @@ export default function PricingPage() {
                       onClick={() => setStep('card')}
                       className="text-text-secondary hover:text-text-primary text-xs font-semibold mt-4 transition-colors"
                     >
-                      Cancel and use another card
+                      {tPrice.cancelUseAnother}
                     </button>
                   )}
                 </form>
@@ -632,16 +920,16 @@ export default function PricingPage() {
                 <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 mx-auto">
                   <CheckCircle className="w-8 h-8 text-emerald-500" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-text-primary">Payment Successful!</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-text-primary">{tPrice.paymentSuccessful}</h3>
                 <p className="text-emerald-500 text-xs sm:text-sm font-medium mt-1 mb-6">
-                  Your transaction has been processed securely.
+                  {tPrice.successSubtitle}
                 </p>
 
                 {ragflowResult?.success ? (
                   <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 mb-6 text-left text-xs sm:text-sm">
-                    <p className="text-emerald-500 font-bold mb-1">✅ Subscription Activated</p>
+                    <p className="text-emerald-500 font-bold mb-1">✅ {tPrice.subActivated}</p>
                     <p className="text-text-secondary">
-                      Plan: <span className="text-text-primary font-semibold">{activePlan.name}</span>
+                      {tPrice.checkoutPlan}: <span className="text-text-primary font-semibold">{activePlan.name}</span>
                     </p>
                     <p className="text-text-secondary">
                       Account: <span className="text-text-primary font-semibold">{userEmail}</span>
@@ -649,7 +937,7 @@ export default function PricingPage() {
                   </div>
                 ) : (
                   <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 mb-6 text-left text-xs sm:text-sm text-yellow-600">
-                    Payment was completed successfully, but there was an activation delay. Please contact support.
+                    {tPrice.subDelayed}
                   </div>
                 )}
 
@@ -657,13 +945,13 @@ export default function PricingPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="w-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white py-2.5 sm:py-3 rounded-xl font-bold shadow-md hover:scale-[1.01] transition-transform"
                 >
-                  Continue to Swipies
+                  {tPrice.continueToSwipies}
                 </Button>
               </div>
             )}
 
             <div className="mt-6 flex items-center justify-center gap-1.5 text-[10px] sm:text-xs text-text-secondary border-t border-border pt-4 w-full">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Protected by Atmos Secure
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> {tPrice.protectedByAtmos}
             </div>
           </div>
         </div>
