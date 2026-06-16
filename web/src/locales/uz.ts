@@ -1,4 +1,4 @@
-﻿export default {
+export default {
     translation: {
         common: {
             confirm: 'Tasdiqlash',
@@ -77,6 +77,8 @@
             confirmPasswordLabel: 'Parolni tasdiqlang',
             confirmPasswordPlaceholder: 'Parolingizni tasdiqlang',
             passwordMismatch: 'Parollar mos kelmaydi',
+            phoneLabel: 'Telefon raqami',
+            phonePlaceholder: 'Telefon raqamini kiriting',
             rememberMe: 'Meni eslab qol',
             signInTip: "Hisobingiz yo'qmi?",
             signUpTip: 'Hisobingiz bormi?',

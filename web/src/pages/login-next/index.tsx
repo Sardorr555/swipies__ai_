@@ -118,6 +118,27 @@ function LoginFormContent({
                 />
               )}
 
+              {title === 'register' && (
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>{t('phoneLabel')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          data-testid="auth-phone"
+                          placeholder={t('phonePlaceholder')}
+                          type="tel"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <FormField
                 control={form.control}
                 name="password"
@@ -143,6 +164,28 @@ function LoginFormContent({
                   </FormItem>
                 )}
               />
+
+              {title === 'register' && (
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>{t('confirmPasswordLabel')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          data-testid="auth-confirm-password"
+                          type="password"
+                          placeholder={t('confirmPasswordPlaceholder')}
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               {title === 'login' && (
                 <FormField
@@ -294,14 +337,38 @@ const Login = () => {
         .min(1, { message: t('emailPlaceholder') }),
       password: z.string().min(1, { message: t('passwordPlaceholder') }),
       remember: z.boolean().optional(),
+      phone: z.string().optional(),
+      confirmPassword: z.string().optional(),
     })
     .superRefine((data, ctx) => {
-      if (title === 'register' && !data.nickname) {
-        ctx.addIssue({
-          path: ['nickname'],
-          message: 'nicknamePlaceholder',
-          code: z.ZodIssueCode.custom,
-        });
+      if (title === 'register') {
+        if (!data.nickname) {
+          ctx.addIssue({
+            path: ['nickname'],
+            message: 'nicknamePlaceholder',
+            code: z.ZodIssueCode.custom,
+          });
+        }
+        if (!data.phone) {
+          ctx.addIssue({
+            path: ['phone'],
+            message: 'phonePlaceholder',
+            code: z.ZodIssueCode.custom,
+          });
+        }
+        if (!data.confirmPassword) {
+          ctx.addIssue({
+            path: ['confirmPassword'],
+            message: 'confirmPasswordPlaceholder',
+            code: z.ZodIssueCode.custom,
+          });
+        } else if (data.confirmPassword !== data.password) {
+          ctx.addIssue({
+            path: ['confirmPassword'],
+            message: 'passwordMismatch',
+            code: z.ZodIssueCode.custom,
+          });
+        }
       }
     });
   type FormValues = z.infer<typeof FormSchema>;
@@ -311,6 +378,8 @@ const Login = () => {
       email: '',
       password: '',
       remember: false,
+      phone: '',
+      confirmPassword: '',
     },
     resolver: zodResolver(FormSchema),
   });
@@ -332,6 +401,7 @@ const Login = () => {
           nickname: params.nickname,
           email: params.email,
           password: rsaPassWord,
+          phone: params.phone,
         });
         if (code === 0) {
           setTitle('login');
