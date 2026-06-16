@@ -345,10 +345,50 @@ export default function PricingPage() {
 
   const tPrice = pricingTranslations[lang];
 
+  const { data: userInfo } = useFetchUserInfo();
+  const userEmail = userInfo?.email || '';
+
+  // Determine if the user is from Uzbekistan
+  const isUzbekistanUser = (() => {
+    const phone = userInfo?.phone || userInfo?.phone_number || '';
+    if (phone) {
+      const cleanPhone = phone.replace(/[^\d+]/g, '');
+      if (cleanPhone.startsWith('+998') || cleanPhone.startsWith('998')) {
+        return true;
+      }
+    }
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz === 'Asia/Tashkent') {
+        return true;
+      }
+    } catch (e) {}
+    const langs = navigator.languages || [navigator.language];
+    if (langs.some(l => l.toLowerCase().includes('uz'))) {
+      return true;
+    }
+    return false;
+  })();
+
+  const USD_RATE = 13000; // 1 USD = 13,000 UZS exchange rate
+
+  // USD Formatter
+  const formatUSD = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const displayedPrice = (amount: number) => {
+    return isUzbekistanUser ? formatUZS(amount) : formatUSD(amount);
+  };
+
   const PLANS = {
     plus: {
       name: tPrice.plans.plus.name,
-      pricePerMonthUzs: 199000,
+      pricePerMonth: isUzbekistanUser ? 199000 : 20,
       description: tPrice.plans.plus.description,
       features: tPrice.plans.plus.features,
       cta: tPrice.plans.plus.cta,
@@ -356,7 +396,7 @@ export default function PricingPage() {
     },
     pro: {
       name: tPrice.plans.pro.name,
-      pricePerMonthUzs: 400000,
+      pricePerMonth: isUzbekistanUser ? 400000 : 40,
       description: tPrice.plans.pro.description,
       features: tPrice.plans.pro.features,
       cta: tPrice.plans.pro.cta,
@@ -365,7 +405,7 @@ export default function PricingPage() {
     },
     enterprise: {
       name: tPrice.plans.enterprise.name,
-      pricePerMonthUzs: 0,
+      pricePerMonth: 0,
       description: tPrice.plans.enterprise.description,
       features: tPrice.plans.enterprise.features,
       cta: tPrice.plans.enterprise.cta,
@@ -378,9 +418,6 @@ export default function PricingPage() {
     { months: 6, label: tPrice.sixMonths, discount: 0.1, badge: '−10%' },
     { months: 12, label: tPrice.oneYear, discount: 0.2, badge: '−20%' },
   ];
-
-  const { data: userInfo } = useFetchUserInfo();
-  const userEmail = userInfo?.email || '';
 
   const [selectedPeriod, setSelectedPeriod] = useState(1);
   const [activePlanKey, setActivePlanKey] = useState<'plus' | 'pro' | null>(null);
@@ -400,8 +437,10 @@ export default function PricingPage() {
   const activePeriod = PERIODS.find((p) => p.months === selectedPeriod)!;
 
   // Calculations
-  const baseAmount = activePlan ? activePlan.pricePerMonthUzs * selectedPeriod : 0;
-  const discountAmount = Math.round(baseAmount * activePeriod.discount);
+  const baseAmount = activePlan ? activePlan.pricePerMonth * selectedPeriod : 0;
+  const discountAmount = isUzbekistanUser 
+    ? Math.round(baseAmount * activePeriod.discount)
+    : Number((baseAmount * activePeriod.discount).toFixed(2));
   const finalAmount = baseAmount - discountAmount;
 
   // Card check
@@ -412,7 +451,7 @@ export default function PricingPage() {
     cleanCardNumber.startsWith('5614') ||
     cleanCardNumber.startsWith('5440');
   const isVisaOrMastercard =
-    !isLocalCard && (cleanCardNumber.startsWith('4') || cleanCardNumber.startsWith('5'));
+    !isUzbekistanUser || (!isLocalCard && (cleanCardNumber.startsWith('4') || cleanCardNumber.startsWith('5')));
 
   const handleOpenCheckout = (key: 'plus' | 'pro' | 'enterprise') => {
     if (key === 'enterprise') {
@@ -451,13 +490,15 @@ export default function PricingPage() {
           return;
         }
 
+        const mpsAmount = isUzbekistanUser ? finalAmount : Math.round(finalAmount * USD_RATE);
+
         const res = await fetch('/api/pay/mps', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pan: cleanCardNumber,
             expiry: formattedExpiry,
-            amount: finalAmount,
+            amount: mpsAmount,
             card_name: cardName,
             cvc2: cvc,
             ext_id: generateUUID(),
@@ -633,7 +674,7 @@ export default function PricingPage() {
                 </div>
                 <div className="mb-4">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
-                    {formatUZS(PLANS.plus.pricePerMonthUzs)}
+                    {displayedPrice(PLANS.plus.pricePerMonth)}
                   </span>
                   <span className="text-text-secondary text-xs sm:text-sm">{tPrice.mo}</span>
                 </div>
@@ -669,7 +710,7 @@ export default function PricingPage() {
                 </div>
                 <div className="mb-4">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
-                    {formatUZS(PLANS.pro.pricePerMonthUzs)}
+                    {displayedPrice(PLANS.pro.pricePerMonth)}
                   </span>
                   <span className="text-text-secondary text-xs sm:text-sm">{tPrice.mo}</span>
                 </div>
@@ -765,7 +806,7 @@ export default function PricingPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-text-secondary">{tPrice.checkoutTotal}:</span>
                     <span className="font-bold text-[#478AF5] text-base sm:text-lg">
-                      {formatUZS(finalAmount)}
+                      {displayedPrice(finalAmount)}
                     </span>
                   </div>
                 </div>

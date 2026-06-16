@@ -122,20 +122,61 @@ function LoginFormContent({
                 <FormField
                   control={form.control}
                   name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t('phoneLabel')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="auth-phone"
-                          placeholder={t('phonePlaceholder')}
-                          type="tel"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const cleanPhone = (field.value || '').replace(/[^\d+]/g, '');
+                    let country = null;
+                    if (cleanPhone.startsWith('+998') || cleanPhone.startsWith('998')) {
+                      country = { flag: '🇺🇿', name: 'Uzbekistan' };
+                    } else if (cleanPhone.startsWith('+7') || cleanPhone.startsWith('7')) {
+                      country = { flag: '🇷🇺', name: 'Russia/Kazakhstan' };
+                    } else if (cleanPhone.startsWith('+86') || cleanPhone.startsWith('86')) {
+                      country = { flag: '🇨🇳', name: 'China' };
+                    } else if (cleanPhone.startsWith('+996') || cleanPhone.startsWith('996')) {
+                      country = { flag: '🇰🇬', name: 'Kyrgyzstan' };
+                    } else if (cleanPhone.startsWith('+992') || cleanPhone.startsWith('992')) {
+                      country = { flag: '🇹🇯', name: 'Tajikistan' };
+                    } else if (cleanPhone.startsWith('+1') || cleanPhone.startsWith('1')) {
+                      country = { flag: '🇺🇸', name: 'USA/Canada' };
+                    } else if (cleanPhone.startsWith('+380') || cleanPhone.startsWith('380')) {
+                      country = { flag: '🇺🇦', name: 'Ukraine' };
+                    } else if (cleanPhone.startsWith('+375') || cleanPhone.startsWith('375')) {
+                      country = { flag: '🇧🇾', name: 'Belarus' };
+                    } else if (cleanPhone.startsWith('+44') || cleanPhone.startsWith('44')) {
+                      country = { flag: '🇬🇧', name: 'United Kingdom' };
+                    } else if (cleanPhone.startsWith('+')) {
+                      country = { flag: '🌐', name: 'International' };
+                    }
+
+                    return (
+                      <FormItem>
+                        <FormLabel required>
+                          {t('phoneLabel')}{' '}
+                          {country && (
+                            <span className="ml-1 text-xs text-text-secondary">
+                              ({country.flag} {country.name})
+                            </span>
+                          )}
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative flex items-center">
+                            {country && (
+                              <span className="absolute left-3 text-lg select-none">
+                                {country.flag}
+                              </span>
+                            )}
+                            <Input
+                              data-testid="auth-phone"
+                              placeholder={t('phonePlaceholder')}
+                              type="tel"
+                              className={country ? 'pl-9' : ''}
+                              {...field}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
               )}
 
