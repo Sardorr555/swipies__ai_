@@ -10,7 +10,7 @@ import { useSystemConfig } from '@/hooks/use-system-request';
 import { rsaPsw } from '@/utils';
 import { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 
 import Spotlight from '@/components/spotlight';
 import { Button, ButtonLoading } from '@/components/ui/button';
@@ -228,6 +228,49 @@ function LoginFormContent({
                 />
               )}
 
+              {title === 'register' && (
+                <FormField
+                  control={form.control}
+                  name="acceptTerms"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <div className="flex gap-2 items-start">
+                          <Checkbox
+                            data-testid="auth-accept-terms"
+                            checked={field.value}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked);
+                            }}
+                            className="mt-0.5"
+                          />
+                          <FormLabel
+                            className={cn(
+                              'text-sm leading-snug cursor-pointer hover:text-text-primary',
+                              {
+                                'text-text-disabled': !field.value,
+                                'text-text-primary': field.value,
+                              },
+                            )}
+                          >
+                            {t('termsLabel')}{' '}
+                            <Link
+                              to="/privacy-policy"
+                              target="_blank"
+                              className="text-accent-primary/90 hover:text-accent-primary underline underline-offset-2 transition-colors duration-200"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {t('termsLink')}
+                            </Link>
+                          </FormLabel>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               {title === 'login' && (
                 <FormField
                   control={form.control}
@@ -380,6 +423,7 @@ const Login = () => {
       remember: z.boolean().optional(),
       phone: z.string().optional(),
       confirmPassword: z.string().optional(),
+      acceptTerms: z.boolean().optional(),
     })
     .superRefine((data, ctx) => {
       if (title === 'register') {
@@ -410,6 +454,13 @@ const Login = () => {
             code: z.ZodIssueCode.custom,
           });
         }
+        if (!data.acceptTerms) {
+          ctx.addIssue({
+            path: ['acceptTerms'],
+            message: t('termsRequired'),
+            code: z.ZodIssueCode.custom,
+          });
+        }
       }
     });
   type FormValues = z.infer<typeof FormSchema>;
@@ -421,6 +472,7 @@ const Login = () => {
       remember: false,
       phone: '',
       confirmPassword: '',
+      acceptTerms: false,
     },
     resolver: zodResolver(FormSchema),
   });

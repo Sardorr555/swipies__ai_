@@ -75,6 +75,7 @@ export enum Routes {
   AdminRoles = `${Admin}/roles`,
   AdminMonitoring = `${Admin}/monitoring`,
   Pricing = '/pricing',
+  PrivacyPolicy = '/privacy-policy',
 }
 
 const defaultRouteFallback = (
@@ -120,6 +121,11 @@ const routeConfigOptions = [
   {
     path: '/pricing',
     Component: () => import('@/pages/pricing'),
+    layout: false,
+  },
+  {
+    path: '/privacy-policy',
+    Component: () => import('@/pages/privacy-policy'),
     layout: false,
   },
   {

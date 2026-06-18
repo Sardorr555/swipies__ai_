@@ -1,0 +1,122 @@
+.privacy-policy-page {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0;
+
+  .privacy-policy-container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .privacy-policy-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+    .back-button {
+      color: var(--text-secondary, #999);
+      transition: color 0.2s;
+
+      &:hover {
+        color: var(--text-primary, #e0e0e0);
+      }
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+
+      .brand-name {
+        font-size: 18px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #00beb4, #02bcdd);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+    }
+  }
+
+  .privacy-policy-content {
+    .policy-title {
+      font-size: 36px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff, #a0a0a0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    .policy-effective-date {
+      font-size: 14px;
+      color: var(--text-secondary, #888);
+      margin-bottom: 48px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  .policy-section {
+    margin-bottom: 36px;
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: var(--text-primary, #e0e0e0);
+      position: relative;
+      padding-left: 16px;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 4px;
+        bottom: 4px;
+        width: 3px;
+        border-radius: 2px;
+        background: linear-gradient(180deg, #00beb4, #02bcdd);
+      }
+    }
+
+    p {
+      font-size: 15px;
+      line-height: 1.75;
+      color: var(--text-secondary, #bbb);
+      margin-bottom: 12px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0 0;
+
+      li {
+        position: relative;
+        padding-left: 24px;
+        margin-bottom: 10px;
+        font-size: 15px;
+        line-height: 1.65;
+        color: var(--text-secondary, #bbb);
+
+        &::before {
+          content: '';
+          position: absolute;
+          left: 8px;
+          top: 10px;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #00beb4, #02bcdd);
+        }
+      }
+    }
+  }
+}
