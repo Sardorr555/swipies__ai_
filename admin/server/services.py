@@ -60,6 +60,16 @@ class UserMgr:
         users = UserService.query_user_by_email(username)
         result = []
         for user in users:
+            from api.db.services.user_service import TenantService
+            tenant_list = TenantService.query(id=user.id)
+            plan_type = "free"
+            plan_expiry_date = None
+            credit = 512
+            if tenant_list:
+                plan_type = tenant_list[0].plan_type or "free"
+                plan_expiry_date = tenant_list[0].plan_expiry_date
+                credit = tenant_list[0].credit
+
             result.append(
                 {
                     "avatar": user.avatar,
@@ -73,9 +83,47 @@ class UserMgr:
                     "is_superuser": user.is_superuser,
                     "create_date": user.create_date,
                     "update_date": user.update_date,
+                    "plan_type": plan_type,
+                    "plan_expiry_date": plan_expiry_date,
+                    "credit": credit,
                 }
             )
         return result
+
+    @staticmethod
+    def update_user_subscription(username, plan_type=None, plan_expiry_date=None, credit=None):
+        # find user by email
+        user_list = UserService.query_user_by_email(username)
+        if not user_list:
+            raise UserNotFoundError(username)
+        elif len(user_list) > 1:
+            raise AdminException(f"Exist more than 1 user: {username}!")
+
+        usr = user_list[0]
+
+        from api.db.services.user_service import TenantService
+        tenant_list = TenantService.query(id=usr.id)
+        if not tenant_list:
+            raise AdminException(f"Tenant for user {username} not found!")
+
+        update_data = {}
+        if plan_type is not None:
+            update_data["plan_type"] = plan_type
+        if plan_expiry_date is not None:
+            if plan_expiry_date == "" or plan_expiry_date is None:
+                update_data["plan_expiry_date"] = None
+            else:
+                update_data["plan_expiry_date"] = plan_expiry_date
+        if credit is not None:
+            try:
+                update_data["credit"] = int(credit)
+            except ValueError:
+                raise AdminException("Credit must be an integer!")
+
+        if update_data:
+            TenantService.update_by_id(usr.id, update_data)
+
+        return "User subscription updated successfully!"
 
     @staticmethod
     def create_user(username, password, role="user") -> dict:

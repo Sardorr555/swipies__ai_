@@ -44,6 +44,9 @@ declare namespace AdminService {
     status: '0' | '1';
     update_date: string;
     role: string;
+    plan_type?: string;
+    plan_expiry_date?: string | null;
+    credit?: number;
   };
 
   export type ListUserDatasetItem = {

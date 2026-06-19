@@ -327,6 +327,8 @@ export default {
     `${restAPIv1}/admin/users/${username}/activate`,
   adminUpdateUserPassword: (username: string) =>
     `${restAPIv1}/admin/users/${username}/password`,
+  adminUpdateUserSubscription: (username: string) =>
+    `${restAPIv1}/admin/users/${username}/subscription`,
   adminDeleteUser: (username: string) => `${restAPIv1}/admin/users/${username}`,
   adminListUserDatasets: (username: string) =>
     `${restAPIv1}/admin/users/${username}/datasets`,

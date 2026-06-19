@@ -210,6 +210,27 @@ def get_user_details(username):
         return error_response(str(e), 500)
 
 
+@admin_bp.route("/users/<username>/subscription", methods=["PUT"])
+@login_required
+@check_admin_auth
+def update_user_subscription(username):
+    try:
+        data = request.get_json()
+        if not data:
+            return error_response("Request body is required", 400)
+
+        plan_type = data.get("plan_type")
+        plan_expiry_date = data.get("plan_expiry_date")
+        credit = data.get("credit")
+
+        msg = UserMgr.update_user_subscription(username, plan_type, plan_expiry_date, credit)
+        return success_response(None, msg)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
 @admin_bp.route("/users/<username>/datasets", methods=["GET"])
 @login_required
 @check_admin_auth

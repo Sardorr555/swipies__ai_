@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 
 import { LucideArrowLeft, LucideDot } from 'lucide-react';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createColumnHelper,
   flexRender,
@@ -20,30 +20,30 @@ import Spotlight from '@/components/spotlight';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import message from '@/components/ui/message';
 import { RAGFlowPagination } from '@/components/ui/ragflow-pagination';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  // TableHead,
-  // TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import {
   getUserDetails,
   listUserAgents,
   listUserDatasets,
+  updateUserSubscription,
 } from '@/services/admin-service';
 
 import { TableEmpty } from '@/components/table-skeleton';
 import EnterpriseFeature from './components/enterprise-feature';
-import {
-  // getSortIcon,
-  parseBooleanish,
-} from './utils';
+import { parseBooleanish } from './utils';
 
 const ASSET_NAMES = ['dataset', 'flow'];
 
@@ -299,6 +299,11 @@ function AdminUserDetail() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { id } = useParams();
+  const queryClient = useQueryClient();
+
+  const [planType, setPlanType] = useState<string>('free');
+  const [planExpiry, setPlanExpiry] = useState<string>('');
+  const [credits, setCredits] = useState<number>(512);
 
   const { data: { detail, datasets, agents } = {} } = useQuery({
     queryKey: ['admin/userDetail', id],
@@ -317,6 +322,28 @@ function AdminUserDetail() {
     },
     enabled: !!id,
     retry: false,
+  });
+
+  useEffect(() => {
+    if (detail) {
+      setPlanType(detail.plan_type || 'free');
+      setPlanExpiry(detail.plan_expiry_date || '');
+      setCredits(detail.credit ?? 512);
+    }
+  }, [detail]);
+
+  const updateSubscriptionMutation = useMutation({
+    mutationFn: (params: {
+      plan_type: string;
+      plan_expiry_date: string | null;
+      credit: number;
+    }) => updateUserSubscription(id!, params),
+    onSuccess: (res) => {
+      if (res.data.code === 0) {
+        message.success('Subscription updated successfully!');
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin/userDetail', id] });
+    },
   });
 
   return (
@@ -410,7 +437,155 @@ function AdminUserDetail() {
               </div>
               <div>{t(detail?.is_superuser ? 'admin.yes' : 'admin.no')}</div>
             </div>
+
+            <div className="border-l pl-8 dark:border-border-button">
+              <div className="text-sm text-text-secondary mb-2">
+                Current Plan
+              </div>
+              <div className="capitalize font-bold text-primary">
+                {detail?.plan_type || 'free'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm text-text-secondary mb-2">Credits</div>
+              <div className="font-semibold">{detail?.credit ?? 512}</div>
+            </div>
+
+            <div>
+              <div className="text-sm text-text-secondary mb-2">
+                Expiry Date
+              </div>
+              <div className="text-sm text-text-secondary">
+                {detail?.plan_expiry_date
+                  ? detail.plan_expiry_date
+                  : 'Unlimited'}
+              </div>
+            </div>
           </section>
+
+          <div className="border-t border-dashed dark:border-border-button pt-6 px-14 space-y-4">
+            <h3 className="text-sm font-semibold text-text-primary">
+              Subscription & Plan Management
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+              <div className="space-y-2">
+                <label className="text-xs text-text-secondary">
+                  Pricing Plan
+                </label>
+                <Select value={planType} onValueChange={setPlanType}>
+                  <SelectTrigger className="w-full bg-bg-input border-border-button">
+                    <SelectValue placeholder="Select Plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free">Free (Basic)</SelectItem>
+                    <SelectItem value="plus">Plus Plan</SelectItem>
+                    <SelectItem value="pro">Pro Plan</SelectItem>
+                    <SelectItem value="enterprise">Enterprise Plan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-text-secondary">
+                  Credits Balance
+                </label>
+                <Input
+                  type="number"
+                  className="bg-bg-input border-border-button"
+                  value={credits}
+                  onChange={(e) => setCredits(parseInt(e.target.value) || 0)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-text-secondary">
+                  Plan Expiry Date (YYYY-MM-DD HH:MM:SS)
+                </label>
+                <Input
+                  type="text"
+                  className="bg-bg-input border-border-button"
+                  placeholder="Unlimited"
+                  value={planExpiry}
+                  onChange={(e) => setPlanExpiry(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  className="w-full h-10"
+                  disabled={updateSubscriptionMutation.isPending}
+                  onClick={() => {
+                    updateSubscriptionMutation.mutate({
+                      plan_type: planType,
+                      plan_expiry_date: planExpiry || null,
+                      credit: credits,
+                    });
+                  }}
+                >
+                  {updateSubscriptionMutation.isPending
+                    ? 'Saving...'
+                    : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap gap-2 pt-2">
+              <span className="text-xs text-text-secondary self-center mr-2">
+                Quick Presets:
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs border-border-button dark:bg-bg-input"
+                onClick={() => {
+                  setPlanType('plus');
+                  setCredits(5000);
+                  const expiry = new Date();
+                  expiry.setDate(expiry.getDate() + 30);
+                  // format as YYYY-MM-DD HH:MM:SS
+                  const formatted = expiry
+                    .toISOString()
+                    .replace('T', ' ')
+                    .substring(0, 19);
+                  setPlanExpiry(formatted);
+                }}
+              >
+                +1 Month Plus (5k credits)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs border-border-button dark:bg-bg-input"
+                onClick={() => {
+                  setPlanType('pro');
+                  setCredits(10000);
+                  const expiry = new Date();
+                  expiry.setDate(expiry.getDate() + 30);
+                  const formatted = expiry
+                    .toISOString()
+                    .replace('T', ' ')
+                    .substring(0, 19);
+                  setPlanExpiry(formatted);
+                }}
+              >
+                +1 Month Pro (10k credits)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs border-border-button dark:bg-bg-input"
+                onClick={() => {
+                  setPlanType('free');
+                  setCredits(512);
+                  setPlanExpiry('');
+                }}
+              >
+                Reset to Free
+              </Button>
+            </div>
+          </div>
         </CardHeader>
 
         <CardContent className="h-0 basis-0 grow pt-6">

@@ -106,6 +106,7 @@ const {
   adminGetUserDetails,
   adminUpdateUserStatus,
   adminUpdateUserPassword,
+  adminUpdateUserSubscription,
   adminDeleteUser,
   adminListUserDatasets,
   adminListUserAgents,
@@ -182,6 +183,14 @@ export const updateUserStatus = (email: string, status: 'on' | 'off') =>
   request.put(adminUpdateUserStatus(email), { activate_status: status });
 export const updateUserPassword = (email: string, password: string) =>
   request.put(adminUpdateUserPassword(email), { new_password: password });
+export const updateUserSubscription = (
+  email: string,
+  params: {
+    plan_type?: string;
+    plan_expiry_date?: string | null;
+    credit?: number;
+  },
+) => request.put(adminUpdateUserSubscription(email), params);
 export const deleteUser = (email: string) =>
   request.delete(adminDeleteUser(email));
 
