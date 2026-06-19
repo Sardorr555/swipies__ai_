@@ -766,6 +766,8 @@ class Tenant(DataBaseModel):
     ocr_id = CharField(max_length=256, null=True, help_text="default OCR model ID", index=True)
     parser_ids = CharField(max_length=256, null=False, help_text="document processors", index=True)
     credit = IntegerField(default=512, index=True)
+    plan_type = CharField(max_length=32, default="free", index=True)
+    plan_expiry_date = DateTimeField(null=True, index=True)
     status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
 
     class Meta:
@@ -1743,6 +1745,8 @@ def migrate_db():
             logging.critical(f"Failed to drop index {index_name} on {table_name}: {ex}")
     alter_db_add_column(migrator, "api_token", "name", CharField(max_length=255, null=True, help_text="API key name"))
     alter_db_add_column(migrator, "api_token", "status", CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True))
+    alter_db_add_column(migrator, "tenant", "plan_type", CharField(max_length=32, default="free", index=True))
+    alter_db_add_column(migrator, "tenant", "plan_expiry_date", DateTimeField(null=True, index=True))
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
     migrate_add_unique_email(migrator)

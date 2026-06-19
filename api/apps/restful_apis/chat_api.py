@@ -367,6 +367,12 @@ async def create():
         if not ok:
             return get_data_error_result(message="Tenant not found!")
 
+        # Enforce plan limits
+        from api.db.services.user_service import TenantLimitService
+        allowed, limit_msg = TenantLimitService.check_apps_limit(current_user.id)
+        if not allowed:
+            return get_data_error_result(message=limit_msg, code=RetCode.OPERATING_ERROR)
+
         # Validate tenant_id should not be provided
         if req.get("tenant_id"):
             return get_data_error_result(message="`tenant_id` must not be provided.")

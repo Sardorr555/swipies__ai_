@@ -480,6 +480,12 @@ async def _upload_web_document(dataset_id, kb, tenant_id):
     if not blob:
         return server_error_response(ValueError("Download failure."))
 
+    # Enforce plan storage limits
+    from api.db.services.user_service import TenantLimitService
+    allowed, limit_msg = TenantLimitService.check_storage_limit(tenant_id, len(blob))
+    if not allowed:
+        return get_error_data_result(message=limit_msg, code=RetCode.OPERATING_ERROR)
+
     root_folder = FileService.get_root_folder(tenant_id)
     FileService.init_knowledgebase_docs(root_folder["id"], tenant_id)
     kb_root_folder = FileService.get_kb_folder(tenant_id)
@@ -577,6 +583,7 @@ async def _upload_local_documents(kb, tenant_id):
         return get_error_data_result(message="No file part!", code=RetCode.ARGUMENT_ERROR)
 
     file_objs = files.getlist("file")
+    total_size = 0
     for file_obj in file_objs:
         if file_obj is None or file_obj.filename is None or file_obj.filename == "":
             logging.error("No file selected!")
@@ -585,6 +592,20 @@ async def _upload_local_documents(kb, tenant_id):
             msg = f"File name must be {FILE_NAME_LEN_LIMIT} bytes or less."
             logging.error(msg)
             return get_error_data_result(message=msg, code=RetCode.ARGUMENT_ERROR)
+        
+        # Calculate file size using tell() and seek()
+        try:
+            file_obj.seek(0, 2)
+            total_size += file_obj.tell()
+            file_obj.seek(0)
+        except Exception:
+            pass
+
+    # Enforce plan storage limits
+    from api.db.services.user_service import TenantLimitService
+    allowed, limit_msg = TenantLimitService.check_storage_limit(tenant_id, total_size)
+    if not allowed:
+        return get_error_data_result(message=limit_msg, code=RetCode.OPERATING_ERROR)
 
     # Parse optional parser_config overrides from form data
     parser_config_override = None
