@@ -1028,6 +1028,8 @@ class APIToken(DataBaseModel):
     dialog_id = CharField(max_length=32, null=True, index=True)
     source = CharField(max_length=16, null=True, help_text="none|agent|dialog", index=True)
     beta = CharField(max_length=255, null=True, index=True)
+    name = CharField(max_length=255, null=True, help_text="API key name")
+    status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
 
     class Meta:
         db_table = "api_token"
@@ -1739,6 +1741,8 @@ def migrate_db():
                 logging.critical(f"Failed to drop index {index_name} on {table_name}: {ex}")
         except Exception as ex:
             logging.critical(f"Failed to drop index {index_name} on {table_name}: {ex}")
+    alter_db_add_column(migrator, "api_token", "name", CharField(max_length=255, null=True, help_text="API key name"))
+    alter_db_add_column(migrator, "api_token", "status", CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True))
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
     migrate_add_unique_email(migrator)

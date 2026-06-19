@@ -58,6 +58,10 @@ const methods = {
     url: removeSystemToken,
     method: 'delete',
   },
+  updateToken: {
+    url: removeSystemToken,
+    method: 'put',
+  },
   getSystemConfig: {
     url: getSystemConfig,
     method: 'get',

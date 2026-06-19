@@ -186,6 +186,8 @@ export interface IToken {
   update_date?: any;
   update_time?: any;
   beta: string;
+  name?: string;
+  status?: string;
 }
 
 export interface IStats {

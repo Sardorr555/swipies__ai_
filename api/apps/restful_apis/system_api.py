@@ -282,7 +282,7 @@ def token_list():
 
 @manager.route("/system/tokens", methods=["POST"])  # noqa: F821
 @login_required
-def new_token():
+async def new_token():
     """
     Generate a new API token.
     ---
@@ -312,10 +312,17 @@ def new_token():
             return get_data_error_result(message="Tenant not found!")
 
         tenant_id = [tenant for tenant in tenants if tenant.role == "owner"][0].tenant_id
+        
+        from quart import request
+        req = await request.json or {}
+        name = req.get("name") or request.args.get("name") or "API Key"
+        
         obj = {
             "tenant_id": tenant_id,
             "token": generate_confirmation_token(),
             "beta": generate_confirmation_token().replace("ragflow-", "")[:32],
+            "name": name,
+            "status": "1",
             "create_time": current_timestamp(),
             "create_date": datetime_format(datetime.now()),
             "update_time": None,
@@ -326,6 +333,39 @@ def new_token():
             return get_data_error_result(message="Fail to new a dialog!")
 
         return get_json_result(data=obj)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/system/tokens/<token>", methods=["PUT"])  # noqa: F821
+@login_required
+async def update_token(token):
+    """
+    Update an API token.
+    """
+    try:
+        tenants = UserTenantService.query(user_id=current_user.id)
+        if not tenants:
+            return get_data_error_result(message="Tenant not found!")
+
+        tenant_id = tenants[0].tenant_id
+        
+        from quart import request
+        req = await request.json or {}
+        update_data = {}
+        if "name" in req:
+            update_data["name"] = req["name"]
+        if "status" in req:
+            update_data["status"] = req["status"]
+            
+        if not update_data:
+            return get_json_result(data=True)
+            
+        update_data["update_time"] = current_timestamp()
+        update_data["update_date"] = datetime_format(datetime.now())
+        
+        APITokenService.filter_update([APIToken.tenant_id == tenant_id, APIToken.token == token], update_data)
+        return get_json_result(data=True)
     except Exception as e:
         return server_error_response(e)
 

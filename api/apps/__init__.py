@@ -172,6 +172,7 @@ def _load_user(auth_types=None):
     if AUTH_BETA in auth_types:
         try:
             objs = APIToken.query(beta=auth_token)
+            objs = [o for o in objs if getattr(o, "status", "1") != "0"]
             if objs:
                 user = UserService.query(id=objs[0].tenant_id, status=StatusEnum.VALID.value)
                 if user:
@@ -213,6 +214,7 @@ def _load_user(auth_types=None):
     if AUTH_API in auth_types:
         try:
             objs = APIToken.query(token=auth_token)
+            objs = [o for o in objs if getattr(o, "status", "1") != "0"]
             if objs:
                 user = UserService.query(id=objs[0].tenant_id, status=StatusEnum.VALID.value)
                 if user:

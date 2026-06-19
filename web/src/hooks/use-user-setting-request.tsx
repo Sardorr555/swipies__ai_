@@ -31,6 +31,7 @@ export const enum UserSettingApiAction {
   FetchSystemTokenList = 'fetchSystemTokenList',
   RemoveSystemToken = 'removeSystemToken',
   CreateSystemToken = 'createSystemToken',
+  UpdateSystemToken = 'updateSystemToken',
   ListTenantUser = 'listTenantUser',
   AddTenantUser = 'addTenantUser',
   DeleteTenantUser = 'deleteTenantUser',
@@ -280,6 +281,29 @@ export const useCreateSystemToken = () => {
   });
 
   return { data, loading, createToken: mutateAsync };
+};
+
+export const useUpdateSystemToken = () => {
+  const queryClient = useQueryClient();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [UserSettingApiAction.UpdateSystemToken],
+    mutationFn: async ({ token, ...params }: { token: string; name?: string; status?: string }) => {
+      const { data } = await userService.updateToken(params, token);
+      if (data.code === 0) {
+        queryClient.invalidateQueries({
+          queryKey: [UserSettingApiAction.FetchSystemTokenList],
+        });
+      }
+      return data?.data ?? [];
+    },
+  });
+
+  return { data, loading, updateToken: mutateAsync };
 };
 
 export const useListTenantUser = () => {
