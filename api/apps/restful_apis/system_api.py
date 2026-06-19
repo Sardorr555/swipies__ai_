@@ -459,3 +459,53 @@ async def set_logger_level():
         return get_json_result(data={"pkg_name": pkg_name, "level": level})
     else:
         return get_data_error_result(message=f"Invalid log level: {level}")
+
+
+@manager.route("/system/provision", methods=["POST"])  # noqa: F821
+@login_required
+async def system_provision():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    req = await get_request_json()
+    email = req.get("email")
+    plan = str(req.get("plan", "free")).lower()  # plus, pro, enterprise
+    months = int(req.get("months", 1))
+
+    if not email:
+        return get_data_error_result(message="email is required")
+
+    from api.db.services.user_service import UserService, TenantService
+    users = UserService.query(email=email)
+    if not users:
+        return get_data_error_result(message=f"User {email} not found")
+
+    user = users[0]
+
+    from datetime import datetime, timedelta
+    from common.time_utils import datetime_format
+
+    expiry_date = datetime.now() + timedelta(days=months * 30)
+
+    # Plus: 5000 credits/mo, Pro: 10000 credits/mo
+    credits = 512
+    if plan == "plus":
+        credits = 5000 * months
+    elif plan == "pro":
+        credits = 10000 * months
+
+    TenantService.update_by_id(
+        user.id,
+        {
+            "plan_type": plan,
+            "plan_expiry_date": datetime_format(expiry_date),
+            "credit": credits
+        }
+    )
+
+    return get_json_result(data=True)
+

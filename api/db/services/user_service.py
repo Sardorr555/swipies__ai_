@@ -193,6 +193,9 @@ class TenantService(CommonService):
             cls.model.tts_id,
             cls.model.ocr_id,
             cls.model.parser_ids,
+            cls.model.plan_type,
+            cls.model.plan_expiry_date,
+            cls.model.credit,
             UserTenant.role]
         return list(cls.model.select(*fields)
                     .join(UserTenant, on=((cls.model.id == UserTenant.tenant_id) & (UserTenant.user_id == user_id) & (UserTenant.status == StatusEnum.VALID.value) & (UserTenant.role == UserTenantRole.OWNER)))
@@ -327,3 +330,99 @@ class UserTenantService(CommonService):
             return user_tenant
         except peewee.DoesNotExist:
             return None
+
+
+class TenantLimitService:
+    @classmethod
+    @DB.connection_context()
+    def check_apps_limit(cls, tenant_id: str) -> tuple[bool, str | None]:
+        ok, tenant = TenantService.get_by_id(tenant_id)
+        if not ok:
+            return True, None
+
+        plan = (tenant.plan_type or "free").lower()
+        if plan in ("pro", "enterprise"):
+            return True, None
+
+        limit = 3
+        if plan == "plus":
+            limit = 50
+
+        from api.db.db_models import Dialog, UserCanvas
+
+        chat_count = Dialog.select().where(
+            Dialog.tenant_id == tenant_id,
+            Dialog.status == StatusEnum.VALID.value
+        ).count()
+
+        agent_count = UserCanvas.select().where(
+            UserCanvas.user_id == tenant_id
+        ).count()
+
+        total_apps = chat_count + agent_count
+        if total_apps >= limit:
+            return False, f"You have reached the maximum limit of {limit} apps for your {plan.capitalize()} plan. Please upgrade to a higher plan to create more."
+
+        return True, None
+
+    @classmethod
+    @DB.connection_context()
+    def check_storage_limit(cls, tenant_id: str, new_file_size: int = 0) -> tuple[bool, str | None]:
+        ok, tenant = TenantService.get_by_id(tenant_id)
+        if not ok:
+            return True, None
+
+        plan = (tenant.plan_type or "free").lower()
+        if plan == "enterprise":
+            return True, None
+
+        limit_gb = 0.5
+        if plan == "plus":
+            limit_gb = 5.0
+        elif plan == "pro":
+            limit_gb = 15.0
+
+        limit_bytes = int(limit_gb * 1024 * 1024 * 1024)
+
+        from api.db.db_models import Document, Knowledgebase
+
+        current_bytes = Document.select(peewee.fn.COALESCE(peewee.fn.SUM(Document.size), 0)).join(
+            Knowledgebase, on=(Document.kb_id == Knowledgebase.id)
+        ).where(
+            Knowledgebase.tenant_id == tenant_id
+        ).scalar() or 0
+
+        if current_bytes + new_file_size > limit_bytes:
+            return False, f"You have reached the maximum storage limit of {limit_gb} GB for your {plan.capitalize()} plan. Please upgrade to a higher plan or delete some files."
+
+        return True, None
+
+    @classmethod
+    @DB.connection_context()
+    def check_team_limit(cls, tenant_id: str) -> tuple[bool, str | None]:
+        ok, tenant = TenantService.get_by_id(tenant_id)
+        if not ok:
+            return True, None
+
+        plan = (tenant.plan_type or "free").lower()
+        if plan == "enterprise":
+            return True, None
+
+        limit = 1
+        if plan == "plus":
+            limit = 5
+        elif plan == "pro":
+            limit = 15
+
+        from api.db.db_models import UserTenant
+
+        member_count = UserTenant.select().where(
+            UserTenant.tenant_id == tenant_id,
+            UserTenant.status == StatusEnum.VALID.value
+        ).count()
+
+        if member_count >= limit:
+            return False, f"You have reached the maximum limit of {limit} team members for your {plan.capitalize()} plan. Please upgrade to a higher plan to invite more members."
+
+        return True, None
+

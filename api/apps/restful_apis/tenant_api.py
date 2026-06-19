@@ -68,6 +68,12 @@ async def create(tenant_id):
             code=RetCode.AUTHENTICATION_ERROR,
         )
 
+    # Enforce team size limits
+    from api.db.services.user_service import TenantLimitService
+    allowed, limit_msg = TenantLimitService.check_team_limit(tenant_id)
+    if not allowed:
+        return get_data_error_result(message=limit_msg, code=RetCode.OPERATING_ERROR)
+
     req = await get_request_json()
     invite_user_email = req["email"]
     invite_users = UserService.query(email=invite_user_email)
