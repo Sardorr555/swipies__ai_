@@ -1,20 +1,19 @@
-import { BRAND } from '@/constants/branding';
 import { Button } from '@/components/ui/button';
+import { BRAND } from '@/constants/branding';
+import { useFetchUserInfo } from '@/hooks/use-user-setting-request';
+import { Routes } from '@/routes';
 import {
+  CheckCircle,
+  CreditCard,
+  Loader2,
+  LucideArrowLeft,
   LucideCheck,
   LucideZap,
-  LucideArrowLeft,
-  CreditCard,
-  CheckCircle,
   ShieldCheck,
-  Loader2,
-  Sparkles,
 } from 'lucide-react';
-import { Link } from 'react-router';
-import { Routes } from '@/routes';
-import { useState, useEffect } from 'react';
-import { useFetchUserInfo } from '@/hooks/use-user-setting-request';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 
 // UZS Formatter
 const formatUZS = (amount: number) => {
@@ -41,14 +40,16 @@ const pricingTranslations = {
   en: {
     backToDashboard: 'Back to dashboard',
     title: 'AI Subscription Plans',
-    subtitle: 'Choose the subscription that fits your workload. Pay securely via card using our local and international gateways.',
+    subtitle:
+      'Choose the subscription that fits your workload. Pay securely via card using our local and international gateways.',
     oneMonth: '1 Month',
     sixMonths: '6 Months',
     oneYear: '1 Year',
     mo: '/mo',
     customPricing: 'Custom Pricing',
     popularBadge: 'Most Popular',
-    secureFooter: 'All payments are secured and processed via Atmos payment gateway. You can modify or cancel your subscription at any time.',
+    secureFooter:
+      'All payments are secured and processed via Atmos payment gateway. You can modify or cancel your subscription at any time.',
     checkoutTitle: 'Pay via Atmos',
     checkoutSubtitle: 'Uzcard, Humo, Visa or Mastercard',
     checkoutPlan: 'Plan',
@@ -60,14 +61,16 @@ const pricingTranslations = {
     processing: 'Processing...',
     payNow: 'Pay Now',
     otpTitle: 'Confirm Payment',
-    otpSubtitle: 'An SMS with a 6-digit verification code was sent to your phone',
+    otpSubtitle:
+      'An SMS with a 6-digit verification code was sent to your phone',
     verifying: 'Verifying...',
     confirmOtp: 'Confirm OTP',
     cancelUseAnother: 'Cancel and use another card',
     paymentSuccessful: 'Payment Successful!',
     successSubtitle: 'Your transaction has been processed securely.',
     subActivated: 'Subscription Activated',
-    subDelayed: 'Payment was completed successfully, but there was an activation delay. Please contact support.',
+    subDelayed:
+      'Payment was completed successfully, but there was an activation delay. Please contact support.',
     continueToSwipies: 'Continue to Swipies',
     protectedByAtmos: 'Protected by Atmos Secure',
     plans: {
@@ -75,11 +78,10 @@ const pricingTranslations = {
         name: 'Plus',
         description: 'For active users',
         features: [
-          '3 Knowledge Bases',
-          '1 GB Storage',
-          'Up to 500 queries/day',
-          'Basic AI Assistants',
-          'Email Support',
+          '50 Apps (Chats & Agents)',
+          '5 Team members',
+          '5 GB Dataset storage',
+          '5,000 Credits / month',
         ],
         cta: 'Choose Plus',
       },
@@ -87,12 +89,10 @@ const pricingTranslations = {
         name: 'Pro',
         description: 'For professionals and teams',
         features: [
-          '10 Knowledge Bases',
-          '10 GB Storage',
-          'Unlimited queries',
-          'Advanced AI Agents',
-          'Priority Support',
-          'API Access',
+          'Unlimited Apps',
+          '15 Team members',
+          '15 GB Dataset storage',
+          '10,000 Credits / month',
         ],
         cta: 'Choose Pro',
       },
@@ -100,28 +100,30 @@ const pricingTranslations = {
         name: 'Enterprise',
         description: 'For organizations with advanced needs',
         features: [
-          'Unlimited Knowledge Bases',
-          'Unlimited Storage',
+          'Unlimited Knowledge Bases & Apps',
+          'Unlimited Storage & Team members',
           'Dedicated Server / On-Premise',
           'Maximum Security & SLA',
           'Dedicated Account Manager',
           'Custom Integrations',
         ],
         cta: 'Contact Us',
-      }
-    }
+      },
+    },
   },
   ru: {
     backToDashboard: 'Назад на главную',
     title: 'Планы подписки AI',
-    subtitle: 'Выберите подписку, соответствующую вашей нагрузке. Безопасная оплата картой через местные и международные шлюзы.',
+    subtitle:
+      'Выберите подписку, соответствующую вашей нагрузке. Безопасная оплата картой через местные и международные шлюзы.',
     oneMonth: '1 месяц',
     sixMonths: '6 месяцев',
     oneYear: '1 год',
     mo: '/мес',
     customPricing: 'Индивидуальная цена',
     popularBadge: 'Самый популярный',
-    secureFooter: 'Все платежи защищены и обрабатываются через платежный шлюз Atmos. Вы можете изменить или отменить подписку в любое время.',
+    secureFooter:
+      'Все платежи защищены и обрабатываются через платежный шлюз Atmos. Вы можете изменить или отменить подписку в любое время.',
     checkoutTitle: 'Оплата через Atmos',
     checkoutSubtitle: 'Uzcard, Humo, Visa или Mastercard',
     checkoutPlan: 'Тариф',
@@ -133,14 +135,16 @@ const pricingTranslations = {
     processing: 'Обработка...',
     payNow: 'Оплатить сейчас',
     otpTitle: 'Подтверждение платежа',
-    otpSubtitle: 'SMS с 6-значным кодом подтверждения отправлено на ваш телефон',
+    otpSubtitle:
+      'SMS с 6-значным кодом подтверждения отправлено на ваш телефон',
     verifying: 'Проверка...',
     confirmOtp: 'Подтвердить код',
     cancelUseAnother: 'Отмена и другая карта',
     paymentSuccessful: 'Оплата прошла успешно!',
     successSubtitle: 'Ваша транзакция была безопасно обработана.',
     subActivated: 'Подписка активирована',
-    subDelayed: 'Платеж успешно завершен, но произошла задержка активации. Пожалуйста, свяжитесь с поддержкой.',
+    subDelayed:
+      'Платеж успешно завершен, но произошла задержка активации. Пожалуйста, свяжитесь с поддержкой.',
     continueToSwipies: 'Продолжить в Swipies',
     protectedByAtmos: 'Защищено Atmos Secure',
     plans: {
@@ -148,11 +152,10 @@ const pricingTranslations = {
         name: 'Plus',
         description: 'Для активных пользователей',
         features: [
-          '3 базы знаний',
-          '1 ГБ хранилища',
-          'До 500 запросов в день',
-          'Базовые ИИ-ассистенты',
-          'Поддержка по почте',
+          '50 приложений (чаты и агенты)',
+          '5 участников команды',
+          '5 ГБ хранилища данных',
+          '5 000 кредитов в месяц',
         ],
         cta: 'Выбрать Plus',
       },
@@ -160,12 +163,10 @@ const pricingTranslations = {
         name: 'Pro',
         description: 'Для профессионалов и команд',
         features: [
-          '10 баз знаний',
-          '10 ГБ хранилища',
-          'Безлимитные запросы',
-          'Продвинутые ИИ-агенты',
-          'Приоритетная поддержка',
-          'Доступ к API',
+          'Безлимитные приложения',
+          '15 участников команды',
+          '15 ГБ хранилища данных',
+          '10 000 кредитов в месяц',
         ],
         cta: 'Выбрать Pro',
       },
@@ -173,28 +174,30 @@ const pricingTranslations = {
         name: 'Enterprise',
         description: 'Для организаций с особыми потребностями',
         features: [
-          'Безлимитные базы знаний',
-          'Безлимитное хранилище',
+          'Безлимитные приложения и базы знаний',
+          'Безлимитное хранилище и участники',
           'Выделенный сервер / On-Premise',
           'Максимальная безопасность и SLA',
           'Персональный менеджер',
           'Кастомные интеграции',
         ],
         cta: 'Связаться с нами',
-      }
-    }
+      },
+    },
   },
   uz: {
     backToDashboard: 'Boshqaruv paneliga qaytish',
     title: 'AI obuna rejalari',
-    subtitle: 'Ish yukingizga mos keladigan obunani tanlang. Mahalliy va xalqaro toʻlov tizimlari orqali karta bilan xavfsiz toʻlang.',
+    subtitle:
+      'Ish yukingizga mos keladigan obunani tanlang. Mahalliy va xalqaro toʻlov tizimlari orqali karta bilan xavfsiz toʻlang.',
     oneMonth: '1 oy',
     sixMonths: '6 oy',
     oneYear: '1 yil',
     mo: '/oy',
     customPricing: 'Maxsus narxlar',
     popularBadge: 'Eng ommabop',
-    secureFooter: 'Barcha toʻlovlar xavfsiz va Atmos toʻlov shlyuzi orqali amalga oshiriladi. Obunangizni istalgan vaqtda oʻzgartirishingiz yoki bekor qilishingiz mumkin.',
+    secureFooter:
+      'Barcha toʻlovlar xavfsiz va Atmos toʻlov shlyuzi orqali amalga oshiriladi. Obunangizni istalgan vaqtda oʻzgartirishingiz yoki bekor qilishingiz mumkin.',
     checkoutTitle: 'Atmos orqali toʻlash',
     checkoutSubtitle: 'Uzcard, Humo, Visa yoki Mastercard',
     checkoutPlan: 'Tarif',
@@ -206,14 +209,16 @@ const pricingTranslations = {
     processing: 'Jarayonda...',
     payNow: 'Hozir toʻlash',
     otpTitle: 'Toʻlovni tasdiqlash',
-    otpSubtitle: 'Telefoningizga 6 xonali tasdiqlash kodi yozilgan SMS yuborildi',
+    otpSubtitle:
+      'Telefoningizga 6 xonali tasdiqlash kodi yozilgan SMS yuborildi',
     verifying: 'Tasdiqlanmoqda...',
     confirmOtp: 'OTP kodini tasdiqlash',
     cancelUseAnother: 'Bekor qilish va boshqa karta',
     paymentSuccessful: 'Toʻlov muvaffaqiyatli bajarildi!',
     successSubtitle: 'Tranzaksiyangiz xavfsiz tarzda amalga oshirildi.',
     subActivated: 'Obuna faollashtirildi',
-    subDelayed: 'Toʻlov muvaffaqiyatli yakunlandi, ammo faollashtirishda kechikish yuz berdi. Iltimos, qoʻllab-quvvatlash xizmatiga murojaat qiling.',
+    subDelayed:
+      'Toʻlov muvaffaqiyatli yakunlandi, ammo faollashtirishda kechikish yuz berdi. Iltimos, qoʻllab-quvvatlash xizmatiga murojaat qiling.',
     continueToSwipies: 'Swipies-da davom etish',
     protectedByAtmos: 'Atmos Secure himoyasi ostida',
     plans: {
@@ -221,11 +226,10 @@ const pricingTranslations = {
         name: 'Plus',
         description: 'Faol foydalanuvchilar uchun',
         features: [
-          '3 ta bilimlar bazasi',
-          '1 GB saqlash joyi',
-          'Kuniga 500 tagacha soʻrov',
-          'Asosiy AI yordamchilari',
-          'Email orqali qoʻllab-quvvatlash',
+          '50 ta ilova (chatlar va agentlar)',
+          "5 ta jamoa a'zosi",
+          "5 GB ma'lumotlar ombori",
+          'Oyiga 5 000 kredit',
         ],
         cta: 'Plus-ni tanlang',
       },
@@ -233,12 +237,10 @@ const pricingTranslations = {
         name: 'Pro',
         description: 'Professionallar va jamoalar uchun',
         features: [
-          '10 ta bilimlar bazasi',
-          '10 GB saqlash joyi',
-          'Cheksiz soʻrovlar',
-          'Kengaytirilgan AI agentlari',
-          'Ustuvor yordam',
-          'API kirish',
+          'Cheksiz ilovalar',
+          "15 ta jamoa a'zosi",
+          "15 GB ma'lumotlar ombori",
+          'Oyiga 10 000 kredit',
         ],
         cta: 'Pro-ni tanlang',
       },
@@ -246,28 +248,30 @@ const pricingTranslations = {
         name: 'Enterprise',
         description: 'Kengaytirilgan ehtiyojlarga ega tashkilotlar uchun',
         features: [
-          'Cheksiz bilimlar bazalari',
-          'Cheksiz saqlash joyi',
+          'Cheksiz ilovalar va bilimlar bazalari',
+          "Cheksiz jamoa a'zolari va saqlash joyi",
           'Maxsus server / On-Premise',
           'Maksimal xavfsizlik va SLA',
           'Shaxsiy menejer',
           'Maxsus integratsiyalar',
         ],
         cta: 'Biz bilan bogʻlaning',
-      }
-    }
+      },
+    },
   },
   zh: {
     backToDashboard: '返回仪表板',
     title: 'AI 订阅计划',
-    subtitle: '选择适合您工作负载的订阅。通过我们的本地和国际网关使用卡安全支付。',
+    subtitle:
+      '选择适合您工作负载的订阅。通过我们的本地 and 国际网关使用卡安全支付。',
     oneMonth: '1个月',
     sixMonths: '6个月',
     oneYear: '1年',
     mo: '/月',
     customPricing: '定制价格',
     popularBadge: '最受欢迎',
-    secureFooter: '所有支付均通过 Atmos 支付网关安全处理。您可以随时修改或取消您的订阅。',
+    secureFooter:
+      '所有支付均通过 Atmos 支付网关安全处理。您可以随时修改或取消您的订阅。',
     checkoutTitle: '通过 Atmos 支付',
     checkoutSubtitle: 'Uzcard, Humo, Visa 或 Mastercard',
     checkoutPlan: '计划',
@@ -294,11 +298,10 @@ const pricingTranslations = {
         name: 'Plus',
         description: '适合活跃用户',
         features: [
-          '3 个知识库',
-          '1 GB 存储空间',
-          '每天最多 500 次查询',
-          '基础 AI 助手',
-          '电子邮件支持',
+          '50 个应用 (聊天与智能体)',
+          '5 个团队成员',
+          '5 GB 数据集存储',
+          '每月 5,000 点积分',
         ],
         cta: '选择 Plus',
       },
@@ -306,12 +309,10 @@ const pricingTranslations = {
         name: 'Pro',
         description: '适合专业人士和团队',
         features: [
-          '10 个知识库',
-          '10 GB 存储空间',
-          '无限次查询',
-          '高级 AI 智能体',
-          '优先支持',
-          'API 访问权限',
+          '无限应用',
+          '15 个团队成员',
+          '15 GB 数据集存储',
+          '每月 10,000 点积分',
         ],
         cta: '选择 Pro',
       },
@@ -319,17 +320,17 @@ const pricingTranslations = {
         name: 'Enterprise',
         description: '适合有高级需求的企业',
         features: [
-          '无限个知识库',
-          '无限存储空间',
+          '无限应用与知识库',
+          '无限存储空间与团队成员',
           '专用服务器 / 私有化部署',
           '最高安全级别与 SLA',
           '专属客户经理',
           '定制化集成',
         ],
         cta: '联系我们',
-      }
-    }
-  }
+      },
+    },
+  },
 };
 
 export default function PricingPage() {
@@ -338,10 +339,10 @@ export default function PricingPage() {
   const lang = currentLang.startsWith('ru')
     ? 'ru'
     : currentLang.startsWith('uz')
-    ? 'uz'
-    : currentLang.startsWith('zh')
-    ? 'zh'
-    : 'en';
+      ? 'uz'
+      : currentLang.startsWith('zh')
+        ? 'zh'
+        : 'en';
 
   const tPrice = pricingTranslations[lang];
 
@@ -362,9 +363,11 @@ export default function PricingPage() {
       if (tz === 'Asia/Tashkent') {
         return true;
       }
-    } catch (e) {}
+    } catch {
+      // Ignore
+    }
     const langs = navigator.languages || [navigator.language];
-    if (langs.some(l => l.toLowerCase().includes('uz'))) {
+    if (langs.some((l) => l.toLowerCase().includes('uz'))) {
       return true;
     }
     return false;
@@ -420,9 +423,13 @@ export default function PricingPage() {
   ];
 
   const [selectedPeriod, setSelectedPeriod] = useState(1);
-  const [activePlanKey, setActivePlanKey] = useState<'plus' | 'pro' | null>(null);
+  const [activePlanKey, setActivePlanKey] = useState<'plus' | 'pro' | null>(
+    null,
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [step, setStep] = useState<'card' | 'processing_card' | 'otp' | 'processing_otp' | 'success'>('card');
+  const [step, setStep] = useState<
+    'card' | 'processing_card' | 'otp' | 'processing_otp' | 'success'
+  >('card');
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvc, setCvc] = useState('');
@@ -438,7 +445,7 @@ export default function PricingPage() {
 
   // Calculations
   const baseAmount = activePlan ? activePlan.pricePerMonth * selectedPeriod : 0;
-  const discountAmount = isUzbekistanUser 
+  const discountAmount = isUzbekistanUser
     ? Math.round(baseAmount * activePeriod.discount)
     : Number((baseAmount * activePeriod.discount).toFixed(2));
   const finalAmount = baseAmount - discountAmount;
@@ -451,7 +458,9 @@ export default function PricingPage() {
     cleanCardNumber.startsWith('5614') ||
     cleanCardNumber.startsWith('5440');
   const isVisaOrMastercard =
-    !isUzbekistanUser || (!isLocalCard && (cleanCardNumber.startsWith('4') || cleanCardNumber.startsWith('5')));
+    !isUzbekistanUser ||
+    (!isLocalCard &&
+      (cleanCardNumber.startsWith('4') || cleanCardNumber.startsWith('5')));
 
   const handleOpenCheckout = (key: 'plus' | 'pro' | 'enterprise') => {
     if (key === 'enterprise') {
@@ -485,12 +494,16 @@ export default function PricingPage() {
 
       if (isVisaOrMastercard) {
         if (cvc.length < 3 || cardName.trim().length === 0) {
-          setError('CVC and Cardholder Name are required for international cards');
+          setError(
+            'CVC and Cardholder Name are required for international cards',
+          );
           setStep('card');
           return;
         }
 
-        const mpsAmount = isUzbekistanUser ? finalAmount : Math.round(finalAmount * USD_RATE);
+        const mpsAmount = isUzbekistanUser
+          ? finalAmount
+          : Math.round(finalAmount * USD_RATE);
 
         const res = await fetch('/api/pay/mps', {
           method: 'POST',
@@ -505,7 +518,8 @@ export default function PricingPage() {
           }),
         });
         const txData = await res.json();
-        if (!res.ok) throw new Error(txData.error || 'International card payment error');
+        if (!res.ok)
+          throw new Error(txData.error || 'International card payment error');
 
         if (txData.payload?.redirect_uri) {
           window.location.href = txData.payload.redirect_uri;
@@ -517,10 +531,14 @@ export default function PricingPage() {
         const createRes = await fetch('/api/pay/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: finalAmount, account: userEmail || 'guest' }),
+          body: JSON.stringify({
+            amount: finalAmount,
+            account: userEmail || 'guest',
+          }),
         });
         const txData = await createRes.json();
-        if (!createRes.ok) throw new Error(txData.error || txData.result?.description);
+        if (!createRes.ok)
+          throw new Error(txData.error || txData.result?.description);
 
         setTransactionId(txData.transaction_id);
 
@@ -534,7 +552,8 @@ export default function PricingPage() {
           }),
         });
         const preData = await preRes.json();
-        if (!preRes.ok) throw new Error(preData.error || preData.result?.description);
+        if (!preRes.ok)
+          throw new Error(preData.error || preData.result?.description);
 
         const phone =
           preData.phone ||
@@ -567,7 +586,8 @@ export default function PricingPage() {
         body: JSON.stringify({ transaction_id: transactionId, otp }),
       });
       const confirmData = await res.json();
-      if (!res.ok) throw new Error(confirmData.error || 'Payment confirmation failed');
+      if (!res.ok)
+        throw new Error(confirmData.error || 'Payment confirmation failed');
 
       await triggerProvision();
     } catch (err: any) {
@@ -669,18 +689,27 @@ export default function PricingPage() {
             <div className="border border-border bg-bg-component rounded-2xl p-5 sm:p-6 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg min-h-[480px]">
               <div>
                 <div className="mb-4">
-                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">{PLANS.plus.name}</h3>
-                  <p className="text-xs text-text-secondary">{PLANS.plus.description}</p>
+                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
+                    {PLANS.plus.name}
+                  </h3>
+                  <p className="text-xs text-text-secondary">
+                    {PLANS.plus.description}
+                  </p>
                 </div>
                 <div className="mb-4">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
                     {displayedPrice(PLANS.plus.pricePerMonth)}
                   </span>
-                  <span className="text-text-secondary text-xs sm:text-sm">{tPrice.mo}</span>
+                  <span className="text-text-secondary text-xs sm:text-sm">
+                    {tPrice.mo}
+                  </span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.plus.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary">
+                    <li
+                      key={feature}
+                      className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary"
+                    >
                       <LucideCheck className="size-4 text-[#42D7E7] shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
@@ -705,18 +734,27 @@ export default function PricingPage() {
               </div>
               <div>
                 <div className="mb-4 mt-2">
-                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">{PLANS.pro.name}</h3>
-                  <p className="text-xs text-text-secondary">{PLANS.pro.description}</p>
+                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
+                    {PLANS.pro.name}
+                  </h3>
+                  <p className="text-xs text-text-secondary">
+                    {PLANS.pro.description}
+                  </p>
                 </div>
                 <div className="mb-4">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
                     {displayedPrice(PLANS.pro.pricePerMonth)}
                   </span>
-                  <span className="text-text-secondary text-xs sm:text-sm">{tPrice.mo}</span>
+                  <span className="text-text-secondary text-xs sm:text-sm">
+                    {tPrice.mo}
+                  </span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.pro.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary">
+                    <li
+                      key={feature}
+                      className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary"
+                    >
                       <LucideCheck className="size-4 text-[#42D7E7] shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
@@ -735,18 +773,27 @@ export default function PricingPage() {
             <div className="border border-border bg-bg-component rounded-2xl p-5 sm:p-6 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg min-h-[480px]">
               <div>
                 <div className="mb-4">
-                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">{PLANS.enterprise.name}</h3>
-                  <p className="text-xs text-text-secondary">{PLANS.enterprise.description}</p>
+                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
+                    {PLANS.enterprise.name}
+                  </h3>
+                  <p className="text-xs text-text-secondary">
+                    {PLANS.enterprise.description}
+                  </p>
                 </div>
                 <div className="mb-4">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary block">
                     {PLANS.enterprise.name}
                   </span>
-                  <span className="text-text-secondary text-[11px]">{tPrice.customPricing}</span>
+                  <span className="text-text-secondary text-[11px]">
+                    {tPrice.customPricing}
+                  </span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.enterprise.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary">
+                    <li
+                      key={feature}
+                      className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary"
+                    >
                       <LucideCheck className="size-4 text-[#42D7E7] shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
@@ -789,7 +836,9 @@ export default function PricingPage() {
                   <div className="w-12 h-12 rounded-full bg-[#478AF5]/10 flex items-center justify-center mx-auto mb-3">
                     <CreditCard className="w-6 h-6 text-[#478AF5]" />
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary">{tPrice.checkoutTitle}</h3>
+                  <h3 className="text-xl sm:text-2xl font-bold text-text-primary">
+                    {tPrice.checkoutTitle}
+                  </h3>
                   <p className="text-text-secondary text-xs sm:text-sm mt-1">
                     {tPrice.checkoutSubtitle}
                   </p>
@@ -798,13 +847,17 @@ export default function PricingPage() {
                 {/* Summary Box */}
                 <div className="bg-bg-body border border-border rounded-xl p-4 mb-6 text-sm">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-text-secondary">{tPrice.checkoutPlan}:</span>
+                    <span className="text-text-secondary">
+                      {tPrice.checkoutPlan}:
+                    </span>
                     <span className="font-semibold text-text-primary">
                       {activePlan.name} ({activePeriod.label})
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-text-secondary">{tPrice.checkoutTotal}:</span>
+                    <span className="text-text-secondary">
+                      {tPrice.checkoutTotal}:
+                    </span>
                     <span className="font-bold text-[#478AF5] text-base sm:text-lg">
                       {displayedPrice(finalAmount)}
                     </span>
@@ -828,7 +881,11 @@ export default function PricingPage() {
                     />
                   </div>
 
-                  <div className={isVisaOrMastercard ? 'grid grid-cols-2 gap-4' : 'w-full'}>
+                  <div
+                    className={
+                      isVisaOrMastercard ? 'grid grid-cols-2 gap-4' : 'w-full'
+                    }
+                  >
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1">
                         {tPrice.expiryDate}
@@ -854,7 +911,11 @@ export default function PricingPage() {
                           type="password"
                           placeholder="123"
                           value={cvc}
-                          onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                          onChange={(e) =>
+                            setCvc(
+                              e.target.value.replace(/\D/g, '').slice(0, 3),
+                            )
+                          }
                           disabled={step === 'processing_card'}
                           className="w-full bg-bg-body border border-border rounded-xl px-4 py-2.5 text-text-primary text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
                           required
@@ -872,7 +933,9 @@ export default function PricingPage() {
                         type="text"
                         placeholder="JOHN DOE"
                         value={cardName}
-                        onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                        onChange={(e) =>
+                          setCardName(e.target.value.toUpperCase())
+                        }
                         disabled={step === 'processing_card'}
                         className="w-full bg-bg-body border border-border rounded-xl px-4 py-2.5 text-text-primary text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
                         required
@@ -880,7 +943,11 @@ export default function PricingPage() {
                     </div>
                   )}
 
-                  {error && <p className="text-red-500 text-xs sm:text-sm text-center font-medium">{error}</p>}
+                  {error && (
+                    <p className="text-red-500 text-xs sm:text-sm text-center font-medium">
+                      {error}
+                    </p>
+                  )}
 
                   <Button
                     type="submit"
@@ -906,7 +973,9 @@ export default function PricingPage() {
                 <div className="w-12 h-12 rounded-full bg-[#478AF5]/10 flex items-center justify-center mx-auto mb-3">
                   <ShieldCheck className="w-6 h-6 text-[#478AF5]" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-text-primary">{tPrice.otpTitle}</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-text-primary">
+                  {tPrice.otpTitle}
+                </h3>
                 <p className="text-text-secondary text-xs sm:text-sm mt-2 mb-6">
                   {tPrice.otpSubtitle}
                   {maskedPhone ? ` (${maskedPhone})` : ''}.
@@ -918,14 +987,22 @@ export default function PricingPage() {
                       type="text"
                       placeholder="000000"
                       value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').substring(0, 6))}
+                      onChange={(e) =>
+                        setOtp(
+                          e.target.value.replace(/\D/g, '').substring(0, 6),
+                        )
+                      }
                       disabled={step === 'processing_otp'}
                       className="w-full bg-bg-body border border-border rounded-xl px-4 py-2.5 text-text-primary text-center text-lg sm:text-xl tracking-[0.3em] sm:tracking-[0.4em] focus:outline-none focus:border-[#478AF5] font-mono transition-colors"
                       required
                     />
                   </div>
 
-                  {error && <p className="text-red-500 text-xs sm:text-sm font-medium">{error}</p>}
+                  {error && (
+                    <p className="text-red-500 text-xs sm:text-sm font-medium">
+                      {error}
+                    </p>
+                  )}
 
                   <Button
                     type="submit"
@@ -961,19 +1038,29 @@ export default function PricingPage() {
                 <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 mx-auto">
                   <CheckCircle className="w-8 h-8 text-emerald-500" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-text-primary">{tPrice.paymentSuccessful}</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-text-primary">
+                  {tPrice.paymentSuccessful}
+                </h3>
                 <p className="text-emerald-500 text-xs sm:text-sm font-medium mt-1 mb-6">
                   {tPrice.successSubtitle}
                 </p>
 
                 {ragflowResult?.success ? (
                   <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 mb-6 text-left text-xs sm:text-sm">
-                    <p className="text-emerald-500 font-bold mb-1">✅ {tPrice.subActivated}</p>
-                    <p className="text-text-secondary">
-                      {tPrice.checkoutPlan}: <span className="text-text-primary font-semibold">{activePlan.name}</span>
+                    <p className="text-emerald-500 font-bold mb-1">
+                      ✅ {tPrice.subActivated}
                     </p>
                     <p className="text-text-secondary">
-                      Account: <span className="text-text-primary font-semibold">{userEmail}</span>
+                      {tPrice.checkoutPlan}:{' '}
+                      <span className="text-text-primary font-semibold">
+                        {activePlan.name}
+                      </span>
+                    </p>
+                    <p className="text-text-secondary">
+                      Account:{' '}
+                      <span className="text-text-primary font-semibold">
+                        {userEmail}
+                      </span>
                     </p>
                   </div>
                 ) : (
@@ -992,7 +1079,8 @@ export default function PricingPage() {
             )}
 
             <div className="mt-6 flex items-center justify-center gap-1.5 text-[10px] sm:text-xs text-text-secondary border-t border-border pt-4 w-full">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> {tPrice.protectedByAtmos}
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />{' '}
+              {tPrice.protectedByAtmos}
             </div>
           </div>
         </div>
