@@ -344,7 +344,7 @@ function LoginFormContent({
           </Form>
         )}
 
-        {title === 'login' && channels && channels.length > 0 && (
+        {channels && channels.length > 0 && (
           <div className="w-full mt-6">
             {!disablePasswordLogin && (
               <div className="relative flex py-4 items-center justify-center">
@@ -365,7 +365,9 @@ function LoginFormContent({
                 >
                   <SvgIcon name={item.icon || 'sso'} width={20} height={20} />
                   <span className="font-medium text-sm text-text-primary">
-                    {t('signInWith', { name: item.display_name })}
+                    {title === 'login'
+                      ? t('signInWith', { name: item.display_name })
+                      : t('signUpWith', { name: item.display_name })}
                   </span>
                 </Button>
               ))}

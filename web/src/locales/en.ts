@@ -113,6 +113,7 @@ export default {
       termsLabel: 'I agree to the',
       termsLink: 'Privacy Policy',
       signInWith: 'Sign in with {{name}}',
+      signUpWith: 'Sign up with {{name}}',
       or: 'or',
     },
     header: {

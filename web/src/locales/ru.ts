@@ -110,6 +110,7 @@ export default {
       termsLabel: 'Я согласен(-на) с',
       termsLink: 'Политикой конфиденциальности',
       signInWith: 'Войти через {{name}}',
+      signUpWith: 'Зарегистрироваться через {{name}}',
       or: 'или',
     },
     header: {

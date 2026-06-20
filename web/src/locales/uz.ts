@@ -95,6 +95,7 @@ export default {
       termsLabel: 'Men roziman ',
       termsLink: 'Foydalanish shartlari',
       signInWith: '{{name}} orqali kirish',
+      signUpWith: "{{name}} orqali ro'yxatdan o'tish",
       or: 'yoki',
       deleteAccountTitle: "Hisobni o'chirish",
       deleteAccount: "Hisobni o'chirish",
