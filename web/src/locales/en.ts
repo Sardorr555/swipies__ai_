@@ -112,6 +112,8 @@ export default {
       termsRequired: 'You must agree to the Privacy Policy to register',
       termsLabel: 'I agree to the',
       termsLink: 'Privacy Policy',
+      signInWith: 'Sign in with {{name}}',
+      or: 'or',
     },
     header: {
       knowledgeBase: 'Dataset',
@@ -3209,35 +3211,54 @@ Important structured information may include: names, dates, locations, events, k
       title: 'Privacy Policy',
       effectiveDate: 'Effective date',
       section1Title: '1. Introduction',
-      section1Text: 'Welcome to Swipies ("we", "our", "us"). We value your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, store, and protect your information when you use the Swipies platform and its services.',
+      section1Text:
+        'Welcome to Swipies ("we", "our", "us"). We value your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, store, and protect your information when you use the Swipies platform and its services.',
       section2Title: '2. Data We Collect',
       section2Text: 'We may collect the following categories of personal data:',
-      section2Item1: 'Account information: name (nickname), email address, phone number, and password (stored in encrypted form).',
-      section2Item2: 'Usage data: information about how you interact with our platform, including pages visited, features used, and timestamps.',
-      section2Item3: 'Content data: documents, datasets, and other files you upload or create within the platform.',
-      section2Item4: 'Technical data: IP address, browser type, device information, and operating system.',
+      section2Item1:
+        'Account information: name (nickname), email address, phone number, and password (stored in encrypted form).',
+      section2Item2:
+        'Usage data: information about how you interact with our platform, including pages visited, features used, and timestamps.',
+      section2Item3:
+        'Content data: documents, datasets, and other files you upload or create within the platform.',
+      section2Item4:
+        'Technical data: IP address, browser type, device information, and operating system.',
       section3Title: '3. How We Use Your Data',
       section3Text: 'We use your personal data for the following purposes:',
-      section3Item1: 'To provide and maintain our services, including account management and access control.',
-      section3Item2: 'To improve and personalize the user experience on our platform.',
-      section3Item3: 'To communicate with you regarding your account, updates, and support requests.',
-      section3Item4: 'To ensure the security of our platform and prevent fraud or unauthorized access.',
-      section3Item5: 'To comply with legal obligations and regulatory requirements.',
+      section3Item1:
+        'To provide and maintain our services, including account management and access control.',
+      section3Item2:
+        'To improve and personalize the user experience on our platform.',
+      section3Item3:
+        'To communicate with you regarding your account, updates, and support requests.',
+      section3Item4:
+        'To ensure the security of our platform and prevent fraud or unauthorized access.',
+      section3Item5:
+        'To comply with legal obligations and regulatory requirements.',
       section4Title: '4. Data Storage and Security',
-      section4Text: 'We employ industry-standard security measures, including encryption, access controls, and secure server infrastructure, to protect your personal data. Your data is stored on secure servers and is accessible only to authorized personnel. We retain your data for as long as your account is active or as necessary to fulfill the purposes outlined in this policy.',
+      section4Text:
+        'We employ industry-standard security measures, including encryption, access controls, and secure server infrastructure, to protect your personal data. Your data is stored on secure servers and is accessible only to authorized personnel. We retain your data for as long as your account is active or as necessary to fulfill the purposes outlined in this policy.',
       section5Title: '5. Third-Party Sharing',
-      section5Text: 'We do not sell, trade, or rent your personal data to third parties. We may share anonymized, aggregated data for analytical purposes. We may disclose personal data if required by law, court order, or governmental regulation, or to protect the rights and safety of Swipies and its users.',
+      section5Text:
+        'We do not sell, trade, or rent your personal data to third parties. We may share anonymized, aggregated data for analytical purposes. We may disclose personal data if required by law, court order, or governmental regulation, or to protect the rights and safety of Swipies and its users.',
       section6Title: '6. Your Rights',
-      section6Text: 'Depending on your jurisdiction, you may have the following rights regarding your personal data:',
-      section6Item1: 'Right to access: You may request a copy of the personal data we hold about you.',
-      section6Item2: 'Right to rectification: You may update or correct inaccurate personal data through your account settings.',
-      section6Item3: 'Right to deletion: You may request the deletion of your account and associated data by contacting support.',
+      section6Text:
+        'Depending on your jurisdiction, you may have the following rights regarding your personal data:',
+      section6Item1:
+        'Right to access: You may request a copy of the personal data we hold about you.',
+      section6Item2:
+        'Right to rectification: You may update or correct inaccurate personal data through your account settings.',
+      section6Item3:
+        'Right to deletion: You may request the deletion of your account and associated data by contacting support.',
       section7Title: '7. Cookies and Tracking',
-      section7Text: 'We use cookies and similar technologies to maintain session state, remember your preferences, and improve our services. You can manage cookie preferences through your browser settings. Disabling cookies may affect the functionality of certain features.',
+      section7Text:
+        'We use cookies and similar technologies to maintain session state, remember your preferences, and improve our services. You can manage cookie preferences through your browser settings. Disabling cookies may affect the functionality of certain features.',
       section8Title: '8. Changes to This Policy',
-      section8Text: 'We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date. We encourage you to review this policy periodically. Continued use of our services after changes constitutes your acceptance of the updated policy.',
+      section8Text:
+        'We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date. We encourage you to review this policy periodically. Continued use of our services after changes constitutes your acceptance of the updated policy.',
       section9Title: '9. Contact Us',
-      section9Text: 'If you have any questions or concerns regarding this Privacy Policy or your personal data, please contact us at: {{email}}',
+      section9Text:
+        'If you have any questions or concerns regarding this Privacy Policy or your personal data, please contact us at: {{email}}',
     },
   },
 };

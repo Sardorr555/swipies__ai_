@@ -10,7 +10,7 @@ import { useSystemConfig } from '@/hooks/use-system-request';
 import { rsaPsw } from '@/utils';
 import { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import Spotlight from '@/components/spotlight';
 import { Button, ButtonLoading } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { BRAND } from '@/constants/branding';
 import { cn } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, UseFormReturn } from 'react-hook-form';
@@ -31,7 +32,6 @@ import { z } from 'zod';
 import { BgSvg } from './bg';
 import FlipCard3D, { FlipFaceContext } from './card';
 import './index.less';
-import { BRAND } from '@/constants/branding';
 
 type LoginFormContentProps = {
   isLoginPage: boolean;
@@ -123,25 +123,55 @@ function LoginFormContent({
                   control={form.control}
                   name="phone"
                   render={({ field }) => {
-                    const cleanPhone = (field.value || '').replace(/[^\d+]/g, '');
+                    const cleanPhone = (field.value || '').replace(
+                      /[^\d+]/g,
+                      '',
+                    );
                     let country = null;
-                    if (cleanPhone.startsWith('+998') || cleanPhone.startsWith('998')) {
+                    if (
+                      cleanPhone.startsWith('+998') ||
+                      cleanPhone.startsWith('998')
+                    ) {
                       country = { flag: '🇺🇿', name: 'Uzbekistan' };
-                    } else if (cleanPhone.startsWith('+7') || cleanPhone.startsWith('7')) {
+                    } else if (
+                      cleanPhone.startsWith('+7') ||
+                      cleanPhone.startsWith('7')
+                    ) {
                       country = { flag: '🇷🇺', name: 'Russia/Kazakhstan' };
-                    } else if (cleanPhone.startsWith('+86') || cleanPhone.startsWith('86')) {
+                    } else if (
+                      cleanPhone.startsWith('+86') ||
+                      cleanPhone.startsWith('86')
+                    ) {
                       country = { flag: '🇨🇳', name: 'China' };
-                    } else if (cleanPhone.startsWith('+996') || cleanPhone.startsWith('996')) {
+                    } else if (
+                      cleanPhone.startsWith('+996') ||
+                      cleanPhone.startsWith('996')
+                    ) {
                       country = { flag: '🇰🇬', name: 'Kyrgyzstan' };
-                    } else if (cleanPhone.startsWith('+992') || cleanPhone.startsWith('992')) {
+                    } else if (
+                      cleanPhone.startsWith('+992') ||
+                      cleanPhone.startsWith('992')
+                    ) {
                       country = { flag: '🇹🇯', name: 'Tajikistan' };
-                    } else if (cleanPhone.startsWith('+1') || cleanPhone.startsWith('1')) {
+                    } else if (
+                      cleanPhone.startsWith('+1') ||
+                      cleanPhone.startsWith('1')
+                    ) {
                       country = { flag: '🇺🇸', name: 'USA/Canada' };
-                    } else if (cleanPhone.startsWith('+380') || cleanPhone.startsWith('380')) {
+                    } else if (
+                      cleanPhone.startsWith('+380') ||
+                      cleanPhone.startsWith('380')
+                    ) {
                       country = { flag: '🇺🇦', name: 'Ukraine' };
-                    } else if (cleanPhone.startsWith('+375') || cleanPhone.startsWith('375')) {
+                    } else if (
+                      cleanPhone.startsWith('+375') ||
+                      cleanPhone.startsWith('375')
+                    ) {
                       country = { flag: '🇧🇾', name: 'Belarus' };
-                    } else if (cleanPhone.startsWith('+44') || cleanPhone.startsWith('44')) {
+                    } else if (
+                      cleanPhone.startsWith('+44') ||
+                      cleanPhone.startsWith('44')
+                    ) {
                       country = { flag: '🇬🇧', name: 'United Kingdom' };
                     } else if (cleanPhone.startsWith('+')) {
                       country = { flag: '🌐', name: 'International' };
@@ -212,7 +242,9 @@ function LoginFormContent({
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel required>{t('confirmPasswordLabel')}</FormLabel>
+                      <FormLabel required>
+                        {t('confirmPasswordLabel')}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           data-testid="auth-confirm-password"
@@ -313,26 +345,31 @@ function LoginFormContent({
         )}
 
         {title === 'login' && channels && channels.length > 0 && (
-          <div className={disablePasswordLogin ? 'py-8' : 'mt-3 border'}>
-            {channels.map((item) => (
-              <Button
-                variant={'transparent'}
-                key={item.channel}
-                onClick={() => handleLoginWithChannel(item.channel)}
-                style={{ marginTop: 10 }}
-                className={disablePasswordLogin ? 'w-full' : ''}
-              >
-                <div className="flex items-center">
-                  <SvgIcon
-                    name={item.icon || 'sso'}
-                    width={20}
-                    height={20}
-                    style={{ marginRight: 5 }}
-                  />
-                  Sign in with {item.display_name}
-                </div>
-              </Button>
-            ))}
+          <div className="w-full mt-6">
+            {!disablePasswordLogin && (
+              <div className="relative flex py-4 items-center justify-center">
+                <div className="flex-grow border-t border-border-button"></div>
+                <span className="flex-shrink mx-4 text-xs text-text-disabled uppercase tracking-wider">
+                  {t('or')}
+                </span>
+                <div className="flex-grow border-t border-border-button"></div>
+              </div>
+            )}
+            <div className="flex flex-col gap-3 w-full">
+              {channels.map((item) => (
+                <Button
+                  variant={'outline'}
+                  key={item.channel}
+                  onClick={() => handleLoginWithChannel(item.channel)}
+                  className="w-full h-11 flex items-center justify-center gap-3 border border-border-button hover:bg-border-button/40 rounded-xl transition-all duration-200"
+                >
+                  <SvgIcon name={item.icon || 'sso'} width={20} height={20} />
+                  <span className="font-medium text-sm text-text-primary">
+                    {t('signInWith', { name: item.display_name })}
+                  </span>
+                </Button>
+              ))}
+            </div>
           </div>
         )}
 

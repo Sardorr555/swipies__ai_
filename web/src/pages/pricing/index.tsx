@@ -464,7 +464,7 @@ export default function PricingPage() {
 
   const handleOpenCheckout = (key: 'plus' | 'pro' | 'enterprise') => {
     if (key === 'enterprise') {
-      window.open('https://t.me/swipies_ai', '_blank');
+      window.open('https://t.me/albakiev01', '_blank');
       return;
     }
     setActivePlanKey(key);
