@@ -104,9 +104,12 @@ const {
   adminListUsers,
   adminCreateUser,
   adminGetUserDetails,
+  adminUpdateUserDetails,
   adminUpdateUserStatus,
   adminUpdateUserPassword,
   adminUpdateUserSubscription,
+  adminGetVariables,
+  adminUpdateVariable,
   adminDeleteUser,
   adminListUserDatasets,
   adminListUserAgents,
@@ -193,6 +196,22 @@ export const updateUserSubscription = (
 ) => request.put(adminUpdateUserSubscription(email), params);
 export const deleteUser = (email: string) =>
   request.delete(adminDeleteUser(email));
+
+export const updateUserDetails = (
+  email: string,
+  params: {
+    nickname?: string;
+    phone?: string;
+  },
+) => request.put(adminUpdateUserDetails(email), params);
+
+export const getVariables = () =>
+  request.get<ResponseData<any[]>>(adminGetVariables);
+
+export const updateVariable = (params: {
+  var_name: string;
+  var_value: string;
+}) => request.put<ResponseData<any>>(adminUpdateVariable, params);
 
 export const listServices = () =>
   request.get<ResponseData<AdminService.ListServicesItem[]>>(adminListServices);

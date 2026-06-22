@@ -516,6 +516,7 @@ async def user_add():
         "access_token": get_uuid(),
         "email": email_address,
         "nickname": nickname,
+        "phone": req.get("phone"),
         "password": decrypt(req["password"]),
         "login_channel": "password",
         "last_login_time": get_format_time(),

@@ -71,6 +71,7 @@ export enum Routes {
   AdminServices = `${Admin}/services`,
   AdminUserManagement = `${Admin}/users`,
   AdminSandboxSettings = `${Admin}/sandbox-settings`,
+  AdminPricingSettings = `${Admin}/pricing-settings`,
   AdminWhitelist = `${Admin}/whitelist`,
   AdminRoles = `${Admin}/roles`,
   AdminMonitoring = `${Admin}/monitoring`,
@@ -394,6 +395,10 @@ const routeConfigOptions = [
               {
                 path: Routes.AdminSandboxSettings,
                 Component: () => import('@/pages/admin/sandbox-settings'),
+              },
+              {
+                path: Routes.AdminPricingSettings,
+                Component: () => import('@/pages/admin/pricing-settings'),
               },
               ...(IS_ENTERPRISE
                 ? [

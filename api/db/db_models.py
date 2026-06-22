@@ -712,6 +712,7 @@ class User(DataBaseModel, AuthUser):
     nickname = CharField(max_length=100, null=False, help_text="nicky name", index=True)
     password = CharField(max_length=255, null=True, help_text="password", index=True)
     email = CharField(max_length=255, null=False, help_text="email", unique=True)
+    phone = CharField(max_length=32, null=True, help_text="phone number", index=True)
     avatar = TextField(null=True, help_text="avatar base64 string")
     language = CharField(max_length=32, null=True, help_text="English|Chinese", default="Chinese" if "zh_CN" in os.getenv("LANG", "") else "English", index=True)
     color_schema = CharField(max_length=32, null=True, help_text="Bright|Dark", default="Bright", index=True)

@@ -38,6 +38,7 @@ import {
   getUserDetails,
   listUserAgents,
   listUserDatasets,
+  updateUserDetails,
   updateUserSubscription,
 } from '@/services/admin-service';
 
@@ -304,6 +305,8 @@ function AdminUserDetail() {
   const [planType, setPlanType] = useState<string>('free');
   const [planExpiry, setPlanExpiry] = useState<string>('');
   const [credits, setCredits] = useState<number>(512);
+  const [nickname, setNickname] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
 
   const { data: { detail, datasets, agents } = {} } = useQuery({
     queryKey: ['admin/userDetail', id],
@@ -329,6 +332,8 @@ function AdminUserDetail() {
       setPlanType(detail.plan_type || 'free');
       setPlanExpiry(detail.plan_expiry_date || '');
       setCredits(detail.credit ?? 512);
+      setNickname(detail.nickname || '');
+      setPhone(detail.phone || '');
     }
   }, [detail]);
 
@@ -341,6 +346,17 @@ function AdminUserDetail() {
     onSuccess: (res) => {
       if (res.data.code === 0) {
         message.success('Subscription updated successfully!');
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin/userDetail', id] });
+    },
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (params: { nickname: string; phone: string }) =>
+      updateUserDetails(id!, params),
+    onSuccess: (res) => {
+      if (res.data.code === 0) {
+        message.success('Profile details updated successfully!');
       }
       queryClient.invalidateQueries({ queryKey: ['admin/userDetail', id] });
     },
@@ -438,6 +454,20 @@ function AdminUserDetail() {
               <div>{t(detail?.is_superuser ? 'admin.yes' : 'admin.no')}</div>
             </div>
 
+            <div>
+              <div className="text-sm text-text-secondary mb-2">Nickname</div>
+              <div className="font-semibold text-accent-primary">
+                {detail?.nickname || 'N/A'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm text-text-secondary mb-2">
+                Phone Number
+              </div>
+              <div className="font-semibold">{detail?.phone || 'N/A'}</div>
+            </div>
+
             <div className="border-l pl-8 dark:border-border-button">
               <div className="text-sm text-text-secondary mb-2">
                 Current Plan
@@ -463,6 +493,54 @@ function AdminUserDetail() {
               </div>
             </div>
           </section>
+
+          <div className="border-t border-dashed dark:border-border-button pt-6 px-14 space-y-4">
+            <h3 className="text-sm font-semibold text-text-primary">
+              Profile Management
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+              <div className="space-y-2">
+                <label className="text-xs text-text-secondary">Nickname</label>
+                <Input
+                  type="text"
+                  className="bg-bg-input border-border-button"
+                  placeholder="Enter nickname"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-text-secondary">
+                  Phone Number
+                </label>
+                <Input
+                  type="text"
+                  className="bg-bg-input border-border-button"
+                  placeholder="Enter phone number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  className="w-full h-10"
+                  disabled={updateProfileMutation.isPending}
+                  onClick={() => {
+                    updateProfileMutation.mutate({
+                      nickname,
+                      phone,
+                    });
+                  }}
+                >
+                  {updateProfileMutation.isPending
+                    ? 'Saving...'
+                    : 'Save Profile'}
+                </Button>
+              </div>
+            </div>
+          </div>
 
           <div className="border-t border-dashed dark:border-border-button pt-6 px-14 space-y-4">
             <h3 className="text-sm font-semibold text-text-primary">

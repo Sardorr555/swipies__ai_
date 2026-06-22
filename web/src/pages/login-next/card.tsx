@@ -11,7 +11,6 @@ const FlipCard3D = (props: IProps) => {
   const { children, isLoginPage } = props;
   const [isFlipped, setIsFlipped] = useState(false);
   useEffect(() => {
-    console.log('title', isLoginPage);
     if (isLoginPage) {
       setIsFlipped(false);
     } else {
@@ -31,7 +30,7 @@ const FlipCard3D = (props: IProps) => {
       {isBackfaceVisibilitySupported() && (
         <div
           className="relative w-full h-full perspective-1000"
-          style={{ minHeight: isLoginPage ? '680px' : '960px' }}
+          style={{ minHeight: isLoginPage ? '780px' : '1180px' }}
         >
           <div
             className={`relative w-full h-full transition-transform transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}

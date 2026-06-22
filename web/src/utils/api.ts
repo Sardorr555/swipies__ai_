@@ -323,12 +323,16 @@ export default {
     `${restAPIv1}/admin/users/${username}/admin`,
   adminGetUserDetails: (username: string) =>
     `${restAPIv1}/admin/users/${username}`,
+  adminUpdateUserDetails: (username: string) =>
+    `${restAPIv1}/admin/users/${username}/details`,
   adminUpdateUserStatus: (username: string) =>
     `${restAPIv1}/admin/users/${username}/activate`,
   adminUpdateUserPassword: (username: string) =>
     `${restAPIv1}/admin/users/${username}/password`,
   adminUpdateUserSubscription: (username: string) =>
     `${restAPIv1}/admin/users/${username}/subscription`,
+  adminGetVariables: `${restAPIv1}/admin/variables`,
+  adminUpdateVariable: `${restAPIv1}/admin/variables`,
   adminDeleteUser: (username: string) => `${restAPIv1}/admin/users/${username}`,
   adminListUserDatasets: (username: string) =>
     `${restAPIv1}/admin/users/${username}/datasets`,

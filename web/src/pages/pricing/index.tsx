@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { BRAND } from '@/constants/branding';
+import { useSystemConfig } from '@/hooks/use-system-request';
 import { useFetchUserInfo } from '@/hooks/use-user-setting-request';
 import { Routes } from '@/routes';
 import {
@@ -44,7 +45,7 @@ const pricingTranslations = {
       'Choose the subscription that fits your workload. Pay securely via card using our local and international gateways.',
     oneMonth: '1 Month',
     sixMonths: '6 Months',
-    oneYear: '1 Year',
+    oneYear: '12 Months',
     mo: '/mo',
     billedTotal: 'Billed as {{total}} for {{months}} months',
     customPricing: 'Custom Pricing',
@@ -119,7 +120,7 @@ const pricingTranslations = {
       'Выберите подписку, соответствующую вашей нагрузке. Безопасная оплата картой через местные и международные шлюзы.',
     oneMonth: '1 месяц',
     sixMonths: '6 месяцев',
-    oneYear: '1 год',
+    oneYear: '12 месяцев',
     mo: '/мес',
     billedTotal: 'Всего: {{total}} за {{months}} мес.',
     customPricing: 'Индивидуальная цена',
@@ -194,7 +195,7 @@ const pricingTranslations = {
       'Ish yukingizga mos keladigan obunani tanlang. Mahalliy va xalqaro toʻlov tizimlari orqali karta bilan xavfsiz toʻlang.',
     oneMonth: '1 oy',
     sixMonths: '6 oy',
-    oneYear: '1 yil',
+    oneYear: '12 oy',
     mo: '/oy',
     billedTotal: 'Jami: {{total}} {{months}} oy uchun',
     customPricing: 'Maxsus narxlar',
@@ -269,7 +270,7 @@ const pricingTranslations = {
       '选择适合您工作负载的订阅。通过我们的本地 and 国际网关使用卡安全支付。',
     oneMonth: '1个月',
     sixMonths: '6个月',
-    oneYear: '1年',
+    oneYear: '12个月',
     mo: '/月',
     billedTotal: '总计: {{total}} / {{months}}个月',
     customPricing: '定制价格',
@@ -377,6 +378,15 @@ export default function PricingPage() {
     return false;
   })();
 
+  const { config } = useSystemConfig();
+  const pricing = config?.pricing || {};
+  const plusPrice = isUzbekistanUser
+    ? Number(pricing.plus_uzs || 199000)
+    : Number(pricing.plus_usd || 20);
+  const proPrice = isUzbekistanUser
+    ? Number(pricing.pro_uzs || 400000)
+    : Number(pricing.pro_usd || 40);
+
   const USD_RATE = 13000; // 1 USD = 13,000 UZS exchange rate
 
   // USD Formatter
@@ -395,7 +405,7 @@ export default function PricingPage() {
   const PLANS = {
     plus: {
       name: tPrice.plans.plus.name,
-      pricePerMonth: isUzbekistanUser ? 199000 : 20,
+      pricePerMonth: plusPrice,
       description: tPrice.plans.plus.description,
       features: tPrice.plans.plus.features,
       cta: tPrice.plans.plus.cta,
@@ -403,7 +413,7 @@ export default function PricingPage() {
     },
     pro: {
       name: tPrice.plans.pro.name,
-      pricePerMonth: isUzbekistanUser ? 400000 : 40,
+      pricePerMonth: proPrice,
       description: tPrice.plans.pro.description,
       features: tPrice.plans.pro.features,
       cta: tPrice.plans.pro.cta,
@@ -614,7 +624,7 @@ export default function PricingPage() {
     }
   };
 
-  const triggerProvision = async () => {
+  async function triggerProvision() {
     try {
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + selectedPeriod * 30);
@@ -636,7 +646,7 @@ export default function PricingPage() {
       setRagflowResult({ success: false, error: err.message });
       setStep('success');
     }
-  };
+  }
 
   const formatCardNumberInput = (val: string) => {
     const v = val.replace(/\s+/g, '').replace(/[^0-9]/gi, '');

@@ -83,6 +83,30 @@
       "source": "variable",
       "data_type": "json",
       "value": "{}"
+    },
+    {
+      "name": "pricing.plus.usd",
+      "source": "variable",
+      "data_type": "string",
+      "value": "20"
+    },
+    {
+      "name": "pricing.plus.uzs",
+      "source": "variable",
+      "data_type": "string",
+      "value": "199000"
+    },
+    {
+      "name": "pricing.pro.usd",
+      "source": "variable",
+      "data_type": "string",
+      "value": "40"
+    },
+    {
+      "name": "pricing.pro.uzs",
+      "source": "variable",
+      "data_type": "string",
+      "value": "400000"
     }
   ]
 }

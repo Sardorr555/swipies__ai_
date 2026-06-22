@@ -539,8 +539,8 @@ const Login = () => {
           setTitle('login');
         }
       }
-    } catch (errorInfo) {
-      console.log('Failed:', errorInfo);
+    } catch {
+      // Failed to login or register
     }
   };
 
@@ -579,7 +579,7 @@ const Login = () => {
             {t('title')}
           </h1>
         </div>
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-[1050px] px-4 sm:px-6 lg:px-8">
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-[1250px] px-4 sm:px-6 lg:px-8 py-8">
           {/* Login Form */}
           <FlipCard3D isLoginPage={isLoginPage}>
             <LoginFormContent

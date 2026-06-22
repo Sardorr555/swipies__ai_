@@ -222,9 +222,31 @@ def get_config():
                         type: integer 0 means disabled, 1 means enabled
                         description: Whether user registration is enabled
     """
+    from api.db.services.system_settings_service import SystemSettingsService
+
+    def get_setting_val(name, default):
+        try:
+            objs = SystemSettingsService.get_by_name(name)
+            if objs:
+                return objs[0].value
+        except Exception:
+            pass
+        return default
+
+    plus_usd = float(get_setting_val("pricing.plus.usd", 20))
+    plus_uzs = float(get_setting_val("pricing.plus.uzs", 199000))
+    pro_usd = float(get_setting_val("pricing.pro.usd", 40))
+    pro_uzs = float(get_setting_val("pricing.pro.uzs", 400000))
+
     return get_json_result(data={
         "registerEnabled": settings.REGISTER_ENABLED,
         "disablePasswordLogin": settings.DISABLE_PASSWORD_LOGIN,
+        "pricing": {
+            "plus_usd": plus_usd,
+            "plus_uzs": plus_uzs,
+            "pro_usd": pro_usd,
+            "pro_uzs": pro_uzs,
+        }
     })
 
 @manager.route("/system/healthz", methods=["GET"])  # noqa: F821

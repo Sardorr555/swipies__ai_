@@ -74,6 +74,8 @@ class UserMgr:
                 {
                     "avatar": user.avatar,
                     "email": user.email,
+                    "nickname": user.nickname,
+                    "phone": getattr(user, "phone", None),
                     "language": user.language,
                     "last_login_time": user.last_login_time,
                     "is_active": user.is_active,
@@ -89,6 +91,27 @@ class UserMgr:
                 }
             )
         return result
+
+    @staticmethod
+    def update_user_details(username, nickname=None, phone=None):
+        # find user by email
+        user_list = UserService.query_user_by_email(username)
+        if not user_list:
+            raise UserNotFoundError(username)
+        elif len(user_list) > 1:
+            raise AdminException(f"Exist more than 1 user: {username}!")
+
+        usr = user_list[0]
+        update_data = {}
+        if nickname is not None:
+            update_data["nickname"] = nickname
+        if phone is not None:
+            update_data["phone"] = phone
+
+        if update_data:
+            UserService.update_user(usr.id, update_data)
+
+        return "User details updated successfully!"
 
     @staticmethod
     def update_user_subscription(username, plan_type=None, plan_expiry_date=None, credit=None):
