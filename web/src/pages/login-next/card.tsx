@@ -29,7 +29,10 @@ const FlipCard3D = (props: IProps) => {
   return (
     <>
       {isBackfaceVisibilitySupported() && (
-        <div className="relative w-full h-full perspective-1000">
+        <div
+          className="relative w-full h-full perspective-1000"
+          style={{ minHeight: isLoginPage ? '680px' : '960px' }}
+        >
           <div
             className={`relative w-full h-full transition-transform transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}
           >
