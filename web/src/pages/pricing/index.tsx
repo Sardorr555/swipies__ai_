@@ -46,6 +46,7 @@ const pricingTranslations = {
     sixMonths: '6 Months',
     oneYear: '1 Year',
     mo: '/mo',
+    billedTotal: 'Billed as {{total}} for {{months}} months',
     customPricing: 'Custom Pricing',
     popularBadge: 'Most Popular',
     secureFooter:
@@ -120,6 +121,7 @@ const pricingTranslations = {
     sixMonths: '6 месяцев',
     oneYear: '1 год',
     mo: '/мес',
+    billedTotal: 'Всего: {{total}} за {{months}} мес.',
     customPricing: 'Индивидуальная цена',
     popularBadge: 'Самый популярный',
     secureFooter:
@@ -194,6 +196,7 @@ const pricingTranslations = {
     sixMonths: '6 oy',
     oneYear: '1 yil',
     mo: '/oy',
+    billedTotal: 'Jami: {{total}} {{months}} oy uchun',
     customPricing: 'Maxsus narxlar',
     popularBadge: 'Eng ommabop',
     secureFooter:
@@ -268,6 +271,7 @@ const pricingTranslations = {
     sixMonths: '6个月',
     oneYear: '1年',
     mo: '/月',
+    billedTotal: '总计: {{total}} / {{months}}个月',
     customPricing: '定制价格',
     popularBadge: '最受欢迎',
     secureFooter:
@@ -444,6 +448,20 @@ export default function PricingPage() {
   const activePeriod = PERIODS.find((p) => p.months === selectedPeriod)!;
 
   // Calculations
+  const calculatePrices = (pricePerMonth: number) => {
+    const base = pricePerMonth * selectedPeriod;
+    const discount = isUzbekistanUser
+      ? Math.round(base * activePeriod.discount)
+      : Number((base * activePeriod.discount).toFixed(2));
+    const total = base - discount;
+    const perMonth =
+      selectedPeriod > 1 ? Math.round(total / selectedPeriod) : pricePerMonth;
+    return { perMonth, total };
+  };
+
+  const plusPrices = calculatePrices(PLANS.plus.pricePerMonth);
+  const proPrices = calculatePrices(PLANS.pro.pricePerMonth);
+
   const baseAmount = activePlan ? activePlan.pricePerMonth * selectedPeriod : 0;
   const discountAmount = isUzbekistanUser
     ? Math.round(baseAmount * activePeriod.discount)
@@ -698,11 +716,18 @@ export default function PricingPage() {
                 </div>
                 <div className="mb-4">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
-                    {displayedPrice(PLANS.plus.pricePerMonth)}
+                    {displayedPrice(plusPrices.perMonth)}
                   </span>
                   <span className="text-text-secondary text-xs sm:text-sm">
                     {tPrice.mo}
                   </span>
+                  {selectedPeriod > 1 && (
+                    <div className="text-[11px] text-emerald-500 font-semibold mt-1">
+                      {tPrice.billedTotal
+                        .replace('{{total}}', displayedPrice(plusPrices.total))
+                        .replace('{{months}}', selectedPeriod.toString())}
+                    </div>
+                  )}
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.plus.features.map((feature) => (
@@ -743,11 +768,18 @@ export default function PricingPage() {
                 </div>
                 <div className="mb-4">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
-                    {displayedPrice(PLANS.pro.pricePerMonth)}
+                    {displayedPrice(proPrices.perMonth)}
                   </span>
                   <span className="text-text-secondary text-xs sm:text-sm">
                     {tPrice.mo}
                   </span>
+                  {selectedPeriod > 1 && (
+                    <div className="text-[11px] text-emerald-500 font-semibold mt-1">
+                      {tPrice.billedTotal
+                        .replace('{{total}}', displayedPrice(proPrices.total))
+                        .replace('{{months}}', selectedPeriod.toString())}
+                    </div>
+                  )}
                 </div>
                 <ul className="space-y-2 mb-6">
                   {PLANS.pro.features.map((feature) => (
