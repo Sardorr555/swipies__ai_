@@ -918,7 +918,7 @@ export default function PricingPage() {
                       onChange={(e) => formatCardNumberInput(e.target.value)}
                       maxLength={19}
                       disabled={step === 'processing_card'}
-                      className="w-full bg-bg-body border border-border rounded-xl px-4 py-2.5 text-text-primary text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
+                      className="w-full bg-white border border-border rounded-xl px-4 py-2.5 text-black text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
                       required
                     />
                   </div>
@@ -939,7 +939,7 @@ export default function PricingPage() {
                         onChange={(e) => formatExpiryInput(e.target.value)}
                         maxLength={5}
                         disabled={step === 'processing_card'}
-                        className="w-full bg-bg-body border border-border rounded-xl px-4 py-2.5 text-text-primary text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
+                        className="w-full bg-white border border-border rounded-xl px-4 py-2.5 text-black text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
                         required
                       />
                     </div>
@@ -959,7 +959,7 @@ export default function PricingPage() {
                             )
                           }
                           disabled={step === 'processing_card'}
-                          className="w-full bg-bg-body border border-border rounded-xl px-4 py-2.5 text-text-primary text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
+                          className="w-full bg-white border border-border rounded-xl px-4 py-2.5 text-black text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
                           required
                         />
                       </div>
@@ -979,7 +979,7 @@ export default function PricingPage() {
                           setCardName(e.target.value.toUpperCase())
                         }
                         disabled={step === 'processing_card'}
-                        className="w-full bg-bg-body border border-border rounded-xl px-4 py-2.5 text-text-primary text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
+                        className="w-full bg-white border border-border rounded-xl px-4 py-2.5 text-black text-sm sm:text-base focus:outline-none focus:border-[#478AF5] font-mono tracking-wider transition-colors"
                         required
                       />
                     </div>
@@ -1035,7 +1035,7 @@ export default function PricingPage() {
                         )
                       }
                       disabled={step === 'processing_otp'}
-                      className="w-full bg-bg-body border border-border rounded-xl px-4 py-2.5 text-text-primary text-center text-lg sm:text-xl tracking-[0.3em] sm:tracking-[0.4em] focus:outline-none focus:border-[#478AF5] font-mono transition-colors"
+                      className="w-full bg-white border border-border rounded-xl px-4 py-2.5 text-black text-center text-lg sm:text-xl tracking-[0.3em] sm:tracking-[0.4em] focus:outline-none focus:border-[#478AF5] font-mono transition-colors"
                       required
                     />
                   </div>
