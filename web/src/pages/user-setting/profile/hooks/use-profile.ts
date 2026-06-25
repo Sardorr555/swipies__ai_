@@ -16,6 +16,7 @@ interface ProfileData {
   avatar: string;
   email: string;
   confirmPasswd?: string;
+  id: string;
 }
 
 export const EditType = {
@@ -48,6 +49,7 @@ export const useProfile = () => {
     timeZone: '',
     email: '',
     currPasswd: '',
+    id: '',
   });
 
   const [editType, setEditType] = useState<IEditType>(EditType.editName);
@@ -66,6 +68,7 @@ export const useProfile = () => {
       avatar: userInfo.avatar || '',
       email: userInfo.email,
       currPasswd: userInfo.password,
+      id: userInfo.id || '',
     };
     setProfile(profile);
   }, [userInfo, setProfile]);

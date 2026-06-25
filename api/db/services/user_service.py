@@ -348,6 +348,10 @@ class TenantLimitService:
         if plan == "plus":
             limit = 50
 
+        # Referral bonus: +5 apps per referral
+        referral_count = User.select().where(User.referred_by_id == tenant_id).count()
+        limit += referral_count * 5
+
         from api.db.db_models import Dialog, UserCanvas
 
         chat_count = Dialog.select().where(
@@ -361,7 +365,7 @@ class TenantLimitService:
 
         total_apps = chat_count + agent_count
         if total_apps >= limit:
-            return False, f"You have reached the maximum limit of {limit} apps for your {plan.capitalize()} plan. Please upgrade to a higher plan to create more."
+            return False, f"You have reached the maximum limit of {limit} apps (including referral bonuses). Please upgrade to a higher plan to create more."
 
         return True, None
 
@@ -382,6 +386,10 @@ class TenantLimitService:
         elif plan == "pro":
             limit_gb = 15.0
 
+        # Referral bonus: +1.0 GB per referral
+        referral_count = User.select().where(User.referred_by_id == tenant_id).count()
+        limit_gb += referral_count * 1.0
+
         limit_bytes = int(limit_gb * 1024 * 1024 * 1024)
 
         from api.db.db_models import Document, Knowledgebase
@@ -393,7 +401,7 @@ class TenantLimitService:
         ).scalar() or 0
 
         if current_bytes + new_file_size > limit_bytes:
-            return False, f"You have reached the maximum storage limit of {limit_gb} GB for your {plan.capitalize()} plan. Please upgrade to a higher plan or delete some files."
+            return False, f"You have reached the maximum storage limit of {limit_gb} GB (including referral bonuses). Please upgrade to a higher plan or delete some files."
 
         return True, None
 

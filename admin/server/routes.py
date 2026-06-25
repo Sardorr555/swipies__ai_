@@ -242,8 +242,9 @@ def update_user_details_route(username):
 
         nickname = data.get("nickname")
         phone = data.get("phone")
+        referred_by_id = data.get("referred_by_id")
 
-        msg = UserMgr.update_user_details(username, nickname, phone)
+        msg = UserMgr.update_user_details(username, nickname, phone, referred_by_id)
         return success_response(None, msg)
     except AdminException as e:
         return error_response(e.message, e.code)

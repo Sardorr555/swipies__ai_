@@ -62,9 +62,10 @@ func NewUserService() *UserService {
 
 // RegisterRequest registration request
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=1"`
-	Nickname string `json:"nickname" binding:"required"`
+	Email        string `json:"email" binding:"required,email"`
+	Password     string `json:"password" binding:"required,min=1"`
+	Nickname     string `json:"nickname" binding:"required"`
+	ReferredByID string `json:"referred_by_id"`
 }
 
 // LoginRequest login request
@@ -151,6 +152,15 @@ func (s *UserService) Register(req *RegisterRequest) (*entity.User, common.Error
 	colorSchema := "Bright"
 	timezone := "UTC+8\tAsia/Shanghai"
 
+	var referredByID *string
+	if req.ReferredByID != "" {
+		referrer, err := s.userDAO.GetByTenantID(req.ReferredByID)
+		if err == nil && referrer != nil {
+			refID := req.ReferredByID
+			referredByID = &refID
+		}
+	}
+
 	now := time.Now().Truncate(time.Second)
 	user := &entity.User{
 		ID:              userID,
@@ -168,6 +178,7 @@ func (s *UserService) Register(req *RegisterRequest) (*entity.User, common.Error
 		LastLoginTime:   &now,
 		LoginChannel:    &loginChannel,
 		IsSuperuser:     &isSuperuser,
+		ReferredByID:    referredByID,
 	}
 
 	tenantName := req.Nickname + "'s Kingdom"

@@ -245,6 +245,14 @@ function AdminUserManagement() {
       columnHelper.accessor('nickname', {
         header: t('admin.nickname'),
       }),
+      columnHelper.accessor('referrals_count', {
+        header: t('admin.referrals'),
+        cell: ({ cell }) => cell.getValue() || 0,
+      }),
+      columnHelper.accessor('referred_by_email', {
+        header: t('admin.referredBy'),
+        cell: ({ cell }) => cell.getValue() || '-',
+      }),
 
       ...(IS_ENTERPRISE
         ? [
@@ -596,15 +604,17 @@ function AdminUserManagement() {
             <Table>
               <colgroup>
                 <col width="*" />
-                <col className="w-[22%]" />
+                <col className="w-[18%]" />
+                <col className="w-28" />
+                <col className="w-40" />
 
                 <EnterpriseFeature>
                   {() => <col className="w-24" />}
                 </EnterpriseFeature>
 
+                <col className="w-32" />
+                <col className="w-32" />
                 <col className="w-40" />
-                <col className="w-40" />
-                <col className="w-52" />
               </colgroup>
 
               <TableHeader>

@@ -1248,6 +1248,11 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
       timezonePlaceholder: '请选择时区',
       email: '邮箱',
       emailDescription: '一旦注册，电子邮件将无法更改。',
+      referralProgram: '推荐计划',
+      referralDescription:
+        '邀请好友注册即可获得奖励：每成功邀请一位用户，可获得 +1 GB 存储空间和 +5 个 Agent/应用！',
+      copied: '推荐链接已复制到剪贴板！',
+      copy: '复制链接',
       currentPassword: '当前密码',
       currentPasswordMessage: '请输入当前密码',
       newPassword: '新密码',
@@ -2649,6 +2654,11 @@ Tokenizer 会根据所选方式将内容存储为对应的数据结构。`,
       noCanvasFound: '未找到画布',
       deleteSelectedConfirm: '确定要删除 {{count}} 个会话吗？',
       batchDeleteSessions: '删除会话',
+    },
+    admin: {
+      referrals: '被推荐人',
+      referredBy: '推荐人',
+      referredById: '推荐人 ID',
     },
   },
 };

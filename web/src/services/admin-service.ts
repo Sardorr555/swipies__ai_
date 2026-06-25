@@ -202,6 +202,7 @@ export const updateUserDetails = (
   params: {
     nickname?: string;
     phone?: string;
+    referred_by_id?: string;
   },
 ) => request.put(adminUpdateUserDetails(email), params);
 

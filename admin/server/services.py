@@ -29,7 +29,7 @@ from api.db.services.user_service import TenantService, UserTenantService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.system_settings_service import SystemSettingsService
 from api.db.services.api_service import APITokenService
-from api.db.db_models import APIToken
+from api.db.db_models import APIToken, User
 from api.utils.crypt import decrypt
 from api.utils import health_utils
 
@@ -43,13 +43,26 @@ class UserMgr:
         users = UserService.get_all_users()
         result = []
         for user in users:
+            # Count referrals
+            referrals_count = User.select().where(User.referred_by_id == user.id).count()
+            # Get referrer email
+            referred_by_email = ""
+            if getattr(user, "referred_by_id", None):
+                referrer = UserService.query(id=user.referred_by_id)
+                if referrer:
+                    referred_by_email = referrer[0].email
+
             result.append(
                 {
+                    "id": user.id,
                     "email": user.email,
                     "nickname": user.nickname,
                     "create_date": user.create_date,
                     "is_active": user.is_active,
                     "is_superuser": user.is_superuser,
+                    "referred_by_id": getattr(user, "referred_by_id", None) or "",
+                    "referred_by_email": referred_by_email,
+                    "referrals_count": referrals_count,
                 }
             )
         return result
@@ -70,8 +83,18 @@ class UserMgr:
                 plan_expiry_date = tenant_list[0].plan_expiry_date
                 credit = tenant_list[0].credit
 
+            # Count referrals
+            referrals_count = User.select().where(User.referred_by_id == user.id).count()
+            # Get referrer email
+            referred_by_email = ""
+            if getattr(user, "referred_by_id", None):
+                referrer = UserService.query(id=user.referred_by_id)
+                if referrer:
+                    referred_by_email = referrer[0].email
+
             result.append(
                 {
+                    "id": user.id,
                     "avatar": user.avatar,
                     "email": user.email,
                     "nickname": user.nickname,
@@ -88,12 +111,15 @@ class UserMgr:
                     "plan_type": plan_type,
                     "plan_expiry_date": plan_expiry_date,
                     "credit": credit,
+                    "referred_by_id": getattr(user, "referred_by_id", None) or "",
+                    "referred_by_email": referred_by_email,
+                    "referrals_count": referrals_count,
                 }
             )
         return result
 
     @staticmethod
-    def update_user_details(username, nickname=None, phone=None):
+    def update_user_details(username, nickname=None, phone=None, referred_by_id=None):
         # find user by email
         user_list = UserService.query_user_by_email(username)
         if not user_list:
@@ -107,6 +133,15 @@ class UserMgr:
             update_data["nickname"] = nickname
         if phone is not None:
             update_data["phone"] = phone
+        if referred_by_id is not None:
+            if referred_by_id == "":
+                update_data["referred_by_id"] = None
+            else:
+                # Check if the referrer user exists
+                referrer = UserService.query(id=referred_by_id)
+                if not referrer:
+                    raise AdminException(f"Referrer user with ID {referred_by_id} does not exist!")
+                update_data["referred_by_id"] = referred_by_id
 
         if update_data:
             UserService.update_user(usr.id, update_data)

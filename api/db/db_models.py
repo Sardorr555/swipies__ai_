@@ -713,6 +713,7 @@ class User(DataBaseModel, AuthUser):
     password = CharField(max_length=255, null=True, help_text="password", index=True)
     email = CharField(max_length=255, null=False, help_text="email", unique=True)
     phone = CharField(max_length=32, null=True, help_text="phone number", index=True)
+    referred_by_id = CharField(max_length=32, null=True, help_text="referred by user id", index=True)
     avatar = TextField(null=True, help_text="avatar base64 string")
     language = CharField(max_length=32, null=True, help_text="English|Chinese", default="Chinese" if "zh_CN" in os.getenv("LANG", "") else "English", index=True)
     color_schema = CharField(max_length=32, null=True, help_text="Bright|Dark", default="Bright", index=True)
@@ -1749,6 +1750,7 @@ def migrate_db():
     alter_db_add_column(migrator, "tenant", "plan_type", CharField(max_length=32, default="free", index=True))
     alter_db_add_column(migrator, "tenant", "plan_expiry_date", DateTimeField(null=True, index=True))
     alter_db_add_column(migrator, "user", "phone", CharField(max_length=32, null=True, help_text="phone number", index=True))
+    alter_db_add_column(migrator, "user", "referred_by_id", CharField(max_length=32, null=True, help_text="referred by user id", index=True))
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
     migrate_add_unique_email(migrator)

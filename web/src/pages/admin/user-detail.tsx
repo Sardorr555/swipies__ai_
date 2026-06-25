@@ -31,13 +31,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import {
   getUserDetails,
   listUserAgents,
   listUserDatasets,
+  listUsers,
   updateUserDetails,
   updateUserSubscription,
 } from '@/services/admin-service';
@@ -46,11 +54,96 @@ import { TableEmpty } from '@/components/table-skeleton';
 import EnterpriseFeature from './components/enterprise-feature';
 import { parseBooleanish } from './utils';
 
-const ASSET_NAMES = ['dataset', 'flow'];
+const ASSET_NAMES = ['dataset', 'flow', 'referrals'];
 
 const datasetColumnHelper =
   createColumnHelper<AdminService.ListUserDatasetItem>();
 const agentColumnHelper = createColumnHelper<AdminService.ListUserAgentItem>();
+
+function ReferredUsersTable(props: { data?: AdminService.ListUsersItem[] }) {
+  const { t } = useTranslation();
+
+  const columnHelper = createColumnHelper<AdminService.ListUsersItem>();
+  const columnDefs = useMemo(
+    () => [
+      columnHelper.accessor('email', {
+        header: t('admin.email'),
+      }),
+      columnHelper.accessor('nickname', {
+        header: t('admin.nickname'),
+      }),
+      columnHelper.accessor('create_date', {
+        header: t('admin.createTime'),
+      }),
+      columnHelper.accessor('is_active', {
+        header: t('admin.status'),
+        cell: ({ cell }) => (
+          <Badge
+            variant={
+              parseBooleanish(cell.getValue()) ? 'success' : 'destructive'
+            }
+          >
+            <LucideDot className="size-[1em] stroke-[8] mr-1" />
+            {parseBooleanish(cell.getValue())
+              ? t('admin.active')
+              : t('admin.inactive')}
+          </Badge>
+        ),
+      }),
+    ],
+    [t, columnHelper],
+  );
+
+  const table = useReactTable({
+    data: props.data ?? [],
+    columns: columnDefs,
+    getCoreRowModel: getCoreRowModel(),
+    enableSorting: false,
+  });
+
+  return (
+    <section className="space-y-4">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {flexRender(
+                    header.column.columnDef.header,
+                    header.getContext(),
+                  )}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell
+                colSpan={columnDefs.length}
+                className="text-center py-6 text-text-secondary"
+              >
+                No referrals found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </section>
+  );
+}
 
 function UserDatasetTable(props: {
   data?: AdminService.ListUserDatasetItem[];
@@ -307,6 +400,7 @@ function AdminUserDetail() {
   const [credits, setCredits] = useState<number>(512);
   const [nickname, setNickname] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
+  const [referredById, setReferredById] = useState<string>('');
 
   const { data: { detail, datasets, agents } = {} } = useQuery({
     queryKey: ['admin/userDetail', id],
@@ -327,6 +421,17 @@ function AdminUserDetail() {
     retry: false,
   });
 
+  const { data: usersList } = useQuery({
+    queryKey: ['admin/listUsers'],
+    queryFn: async () => (await listUsers()).data.data,
+    retry: false,
+  });
+
+  const referredUsers = useMemo(() => {
+    if (!usersList || !detail || !detail.id) return [];
+    return usersList.filter((u) => u.referred_by_id === detail.id);
+  }, [usersList, detail]);
+
   useEffect(() => {
     if (detail) {
       setPlanType(detail.plan_type || 'free');
@@ -334,6 +439,7 @@ function AdminUserDetail() {
       setCredits(detail.credit ?? 512);
       setNickname(detail.nickname || '');
       setPhone(detail.phone || '');
+      setReferredById(detail.referred_by_id || '');
     }
   }, [detail]);
 
@@ -352,8 +458,11 @@ function AdminUserDetail() {
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: (params: { nickname: string; phone: string }) =>
-      updateUserDetails(id!, params),
+    mutationFn: (params: {
+      nickname: string;
+      phone: string;
+      referred_by_id?: string;
+    }) => updateUserDetails(id!, params),
     onSuccess: (res) => {
       if (res.data.code === 0) {
         message.success('Profile details updated successfully!');
@@ -468,6 +577,24 @@ function AdminUserDetail() {
               <div className="font-semibold">{detail?.phone || 'N/A'}</div>
             </div>
 
+            <div>
+              <div className="text-sm text-text-secondary mb-2">
+                {t('admin.referredBy')}
+              </div>
+              <div className="font-semibold text-accent-primary">
+                {detail?.referred_by_email || 'None'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm text-text-secondary mb-2">
+                {t('admin.referrals')}
+              </div>
+              <div className="font-semibold">
+                {detail?.referrals_count || 0}
+              </div>
+            </div>
+
             <div className="border-l pl-8 dark:border-border-button">
               <div className="text-sm text-text-secondary mb-2">
                 Current Plan
@@ -498,7 +625,7 @@ function AdminUserDetail() {
             <h3 className="text-sm font-semibold text-text-primary">
               Profile Management
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
               <div className="space-y-2">
                 <label className="text-xs text-text-secondary">Nickname</label>
                 <Input
@@ -523,6 +650,19 @@ function AdminUserDetail() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <label className="text-xs text-text-secondary">
+                  {t('admin.referredById')}
+                </label>
+                <Input
+                  type="text"
+                  className="bg-bg-input border-border-button"
+                  placeholder="Referrer ID"
+                  value={referredById}
+                  onChange={(e) => setReferredById(e.target.value)}
+                />
+              </div>
+
               <div className="flex gap-2">
                 <Button
                   className="w-full h-10"
@@ -531,6 +671,7 @@ function AdminUserDetail() {
                     updateProfileMutation.mutate({
                       nickname,
                       phone,
+                      referred_by_id: referredById,
                     });
                   }}
                 >
@@ -675,7 +816,9 @@ function AdminUserDetail() {
                   className="text-text-secondary border-0.5 border-border-button data-[state=active]:bg-bg-card"
                   value={name}
                 >
-                  {t(`header.${name}`)}
+                  {name === 'referrals'
+                    ? t('admin.referrals')
+                    : t(`header.${name}`)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -689,6 +832,12 @@ function AdminUserDetail() {
             <TabsContent value="flow" className="h-0 basis-0 grow">
               <ScrollArea className="h-full">
                 <UserAgentTable data={agents} />
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="referrals" className="h-0 basis-0 grow">
+              <ScrollArea className="h-full">
+                <ReferredUsersTable data={referredUsers} />
               </ScrollArea>
             </TabsContent>
           </Tabs>

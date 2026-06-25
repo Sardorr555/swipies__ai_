@@ -10,7 +10,7 @@ import { useSystemConfig } from '@/hooks/use-system-request';
 import { rsaPsw } from '@/utils';
 import { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 
 import Spotlight from '@/components/spotlight';
 import { Button, ButtonLoading } from '@/components/ui/button';
@@ -413,6 +413,8 @@ function LoginFormContent({
 const Login = () => {
   const [title, setTitle] = useState('login');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const ref = searchParams.get('ref') || '';
   const { login, loading: signLoading } = useLogin();
   const { register, loading: registerLoading } = useRegister();
   const { channels, loading: channelsLoading } = useLoginChannels();
@@ -534,6 +536,7 @@ const Login = () => {
           email: params.email,
           password: rsaPassWord,
           phone: params.phone,
+          referred_by_id: ref,
         });
         if (code === 0) {
           setTitle('login');

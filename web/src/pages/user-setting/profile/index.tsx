@@ -13,6 +13,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import message from '@/components/ui/message';
 import { Modal } from '@/components/ui/modal/modal';
 import { useTranslate } from '@/hooks/common-hooks';
 import { TimezoneList } from '@/pages/user-setting/constants';
@@ -227,6 +228,37 @@ const ProfilePage: FC = () => {
             </Button>
           </div>
         </div>
+
+        {/* Referral Program */}
+        {profile.id && (
+          <div className="flex items-start gap-4">
+            <label className="w-[190px] text-sm font-medium">
+              {t('referralProgram')}
+            </label>
+            <div className="flex-1 flex flex-col gap-2">
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-text-primary border border-border-button flex-1 rounded-md py-1.5 px-2 bg-bg-component select-all">
+                  {`${window.location.protocol}//${window.location.host}/login?ref=${profile.id}`}
+                </div>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `${window.location.protocol}//${window.location.host}/login?ref=${profile.id}`,
+                    );
+                    message.success(t('copied'));
+                  }}
+                >
+                  {t('copy')}
+                </Button>
+              </div>
+              <span className="text-text-secondary text-xs">
+                {t('referralDescription')}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {editType && (

@@ -25,6 +25,8 @@ type User struct {
 	Nickname        string     `gorm:"column:nickname;size:100;not null;index" json:"nickname"`
 	Password        *string    `gorm:"column:password;size:255;index" json:"-"`
 	Email           string     `gorm:"column:email;size:255;not null;index" json:"email"`
+	Phone           *string    `gorm:"column:phone;size:32;index" json:"phone,omitempty"`
+	ReferredByID    *string    `gorm:"column:referred_by_id;size:32;index" json:"referred_by_id,omitempty"`
 	Avatar          *string    `gorm:"column:avatar;type:longtext" json:"avatar,omitempty"`
 	Language        *string    `gorm:"column:language;size:32;index" json:"language,omitempty"`
 	ColorSchema     *string    `gorm:"column:color_schema;size:32;index" json:"color_schema,omitempty"`

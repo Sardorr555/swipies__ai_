@@ -23,15 +23,20 @@ declare namespace AdminService {
   };
 
   export type ListUsersItem = {
+    id?: string;
     create_date: string;
     email: string;
     is_active: '0' | '1';
     is_superuser: boolean;
     role: string;
     nickname: string;
+    referred_by_id?: string;
+    referred_by_email?: string;
+    referrals_count?: number;
   };
 
   export type UserDetail = {
+    id?: string;
     avatar?: string;
     create_date: string;
     email: string;
@@ -49,6 +54,9 @@ declare namespace AdminService {
     plan_type?: string;
     plan_expiry_date?: string | null;
     credit?: number;
+    referred_by_id?: string;
+    referred_by_email?: string;
+    referrals_count?: number;
   };
 
   export type ListUserDatasetItem = {

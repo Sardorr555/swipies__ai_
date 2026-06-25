@@ -764,6 +764,11 @@ export default {
       email: 'Elektron pochta',
       emailDescription:
         "Ro'yxatdan o'tgandan so'ng, elektron pochtani o'zgartirish mumkin emas.",
+      referralProgram: 'Referal dasturi',
+      referralDescription:
+        'Do‘stlaringizni ro‘yxatdan o‘tishga taklif qiling va mukofot oling: har bir taklif qilingan foydalanuvchi uchun +1 GB xotira va +5 ta agent/ilova!',
+      copied: 'Referal havolasi buferga nusxalandi!',
+      copy: 'Havolani nusxalash',
       currentPassword: 'Joriy parol',
       currentPasswordMessage: 'Parolni kiriting!',
       newPassword: 'Yangi parol',
@@ -2037,6 +2042,9 @@ Important structured information may include: names, dates, locations, events, k
       nickname: 'Nickname',
       status: 'Status',
       id: 'ID',
+      referrals: 'Taklif qilinganlar (referallar)',
+      referredBy: 'Kim taklif qilgan',
+      referredById: 'Taklif qiluvchi ID si',
       serviceType: 'Service type',
       host: 'Host',
       port: 'Port',

@@ -20,6 +20,7 @@ export interface ILoginRequestBody {
 
 export interface IRegisterRequestBody extends ILoginRequestBody {
   nickname: string;
+  referred_by_id?: string;
 }
 
 export interface ILoginChannel {
@@ -101,6 +102,8 @@ export const useRegister = () => {
       email: string;
       password: string;
       nickname: string;
+      phone?: string;
+      referred_by_id?: string;
     }) => {
       const { data = {} } = await userService.register(params);
       if (data.code === 0) {
