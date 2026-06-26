@@ -38,6 +38,7 @@ export enum Routes {
   ProfileSetting = '/profile-setting',
   Profile = '/profile',
   Api = '/api',
+  Referrals = '/referrals',
   Mcp = '/mcp',
   Team = '/team',
   Plan = '/plan',
@@ -297,6 +298,10 @@ const routeConfigOptions = [
           {
             path: `${Routes.UserSetting}${Routes.Api}`,
             Component: () => import('@/pages/user-setting/setting-api'),
+          },
+          {
+            path: `${Routes.UserSetting}${Routes.Referrals}`,
+            Component: () => import('@/pages/user-setting/referrals'),
           },
           {
             path: `${Routes.UserSetting}${Routes.Mcp}`,

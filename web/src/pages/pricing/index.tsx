@@ -6,6 +6,7 @@ import { Routes } from '@/routes';
 import {
   CheckCircle,
   CreditCard,
+  Gift,
   Loader2,
   LucideArrowLeft,
   LucideCheck,
@@ -112,6 +113,10 @@ const pricingTranslations = {
         cta: 'Contact Us',
       },
     },
+    referralTitle: 'Want to expand your limits for free?',
+    referralSubtitle:
+      'Invite friends to Swipies and get +1 GB storage and +5 agents/apps for each referral!',
+    referralButton: 'Get Referral Link',
   },
   ru: {
     backToDashboard: 'Назад на главную',
@@ -187,6 +192,10 @@ const pricingTranslations = {
         cta: 'Связаться с нами',
       },
     },
+    referralTitle: 'Хотите бесплатно расширить свои лимиты?',
+    referralSubtitle:
+      'Приглашайте друзей в Swipies и получайте +1 ГБ диска и +5 агентов/приложений за каждого!',
+    referralButton: 'Получить реферальную ссылку',
   },
   uz: {
     backToDashboard: 'Boshqaruv paneliga qaytish',
@@ -262,6 +271,10 @@ const pricingTranslations = {
         cta: 'Biz bilan bogʻlaning',
       },
     },
+    referralTitle: 'Limitlaringizni bepul kengaytirmoqchimisiz?',
+    referralSubtitle:
+      'Do‘stlaringizni Swipies-ga taklif qiling va har bir referal uchun +1 GB xotira va +5 ta agent/ilova oling!',
+    referralButton: 'Referal havolasini olish',
   },
   zh: {
     backToDashboard: '返回仪表板',
@@ -335,6 +348,10 @@ const pricingTranslations = {
         cta: '联系我们',
       },
     },
+    referralTitle: '想要免费扩展您的额度吗？',
+    referralSubtitle:
+      '邀请好友加入 Swipies，每成功邀请一位即可获得 +1 GB 存储空间和 +5 个 Agent/应用！',
+    referralButton: '获取推荐链接',
   },
 };
 
@@ -850,6 +867,34 @@ export default function PricingPage() {
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Referral Program Banner */}
+        <div className="mt-12 max-w-4xl mx-auto border border-border bg-bg-component rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden transition-all hover:border-[#478AF5]/40 hover:shadow-2xl">
+          <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none translate-x-4 -translate-y-4">
+            <Gift size={160} className="text-[#478AF5]" />
+          </div>
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="p-4 bg-[#478AF5]/10 rounded-2xl text-[#478AF5] shrink-0">
+              <Gift size={32} className="animate-pulse" />
+            </div>
+            <div className="space-y-1 text-left">
+              <h4 className="text-base sm:text-lg font-bold text-text-primary">
+                {tPrice.referralTitle}
+              </h4>
+              <p className="text-xs sm:text-sm text-text-secondary max-w-lg">
+                {tPrice.referralSubtitle}
+              </p>
+            </div>
+          </div>
+          <Link
+            to={`${Routes.UserSetting}${Routes.Referrals}`}
+            className="relative z-10 shrink-0 w-full md:w-auto text-center"
+          >
+            <Button className="w-full md:w-auto bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md border-0 font-bold py-2.5 px-6 rounded-xl transition-all text-xs sm:text-sm">
+              {tPrice.referralButton}
+            </Button>
+          </Link>
         </div>
 
         <p className="text-center text-[11px] sm:text-xs text-text-secondary mt-6 pb-8">

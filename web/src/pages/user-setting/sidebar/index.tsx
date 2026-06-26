@@ -13,6 +13,7 @@ import { Routes } from '@/routes';
 import { TFunction } from 'i18next';
 import {
   LucideBox,
+  LucideGift,
   LucideServer,
   LucideUnplug,
   LucideUser,
@@ -53,6 +54,11 @@ const menuItems = (t: TFunction) => [
     icon: <LucideUnplug className="size-[1em]" />,
     label: t('setting.api'),
     key: Routes.Api,
+  },
+  {
+    icon: <LucideGift className="size-[1em]" />,
+    label: t('setting.referral'),
+    key: Routes.Referrals,
   },
   // {
   //   icon: MessageSquareQuote,

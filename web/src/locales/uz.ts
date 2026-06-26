@@ -749,6 +749,7 @@ export default {
       system: 'Tizim',
       logout: 'Chiqish',
       api: 'API',
+      referral: 'Referal dasturi',
       username: 'Ism',
       usernameMessage: 'Foydalanuvchi nomini kiriting!',
       photo: 'Sizning rasmingiz',
@@ -768,6 +769,14 @@ export default {
       referralDescription:
         'Do‘stlaringizni ro‘yxatdan o‘tishga taklif qiling va mukofot oling: har bir taklif qilingan foydalanuvchi uchun +1 GB xotira va +5 ta agent/ilova!',
       copied: 'Referal havolasi buferga nusxalandi!',
+      yourReferralLink: 'Sizning referal havolangiz',
+      referralStats: 'Referal dasturi statistikasi',
+      totalInvited: 'Jami taklif qilinganlar',
+      storageBonus: 'Xotira bonusi',
+      agentsBonus: 'Agentlar bonusi',
+      noReferralsYet:
+        "Sizda hali referallar yo'q. Havolani ulashing va do'stlaringizni taklif qiling!",
+      regDate: "Ro'yxatdan o'tgan sana",
       copy: 'Havolani nusxalash',
       currentPassword: 'Joriy parol',
       currentPasswordMessage: 'Parolni kiriting!',

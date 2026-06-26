@@ -11,6 +11,7 @@ export default {
   setting: `${restAPIv1}/users/me`,
   userInfo: `${restAPIv1}/users/me`,
   tenantInfo: `${restAPIv1}/users/me/models`,
+  referrals: `${restAPIv1}/users/me/referrals`,
   loginChannels: `${restAPIv1}/auth/login/channels`,
   loginChannel: (channel: string) => `${restAPIv1}/auth/login/${channel}`,
 
@@ -109,6 +110,7 @@ export default {
   deleteKnowledgeGraph: (knowledgeId: string) =>
     `${restAPIv1}/datasets/${knowledgeId}/graph`,
   getMeta: `${restAPIv1}/datasets/metadata/flattened`,
+  getMetaKeys: `${restAPIv1}/datasets/metadata/flattened`,
   getKnowledgeBasicInfo: (datasetId: string) =>
     `${restAPIv1}/datasets/${datasetId}/ingestions/summary`,
   // data pipeline log

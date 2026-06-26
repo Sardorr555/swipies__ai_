@@ -394,6 +394,34 @@ async def user_profile():
     return get_json_result(data=current_user.to_safe_dict(for_self=True))
 
 
+@manager.route("/users/me/referrals", methods=["GET"])  # noqa: F821
+@login_required
+async def get_my_referrals():
+    try:
+        from api.db.services.user_service import UserService
+        referrals = UserService.query(referred_by_id=current_user.id)
+        data = []
+        for u in referrals:
+            email = u.email
+            if email and "@" in email:
+                name_part, domain_part = email.split("@", 1)
+                if len(name_part) > 2:
+                    masked_name = name_part[:2] + "***"
+                else:
+                    masked_name = name_part + "***"
+                email = f"{masked_name}@{domain_part}"
+
+            data.append({
+                "email": email,
+                "nickname": u.nickname,
+                "created_at": datetime_format(u.create_date) if u.create_date else None,
+            })
+        return get_json_result(data=data)
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(data=[], message="Failed to fetch referrals", code=RetCode.EXCEPTION_ERROR)
+
+
 def rollback_user_registration(user_id):
     try:
         UserService.delete_by_id(user_id)
