@@ -6,6 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 import {
   Coins,
+  Gift,
   LucideMonitor,
   LucideServerCrash,
   LucideSquareUserRound,
@@ -56,6 +57,11 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminPricingSettings,
         name: 'Pricing & Subscriptions',
         icon: <Coins className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminReferrals,
+        name: 'Referral Activity',
+        icon: <Gift className="size-[1em]" />,
       },
       ...(IS_ENTERPRISE
         ? [

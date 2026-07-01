@@ -27,8 +27,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from api.apps.auth import get_auth_client
 from api.db import FileType, UserTenantRole
+from api.db.db_models import Lead
 from api.db.services.file_service import FileService
 from api.db.services.user_service import TenantService, UserService, UserTenantService
+from api.db.services.lead_service import LeadService
 from common.time_utils import current_timestamp, datetime_format, get_format_time
 from common.misc_utils import download_img, get_uuid
 from common.constants import RetCode
@@ -540,6 +542,21 @@ async def user_add():
 
     # Construct user info data
     nickname = req["nickname"]
+    
+    referred_by = req.get("referred_by_id")
+    resolved_referrer_id = None
+    if referred_by:
+        # Check if nickname matches (e.g. SARDOR)
+        referrers = UserService.query(nickname=referred_by)
+        if not referrers:
+            # Check if email matches
+            referrers = UserService.query(email=referred_by)
+        if not referrers:
+            # Check if direct ID matches
+            referrers = UserService.query(id=referred_by)
+        if referrers:
+            resolved_referrer_id = referrers[0].id
+
     user_dict = {
         "access_token": get_uuid(),
         "email": email_address,
@@ -549,6 +566,7 @@ async def user_add():
         "login_channel": "password",
         "last_login_time": get_format_time(),
         "is_superuser": False,
+        "referred_by_id": resolved_referrer_id
     }
 
     user_id = get_uuid()
@@ -870,5 +888,103 @@ async def forget_reset_password():
 
     msg = "Password reset successful. Logged in."
     return await construct_response(data=user.to_safe_dict(for_self=True), auth=user.get_id(), message=msg)
+
+
+@manager.route("/leads", methods=["POST"])
+async def create_lead():
+    req = await get_request_json()
+    company = req.get("company", "")
+    name = req.get("name", "")
+    email = req.get("email", "")
+    phone = req.get("phone", "")
+    message = req.get("message", "")
+    referral_code = req.get("referral_code", "")
+
+    if not name or not email:
+        return get_json_result(
+            data=False,
+            message="Name and email are required fields.",
+            code=RetCode.OPERATING_ERROR,
+        )
+
+    # Save lead using insert to automatically generate ID and timestamps
+    LeadService.insert(
+        company=company,
+        name=name,
+        email=email,
+        phone=phone,
+        message=message,
+        referral_code=referral_code,
+        status="1"  # '1' represents unread
+    )
+    return get_json_result(data=True, message="Lead saved successfully")
+
+
+@manager.route("/leads", methods=["GET"])
+@login_required
+def get_leads():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="Unauthorized access",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+    # Get all leads, reverse-sorted by creation date
+    leads = LeadService.query(order_by="create_time", reverse=True)
+    return get_json_result(
+        data=[lead.to_dict() for lead in leads]
+    )
+
+
+@manager.route("/leads/<lead_id>", methods=["PUT"])
+@login_required
+async def update_lead(lead_id):
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="Unauthorized access",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+    req = await get_request_json()
+    status = req.get("status")
+
+    lead = LeadService.query(id=lead_id)
+    if not lead:
+        return get_json_result(
+            data=False,
+            message="Lead not found.",
+            code=RetCode.OPERATING_ERROR,
+        )
+
+    update_dict = {}
+    if status is not None:
+        update_dict["status"] = str(status)
+
+    if update_dict:
+        LeadService.update_by_id(lead_id, update_dict)
+
+    return get_json_result(data=True, message="Lead updated successfully")
+
+
+@manager.route("/leads/<lead_id>", methods=["DELETE"])
+@login_required
+def delete_lead(lead_id):
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="Unauthorized access",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+    lead = LeadService.query(id=lead_id)
+    if not lead:
+        return get_json_result(
+            data=False,
+            message="Lead not found.",
+            code=RetCode.OPERATING_ERROR,
+        )
+    
+    LeadService.filter_delete([Lead.id == lead_id])
+    return get_json_result(data=True, message="Lead deleted successfully")
+
 
 

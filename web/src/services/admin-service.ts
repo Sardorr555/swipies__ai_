@@ -110,6 +110,7 @@ const {
   adminUpdateUserSubscription,
   adminGetVariables,
   adminUpdateVariable,
+  adminListReferrals,
   adminDeleteUser,
   adminListUserDatasets,
   adminListUserAgents,
@@ -347,3 +348,9 @@ export const testSandboxConnection = (params: {
     provider_type: params.providerType,
     config: params.config,
   });
+
+export const getReferrals = (params: {
+  page: number;
+  size: number;
+  search?: string;
+}) => request.get<ResponseData<any>>(adminListReferrals, { params });

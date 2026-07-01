@@ -865,4 +865,83 @@ def main() -> dict:
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
-            raise AdminException(f"Connection test failed: {str(e)}\\n\\nStack trace:\\n{error_details}")
+            raise AdminException(f"Connection test failed: {str(e)}\n\nStack trace:\n{error_details}")
+
+
+class ReferralMgr:
+    @staticmethod
+    def get_referral_activity(page=1, size=30, search_query=None):
+        from api.db.db_models import User
+        from api.db.services.user_service import TenantLimitService
+
+        # We query all users who have referred_by_id set
+        query = User.select().where(User.referred_by_id.is_null(False) & (User.referred_by_id != ""))
+
+        if search_query:
+            # We can find potential referrer ids to filter by
+            referrers = User.select(User.id).where(
+                (User.email.contains(search_query)) | (User.nickname.contains(search_query))
+            )
+            referrer_ids = [r.id for r in referrers]
+            query = query.where(
+                (User.email.contains(search_query)) |
+                (User.nickname.contains(search_query)) |
+                (User.referred_by_id.in_(referrer_ids))
+            )
+
+        total = query.count()
+
+        # Paginate
+        users = query.order_by(User.create_date.desc()).paginate(page, size)
+
+        # Build results
+        records = []
+        for u in users:
+            # Get inviter
+            inviter_email = ""
+            inviter_nickname = ""
+            inviter_id = u.referred_by_id
+            inviter = UserService.query(id=inviter_id)
+            if inviter:
+                inviter_email = inviter[0].email
+                inviter_nickname = inviter[0].nickname
+
+            records.append({
+                "invitee_id": u.id,
+                "invitee_email": u.email,
+                "invitee_nickname": u.nickname,
+                "invitee_create_date": u.create_date,
+                "inviter_id": inviter_id,
+                "inviter_email": inviter_email,
+                "inviter_nickname": inviter_nickname,
+            })
+
+        # Get overall stats
+        total_referrals = total
+        active_referrers_count = User.select(User.referred_by_id).where(
+            User.referred_by_id.is_null(False) & (User.referred_by_id != "")
+        ).distinct().count()
+
+        # Get settings
+        storage_gb = TenantLimitService.get_referral_storage_gb()
+        agents_limit = TenantLimitService.get_referral_agents_limit()
+
+        total_storage_bonus_gb = total_referrals * storage_gb
+        total_agents_bonus = total_referrals * agents_limit
+
+        stats = {
+            "total_referrals": total_referrals,
+            "active_referrers": active_referrers_count,
+            "total_storage_bonus_gb": total_storage_bonus_gb,
+            "total_agents_bonus": total_agents_bonus,
+            "reward_storage_gb": storage_gb,
+            "reward_agents_limit": agents_limit,
+        }
+
+        return {
+            "total": total,
+            "page": page,
+            "size": size,
+            "records": records,
+            "stats": stats,
+        }

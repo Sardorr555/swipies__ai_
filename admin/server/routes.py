@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr
+from services import UserMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, ReferralMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -729,5 +729,20 @@ def set_logger_level():
             return success_response({"pkg_name": pkg_name, "level": level}, "Log level updated successfully")
         else:
             return error_response(f"Invalid log level: {level}", 400)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/referrals", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_referral_activity():
+    try:
+        page = int(request.args.get("page", 1))
+        size = int(request.args.get("size", 30))
+        search = request.args.get("search", "")
+
+        res = ReferralMgr.get_referral_activity(page=page, size=size, search_query=search)
+        return success_response(res)
     except Exception as e:
         return error_response(str(e), 500)

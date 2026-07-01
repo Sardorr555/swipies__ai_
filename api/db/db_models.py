@@ -749,6 +749,20 @@ class User(DataBaseModel, AuthUser):
         db_table = "user"
 
 
+class Lead(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    company = CharField(max_length=255, null=True)
+    name = CharField(max_length=255, null=True)
+    email = CharField(max_length=255, null=True)
+    phone = CharField(max_length=255, null=True)
+    message = TextField(null=True)
+    referral_code = CharField(max_length=255, null=True)
+    status = CharField(max_length=1, default="1")  # '0': deleted, '1': unread, '2': read
+
+    class Meta:
+        db_table = "lead"
+
+
 class Tenant(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     name = CharField(max_length=100, null=True, help_text="Tenant name", index=True)

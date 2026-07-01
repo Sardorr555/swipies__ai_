@@ -335,6 +335,7 @@ export default {
     `${restAPIv1}/admin/users/${username}/subscription`,
   adminGetVariables: `${restAPIv1}/admin/variables`,
   adminUpdateVariable: `${restAPIv1}/admin/variables`,
+  adminListReferrals: `${restAPIv1}/admin/referrals`,
   adminDeleteUser: (username: string) => `${restAPIv1}/admin/users/${username}`,
   adminListUserDatasets: (username: string) =>
     `${restAPIv1}/admin/users/${username}/datasets`,

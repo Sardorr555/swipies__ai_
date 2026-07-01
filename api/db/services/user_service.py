@@ -334,6 +334,39 @@ class UserTenantService(CommonService):
 
 class TenantLimitService:
     @classmethod
+    def is_referral_enabled(cls) -> bool:
+        try:
+            from api.db.services.system_settings_service import SystemSettingsService
+            objs = SystemSettingsService.get_by_name("referral.enabled")
+            if objs:
+                return objs[0].value == "true"
+        except Exception:
+            pass
+        return True
+
+    @classmethod
+    def get_referral_storage_gb(cls) -> float:
+        try:
+            from api.db.services.system_settings_service import SystemSettingsService
+            objs = SystemSettingsService.get_by_name("referral.storage_gb")
+            if objs:
+                return float(objs[0].value)
+        except Exception:
+            pass
+        return 1.0
+
+    @classmethod
+    def get_referral_agents_limit(cls) -> int:
+        try:
+            from api.db.services.system_settings_service import SystemSettingsService
+            objs = SystemSettingsService.get_by_name("referral.agents_limit")
+            if objs:
+                return int(objs[0].value)
+        except Exception:
+            pass
+        return 5
+
+    @classmethod
     @DB.connection_context()
     def check_apps_limit(cls, tenant_id: str) -> tuple[bool, str | None]:
         ok, tenant = TenantService.get_by_id(tenant_id)
@@ -348,9 +381,10 @@ class TenantLimitService:
         if plan == "plus":
             limit = 50
 
-        # Referral bonus: +5 apps per referral
-        referral_count = User.select().where(User.referred_by_id == tenant_id).count()
-        limit += referral_count * 5
+        # Referral bonus: +agents per referral
+        if cls.is_referral_enabled():
+            referral_count = User.select().where(User.referred_by_id == tenant_id).count()
+            limit += referral_count * cls.get_referral_agents_limit()
 
         from api.db.db_models import Dialog, UserCanvas
 
@@ -386,9 +420,10 @@ class TenantLimitService:
         elif plan == "pro":
             limit_gb = 15.0
 
-        # Referral bonus: +1.0 GB per referral
-        referral_count = User.select().where(User.referred_by_id == tenant_id).count()
-        limit_gb += referral_count * 1.0
+        # Referral bonus: +GB per referral
+        if cls.is_referral_enabled():
+            referral_count = User.select().where(User.referred_by_id == tenant_id).count()
+            limit_gb += referral_count * cls.get_referral_storage_gb()
 
         limit_bytes = int(limit_gb * 1024 * 1024 * 1024)
 
