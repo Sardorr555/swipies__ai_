@@ -79,7 +79,7 @@ type OAuthLoginInit struct {
 // OAuthLoginInitiate generates a state, persists it in Redis with a TTL,
 // and returns the authorization URL the browser should be redirected to.
 // Mirrors the body of Python's oauth_login.
-func (s *UserService) OAuthLoginInitiate(channel string, redis *cache.RedisClient) (*OAuthLoginInit, common.ErrorCode, error) {
+func (s *UserService) OAuthLoginInitiate(channel, referredByID string, redis *cache.RedisClient) (*OAuthLoginInit, common.ErrorCode, error) {
 	cfg, ok := lookupOAuthConfig(channel)
 	if !ok {
 		return nil, common.CodeDataError, fmt.Errorf("%w: %s", ErrOAuthInvalidChannel, channel)
@@ -94,7 +94,11 @@ func (s *UserService) OAuthLoginInitiate(channel string, redis *cache.RedisClien
 		return nil, common.CodeServerError, fmt.Errorf("generate oauth state: %w", err)
 	}
 	if redis != nil {
-		if ok := redis.Set(oauthStateKey+state, channel, oauthStateTTL); !ok {
+		storedVal := channel
+		if referredByID != "" {
+			storedVal = channel + ":" + referredByID
+		}
+		if ok := redis.Set(oauthStateKey+state, storedVal, oauthStateTTL); !ok {
 			return nil, common.CodeServerError, errors.New("failed to persist oauth state")
 		}
 	}
@@ -132,6 +136,7 @@ func (s *UserService) OAuthCallback(ctx context.Context, channel, code, callback
 		return nil, common.CodeDataError, fmt.Errorf("%w: %s", ErrOAuthInvalidChannel, channel)
 	}
 
+	var referredByID string
 	if callbackState == "" || expectedState == "" || callbackState != expectedState {
 		return nil, common.CodeDataError, ErrOAuthInvalidState
 	}
@@ -140,8 +145,15 @@ func (s *UserService) OAuthCallback(ctx context.Context, channel, code, callback
 		// Delete unconditionally so a leaked state cannot be reused even
 		// when the Redis lookup fails open above.
 		redis.Delete(oauthStateKey + callbackState)
-		if stored == "" || stored != channel {
+		if stored == "" {
 			return nil, common.CodeDataError, ErrOAuthInvalidState
+		}
+		parts := strings.SplitN(stored, ":", 2)
+		if parts[0] != channel {
+			return nil, common.CodeDataError, ErrOAuthInvalidState
+		}
+		if len(parts) > 1 {
+			referredByID = parts[1]
 		}
 	}
 	if code == "" {
@@ -185,17 +197,14 @@ func (s *UserService) OAuthCallback(ctx context.Context, channel, code, callback
 	}
 
 	// New user — register a fresh account bound to this channel.
-	created, ecode, cerr := s.registerOAuthUser(channel, info)
+	created, ecode, cerr := s.registerOAuthUser(channel, info, referredByID)
 	if cerr != nil {
 		return nil, ecode, cerr
 	}
 	return &OAuthCallbackResult{User: created, IsNewUser: true}, common.CodeSuccess, nil
 }
 
-// registerOAuthUser provisions a new user + tenant for an OAuth identity.
-// Models the relevant fields the email-password Register path sets so the
-// rest of the app (kbs, files, llm config) sees a fully-shaped tenant.
-func (s *UserService) registerOAuthUser(channel string, info *oauth.UserInfo) (*entity.User, common.ErrorCode, error) {
+func (s *UserService) registerOAuthUser(channel string, info *oauth.UserInfo, referredByID string) (*entity.User, common.ErrorCode, error) {
 	cfg := server.GetConfig()
 	userID := utility.GenerateToken()
 	accessToken := utility.GenerateToken()
@@ -210,6 +219,30 @@ func (s *UserService) registerOAuthUser(channel string, info *oauth.UserInfo) (*
 		nickname = info.Email
 	}
 
+	var referredByIDPtr *string
+	if referredByID != "" {
+		// First try by ID
+		referrer, err := s.userDAO.GetByTenantID(referredByID)
+		if err == nil && referrer != nil {
+			refID := referrer.ID
+			referredByIDPtr = &refID
+		} else {
+			// Try by Email
+			referrer, err = s.userDAO.GetByEmail(referredByID)
+			if err == nil && referrer != nil {
+				refID := referrer.ID
+				referredByIDPtr = &refID
+			} else {
+				// Try by Nickname
+				var refUser entity.User
+				if err := dao.GetDB().Where("nickname = ?", referredByID).First(&refUser).Error; err == nil {
+					refID := refUser.ID
+					referredByIDPtr = &refID
+				}
+			}
+		}
+	}
+
 	user := &entity.User{
 		ID:              userID,
 		AccessToken:     &accessToken,
@@ -222,6 +255,7 @@ func (s *UserService) registerOAuthUser(channel string, info *oauth.UserInfo) (*
 		IsAnonymous:     "0",
 		LoginChannel:    &loginChannel,
 		IsSuperuser:     &isSuperuser,
+		ReferredByID:    referredByIDPtr,
 	}
 
 	tenantName := nickname + "'s Kingdom"

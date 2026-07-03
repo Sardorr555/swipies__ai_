@@ -154,10 +154,25 @@ func (s *UserService) Register(req *RegisterRequest) (*entity.User, common.Error
 
 	var referredByID *string
 	if req.ReferredByID != "" {
+		// First try by ID
 		referrer, err := s.userDAO.GetByTenantID(req.ReferredByID)
 		if err == nil && referrer != nil {
-			refID := req.ReferredByID
+			refID := referrer.ID
 			referredByID = &refID
+		} else {
+			// Try by Email
+			referrer, err = s.userDAO.GetByEmail(req.ReferredByID)
+			if err == nil && referrer != nil {
+				refID := referrer.ID
+				referredByID = &refID
+			} else {
+				// Try by Nickname
+				var refUser entity.User
+				if err := dao.GetDB().Where("nickname = ?", req.ReferredByID).First(&refUser).Error; err == nil {
+					refID := refUser.ID
+					referredByID = &refID
+				}
+			}
 		}
 	}
 
@@ -1460,4 +1475,11 @@ func (s *UserService) ForgotResetPassword(req *ForgotResetPasswordRequest) (*ent
 
 	rc.Delete(verifiedKey)
 	return user, common.CodeSuccess, nil
+}
+
+// GetReferrals get referrals list for current user
+func (s *UserService) GetReferrals(userID string) ([]*entity.User, error) {
+	var users []*entity.User
+	err := dao.GetDB().Where("referred_by_id = ?", userID).Find(&users).Error
+	return users, err
 }

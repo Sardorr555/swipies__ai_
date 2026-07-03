@@ -62,6 +62,8 @@ func (r *Router) Setup(engine *gin.Engine) {
 			protected.GET("/users", r.handler.ListUsers)
 			protected.POST("/users", r.handler.CreateUser)
 			protected.GET("/users/:username", r.handler.GetUser)
+			protected.PUT("/users/:username/details", r.handler.UpdateUserDetails)
+			protected.PUT("/users/:username/subscription", r.handler.UpdateUserSubscription)
 			protected.DELETE("/users/:username", r.handler.DeleteUser)
 			protected.PUT("/users/:username/password", r.handler.ChangePassword)
 			protected.PUT("/users/:username/activate", r.handler.UpdateUserActivateStatus)
@@ -69,6 +71,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 			protected.DELETE("/users/:username/admin", r.handler.RevokeAdmin)
 			protected.GET("/users/:username/datasets", r.handler.GetUserDatasets)
 			protected.GET("/users/:username/agents", r.handler.GetUserAgents)
+			protected.GET("/referrals", r.handler.ListReferrals)
 
 			// API Keys
 			protected.GET("/users/:username/keys", r.handler.ListUserAPITokens)

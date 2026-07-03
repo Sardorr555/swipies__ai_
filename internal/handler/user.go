@@ -25,6 +25,7 @@ import (
 	"ragflow/internal/server/local"
 	"ragflow/internal/utility"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -404,6 +405,68 @@ func (h *UserHandler) Info(c *gin.Context) {
 		"code":    common.CodeSuccess,
 		"message": "success",
 		"data":    profile,
+	})
+}
+
+// GetReferrals get referrals list for current user
+// @Summary Get referrals list
+// @Description Get current user's referred users
+// @Tags users
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{}
+// @Router /api/v1/users/me/referrals [get]
+func (h *UserHandler) GetReferrals(c *gin.Context) {
+	user, errorCode, errorMessage := GetUser(c)
+	if errorCode != common.CodeSuccess {
+		jsonError(c, errorCode, errorMessage)
+		return
+	}
+
+	referrals, err := h.userService.GetReferrals(user.ID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"code":    common.CodeServerError,
+			"message": "Failed to fetch referrals",
+			"data":    []interface{}{},
+		})
+		return
+	}
+
+	data := []gin.H{}
+	for _, u := range referrals {
+		email := u.Email
+		if email != "" && strings.Contains(email, "@") {
+			parts := strings.SplitN(email, "@", 2)
+			namePart := parts[0]
+			domainPart := parts[1]
+			maskedName := namePart
+			if len(namePart) > 2 {
+				maskedName = namePart[:2] + "***"
+			} else {
+				maskedName = namePart + "***"
+			}
+			email = maskedName + "@" + domainPart
+		}
+
+		var createdAt *string
+		if u.CreateDate != nil {
+			formatted := u.CreateDate.Format("2006-01-02 15:04:05")
+			createdAt = &formatted
+		}
+
+		data = append(data, gin.H{
+			"email":      email,
+			"nickname":   u.Nickname,
+			"created_at": createdAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    common.CodeSuccess,
+		"message": "success",
+		"data":    data,
 	})
 }
 

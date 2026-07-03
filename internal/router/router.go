@@ -197,6 +197,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 			users := v1.Group("/users")
 			{
 				users.GET("/me", r.userHandler.Info)
+				users.GET("/me/referrals", r.userHandler.GetReferrals)
 				// User settings endpoint
 				users.PATCH("/me", r.userHandler.Setting)
 				// User tenant info endpoint

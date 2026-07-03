@@ -83,8 +83,13 @@ const methods = {
 const userService = registerServer<keyof typeof methods>(methods, request);
 
 export const getLoginChannels = () => request.get(api.loginChannels);
-export const loginWithChannel = (channel: string) =>
-  (window.location.href = api.loginChannel(channel));
+export const loginWithChannel = (channel: string, ref?: string) => {
+  let url = api.loginChannel(channel);
+  if (ref) {
+    url += `?ref=${encodeURIComponent(ref)}`;
+  }
+  window.location.href = url;
+};
 
 export const listTenantUser = (tenantId: string) =>
   request.get(api.listTenantUser(tenantId));

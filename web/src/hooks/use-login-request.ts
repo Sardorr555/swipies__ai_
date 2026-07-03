@@ -11,6 +11,7 @@ import {
 } from '@/utils/authorization-util';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { useSaveSetting } from './use-user-setting-request';
 
 export interface ILoginRequestBody {
@@ -42,10 +43,12 @@ export const useLoginChannels = () => {
 };
 
 export const useLoginWithChannel = () => {
+  const [searchParams] = useSearchParams();
+  const ref = searchParams.get('ref') || '';
   const { isPending: loading, mutateAsync } = useMutation({
     mutationKey: ['loginWithChannel'],
     mutationFn: async (channel: string) => {
-      loginWithChannel(channel);
+      loginWithChannel(channel, ref);
       return Promise.resolve();
     },
   });

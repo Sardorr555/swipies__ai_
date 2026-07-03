@@ -166,12 +166,18 @@ func (s *Service) ListUsers() ([]map[string]interface{}, error) {
 
 	result := make([]map[string]interface{}, 0, len(users))
 	for _, user := range users {
+		var referralsCount int64
+		dao.GetDB().Model(&entity.User{}).Where("referred_by_id = ?", user.ID).Count(&referralsCount)
+
 		result = append(result, map[string]interface{}{
-			"email":        user.Email,
-			"nickname":     user.Nickname,
-			"create_date":  user.CreateTime,
-			"is_active":    user.IsActive,
-			"is_superuser": user.IsSuperuser,
+			"id":              user.ID,
+			"email":           user.Email,
+			"nickname":        user.Nickname,
+			"referred_by_id":  user.ReferredByID,
+			"referrals_count": referralsCount,
+			"create_date":     user.CreateTime,
+			"is_active":       user.IsActive,
+			"is_superuser":    user.IsSuperuser,
 		})
 	}
 	return result, nil
@@ -480,13 +486,65 @@ func (s *Service) GetUserDetails(username string) (map[string]interface{}, error
 		return nil, ErrUserNotFound
 	}
 
+	// Fetch tenant details (user ID is the tenant ID)
+	var tenant entity.Tenant
+	var planType string = "free"
+	var planExpiryDate *time.Time
+	var credit int64 = 512
+	if err := dao.GetDB().Where("id = ?", user.ID).First(&tenant).Error; err == nil {
+		planType = tenant.PlanType
+		planExpiryDate = tenant.PlanExpiryDate
+		credit = tenant.Credit
+	}
+
+	// Count referrals
+	var referralsCount int64
+	dao.GetDB().Model(&entity.User{}).Where("referred_by_id = ?", user.ID).Count(&referralsCount)
+
+	// Get referrer email if referred
+	var referredByEmail string
+	if user.ReferredByID != nil && *user.ReferredByID != "" {
+		var referrer entity.User
+		if err := dao.GetDB().Where("id = ?", *user.ReferredByID).First(&referrer).Error; err == nil {
+			referredByEmail = referrer.Email
+		}
+	}
+
+	var planExpiryDateStr string
+	if planExpiryDate != nil {
+		planExpiryDateStr = planExpiryDate.Format("2006-01-02 15:04:05")
+	}
+
+	var createDateStr string
+	if user.CreateDate != nil {
+		createDateStr = user.CreateDate.Format("2006-01-02 15:04:05")
+	}
+
+	var updateDateStr string
+	if user.UpdateDate != nil {
+		updateDateStr = user.UpdateDate.Format("2006-01-02 15:04:05")
+	}
+
 	return map[string]interface{}{
-		"id":          user.ID,
-		"email":       user.Email,
-		"nickname":    user.Nickname,
-		"is_active":   user.IsActive,
-		"create_time": user.CreateTime,
-		"update_time": user.UpdateTime,
+		"id":                 user.ID,
+		"email":              user.Email,
+		"nickname":           user.Nickname,
+		"phone":              user.Phone,
+		"referred_by_id":     user.ReferredByID,
+		"referred_by_email":  referredByEmail,
+		"referrals_count":    referralsCount,
+		"is_active":          user.IsActive,
+		"is_superuser":       user.IsSuperuser != nil && *user.IsSuperuser,
+		"is_anonymous":       user.IsAnonymous == "1",
+		"language":           user.Language,
+		"last_login_time":    user.LastLoginTime,
+		"create_time":        user.CreateTime,
+		"update_time":        user.UpdateTime,
+		"create_date":        createDateStr,
+		"update_date":        updateDateStr,
+		"plan_type":          planType,
+		"plan_expiry_date":   planExpiryDateStr,
+		"credit":             credit,
 	}, nil
 }
 
@@ -1812,4 +1870,159 @@ func (s *Service) addTenantForAdmin(userID, nickname string) error {
 	}
 
 	return dao.DB.Create(userTenant).Error
+}
+
+type UpdateUserDetailsRequest struct {
+	Nickname     *string `json:"nickname"`
+	Phone        *string `json:"phone"`
+	ReferredByID *string `json:"referred_by_id"`
+}
+
+type UpdateUserSubscriptionRequest struct {
+	PlanType        string  `json:"plan_type"`
+	PlanExpiryDate  *string `json:"plan_expiry_date"`
+	Credit          int64   `json:"credit"`
+}
+
+// GetReferralsList get referrals activity list for admin
+func (s *Service) GetReferralsList(page, size int, search string) (map[string]interface{}, error) {
+	var users []*entity.User
+	var total int64
+
+	query := dao.GetDB().Model(&entity.User{}).Where("referred_by_id IS NOT NULL AND referred_by_id != ''")
+
+	if search != "" {
+		query = query.Where(
+			"email LIKE ? OR nickname LIKE ? OR referred_by_id IN (SELECT id FROM user WHERE email LIKE ? OR nickname LIKE ?)",
+			"%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%",
+		)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	offset := (page - 1) * size
+	err := query.Offset(offset).Limit(size).Order("create_date DESC").Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+
+	records := []map[string]interface{}{}
+	for _, invitee := range users {
+		var inviter entity.User
+		inviterEmail := ""
+		inviterNickname := ""
+		if invitee.ReferredByID != nil {
+			if err := dao.GetDB().Where("id = ?", *invitee.ReferredByID).First(&inviter).Error; err == nil {
+				inviterEmail = inviter.Email
+				inviterNickname = inviter.Nickname
+			}
+		}
+
+		var inviteeCreateDateStr string
+		if invitee.CreateDate != nil {
+			inviteeCreateDateStr = invitee.CreateDate.Format("2006-01-02 15:04:05")
+		}
+
+		records = append(records, map[string]interface{}{
+			"invitee_id":          invitee.ID,
+			"invitee_email":       invitee.Email,
+			"invitee_nickname":    invitee.Nickname,
+			"inviter_id":          invitee.ReferredByID,
+			"inviter_email":       inviterEmail,
+			"inviter_nickname":    inviterNickname,
+			"invitee_create_date": inviteeCreateDateStr,
+		})
+	}
+
+	var totalReferrals int64
+	dao.GetDB().Model(&entity.User{}).Where("referred_by_id IS NOT NULL AND referred_by_id != ''").Count(&totalReferrals)
+
+	var activeReferrers int64
+	dao.GetDB().Model(&entity.User{}).Where("referred_by_id IS NOT NULL AND referred_by_id != ''").Distinct("referred_by_id").Count(&activeReferrers)
+
+	stats := map[string]interface{}{
+		"total_referrals":        totalReferrals,
+		"active_referrers":       activeReferrers,
+		"total_storage_bonus_gb": float64(totalReferrals) * 1.0,
+		"total_agents_bonus":     totalReferrals * 5,
+		"reward_storage_gb":      1.0,
+		"reward_agents_limit":    5,
+	}
+
+	return map[string]interface{}{
+		"stats":   stats,
+		"records": records,
+		"total":   total,
+	}, nil
+}
+
+// UpdateUserDetails update user profile details from admin
+func (s *Service) UpdateUserDetails(username string, req *UpdateUserDetailsRequest) error {
+	var user entity.User
+	if err := dao.GetDB().Where("email = ?", username).First(&user).Error; err != nil {
+		return err
+	}
+
+	if req.Nickname != nil {
+		user.Nickname = *req.Nickname
+	}
+	if req.Phone != nil {
+		user.Phone = req.Phone
+	}
+	if req.ReferredByID != nil {
+		if *req.ReferredByID == "" {
+			user.ReferredByID = nil
+		} else {
+			// Validate that referrer exists
+			var referrer entity.User
+			if err := dao.GetDB().Where("id = ?", *req.ReferredByID).First(&referrer).Error; err != nil {
+				// Also try to find by email
+				if err := dao.GetDB().Where("email = ?", *req.ReferredByID).First(&referrer).Error; err == nil {
+					refID := referrer.ID
+					user.ReferredByID = &refID
+				} else {
+					return fmt.Errorf("referrer user not found")
+				}
+			} else {
+				refID := referrer.ID
+				user.ReferredByID = &refID
+			}
+		}
+	}
+
+	return dao.GetDB().Save(&user).Error
+}
+
+// UpdateUserSubscription update user tenant subscription details from admin
+func (s *Service) UpdateUserSubscription(username string, req *UpdateUserSubscriptionRequest) error {
+	var user entity.User
+	if err := dao.GetDB().Where("email = ?", username).First(&user).Error; err != nil {
+		return err
+	}
+
+	var tenant entity.Tenant
+	if err := dao.GetDB().Where("id = ?", user.ID).First(&tenant).Error; err != nil {
+		return err
+	}
+
+	tenant.PlanType = req.PlanType
+	tenant.Credit = req.Credit
+
+	if req.PlanExpiryDate != nil && *req.PlanExpiryDate != "" {
+		t, err := time.Parse("2006-01-02 15:04:05", *req.PlanExpiryDate)
+		if err != nil {
+			// Try alternative format ISO layout
+			t, err = time.Parse(time.RFC3339, *req.PlanExpiryDate)
+			if err != nil {
+				return fmt.Errorf("invalid plan_expiry_date format. Use YYYY-MM-DD HH:MM:SS")
+			}
+		}
+		tenant.PlanExpiryDate = &t
+	} else {
+		tenant.PlanExpiryDate = nil
+	}
+
+	return dao.GetDB().Save(&tenant).Error
 }

@@ -16,6 +16,8 @@
 
 package entity
 
+import "time"
+
 // Tenant tenant model
 type Tenant struct {
 	ID              string  `gorm:"column:id;primaryKey;size:32" json:"id"`
@@ -37,6 +39,8 @@ type Tenant struct {
 	OCRID           *string `gorm:"column:ocr_id;size:256" json:"ocr_id,omitempty"`
 	TenantOCRID     *int64  `gorm:"column:tenant_ocr_id" json:"tenant_ocr_id,omitempty"`
 	Credit          int64   `gorm:"column:credit;default:512;index" json:"credit"`
+	PlanType        string  `gorm:"column:plan_type;size:32;default:free;index" json:"plan_type"`
+	PlanExpiryDate  *time.Time `gorm:"column:plan_expiry_date;index" json:"plan_expiry_date,omitempty"`
 	Status          *string `gorm:"column:status;size:1;index" json:"status,omitempty"`
 	BaseModel
 }

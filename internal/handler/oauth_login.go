@@ -62,7 +62,12 @@ func (h *UserHandler) OAuthLogin(c *gin.Context) {
 		return
 	}
 
-	init, code, err := h.userService.OAuthLoginInitiate(channel, cache.Get())
+	ref := c.Query("ref")
+	if ref == "" {
+		ref = c.Query("referred_by_id")
+	}
+
+	init, code, err := h.userService.OAuthLoginInitiate(channel, ref, cache.Get())
 	if err != nil {
 		// Mirror Python's oauth_login: the raised ValueError propagates to
 		// server_error_response, which replies HTTP 200 with code 100 and

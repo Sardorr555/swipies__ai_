@@ -272,6 +272,65 @@ func (h *Handler) GetUser(c *gin.Context) {
 	success(c, userDetails, "")
 }
 
+// ListReferrals handle list referrals
+func (h *Handler) ListReferrals(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	size, _ := strconv.Atoi(c.DefaultQuery("size", "15"))
+	search := c.Query("search")
+
+	res, err := h.service.GetReferralsList(page, size, search)
+	if err != nil {
+		errorResponse(c, err.Error(), 500)
+		return
+	}
+
+	success(c, res, "Get referrals list")
+}
+
+// UpdateUserDetails handle update user details
+func (h *Handler) UpdateUserDetails(c *gin.Context) {
+	username := c.Param("username")
+	if username == "" {
+		errorResponse(c, "Username is required", 400)
+		return
+	}
+
+	var req UpdateUserDetailsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, err.Error(), 400)
+		return
+	}
+
+	if err := h.service.UpdateUserDetails(username, &req); err != nil {
+		errorResponse(c, err.Error(), 500)
+		return
+	}
+
+	successNoData(c, "User details updated successfully")
+}
+
+// UpdateUserSubscription handle update user subscription
+func (h *Handler) UpdateUserSubscription(c *gin.Context) {
+	username := c.Param("username")
+	if username == "" {
+		errorResponse(c, "Username is required", 400)
+		return
+	}
+
+	var req UpdateUserSubscriptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, err.Error(), 400)
+		return
+	}
+
+	if err := h.service.UpdateUserSubscription(username, &req); err != nil {
+		errorResponse(c, err.Error(), 500)
+		return
+	}
+
+	successNoData(c, "User subscription updated successfully")
+}
+
 // DeleteUser handle delete user
 func (h *Handler) DeleteUser(c *gin.Context) {
 	username := c.Param("username")
