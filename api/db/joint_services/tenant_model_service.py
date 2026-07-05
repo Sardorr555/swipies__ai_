@@ -228,6 +228,23 @@ def _resolve_instance_for_model(provider_obj, instance_name: str, model_name: st
 
 
 def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.Enum, model_name: str):
+    # Check license limits
+    from api.utils.license_verifier import check_license
+    is_licensed, _, _ = check_license()
+    if not is_licensed:
+        pure_model_name, instance_name, provider_name = split_model_name(model_name)
+        if not provider_name:
+            for fac in settings.FACTORY_LLM_INFOS:
+                for llm in fac.get("llm", []):
+                    if llm.get("llm_name") == pure_model_name:
+                        provider_name = fac.get("name", "")
+                        break
+                if provider_name:
+                    break
+        prov_lower = provider_name.lower() if provider_name else ""
+        if prov_lower not in ("openai", "google"):
+            raise LookupError("Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to use other model providers.")
+
     pure_model_name, instance_name, provider_name = split_model_name(model_name)
     model_type_val = model_type if isinstance(model_type, str) else model_type.value
     # Builtin embedding model

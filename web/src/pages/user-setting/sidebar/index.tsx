@@ -20,6 +20,7 @@ import {
   LucideUnplug,
   LucideUser,
   LucideUsers,
+  LucideKey,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -66,6 +67,11 @@ const menuItems = (t: TFunction) => [
     icon: <LucideGift className="size-[1em]" />,
     label: t('setting.referral'),
     key: Routes.Referrals,
+  },
+  {
+    icon: <LucideKey className="size-[1em]" />,
+    label: t('setting.license'),
+    key: Routes.License,
   },
 ];
 

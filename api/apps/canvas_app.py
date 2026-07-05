@@ -80,6 +80,50 @@ async def save():
     except ValueError as e:
         return get_data_error_result(message=str(e))
     cate = req.get("canvas_category", CanvasCategory.Agent)
+
+    # Check license limits
+    from api.utils.license_verifier import check_license
+    from api.db.joint_services.tenant_model_service import split_model_name
+    is_licensed, _, _ = check_license()
+    if not is_licensed:
+        # 1. Check max agents limit (only 1 agent maximum)
+        if "id" not in req:
+            existing_agents = UserCanvasService.query(user_id=current_user.id, canvas_category=cate)
+            if len(existing_agents) >= 1:
+                return get_data_error_result(message="Base version limit: You can only create and use 1 agent. Please activate a license.")
+
+        # 2. Check models in DSL (only Google and OpenAI allowed)
+        def check_dsl_models(data):
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    if k == "llm_id" and isinstance(v, str) and v:
+                        pure_model_name, _, provider_name = split_model_name(v)
+                        if not provider_name:
+                            for fac in settings.FACTORY_LLM_INFOS:
+                                for llm in fac.get("llm", []):
+                                    if llm.get("llm_name") == pure_model_name:
+                                        provider_name = fac.get("name", "")
+                                        break
+                                if provider_name:
+                                    break
+                        prov_lower = provider_name.lower() if provider_name else ""
+                        if prov_lower not in ("openai", "google"):
+                            return v
+                    else:
+                        res = check_dsl_models(v)
+                        if res:
+                            return res
+            elif isinstance(data, list):
+                for item in data:
+                    res = check_dsl_models(item)
+                    if res:
+                        return res
+            return None
+
+        invalid_model = check_dsl_models(req["dsl"])
+        if invalid_model:
+            return get_data_error_result(message=f"Base version limit: Only Google and OpenAI APIs are allowed. Blocked model: {invalid_model}")
+
     if "id" not in req:
         req["user_id"] = current_user.id
         if UserCanvasService.query(user_id=current_user.id, title=req["title"].strip(), canvas_category=cate):

@@ -1239,6 +1239,7 @@ export default {
       logout: 'Выйти',
       api: 'API',
       referral: 'Реферальная программа',
+      license: 'Лицензия и Оплата',
       username: 'Имя',
       usernameMessage: 'Пожалуйста, введите ваше имя!',
       photo: 'Ваше фото',
