@@ -25,6 +25,7 @@ from api.apps import login_required, current_user
 from api.utils.api_utils import get_json_result, get_data_error_result, server_error_response, generate_confirmation_token
 from api.utils.health_utils import run_health_checks, get_oceanbase_status
 from common.versions import get_ragflow_version
+from common.constants import RetCode
 from common.time_utils import current_timestamp, datetime_format
 from api.db.db_models import APIToken
 from api.db.services.api_service import APITokenService
@@ -535,6 +536,12 @@ async def system_provision():
 @manager.route("/system/license", methods=["GET"])  # noqa: F821
 @login_required
 async def get_license():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
     from api.utils.license_verifier import check_license
     is_valid, msg, payload = check_license()
     
@@ -554,6 +561,12 @@ async def get_license():
 @manager.route("/system/license", methods=["POST"])  # noqa: F821
 @login_required
 async def activate_license():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
     from api.utils.api_utils import get_request_json
     req = await get_request_json()
     license_key = req.get("license_key", "").strip()

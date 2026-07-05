@@ -6,7 +6,8 @@ from datetime import datetime
 import requests
 import logging
 
-SECRET_KEY = b"swipies_secret_licensing_key_2026_salt"
+RSA_N = 116763369543673489555816179013579831032334948554884325089127113514438773601645323323610087949316382292668692922885479767179141736388273782636803297906260057958938769092740178739296200115666702708644785196695767856579195476396536846303623302269363644292776482712509280919139914373243538644062519021212759271469
+RSA_E = 65537
 
 def decode_license(license_key: str) -> dict | None:
     try:
@@ -14,11 +15,15 @@ def decode_license(license_key: str) -> dict | None:
         parts = raw.split(b".")
         if len(parts) != 2:
             return None
-        payload_bytes, sig = parts[0], parts[1]
+        payload_bytes, sig_hex = parts[0], parts[1].decode()
         
-        # Verify HMAC
-        expected_sig = hmac.new(SECRET_KEY, payload_bytes, hashlib.sha256).hexdigest().encode()
-        if not hmac.compare_digest(sig, expected_sig):
+        # Verify RSA Signature
+        sig_int = int(sig_hex, 16)
+        hash_bytes = hashlib.sha256(payload_bytes).digest()
+        hash_int = int.from_bytes(hash_bytes, byteorder="big")
+        
+        recovered_hash = pow(sig_int, RSA_E, RSA_N)
+        if hash_int != recovered_hash:
             return None
             
         payload = json.loads(payload_bytes.decode())
