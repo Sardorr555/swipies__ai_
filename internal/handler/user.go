@@ -19,8 +19,8 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"ragflow/internal/cache"
 	"ragflow/internal/common"
+	"ragflow/internal/engine/redis"
 	"ragflow/internal/server"
 	"ragflow/internal/server/local"
 	"ragflow/internal/utility"
@@ -79,7 +79,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	secretKey, err := server.GetSecretKey(cache.Get())
+	secretKey, err := server.GetSecretKey(redis.Get())
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code":    common.CodeServerError,
@@ -99,6 +99,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	}
 
 	c.Header("Authorization", authToken)
+	setOAuthAuthCookie(c, authToken)
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "*")
 	c.Header("Access-Control-Allow-Headers", "*")
@@ -143,7 +144,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	// Sign the access_token using itsdangerous (compatible with Python)
-	secretKey, err := server.GetSecretKey(cache.Get())
+	secretKey, err := server.GetSecretKey(redis.Get())
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code":    common.CodeServerError,
@@ -164,6 +165,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	// Set Authorization header with signed token
 	c.Header("Authorization", authToken)
+	setOAuthAuthCookie(c, authToken)
 	// Set CORS headers
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "*")
@@ -218,7 +220,7 @@ func (h *UserHandler) LoginByEmail(c *gin.Context) {
 		return
 	}
 
-	secretKey, err := server.GetSecretKey(cache.Get())
+	secretKey, err := server.GetSecretKey(redis.Get())
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code":    common.CodeServerError,
@@ -236,7 +238,7 @@ func (h *UserHandler) LoginByEmail(c *gin.Context) {
 		})
 		return
 	}
-
+	setOAuthAuthCookie(c, authToken)
 	c.Header("Authorization", authToken)
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "*")
@@ -342,6 +344,16 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /v1/user/logout [post]
 func (h *UserHandler) Logout(c *gin.Context) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     oauthAuthCookie,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: false,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   c.Request.TLS != nil,
+	})
+
 	// Same as AuthMiddleware@auth.go
 	token := c.GetHeader("Authorization")
 	if token == "" {
@@ -691,6 +703,7 @@ func joinStrings(values []string) string {
 	}
 	return result
 }
+
 // ---- Forgot-password flow (fixes #15282) -----------------------------
 //
 // Mirrors api/apps/restful_apis/user_api.py /auth/password/... endpoints.
@@ -876,7 +889,7 @@ func (h *UserHandler) ForgotResetPassword(c *gin.Context) {
 		return
 	}
 
-	secretKey, err := server.GetSecretKey(cache.Get())
+	secretKey, err := server.GetSecretKey(redis.Get())
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code":    common.CodeServerError,

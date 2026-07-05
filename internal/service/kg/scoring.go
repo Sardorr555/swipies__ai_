@@ -24,7 +24,7 @@ import (
 	"sort"
 	"strings"
 
-	"ragflow/internal/service"
+	"ragflow/internal/tokenizer"
 )
 
 // AnalyzeNHopPaths decomposes N-hop paths into edges with distance-decayed scores.
@@ -150,7 +150,13 @@ func SortAndTrimRelations(relsFromText map[Edge]*KGRelation, topN int) []ScoredR
 // NumTokensFromString estimates the number of tokens in a string.
 // Delegates to the shared implementation in the parent service package.
 func NumTokensFromString(s string) int {
-	return service.NumTokensFromString(s)
+	return tokenizer.NumTokensFromString(s)
+}
+
+// TrimContentToTokenLimit truncates s to at most limit tokens.
+// Delegates to the shared implementation in the tokenizer package.
+func TrimContentToTokenLimit(s string, limit int) string {
+	return tokenizer.TrimContentToTokenLimit(s, limit)
 }
 
 // formatCSVLine formats fields as a single CSV record with trailing newline.

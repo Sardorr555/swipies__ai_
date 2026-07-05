@@ -97,6 +97,7 @@ export enum LanguageAbbreviation {
   Ar = 'ar',
   Tr = 'tr',
   Uz = 'uz',
+  Ko = 'ko',
 }
 
 export const LanguageAbbreviationMap = {
@@ -116,6 +117,7 @@ export const LanguageAbbreviationMap = {
   [LanguageAbbreviation.Ar]: 'العربية',
   [LanguageAbbreviation.Tr]: 'Türkçe',
   [LanguageAbbreviation.Uz]: 'Oʻzbekcha',
+  [LanguageAbbreviation.Ko]: '한국어',
 };
 
 export const LanguageTranslationMap = {
@@ -170,7 +172,7 @@ export enum FileMimeType {
   Mp4 = 'video/mp4',
   Json = 'application/json',
   Md = 'text/markdown',
-  Mdx = 'text/markdown',
+  Mdx = 'text/mdx',
 }
 
 export const Domain = 'cloud.swipies.io';

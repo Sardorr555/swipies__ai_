@@ -60,6 +60,14 @@ export default {
     instance_name: string;
   }) =>
     `${restAPIv1}/providers/${provider_name}/instances/${instance_name}/models`,
+  editInstanceModel: ({
+    provider_name,
+    instance_name,
+  }: {
+    provider_name: string;
+    instance_name: string;
+  }) =>
+    `${restAPIv1}/providers/${provider_name}/instances/${instance_name}/models`,
   deleteProviderInstance: ({ provider_name }: { provider_name: string }) =>
     `${restAPIv1}/providers/${provider_name}/instances`,
   updateModelStatus: ({
@@ -88,6 +96,15 @@ export default {
     `${restAPIv1}/connectors/google/oauth/web/result?type=${type}`,
   boxWebAuthStart: () => `${restAPIv1}/connectors/box/oauth/web/start`,
   boxWebAuthResult: () => `${restAPIv1}/connectors/box/oauth/web/result`,
+
+  // chat channel
+  chatChannelSet: `${restAPIv1}/chat-channels`,
+  chatChannelList: `${restAPIv1}/chat-channels`,
+  chatChannelDetail: (id: string) => `${restAPIv1}/chat-channels/${id}`,
+  chatChannelUpdate: (id: string) => `${restAPIv1}/chat-channels/${id}`,
+  chatChannelDel: (id: string) => `${restAPIv1}/chat-channels/${id}`,
+  chatChannelRuntime: (id: string) =>
+    `${restAPIv1}/chat-channels/${id}/runtime`,
 
   // plugin
   llmTools: `${restAPIv1}/plugin/tools`,
@@ -126,7 +143,7 @@ export default {
     `${restAPIv1}/datasets/${datasetId}/index?type=${indexType.toLowerCase()}`,
   unbindPipelineTask: (datasetId: string, indexType: string, wipe?: boolean) =>
     `${restAPIv1}/datasets/${datasetId}/${indexType.toLowerCase()}${wipe === false ? '?wipe=false' : ''}`,
-  pipelineRerun: `${webAPI}/canvas/rerun`,
+  pipelineRerun: `${restAPIv1}/agents/rerun`,
   getMetaData: (datasetId: string) =>
     `${restAPIv1}/datasets/${datasetId}/metadata/summary`,
   updateDocumentsMetadata: (datasetId: string) =>
@@ -241,6 +258,8 @@ export default {
     `${restAPIv1}/agents/${agentId}/components/${componentId}/debug`,
   trace: (agentId: string, messageId: string) =>
     `${restAPIv1}/agents/${agentId}/logs/${messageId}`,
+  sharedTrace: (sharedId: string, messageId: string) =>
+    `${restAPIv1}/agentbots/${sharedId}/logs/${messageId}`,
   cancelCanvas: (taskId: string) => `${restAPIv1}/tasks/${taskId}/cancel`,
   // agent
   inputForm: (agentId: string, componentId: string) =>

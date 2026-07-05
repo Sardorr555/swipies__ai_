@@ -24,7 +24,7 @@ type User struct {
 	AccessToken     *string    `gorm:"column:access_token;size:255;index" json:"access_token,omitempty"`
 	Nickname        string     `gorm:"column:nickname;size:100;not null;index" json:"nickname"`
 	Password        *string    `gorm:"column:password;size:255;index" json:"-"`
-	Email           string     `gorm:"column:email;size:255;not null;index" json:"email"`
+	Email           string     `gorm:"column:email;size:255;not null;unique" json:"email"`
 	Phone           *string    `gorm:"column:phone;size:32;index" json:"phone,omitempty"`
 	ReferredByID    *string    `gorm:"column:referred_by_id;size:32;index" json:"referred_by_id,omitempty"`
 	Avatar          *string    `gorm:"column:avatar;type:longtext" json:"avatar,omitempty"`
