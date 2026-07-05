@@ -25,6 +25,7 @@ from api.apps import login_required, current_user
 from api.utils.api_utils import get_json_result, get_data_error_result, server_error_response, generate_confirmation_token
 from api.utils.health_utils import run_health_checks, get_oceanbase_status
 from common.versions import get_ragflow_version
+from common.constants import RetCode
 from common.time_utils import current_timestamp, datetime_format
 from api.db.db_models import APIToken
 from api.db.services.api_service import APITokenService
@@ -530,4 +531,88 @@ async def system_provision():
     )
 
     return get_json_result(data=True)
+
+
+@manager.route("/system/license", methods=["GET"])  # noqa: F821
+@login_required
+async def get_license():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+    from api.utils.license_verifier import check_license
+    is_valid, msg, payload = check_license()
+    
+    # Read the raw key too
+    from api.db.services.system_settings_service import SystemSettingsService
+    objs = list(SystemSettingsService.get_by_name("license.key"))
+    raw_key = objs[0].value if objs and objs[0].value else ""
+
+    return get_json_result(data={
+        "is_valid": is_valid,
+        "message": msg,
+        "payload": payload,
+        "license_key": raw_key
+    })
+
+
+@manager.route("/system/license", methods=["POST"])  # noqa: F821
+@login_required
+async def activate_license():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+    from api.utils.api_utils import get_request_json
+    req = await get_request_json()
+    license_key = req.get("license_key", "").strip()
+    if not license_key:
+        return get_data_error_result(message="License key is required.")
+
+    from api.utils.license_verifier import decode_license, verify_license_online
+    payload = decode_license(license_key)
+    if not payload:
+        return get_data_error_result(message="Invalid license signature or structure.")
+
+    expiry_str = payload.get("expiry")
+    if not expiry_str:
+        return get_data_error_result(message="License is missing expiry date.")
+
+    try:
+        expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d")
+    except ValueError:
+        return get_data_error_result(message="Invalid expiry date format in license.")
+
+    if datetime.now() > expiry_date:
+        return get_data_error_result(message=f"License key has expired on {expiry_str}.")
+
+    # Verify online
+    online_ok = verify_license_online(license_key)
+    if not online_ok:
+        return get_data_error_result(message="License verification failed with the central server.")
+
+    # Save to system settings
+    from api.db.services.system_settings_service import SystemSettingsService
+    objs = list(SystemSettingsService.get_by_name("license.key"))
+    if objs:
+        SystemSettingsService.update_by_name("license.key", {"value": license_key})
+    else:
+        SystemSettingsService.insert(
+            name="license.key",
+            value=license_key,
+            source="variable",
+            data_type="string"
+        )
+
+    days_left = (expiry_date - datetime.now()).days
+    return get_json_result(data={
+        "is_valid": True,
+        "message": f"License activated successfully. {days_left} days remaining until {expiry_str}.",
+        "payload": payload
+    })
+
 

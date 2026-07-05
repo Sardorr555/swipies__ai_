@@ -20,54 +20,67 @@ import {
   LucideUnplug,
   LucideUser,
   LucideUsers,
+  LucideKey,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHandleMenuClick } from './hooks';
 
-const menuItems = (t: TFunction) => [
-  {
-    icon: <LucideServer className="size-[1em]" />,
-    label: t('setting.dataSources'),
-    key: Routes.DataSource,
-  },
-  {
-    icon: <LucideMessagesSquare className="size-[1em]" />,
-    label: t('setting.chatChannels'),
-    key: Routes.ChatChannel,
-  },
-  {
-    icon: <LucideBox className="size-[1em]" />,
-    label: t('setting.model'),
-    key: Routes.Model,
-    'data-testid': 'settings-nav-model-providers',
-  },
-  {
-    icon: <IconFontFill name="mcp" className="size-[1em]" />,
-    label: 'MCP',
-    key: Routes.Mcp,
-  },
-  {
-    icon: <LucideUsers className="size-[1em]" />,
-    label: t('setting.team'),
-    key: Routes.Team,
-  },
-  {
-    icon: <LucideUser className="size-[1em]" />,
-    label: t('setting.profile'),
-    key: Routes.Profile,
-  },
-  {
-    icon: <LucideUnplug className="size-[1em]" />,
-    label: t('setting.api'),
-    key: Routes.Api,
-  },
-  {
-    icon: <LucideGift className="size-[1em]" />,
-    label: t('setting.referral'),
-    key: Routes.Referrals,
-  },
-];
+const menuItems = (t: TFunction, isSuperuser?: boolean) => {
+  const items = [
+    {
+      icon: <LucideServer className="size-[1em]" />,
+      label: t('setting.dataSources'),
+      key: Routes.DataSource,
+    },
+    {
+      icon: <LucideMessagesSquare className="size-[1em]" />,
+      label: t('setting.chatChannels'),
+      key: Routes.ChatChannel,
+    },
+    {
+      icon: <LucideBox className="size-[1em]" />,
+      label: t('setting.model'),
+      key: Routes.Model,
+      'data-testid': 'settings-nav-model-providers',
+    },
+    {
+      icon: <IconFontFill name="mcp" className="size-[1em]" />,
+      label: 'MCP',
+      key: Routes.Mcp,
+    },
+    {
+      icon: <LucideUsers className="size-[1em]" />,
+      label: t('setting.team'),
+      key: Routes.Team,
+    },
+    {
+      icon: <LucideUser className="size-[1em]" />,
+      label: t('setting.profile'),
+      key: Routes.Profile,
+    },
+    {
+      icon: <LucideUnplug className="size-[1em]" />,
+      label: t('setting.api'),
+      key: Routes.Api,
+    },
+    {
+      icon: <LucideGift className="size-[1em]" />,
+      label: t('setting.referral'),
+      key: Routes.Referrals,
+    },
+  ];
+
+  if (isSuperuser) {
+    items.push({
+      icon: <LucideKey className="size-[1em]" />,
+      label: t('setting.license'),
+      key: Routes.License,
+    });
+  }
+
+  return items;
+};
 
 export function SideBar() {
   const { data: userInfo } = useFetchUserInfo();
@@ -99,7 +112,7 @@ export function SideBar() {
 
       <nav className="flex-1 overflow-auto mt-4 py-1">
         <ul className="px-2 md:px-6 flex flex-col gap-2 md:gap-5 items-center md:items-stretch">
-          {menuItems(t).map((item) => {
+          {menuItems(t, !!userInfo?.is_superuser).map((item) => {
             const { key, icon, label, ...rest } = item;
 
             return (
