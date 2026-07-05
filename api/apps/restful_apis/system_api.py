@@ -534,13 +534,13 @@ async def system_provision():
 
 @manager.route("/system/license", methods=["GET"])  # noqa: F821
 @login_required
-def get_license():
+async def get_license():
     from api.utils.license_verifier import check_license
     is_valid, msg, payload = check_license()
     
     # Read the raw key too
     from api.db.services.system_settings_service import SystemSettingsService
-    objs = SystemSettingsService.get_by_name("license.key")
+    objs = list(SystemSettingsService.get_by_name("license.key"))
     raw_key = objs[0].value if objs and objs[0].value else ""
 
     return get_json_result(data={
@@ -584,11 +584,16 @@ async def activate_license():
 
     # Save to system settings
     from api.db.services.system_settings_service import SystemSettingsService
-    objs = SystemSettingsService.get_by_name("license.key")
+    objs = list(SystemSettingsService.get_by_name("license.key"))
     if objs:
         SystemSettingsService.update_by_name("license.key", {"value": license_key})
     else:
-        SystemSettingsService.insert(name="license.key", value=license_key)
+        SystemSettingsService.insert(
+            name="license.key",
+            value=license_key,
+            source="variable",
+            data_type="string"
+        )
 
     days_left = (expiry_date - datetime.now()).days
     return get_json_result(data={

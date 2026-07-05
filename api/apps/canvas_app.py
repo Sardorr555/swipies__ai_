@@ -84,6 +84,7 @@ async def save():
     # Check license limits
     from api.utils.license_verifier import check_license
     from api.db.joint_services.tenant_model_service import split_model_name
+    from common import settings
     is_licensed, _, _ = check_license()
     if not is_licensed:
         # 1. Check max agents limit (only 1 agent maximum)

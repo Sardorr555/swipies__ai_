@@ -46,7 +46,7 @@ def check_license() -> tuple[bool, str, dict | None]:
     """
     from api.db.services.system_settings_service import SystemSettingsService
     try:
-        objs = SystemSettingsService.get_by_name("license.key")
+        objs = list(SystemSettingsService.get_by_name("license.key"))
         if not objs:
             return False, "No license activated. Base Version mode.", None
         license_key = objs[0].value
