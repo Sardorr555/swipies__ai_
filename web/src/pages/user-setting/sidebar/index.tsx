@@ -1,4 +1,3 @@
-import { IconFontFill } from '@/components/icon-font';
 import { RAGFlowAvatar } from '@/components/ragflow-avatar';
 import ThemeSwitch from '@/components/theme-switch';
 import { Button } from '@/components/ui/button';
@@ -25,6 +24,26 @@ import {
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHandleMenuClick } from './hooks';
+
+// Local IconFontFill component to prevent circular dependency with svg-icon
+function IconFontFill({
+  name,
+  className,
+  isFill = true,
+}: {
+  name: string;
+  className?: string;
+  isFill?: boolean;
+}) {
+  return (
+    <svg
+      className={cn('size-4', className)}
+      style={{ fill: isFill ? 'currentColor' : '' }}
+    >
+      <use xlinkHref={`#icon-${name}`} />
+    </svg>
+  );
+}
 
 const menuItems = (t: TFunction, isSuperuser?: boolean) => {
   const items = [
