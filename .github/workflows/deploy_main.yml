@@ -24,6 +24,7 @@ jobs:
           host: ${{ secrets.EC2_HOST || secrets.SSH_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 45m
           script: |
             set -e
             cd ~/swipies__ai_
