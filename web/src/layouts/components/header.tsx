@@ -30,6 +30,7 @@ import ThemeButton from './theme-button';
 import { useHeaderNavLayout } from './use-header-nav-layout';
 
 import { supportedLanguages } from '@/locales/config';
+import { IconFontFill } from '@/components/icon-font-base';
 
 export function Header({
   className,
