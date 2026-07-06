@@ -367,6 +367,17 @@ async def create():
         if not ok:
             return get_data_error_result(message="Tenant not found!")
 
+        # Check license limits
+        from api.utils.license_verifier import check_license
+        is_licensed, _, _ = check_license()
+        if not is_licensed:
+            existing_chats = DialogService.query(tenant_id=current_user.id, status=StatusEnum.VALID.value)
+            if len(existing_chats) >= 1:
+                return get_json_result(
+                    code=402,
+                    message="Base version limit: You can only create and use 1 chat. Please activate a license."
+                )
+
         # Enforce plan limits
         from api.db.services.user_service import TenantLimitService
         allowed, limit_msg = TenantLimitService.check_apps_limit(current_user.id)

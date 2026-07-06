@@ -170,6 +170,16 @@ request.interceptors.response.use(async (response: Response, options) => {
     }
     authorizationUtil.removeAll();
     redirectToLogin();
+  } else if (data?.code === 402) {
+    if (window.showLicenseActivationModal) {
+      window.showLicenseActivationModal(data?.message || 'Base version limit reached. Please activate your license.');
+    } else {
+      notification.error({
+        message: `${i18n.t('message.hint')} : ${data?.code}`,
+        description: data?.message,
+        duration: 3,
+      });
+    }
   } else if (data?.code !== 0) {
     notification.error({
       message: `${i18n.t('message.hint')} : ${data?.code}`,

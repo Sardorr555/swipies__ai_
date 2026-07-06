@@ -561,12 +561,6 @@ async def get_license():
 @manager.route("/system/license", methods=["POST"])  # noqa: F821
 @login_required
 async def activate_license():
-    if not current_user.is_superuser:
-        return get_json_result(
-            data=False,
-            message="No authorization.",
-            code=RetCode.AUTHENTICATION_ERROR,
-        )
     from api.utils.api_utils import get_request_json
     req = await get_request_json()
     license_key = req.get("license_key", "").strip()

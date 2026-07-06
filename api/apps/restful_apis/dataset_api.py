@@ -141,6 +141,19 @@ async def create(tenant_id: str = None):
     if err is not None:
         return get_error_argument_result(err)
 
+    # Check license limits
+    from api.utils.license_verifier import check_license
+    from api.db.services.knowledgebase_service import KnowledgebaseService
+    is_licensed, _, _ = check_license()
+    if not is_licensed:
+        t_id = tenant_id if tenant_id else current_user.id
+        existing_kbs = KnowledgebaseService.query(tenant_id=t_id)
+        if len(existing_kbs) >= 1:
+            return get_json_result(
+                code=402,
+                message="Base version limit: You can only create and use 1 dataset. Please activate a license."
+            )
+
     try:
         if not tenant_id:
             tenant_id = current_user.id

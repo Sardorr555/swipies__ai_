@@ -59,7 +59,7 @@ const LicensePage = () => {
     try {
       setActivating(true);
       const res = await request.post('/system/license', {
-        license_key: trimmedKey,
+        data: { license_key: trimmedKey },
       });
       if (res.data && res.data.code === 0) {
         message.success(res.data.data.message || 'License activated successfully!');

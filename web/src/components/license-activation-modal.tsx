@@ -1,0 +1,162 @@
+import React, { useState, useEffect } from 'react';
+import { Modal } from '@/components/ui/modal/modal';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import message from '@/components/ui/message';
+import request from '@/utils/request';
+import { LucideZap, LucideCheck, LucideExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
+declare global {
+  interface Window {
+    showLicenseActivationModal?: (reason?: string) => void;
+  }
+}
+
+export function LicenseActivationModal() {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [licenseKey, setLicenseKey] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    window.showLicenseActivationModal = (reasonText?: string) => {
+      setReason(reasonText || '');
+      setOpen(true);
+      setErrorMsg('');
+    };
+    return () => {
+      window.showLicenseActivationModal = undefined;
+    };
+  }, []);
+
+  const handleActivate = async () => {
+    const trimmedKey = licenseKey.trim();
+    if (!trimmedKey) {
+      setErrorMsg('License key cannot be empty.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await request.post('/system/license', {
+        data: { license_key: trimmedKey },
+      });
+      if (res && res.data && res.data.code === 0) {
+        message.success(res.data.data?.message || 'License activated successfully!');
+        setOpen(false);
+        setLicenseKey('');
+        // Reload system settings and update UI
+        window.location.reload();
+      } else {
+        setErrorMsg(res?.data?.message || 'Failed to activate license.');
+      }
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || err?.message || 'Error occurred during activation.';
+      setErrorMsg(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={setOpen}
+      title={
+        <div className="flex items-center gap-2 text-accent-primary font-bold">
+          <LucideZap className="w-5 h-5 fill-accent-primary text-accent-primary animate-pulse" />
+          <span>Unlock Swipies Premium / License Required</span>
+        </div>
+      }
+      showfooter={false}
+      maskClosable={true}
+      size="default"
+    >
+      <div className="flex flex-col gap-4 py-2">
+        {reason && (
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-500">
+            {reason}
+          </div>
+        )}
+
+        <div className="text-sm text-text-secondary leading-relaxed">
+          You are currently running the <strong>Free / Base version</strong> of Swipies. To continue and unlock full capability, please activate a valid commercial license key.
+        </div>
+
+        <div className="bg-bg-card border border-border-default rounded-xl p-4 flex flex-col gap-3">
+          <h4 className="text-sm font-semibold text-text-primary">Commercial License Benefits:</h4>
+          <ul className="text-xs text-text-secondary space-y-2">
+            <li className="flex items-center gap-2">
+              <LucideCheck className="w-4 h-4 text-green-500 shrink-0" />
+              <span>Unlimited Knowledge Bases / Datasets</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <LucideCheck className="w-4 h-4 text-green-500 shrink-0" />
+              <span>Unlimited Active AI Agents and Canvas Workflows</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <LucideCheck className="w-4 h-4 text-green-500 shrink-0" />
+              <span>Connect any custom LLM providers (DeepSeek, Llama, Qwen, etc.)</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <LucideCheck className="w-4 h-4 text-green-500 shrink-0" />
+              <span>Enterprise deployment support and scaling limits</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            Enter Commercial License Key:
+          </label>
+          <Textarea
+            placeholder="Paste your base64-encoded Swipies License Key here..."
+            value={licenseKey}
+            onChange={(e) => setLicenseKey(e.target.value)}
+            disabled={loading}
+            className="font-mono text-xs"
+            rows={4}
+          />
+        </div>
+
+        {errorMsg && (
+          <div className="text-xs text-red-500 font-medium">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-4 mt-2">
+          <a
+            href="mailto:licensing@swipies.io?subject=Swipies%20Commercial%20License%20Inquiry"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-accent-primary hover:underline flex items-center gap-1"
+          >
+            <span>Contact Sales for Key</span>
+            <LucideExternalLink className="w-3.5 h-3.5" />
+          </a>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-accent-primary hover:bg-accent-primary/95 text-white"
+              onClick={handleActivate}
+              loading={loading}
+            >
+              Activate Key
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}

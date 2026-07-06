@@ -91,7 +91,7 @@ async def save():
         if "id" not in req:
             existing_agents = UserCanvasService.query(user_id=current_user.id, canvas_category=cate)
             if len(existing_agents) >= 1:
-                return get_data_error_result(message="Base version limit: You can only create and use 1 agent. Please activate a license.")
+                return get_json_result(code=402, message="Base version limit: You can only create and use 1 agent. Please activate a license.")
 
         # 2. Check models in DSL (only Google and OpenAI allowed)
         def check_dsl_models(data):
@@ -123,7 +123,7 @@ async def save():
 
         invalid_model = check_dsl_models(req["dsl"])
         if invalid_model:
-            return get_data_error_result(message=f"Base version limit: Only Google and OpenAI APIs are allowed. Blocked model: {invalid_model}")
+            return get_json_result(code=402, message=f"Base version limit: Only Google and OpenAI APIs are allowed. Blocked model: {invalid_model}")
 
     if "id" not in req:
         req["user_id"] = current_user.id
