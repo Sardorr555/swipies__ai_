@@ -238,12 +238,7 @@ export function Header({
               <path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.578.192l-8.533 7.701-.33 4.955c.488 0 .702-.223.974-.488l2.338-2.275 4.866 3.59c.898.496 1.543.241 1.766-.83l3.195-15.059c.328-1.311-.497-1.903-1.357-1.517z" />
             </svg>
           </a>
-          <a className="inline-flex p-2">
-            <IconFontFill name="a-DiscordIconSVGVectorIcon" />
-          </a>
-          <a className="inline-flex p-2">
-            <IconFontFill name="GitHub" />
-          </a>
+
           <Button variant="ghost" className="size-auto gap-1 px-4">
             {currentLanguage?.displayName}
             <LucideChevronDown className="size-[1em]" />
