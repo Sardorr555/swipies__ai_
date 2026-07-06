@@ -1,4 +1,4 @@
-import { IconFontFill } from '@/components/icon-font';
+import { IconFontFill } from '@/components/icon-font-base';
 import { RAGFlowAvatar } from '@/components/ragflow-avatar';
 import ThemeSwitch from '@/components/theme-switch';
 import { Button } from '@/components/ui/button';
