@@ -1,0 +1,3046 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Swipies AI — Enterprise On-Premise AI Platform</title>
+  <meta name="description"
+    content="Deploy on-premise RAG pipelines powered by any LLM directly on your servers. Complete data sovereignty.">
+
+  <!-- Structured Data (JSON-LD) for Search Engine Sitelinks & Organization info -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://swipies.app/#website",
+      "url": "https://swipies.app/",
+      "name": "Swipies AI",
+      "description": "Enterprise On-Premise AI Platform. Deploy RAG pipelines on your own servers with complete data sovereignty.",
+      "publisher": {
+        "@id": "https://swipies.app/#organization"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://swipies.app/#organization",
+      "name": "Swipies AI",
+      "url": "https://swipies.app/",
+      "logo": "https://swipies.app/logo.png",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "albakiev.sardobek@gmail.com",
+        "telephone": "+998-90-625-3986",
+        "contactType": "sales",
+        "areaServed": "UZ",
+        "availableLanguage": ["English", "Russian", "Uzbek"]
+      }
+    },
+    {
+      "@type": "ItemList",
+      "@id": "https://swipies.app/#navigation",
+      "name": "Site Navigation",
+      "itemListElement": [
+        {
+          "@type": "SiteNavigationElement",
+          "position": 1,
+          "name": "Solution",
+          "url": "https://swipies.app/#solution"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 2,
+          "name": "How It Works",
+          "url": "https://swipies.app/#how"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 3,
+          "name": "Self-Hosted",
+          "url": "https://swipies.app/#selfhosted"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 4,
+          "name": "Use Cases",
+          "url": "https://swipies.app/#cases"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 5,
+          "name": "Pricing",
+          "url": "https://swipies.app/#pricing"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 6,
+          "name": "FAQ",
+          "url": "https://swipies.app/#faq"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 7,
+          "name": "Login / Try Demo",
+          "url": "https://api.swipies.app/login"
+        }
+      ]
+    }
+  ]
+}
+</script>
+
+  <!-- Analytics Integration: GA4 & Yandex Metrika (Dynamic configurations) -->
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    window.ym = window.ym || function() { (ym.a = ym.a || []).push(arguments) }; ym.l = 1 * new Date();
+
+    // Universal Helper for Event Tracking
+    window.trackAnalyticsEvent = function (eventName, params = {}) {
+      const isTrackingEnabled = localStorage.getItem('swipies_analytics_enabled') !== 'false';
+      if (!isTrackingEnabled) return;
+
+      // Google Analytics Event
+      if (typeof gtag === 'function') {
+        gtag('event', eventName, params);
+      }
+
+      // Yandex Metrika Goal
+      if (typeof ym === 'function') {
+        const ymId = localStorage.getItem('swipies_ym_counter_id') || '97561823';
+        ym(parseInt(ymId), 'reachGoal', eventName, params);
+      }
+    };
+
+    // Connect with local configurations managed by the Swipies AI Admin Panel
+    (function () {
+      const isTrackingEnabled = localStorage.getItem('swipies_analytics_enabled') !== 'false';
+      if (isTrackingEnabled) {
+        // 1. Google Analytics 4 (GA4)
+        const measurementId = localStorage.getItem('swipies_ga_measurement_id') || 'G-SWIPIES2025';
+        gtag('js', new Date());
+        gtag('config', measurementId);
+
+        const gaScript = document.createElement('script');
+        gaScript.async = true;
+        gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+        document.head.appendChild(gaScript);
+
+        // 2. Yandex Metrika Counter
+        const ymId = localStorage.getItem('swipies_ym_counter_id') || '97561823';
+        ym(parseInt(ymId), "init", {
+          clickmap: true,
+          trackLinks: true,
+          accurateTrackBounce: true,
+          webvisor: true
+        });
+
+        const ymScript = document.createElement('script');
+        ymScript.async = true;
+        ymScript.src = "https://mc.yandex.ru/metrika/tag.js";
+        document.head.appendChild(ymScript);
+      }
+    })();
+  </script>
+
+  <!-- Google Fonts: Geist + JetBrains Mono -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    /* ===== SWIPIES AI — Design System (Mobile-First) ===== */
+    /* Aesthetic: Technical/Mono (Linear + Vercel inspired) */
+    /* Palette: Dark navy + warm off-white + amber accent */
+
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #080c14;
+      --bg2: #0d1119;
+      --bg3: #111620;
+      --bg4: #171c28;
+      --text: #e8e6e0;
+      --text-secondary: #9ca3af;
+      --text-muted: #5c6370;
+      --border: rgba(232, 230, 224, 0.06);
+      --border2: rgba(232, 230, 224, 0.1);
+      --accent: #e8a820;
+      --accent-dim: rgba(232, 168, 32, 0.12);
+      --accent-hover: #f0b830;
+      --green: #22c55e;
+      --red: #ef4444;
+
+      --font-display: 'Geist', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+      /* Fluid typography: Mobile-first responsive clamp sizing */
+      --t-hero: clamp(1.85rem, 7vw, 4.25rem);
+      /* Scaled from 29px (mobile) to 68px (desktop) */
+      --t-section: clamp(1.4rem, 4.5vw, 2.25rem);
+      /* Scaled from 22px to 36px */
+      --t-body: 0.9375rem;
+      --t-small: 0.8125rem;
+      --t-label: 0.6875rem;
+
+      --max-w: 1140px;
+      --radius: 4px;
+      --radius-md: 6px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Accessible button styling with tap bounds support */
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      border: none;
+      background: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+
+    ul {
+      list-style: none;
+    }
+
+    /* ===== UTILITIES ===== */
+    .container {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 1.25rem;
+      /* Compact horizontal padding for tiny screens */
+    }
+
+    @media (min-width: 768px) {
+      .container {
+        padding: 0 2rem;
+      }
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+    }
+
+    .accent {
+      color: var(--accent);
+    }
+
+    .muted {
+      color: var(--text-secondary);
+    }
+
+    /* ===== NAVIGATION (MOBILE-FIRST) ===== */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(8, 12, 20, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      height: 48px;
+      /* Compact mobile nav height */
+      display: flex;
+      align-items: center;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @media (min-width: 1024px) {
+      .nav {
+        height: 60px;
+      }
+
+      /* Slightly taller for desktop screens */
+    }
+
+    .nav-inner {
+      width: 100%;
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    @media (min-width: 768px) {
+      .nav-inner {
+        padding: 0 2rem;
+      }
+    }
+
+    .nav-logo {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 1.0625rem;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .nav-logo span {
+      color: var(--accent);
+    }
+
+    /* Desktop-only elements hidden by default */
+    .nav-links {
+      display: none;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-left: auto;
+      margin-right: 0.5rem;
+    }
+
+    .nav-right .btn-primary {
+      display: none;
+      /* Hide primary CTA Try Demo on mobile to prevent navbar crowding */
+    }
+
+    /* Mobile hamburger (min 48px touch bound) */
+    .nav-hamburger {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      margin-right: -12px;
+    }
+
+    .nav-hamburger svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--text);
+    }
+
+    /* Slide-in Mobile Menu Overlay */
+    .mobile-menu {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      max-width: 320px;
+      background: rgba(8, 12, 20, 0.98);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-left: 1px solid var(--border);
+      z-index: 1000;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .mobile-menu.open {
+      transform: translateX(0);
+    }
+
+    /* Mobile Menu Header area */
+    .mobile-menu-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.75rem;
+    }
+
+    .mobile-menu-close {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      margin-right: -12px;
+    }
+
+    .mobile-menu-close svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+    }
+
+    .mobile-menu-links {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .mobile-menu-links a {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      padding: 0.875rem 0;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      transition: color 0.12s;
+    }
+
+    .mobile-menu-links a:hover {
+      color: var(--text);
+    }
+
+    /* Language Switcher styling */
+    .lang-switch {
+      display: inline-flex;
+      gap: 4px;
+      background: var(--bg2);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+
+    .lang-switch button {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      font-weight: 500;
+      padding: 6px 12px;
+      color: var(--text-muted);
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      transition: all 0.12s;
+      text-transform: uppercase;
+      min-height: 36px;
+    }
+
+    .lang-switch button.active,
+    .lang-switch button:hover {
+      color: var(--accent);
+      border-color: var(--accent-dim);
+      background: var(--accent-dim);
+    }
+
+    @media (max-width: 480px) {
+      .lang-switch button {
+        padding: 4px 8px;
+        font-size: 10px;
+        min-height: 28px;
+      }
+    }
+
+    .mobile-menu-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1.25rem;
+    }
+
+    /* Fluid accessibility buttons */
+    .btn-primary,
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--t-small);
+      font-weight: 600;
+      min-height: 48px;
+      /* Safe Apple touch target standard */
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      transition: background 0.12s, transform 0.12s, border-color 0.12s;
+      letter-spacing: -0.2px;
+      text-align: center;
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--text-secondary);
+    }
+
+    /* Responsive adjustments for Navigation */
+    @media (min-width: 1024px) {
+      .nav-hamburger {
+        display: none;
+      }
+
+      .mobile-menu {
+        display: none;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+      }
+
+      .nav-links a {
+        font-size: var(--t-small);
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: color 0.12s;
+        letter-spacing: -0.2px;
+        min-height: auto;
+      }
+
+      .nav-links a:hover {
+        color: var(--text);
+      }
+
+      .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        margin-left: 0;
+        margin-right: 0;
+      }
+
+      .nav-right .btn-primary {
+        display: inline-flex;
+      }
+
+      .btn-primary,
+      .btn-secondary {
+        width: auto;
+        min-height: 38px;
+        padding: 6px 16px;
+      }
+    }
+
+    /* ===== HERO (MOBILE-FIRST) ===== */
+    .hero {
+      padding: 6.5rem 0 3.5rem;
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      /* Centered layout for mobile first */
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px;
+      right: -200px;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(232, 168, 32, 0.04) 0%, transparent 75%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      font-weight: 500;
+      color: var(--accent);
+      padding: 4px 12px;
+      display: inline-block;
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius);
+      margin-bottom: 1.25rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      font-size: var(--t-hero);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      color: var(--text);
+      max-width: 820px;
+      margin: 0 auto 1rem;
+    }
+
+    .hero-sub {
+      font-size: 0.9375rem;
+      font-weight: 400;
+      color: var(--text-secondary);
+      max-width: 580px;
+      line-height: 1.6;
+      margin: 0 auto 2rem;
+    }
+
+    .hero-ctas {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+
+    @media (min-width: 480px) {
+      .hero-ctas {
+        flex-direction: row;
+        max-width: none;
+        justify-content: center;
+      }
+
+      .hero-ctas a {
+        width: auto;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .hero {
+        padding: 11rem 0 6.5rem;
+        text-align: left;
+      }
+
+      .hero h1 {
+        margin: 0 0 1.25rem;
+        letter-spacing: -2px;
+        line-height: 1.05;
+      }
+
+      .hero-sub {
+        margin: 0 0 2.5rem;
+        font-size: 1.0625rem;
+      }
+
+      .hero-ctas {
+        justify-content: flex-start;
+        margin: 0;
+      }
+    }
+
+    /* ===== SHARED SECTIONS (MOBILE-FIRST) ===== */
+    section {
+      padding: 3.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .section-title {
+      font-size: var(--t-section);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-subtitle {
+      font-size: var(--t-body);
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    @media (min-width: 1024px) {
+      section {
+        padding: 5.5rem 0;
+      }
+
+      .section-title {
+        letter-spacing: -1px;
+        margin-bottom: 1rem;
+      }
+
+      .section-subtitle {
+        margin-bottom: 3rem;
+      }
+    }
+
+    /* ===== PROBLEM CARDS (MOBILE-FIRST) ===== */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      /* Single column on mobile */
+      gap: 1rem;
+    }
+
+    .problem-card {
+      background: var(--bg2);
+      padding: 1.75rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .problem-card .card-icon {
+      width: 32px;
+      height: 32px;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    .problem-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.2px;
+    }
+
+    .problem-card p {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    @media (min-width: 768px) {
+      .problem-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .problem-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: var(--border2);
+        border: 1px solid var(--border2);
+      }
+
+      .problem-card {
+        border: none;
+        border-radius: 0;
+      }
+    }
+
+    /* ===== SOLUTION / FEATURE GRID (MOBILE-FIRST) ===== */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      /* Single column on mobile */
+      gap: 1rem;
+    }
+
+    .feature-card {
+      background: var(--bg2);
+      padding: 1.75rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .feature-card .card-icon {
+      width: 28px;
+      height: 28px;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.2px;
+    }
+
+    .feature-card p {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    @media (min-width: 768px) {
+      .feature-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+      }
+
+      .feature-card:nth-child(5) {
+        grid-column: span 2;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .feature-grid {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 1px;
+        background: var(--border2);
+        border: 1px solid var(--border2);
+      }
+
+      .feature-card {
+        border: none;
+        border-radius: 0;
+        padding: 2.25rem;
+      }
+
+      .feature-card:nth-child(1),
+      .feature-card:nth-child(2) {
+        grid-column: span 3;
+      }
+
+      .feature-card:nth-child(3),
+      .feature-card:nth-child(4),
+      .feature-card:nth-child(5) {
+        grid-column: span 2;
+      }
+    }
+
+    /* ===== HOW IT WORKS — STEPS (MOBILE-FIRST) ===== */
+    .steps-list {
+      border-top: 1px solid var(--border2);
+    }
+
+    .step-row {
+      display: flex;
+      flex-direction: column;
+      /* Stacked layout for mobile */
+      padding: 1.75rem 0;
+      border-bottom: 1px solid var(--border);
+      gap: 0.75rem;
+    }
+
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .step-row h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+
+    .step-row p {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    @media (min-width: 768px) {
+      .step-row {
+        display: grid;
+        grid-template-columns: 60px 1fr 1fr;
+        gap: 2rem;
+        align-items: start;
+        padding: 2.25rem 0;
+      }
+
+      .step-num {
+        font-size: 1.5rem;
+      }
+    }
+
+    /* ===== USE CASES (MOBILE-FIRST) ===== */
+    .usecase-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      /* Single column on mobile */
+      gap: 1rem;
+    }
+
+    .usecase-card {
+      background: var(--bg2);
+      padding: 1.75rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      transition: background 0.12s;
+    }
+
+    .usecase-card:hover {
+      background: var(--bg3);
+    }
+
+    .usecase-card .card-label {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .usecase-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.2px;
+    }
+
+    .usecase-card p {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    @media (min-width: 768px) {
+      .usecase-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .usecase-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        background: var(--border2);
+        border: 1px solid var(--border2);
+      }
+
+      .usecase-card {
+        border: none;
+        border-radius: 0;
+        padding: 2.25rem;
+      }
+    }
+
+    /* ===== PARTNERS (MOBILE-FIRST) ===== */
+    .partners-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      /* 2-column grid on mobile */
+      gap: 0.75rem;
+      padding: 1.5rem 0;
+      border-top: 1px solid var(--border2);
+      border-bottom: 1px solid var(--border2);
+    }
+
+    .partner-badge {
+      font-family: var(--font-mono);
+      font-size: var(--t-small);
+      font-weight: 500;
+      color: var(--text-secondary);
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      transition: border-color 0.12s;
+      text-align: center;
+      width: 100%;
+    }
+
+    .partner-badge:hover {
+      border-color: var(--text-muted);
+    }
+
+    .partner-badge.anchor {
+      color: var(--accent);
+      border-color: var(--accent-dim);
+      grid-column: span 2;
+    }
+
+    /* Full width highlight link */
+
+    @media (min-width: 480px) {
+      .partner-badge.anchor {
+        grid-column: span 1;
+      }
+
+      .partners-row {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (min-width: 768px) {
+      .partners-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1.25rem;
+        padding: 2rem 0;
+      }
+
+      .partner-badge {
+        width: auto;
+        padding: 0.75rem 1.5rem;
+      }
+    }
+
+    /* ===== PRICING (MOBILE-FIRST) ===== */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      /* Stacks vertically on mobile */
+      gap: 1.5rem;
+    }
+
+    .price-card {
+      background: var(--bg2);
+      padding: 1.75rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .price-card.featured {
+      background: var(--bg3);
+      border-color: rgba(232, 168, 32, 0.2);
+    }
+
+    .price-card .price-name {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .price-card .price-amount {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .price-card .price-amount span {
+      font-size: var(--t-body);
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
+
+    .price-card .price-desc {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .price-features {
+      margin-bottom: 1.75rem;
+    }
+
+    .price-features li {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      padding: 0.4rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .price-features li svg {
+      width: 14px;
+      height: 14px;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .price-card .btn-primary,
+    .price-card .btn-secondary {
+      margin-top: auto;
+      width: 100%;
+    }
+
+    /* ===== SELF-HOSTED SECTION ===== */
+    .selfhosted-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .selfhosted-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .sh-step {
+      border-left: 2px solid var(--border2);
+      padding-left: 1.25rem;
+      transition: border-color 0.2s;
+    }
+
+    .sh-step:hover {
+      border-color: var(--accent);
+    }
+
+    .sh-step h3 {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      letter-spacing: -0.2px;
+    }
+
+    .sh-step p {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .selfhosted-code-box {
+      background: #06090f;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      margin-top: 1rem;
+    }
+
+    .code-header {
+      background: var(--bg2);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .code-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .code-dot:nth-child(1) {
+      background: #ef4444;
+    }
+
+    .code-dot:nth-child(2) {
+      background: #e8a820;
+    }
+
+    .code-dot:nth-child(3) {
+      background: #22c55e;
+    }
+
+    .code-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .code-content {
+      padding: 1.25rem;
+      margin: 0;
+      font-size: var(--t-small);
+      line-height: 1.6;
+      overflow-x: auto;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    @media (min-width: 768px) {
+      .pricing-grid {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .pricing-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: var(--border2);
+        border: 1px solid var(--border2);
+      }
+
+      .price-card {
+        border: none;
+        border-radius: 0;
+        padding: 2.75rem;
+      }
+
+      .selfhosted-grid {
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 4rem;
+        align-items: center;
+      }
+    }
+
+    /* ===== FAQ (MOBILE-FIRST) ===== */
+    .faq-list {
+      border-top: 1px solid var(--border2);
+    }
+
+    .faq-item {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .faq-question {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.125rem 0;
+      font-size: var(--t-body);
+      font-weight: 600;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      letter-spacing: -0.2px;
+      background: none;
+      border: none;
+      font-family: inherit;
+      min-height: 48px;
+      /* Fluid tap bounds */
+    }
+
+    .faq-question svg {
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+      margin-left: 1rem;
+    }
+
+    .faq-item.open .faq-question svg {
+      transform: rotate(45deg);
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .faq-answer-inner {
+      padding: 0 0 1.125rem;
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      line-height: 1.65;
+      max-width: 680px;
+    }
+
+    /* ===== CONTACT (MOBILE-FIRST) ===== */
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      /* Stacks vertically on mobile */
+      gap: 2rem;
+    }
+
+    .contact-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+
+    .form-group label {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: var(--t-small);
+      transition: border-color 0.12s;
+      outline: none;
+      min-height: 48px;
+      /* Large accessibility keyboard bounds */
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    .form-group input.error {
+      border-color: var(--red);
+    }
+
+    .contact-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      padding-top: 0.5rem;
+    }
+
+    .contact-info-item {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+
+    .contact-info-item svg {
+      width: 18px;
+      height: 18px;
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .contact-info-item .ci-label {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .contact-info-item .ci-value {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      word-break: break-all;
+    }
+
+    .contact-note {
+      font-size: var(--t-small);
+      color: var(--text-muted);
+      line-height: 1.6;
+      border-left: 2px solid var(--accent-dim);
+      padding-left: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    @media (min-width: 480px) {
+      .form-row {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .contact-grid {
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 4rem;
+      }
+    }
+
+    /* ===== FOOTER CTA ===== */
+    .footer-cta {
+      padding: 3.5rem 0;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+
+    .footer-cta h2 {
+      font-size: var(--t-section);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .footer-cta p {
+      font-size: var(--t-body);
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+
+    .footer-cta .btn-primary {
+      width: auto;
+      min-width: 200px;
+    }
+
+    @media (min-width: 1024px) {
+      .footer-cta {
+        padding: 5.5rem 0;
+      }
+
+      .footer-cta h2 {
+        letter-spacing: -1px;
+        margin-bottom: 0.75rem;
+      }
+
+      .footer-cta p {
+        margin-bottom: 2rem;
+      }
+    }
+
+    /* ===== FOOTER (MOBILE-FIRST) ===== */
+    .footer {
+      padding: 2.5rem 0 2rem;
+      background: var(--bg);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      /* Stacks on mobile */
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .footer-brand .nav-logo {
+      margin-bottom: 0.5rem;
+    }
+
+    .footer-brand p {
+      font-size: var(--t-small);
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 280px;
+    }
+
+    .footer-col h4 {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .footer-col a {
+      display: block;
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      padding: 0.4rem 0;
+      transition: color 0.12s;
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      /* Safe spacing on touch */
+    }
+
+    .footer-col a:hover {
+      color: var(--text);
+    }
+
+    .footer-bottom {
+      border-top: 1px solid var(--border);
+      padding-top: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      text-align: center;
+    }
+
+    .footer-bottom p {
+      font-size: var(--t-small);
+      color: var(--text-muted);
+    }
+
+    @media (min-width: 480px) {
+      .footer-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 768px) {
+      .footer-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .footer-bottom {
+        flex-direction: row;
+        justify-content: space-between;
+        text-align: left;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .footer-grid {
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+      }
+
+      .footer-col a {
+        min-height: auto;
+        padding: 0.25rem 0;
+        display: block;
+      }
+    }
+
+    /* ===== SCROLL REVEAL ===== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* Reduced motion and performance adaptations */
+    @media (prefers-reduced-motion: reduce) {
+      .reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+
+      html {
+        scroll-behavior: auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAVIGATION -->
+  <nav class="nav" id="navbar">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">Swipies<span>AI</span></a>
+      <div class="nav-links" id="navLinks">
+        <a href="#solution" data-i18n="nav_solution">Solution</a>
+        <a href="#how" data-i18n="nav_how">How It Works</a>
+        <a href="#selfhosted" data-i18n="nav_selfhosted">Self-Hosted</a>
+        <a href="#cases" data-i18n="nav_cases">Use Cases</a>
+        <a href="#partners" data-i18n="nav_partners">Partners</a>
+        <a href="#pricing" data-i18n="nav_pricing">Pricing</a>
+        <a href="#faq" data-i18n="nav_faq">FAQ</a>
+      </div>
+      <div class="nav-right">
+        <div class="lang-switch" id="langSwitch">
+          <button class="active" data-lang="en">EN</button>
+          <button data-lang="ru">RU</button>
+          <button data-lang="uz">UZ</button>
+        </div>
+        <a href="login.html" class="btn-primary" data-i18n="nav_cta">Try Demo</a>
+      </div>
+      <button class="nav-hamburger" id="hamburger" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="mobile-menu" id="mobileMenu"></div>
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="container reveal">
+      <div class="hero-badge" data-i18n="hero_badge">Enterprise-Grade AI Platform</div>
+      <h1 data-i18n="hero_h1">Enterprise AI. Your Infrastructure. Your Data.</h1>
+      <p class="hero-sub" data-i18n="hero_sub">Deploy on-premise RAG pipelines powered by any LLM — directly on your
+        servers. Your data never leaves your environment. Ever.</p>
+      <div class="hero-ctas">
+        <a href="login.html" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
+        <a href="#contact" class="btn-secondary" data-i18n="hero_cta2">Talk to Sales</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section id="problem">
+    <div class="container reveal">
+      <div class="section-num" data-i18n="prob_num">01 — The Problem</div>
+      <h2 class="section-title" data-i18n="prob_title">Why Standard AI Fails Enterprise</h2>
+      <div class="problem-grid">
+        <div class="problem-card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <h3 data-i18n="prob1_h">Data Leaves Your Perimeter</h3>
+          <p data-i18n="prob1_p">Every API call to external AI providers sends your proprietary data to third-party
+            servers — a compliance nightmare.</p>
+        </div>
+        <div class="problem-card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" />
+              <line x1="9" y1="21" x2="15" y2="21" />
+            </svg>
+          </div>
+          <h3 data-i18n="prob2_h">Generic AI, Zero Context</h3>
+          <p data-i18n="prob2_p">Public models don't understand your business data, documents, or internal knowledge.
+            Answers are shallow and unreliable.</p>
+        </div>
+        <div class="problem-card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <h3 data-i18n="prob3_h">No Control Over Stack</h3>
+          <p data-i18n="prob3_p">You can't control the model version, uptime, infrastructure, or update cadence. Your AI
+            is someone else's decision.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOLUTION -->
+  <section id="solution">
+    <div class="container reveal">
+      <div class="section-num" data-i18n="sol_num">02 — The Solution</div>
+      <h2 class="section-title" data-i18n="sol_title">On-Premise RAG That Runs on Your Servers</h2>
+      <p class="section-subtitle" data-i18n="sol_sub">Swipies AI deploys the full AI infrastructure inside your
+        environment. Complete data sovereignty, zero external dependencies.</p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="8" rx="2" />
+              <rect x="2" y="14" width="20" height="8" rx="2" />
+              <line x1="6" y1="6" x2="6.01" y2="6" />
+              <line x1="6" y1="18" x2="6.01" y2="18" />
+            </svg>
+          </div>
+          <h3 data-i18n="sol1_h">On-Premise RAG Deployment</h3>
+          <p data-i18n="sol1_p">Full RAG pipeline — document ingestion, vector indexing, retrieval, and generation —
+            deployed directly on your servers. Built on battle-tested RAGFlow architecture.</p>
+        </div>
+        <div class="feature-card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+            </svg>
+          </div>
+          <h3 data-i18n="sol2_h">Works With Your Data</h3>
+          <p data-i18n="sol2_p">Connect your existing documents, databases, CRM records, and internal tools. The
+            knowledge base is built from your real data — not generic training sets.</p>
+        </div>
+        <div class="feature-card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <rect x="9" y="9" width="6" height="6" />
+              <line x1="9" y1="1" x2="9" y2="4" />
+              <line x1="15" y1="1" x2="15" y2="4" />
+              <line x1="9" y1="20" x2="9" y2="23" />
+              <line x1="15" y1="20" x2="15" y2="23" />
+              <line x1="20" y1="9" x2="23" y2="9" />
+              <line x1="20" y1="14" x2="23" y2="14" />
+              <line x1="1" y1="9" x2="4" y2="9" />
+              <line x1="1" y1="14" x2="4" y2="14" />
+            </svg>
+          </div>
+          <h3 data-i18n="sol3_h">Any LLM, Your Choice</h3>
+          <p data-i18n="sol3_p">Support for OpenAI, Anthropic Claude, xAI Grok, and fully local models via Ollama.
+            Switch models without changing infrastructure.</p>
+        </div>
+        <div class="feature-card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
+          </div>
+          <h3 data-i18n="sol4_h">Full White-Label for SaaS</h3>
+          <p data-i18n="sol4_p">Embed Swipies AI into your own product under your brand. Offer AI-powered features to
+            your clients — powered by their data, on your infrastructure.</p>
+        </div>
+        <div class="feature-card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+          </div>
+          <h3 data-i18n="sol5_h">Uzbekistan Local Deployment</h3>
+          <p data-i18n="sol5_p">Deploy AI models on secure high-performance servers physically located within the Republic of Uzbekistan, ensuring compliance with local data localization laws.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="container reveal">
+      <div class="section-num" data-i18n="how_num">03 — How It Works</div>
+      <h2 class="section-title" data-i18n="how_title">Deployed in 10 Business Days</h2>
+      <div class="steps-list">
+        <div class="step-row">
+          <div class="step-num">01</div>
+          <h3 data-i18n="how1_h">Infrastructure Audit</h3>
+          <p data-i18n="how1_p">We audit your servers, data sources, and security requirements to design the optimal
+            deployment architecture.</p>
+        </div>
+        <div class="step-row">
+          <div class="step-num">02</div>
+          <h3 data-i18n="how2_h">Deploy RAG + LLM</h3>
+          <p data-i18n="how2_p">We deploy the full RAG pipeline and LLM of your choice directly on your infrastructure.
+            Within 10 business days.</p>
+        </div>
+        <div class="step-row">
+          <div class="step-num">03</div>
+          <h3 data-i18n="how3_h">Your Team Goes Live</h3>
+          <p data-i18n="how3_p">Your team and clients get enterprise-grade AI — fully private, fully controlled, fully
+            yours. Data stays with you.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SELF-HOSTED -->
+  <section id="selfhosted">
+    <div class="container reveal">
+      <div class="section-num" data-i18n="selfhosted_num">04 — Self-Hosted</div>
+      <h2 class="section-title" data-i18n="selfhosted_title">Run Swipies AI on Your Own Hardware</h2>
+      <p class="section-subtitle" data-i18n="selfhosted_subtitle">Pull our Docker containers, configure your
+        environment, and paste your license key to unlock maximum performance.</p>
+
+      <div class="selfhosted-grid">
+        <div class="selfhosted-steps">
+          <div class="sh-step">
+            <h3 data-i18n="selfhosted_step1_h">1. Pull and Run</h3>
+            <p data-i18n="selfhosted_step1_p">Deploy our containerized stack in minutes using Docker Compose or
+              Kubernetes Helm charts.</p>
+          </div>
+          <div class="sh-step">
+            <h3 data-i18n="selfhosted_step2_h">2. Insert License Key</h3>
+            <p data-i18n="selfhosted_step2_p">Paste your Swipies license key in the web panel to activate GPU
+              acceleration and remove ingestion limits.</p>
+          </div>
+          <div class="sh-step">
+            <h3 data-i18n="selfhosted_step3_h">3. Complete Autonomy</h3>
+            <p data-i18n="selfhosted_step3_p">The server runs fully standalone. No telemetry, no external internet
+              connection required for air-gapped networks.</p>
+          </div>
+        </div>
+
+        <div class="selfhosted-code-box">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-title">terminal — deploy.sh</span>
+          </div>
+          <pre class="code-content"><code class="mono"><span class="accent"># 1. Download Swipies compose config</span>
+curl -fsSL https://swipies.app/docker-compose.yml -o docker-compose.yml
+
+<span class="accent"># 2. Add your license to env file</span>
+echo "SWIPIES_LICENSE=SWIPIES-9A2B-7C4E-8F1D" >> .env
+
+<span class="accent"># 3. Spin up the platform</span>
+docker compose up -d --build</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- USE CASES -->
+  <section id="cases">
+    <div class="container reveal">
+      <div class="section-num" data-i18n="cases_num">04 — Use Cases</div>
+      <h2 class="section-title" data-i18n="cases_title">Built for Industries That Can't Compromise on Data</h2>
+      <div class="usecase-grid">
+        <div class="usecase-card">
+          <div class="card-label" data-i18n="case1_label">SaaS / ERP Platforms</div>
+          <h3 data-i18n="case1_h">Embed AI Into Your Product</h3>
+          <p data-i18n="case1_p">White-label Swipies AI and offer AI-powered features to your own clients. OEM model —
+            your brand, your infrastructure, your clients' data stays private.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="card-label" data-i18n="case2_label">Banks & Finance</div>
+          <h3 data-i18n="case2_h">AI on Confidential Data</h3>
+          <p data-i18n="case2_p">Deploy AI over transaction records, client profiles, and financial documents. Full
+            regulatory compliance — data never leaves your banking infrastructure.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="card-label" data-i18n="case3_label">Legal & Compliance</div>
+          <h3 data-i18n="case3_h">AI Over Case Files & Contracts</h3>
+          <p data-i18n="case3_p">Search, summarize, and analyze case law, contracts, and compliance documents with AI
+            that runs entirely within your secure environment.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="card-label" data-i18n="case4_label">Large Enterprises</div>
+          <h3 data-i18n="case4_h">Internal Knowledge Base AI</h3>
+          <p data-i18n="case4_p">Give every employee instant access to company documentation, HR policies, technical
+            manuals, and institutional knowledge via private AI.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PARTNERS -->
+  <section id="partners">
+    <div class="container reveal">
+      <div class="section-num" data-i18n="partners_num">05 — Partners</div>
+      <h2 class="section-title" data-i18n="partners_title">Trusted By</h2>
+      <div class="partners-row">
+        <a href="https://kpi.com" target="_blank" class="partner-badge anchor">KPI.com — Enterprise ERP/CRM</a>
+        <span class="partner-badge">OpenAI — GPT Models</span>
+        <span class="partner-badge">Anthropic — Claude</span>
+        <span class="partner-badge">xAI — Grok</span>
+        <span class="partner-badge">Ollama — Local LLMs</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing">
+    <div class="container reveal">
+      <div class="section-num" data-i18n="price_num">06 — Pricing</div>
+      <h2 class="section-title" data-i18n="price_title">Flexible Deployment Options</h2>
+      <div class="pricing-grid">
+        <div class="price-card">
+          <div class="price-name" data-i18n="starter">Starter</div>
+          <div class="price-amount"><span data-i18n="starter_price">$40</span><span
+              data-i18n="starter_period">/month</span></div>
+          <p class="price-desc" data-i18n="starter_desc">For small teams & companies. Full AI functionality running
+            securely on Swipies managed cloud infrastructure.</p>
+          <ul class="price-features">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="starter_f1">Cloud deployment</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="starter_f2">Full RAG pipeline</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="starter_f3">Standard support</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="starter_f4">Managed infrastructure</span></li>
+          </ul>
+          <a href="login.html" class="btn-secondary" style="display:inline-block;text-align:center"
+            data-i18n="starter_cta">Start Building</a>
+        </div>
+        <div class="price-card">
+          <div class="price-name" data-i18n="license">Self-Hosted License</div>
+          <div class="price-amount"><span data-i18n="license_price">From $190</span><span
+              data-i18n="license_period">/month</span></div>
+          <p class="price-desc" data-i18n="license_desc">Purchase a license key and run Swipies AI on your own
+            infrastructure. You install, we power up.</p>
+          <ul class="price-features">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="license_f1">Self-hosted (Docker/k8s)</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="license_f2">Activate via License Key</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="license_f3">No ingestion or team limits</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="license_f4">GPU & Vector acceleration</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="license_f5">Offline / Air-gapped mode</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="license_f6">Regular security updates</span></li>
+          </ul>
+          <a href="#contact" class="btn-secondary" style="display:inline-block;text-align:center"
+            data-i18n="license_cta">Purchase Key</a>
+        </div>
+        <div class="price-card featured">
+          <div class="price-name" data-i18n="enterprise">Enterprise</div>
+          <div class="price-amount"><span data-i18n="ent_price">From $700</span><span
+              data-i18n="ent_period">/month</span></div>
+          <p class="price-desc" data-i18n="ent_desc">Custom-scoped based on your infrastructure and data volume
+            requirements.</p>
+          <ul class="price-features">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="ent_f1">On-premise deployment</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="ent_f2">Custom LLM config</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="ent_f3">Dedicated support</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="ent_f4">White-label option</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="ent_f5">SLA guarantee</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg><span data-i18n="ent_f6">Data sovereignty</span></li>
+          </ul>
+          <a href="#contact" class="btn-primary" style="display:inline-block;text-align:center" data-i18n="ent_cta">Get
+            a Custom Quote</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="container reveal">
+      <div class="section-num" data-i18n="faq_num">07 — FAQ</div>
+      <h2 class="section-title" data-i18n="faq_title">Frequently Asked Questions</h2>
+      <div class="faq-list">
+        <div class="faq-item">
+          <button class="faq-question" data-i18n="faq1_q">
+            Does our data leave our servers?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner" data-i18n="faq1_a">No, never. Swipies AI is deployed entirely on your own
+              infrastructure. Your documents, databases, and queries stay within your environment. No data is sent to
+              any external servers or third-party APIs.</div>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" data-i18n="faq2_q">
+            How long does deployment take?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner" data-i18n="faq2_a">Typical deployment takes 10 business days from kick-off.
+              This includes infrastructure audit, RAG pipeline setup, LLM configuration, testing, and going live with
+              your team.</div>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" data-i18n="faq3_q">
+            Which LLMs do you support?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner" data-i18n="faq3_a">We support OpenAI (GPT-4, GPT-4o), Anthropic (Claude 3,
+              Claude 3.5), xAI (Grok), and fully local models via Ollama. You can switch models at any time without
+              re-deploying the infrastructure.</div>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" data-i18n="faq4_q">
+            Do you offer white-label for our product?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner" data-i18n="faq4_a">Yes. SaaS and ERP companies can embed Swipies AI under
+              their own brand. Your clients interact with AI that feels native to your product — while all data stays on
+              your servers.</div>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" data-i18n="faq5_q">
+            What is RAG and why does it matter?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner" data-i18n="faq5_a">RAG (Retrieval-Augmented Generation) is a technique where
+              AI retrieves relevant information from your specific data before generating an answer. Unlike generic AI,
+              RAG ensures responses are grounded in your actual documents and knowledge — making it accurate, relevant,
+              and trustworthy for enterprise use.</div>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" data-i18n="faq6_q">
+            How does the self-hosted license work?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner" data-i18n="faq6_a">You can download our Docker Compose or Kubernetes Helm
+              charts, install Swipies AI on your local servers, and enter the purchased license key in the web
+              interface. This unlocks the full platform capability, removes limits, and enables offline operation
+              without external internet connection.</div>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" data-i18n="faq7_q">
+            Can we deploy AI models on servers in Uzbekistan?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner" data-i18n="faq7_a">Yes, absolutely. We support deploying LLMs and RAG pipelines directly on servers located in Uzbekistan. This ensures 100% compliance with local data localization laws (such as Article 27.1 of the Law of the Republic of Uzbekistan 'On Personal Data'), keeping all sensitive data inside the national border.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact">
+    <div class="container reveal">
+      <div class="section-num" data-i18n="contact_num">08 — Contact</div>
+      <h2 class="section-title" data-i18n="contact_title">Let's Talk About Your Deployment</h2>
+      <div class="contact-grid">
+        <form class="contact-form" id="contactForm" onsubmit="return handleSubmit(event)">
+          <div class="form-row">
+            <div class="form-group">
+              <label data-i18n="form_company">Company Name</label>
+              <input type="text" id="f-company" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n="form_name">Full Name</label>
+              <input type="text" id="f-name" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label data-i18n="form_email">Email</label>
+              <input type="email" id="f-email" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n="form_phone">Phone</label>
+              <input type="tel" id="f-phone">
+            </div>
+          </div>
+          <div class="form-group">
+            <label data-i18n="form_msg">Message</label>
+            <textarea id="f-msg" rows="4"></textarea>
+          </div>
+          <button type="submit" class="btn-primary" data-i18n="form_submit">Send Message</button>
+        </form>
+        <div class="contact-info">
+          <div class="contact-info-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M22 7l-10 7L2 7" />
+            </svg>
+            <div>
+              <div class="ci-label" data-i18n="ci_email">Email</div>
+              <div class="ci-value">albakiev.sardobek@gmail.com</div>
+            </div>
+          </div>
+          <div class="contact-info-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+            <div>
+              <div class="ci-label" data-i18n="ci_phone">Phone</div>
+              <div class="ci-value">+998 (90) 625-3986</div>
+            </div>
+          </div>
+          <div class="contact-info-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <div>
+              <div class="ci-label" data-i18n="ci_location">Location</div>
+              <div class="ci-value" data-i18n="ci_loc_val">Uzbekistan, Andijan</div>
+            </div>
+          </div>
+          <p class="contact-note" data-i18n="ci_note">Dedicated account manager for every deployment. SLA guarantees
+            included. Average response time: &lt; 2 hours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER CTA -->
+  <div class="footer-cta">
+    <div class="container">
+      <h2 data-i18n="fcta_h">Ready to Bring AI Inside Your Infrastructure?</h2>
+      <p data-i18n="fcta_p">Deploy enterprise-grade AI on your servers. Your data stays yours.</p>
+      <a href="login.html" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo">Swipies<span>AI</span></div>
+          <p data-i18n="footer_desc">Enterprise on-premise AI platform. Deploy RAG pipelines on your own servers with
+            complete data sovereignty.</p>
+          <p class="muted" style="margin-top:0.5rem;font-size:var(--t-small)">Uzbekistan, Andijan · +998 (90) 625-3986
+          </p>
+        </div>
+        <div class="footer-col">
+          <h4 data-i18n="footer_platform">Platform</h4>
+          <a href="#solution" data-i18n="nav_solution">Solution</a>
+          <a href="#how" data-i18n="nav_how">How It Works</a>
+          <a href="#cases" data-i18n="nav_cases">Use Cases</a>
+          <a href="#pricing" data-i18n="nav_pricing">Pricing</a>
+          <a href="https://swipies.app/tutorials.html" target="_blank" data-i18n="footer_tutorials">Tutorials</a>
+        </div>
+        <div class="footer-col">
+          <h4 data-i18n="footer_company">Company</h4>
+          <a href="terms.html" data-i18n="footer_terms">Terms of Use</a>
+          <a href="privacy.html" data-i18n="footer_privacy">Privacy Policy</a>
+          <a href="https://help.swipies.app/docs/dev/" target="_blank" data-i18n="footer_docs">Documentation</a>
+        </div>
+        <div class="footer-col">
+          <h4 data-i18n="footer_connect">Connect</h4>
+          <a href="mailto:albakiev.sardobek@gmail.com">Email</a>
+          <a href="https://github.com/Sardorr555/swipies__ai_" target="_blank">GitHub</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p data-i18n="footer_copy">© 2025 Swipies AI. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    /* ===== SWIPIES AI — Translations ===== */
+    const T = {
+      en: {
+        nav_solution: "Solution",
+        nav_how: "How It Works",
+        nav_selfhosted: "Self-Hosted",
+        nav_cases: "Use Cases",
+        nav_partners: "Partners",
+        nav_pricing: "Pricing",
+        nav_faq: "FAQ",
+        nav_cta: "Try Demo",
+        hero_badge: "Enterprise-Grade AI Platform",
+        hero_h1: "Enterprise AI. Your Infrastructure. Your Data.",
+        hero_sub: "Deploy on-premise RAG pipelines powered by any LLM — directly on your servers. Your data never leaves your environment. Ever.",
+        hero_cta1: "Try Demo",
+        hero_cta2: "Talk to Sales",
+        prob_num: "01 — The Problem",
+        prob_title: "Why Standard AI Fails Enterprise",
+        prob1_h: "Data Leaves Your Perimeter",
+        prob1_p: "Every API call to external AI providers sends your proprietary data to third-party servers — a compliance nightmare.",
+        prob2_h: "Generic AI, Zero Context",
+        prob2_p: "Public models don't understand your business data, documents, or internal knowledge. Answers are shallow and unreliable.",
+        prob3_h: "No Control Over Stack",
+        prob3_p: "You can't control the model version, uptime, infrastructure, or update cadence. Your AI is someone else's decision.",
+        sol_num: "02 — The Solution",
+        sol_title: "On-Premise RAG That Runs on Your Servers",
+        sol_sub: "Swipies AI deploys the full AI infrastructure inside your environment. Complete data sovereignty, zero external dependencies.",
+        sol1_h: "On-Premise RAG Deployment",
+        sol1_p: "Full RAG pipeline — document ingestion, vector indexing, retrieval, and generation — deployed directly on your servers. Built on battle-tested RAGFlow architecture.",
+        sol2_h: "Works With Your Data",
+        sol2_p: "Connect your existing documents, databases, CRM records, and internal tools. The knowledge base is built from your real data — not generic training sets.",
+        sol3_h: "Any LLM, Your Choice",
+        sol3_p: "Support for OpenAI, Anthropic Claude, xAI Grok, and fully local models via Ollama. Switch models without changing infrastructure.",
+        sol4_h: "Full White-Label for SaaS",
+        sol4_p: "Embed Swipies AI into your own product under your brand. Offer AI-powered features to your clients — powered by their data, on your infrastructure.",
+        sol5_h: "Uzbekistan Local Deployment",
+        sol5_p: "Deploy AI models on secure high-performance servers physically located within the Republic of Uzbekistan, ensuring compliance with local data localization laws.",
+        how_num: "03 — How It Works",
+        how_title: "Deployed in 10 Business Days",
+        how1_h: "Infrastructure Audit",
+        how1_p: "We audit your servers, data sources, and security requirements to design the optimal deployment architecture.",
+        how2_h: "Deploy RAG + LLM",
+        how2_p: "We deploy the full RAG pipeline and LLM of your choice directly on your infrastructure. Within 10 business days.",
+        how3_h: "Your Team Goes Live",
+        how3_p: "Your team and clients get enterprise-grade AI — fully private, fully controlled, fully yours. Data stays with you.",
+        selfhosted_num: "04 — Self-Hosted",
+        selfhosted_title: "Run Swipies AI on Your Own Hardware",
+        selfhosted_subtitle: "Pull our Docker containers, configure your environment, and paste your license key to unlock maximum performance.",
+        selfhosted_step1_h: "1. Pull and Run",
+        selfhosted_step1_p: "Deploy our containerized stack in minutes using Docker Compose or Kubernetes Helm charts.",
+        selfhosted_step2_h: "2. Insert License Key",
+        selfhosted_step2_p: "Paste your Swipies license key in the web panel to activate GPU acceleration and remove ingestion limits.",
+        selfhosted_step3_h: "3. Complete Autonomy",
+        selfhosted_step3_p: "The server runs fully standalone. No telemetry, no external internet connection required for air-gapped networks.",
+        cases_num: "05 — Use Cases",
+        cases_title: "Built for Industries That Can't Compromise on Data",
+        case1_label: "SaaS / ERP Platforms",
+        case1_h: "Embed AI Into Your Product",
+        case1_p: "White-label Swipies AI and offer AI-powered features to your own clients. OEM model — your brand, your infrastructure, your clients' data stays private.",
+        case2_label: "Banks & Finance",
+        case2_h: "AI on Confidential Data",
+        case2_p: "Deploy AI over transaction records, client profiles, and financial documents. Full regulatory compliance — data never leaves your banking infrastructure.",
+        case3_label: "Legal & Compliance",
+        case3_h: "AI Over Case Files & Contracts",
+        case3_p: "Search, summarize, and analyze case law, contracts, and compliance documents with AI that runs entirely within your secure environment.",
+        case4_label: "Large Enterprises",
+        case4_h: "Internal Knowledge Base AI",
+        case4_p: "Give every employee instant access to company documentation, HR policies, technical manuals, and institutional knowledge via private AI.",
+        partners_num: "06 — Partners",
+        partners_title: "Trusted By",
+        price_num: "07 — Pricing",
+        price_title: "Flexible Deployment Options",
+        starter: "Starter",
+        starter_price: "$40",
+        starter_period: "/month",
+        starter_desc: "For small teams & companies. Full AI functionality running securely on Swipies managed cloud infrastructure.",
+        starter_f1: "Cloud deployment",
+        starter_f2: "Full RAG pipeline",
+        starter_f3: "Standard support",
+        starter_f4: "Managed infrastructure",
+        starter_cta: "Start Building",
+        license: "Self-Hosted License",
+        license_price: "From $190",
+        license_period: "/month",
+        license_desc: "Purchase a license key and run Swipies AI on your own infrastructure. You install, we power up.",
+        license_f1: "Self-hosted (Docker/k8s)",
+        license_f2: "Activate via License Key",
+        license_f3: "No ingestion or team limits",
+        license_f4: "GPU & Vector acceleration",
+        license_f5: "Offline / Air-gapped mode",
+        license_f6: "Regular security updates",
+        license_cta: "Purchase Key",
+        enterprise: "Enterprise",
+        ent_price: "From $700",
+        ent_period: "/month",
+        ent_desc: "Custom-scoped based on your infrastructure and data volume requirements.",
+        ent_f1: "On-premise deployment",
+        ent_f2: "Custom LLM config",
+        ent_f3: "Dedicated support",
+        ent_f4: "White-label option",
+        ent_f5: "SLA guarantee",
+        ent_f6: "Data sovereignty",
+        ent_cta: "Get a Custom Quote",
+        faq_num: "08 — FAQ",
+        faq_title: "Frequently Asked Questions",
+        faq1_q: "Does our data leave our servers?",
+        faq1_a: "No, never. Swipies AI is deployed entirely on your own infrastructure. Your documents, databases, and queries stay within your environment. No data is sent to any external servers or third-party APIs.",
+        faq2_q: "How long does deployment take?",
+        faq2_a: "Typical deployment takes 10 business days from kick-off. This includes infrastructure audit, RAG pipeline setup, LLM configuration, testing, and going live with your team.",
+        faq3_q: "Which LLMs do you support?",
+        faq3_a: "We support OpenAI (GPT-4, GPT-4o), Anthropic (Claude 3, Claude 3.5), xAI (Grok), and fully local models via Ollama. You can switch models at any time without re-deploying the infrastructure.",
+        faq4_q: "Do you offer white-label for our product?",
+        faq4_a: "Yes. SaaS and ERP companies can embed Swipies AI under their own brand. Your clients interact with AI that feels native to your product — while all data stays on your servers.",
+        faq5_q: "What is RAG and why does it matter?",
+        faq5_a: "RAG (Retrieval-Augmented Generation) is a technique where AI retrieves relevant information from your specific data before generating an answer. Unlike generic AI, RAG ensures responses are grounded in your actual documents and knowledge — making it accurate, relevant, and trustworthy for enterprise use.",
+        faq6_q: "How does the self-hosted license work?",
+        faq6_a: "You can download our Docker Compose or Kubernetes Helm charts, install Swipies AI on your local servers, and enter the purchased license key in the web interface. This unlocks the full platform capability, removes limits, and enables offline operation without external internet connection.",
+        faq7_q: "Can we deploy AI models on servers in Uzbekistan?",
+        faq7_a: "Yes, absolutely. We support deploying LLMs and RAG pipelines directly on servers located in Uzbekistan. This ensures 100% compliance with local data localization laws (such as Article 27.1 of the Law of the Republic of Uzbekistan 'On Personal Data'), keeping all sensitive data inside the national border.",
+        contact_num: "09 — Contact",
+        contact_title: "Let's Talk About Your Deployment",
+        form_company: "Company Name",
+        form_name: "Full Name",
+        form_email: "Email",
+        form_phone: "Phone",
+        form_msg: "Message",
+        form_submit: "Send Message",
+        form_required: "Required",
+        ci_email: "Email",
+        ci_phone: "Phone",
+        ci_location: "Location",
+        ci_loc_val: "Uzbekistan, Andijan",
+        ci_note: "Dedicated account manager for every deployment. SLA guarantees included. Average response time: < 2 hours.",
+        fcta_h: "Ready to Bring AI Inside Your Infrastructure?",
+        fcta_p: "Deploy enterprise-grade AI on your servers. Your data stays yours.",
+        footer_desc: "Enterprise on-premise AI platform. Deploy RAG pipelines on your own servers with complete data sovereignty.",
+        footer_platform: "Platform",
+        footer_company: "Company",
+        footer_connect: "Connect",
+        footer_tutorials: "Tutorials",
+        footer_terms: "Terms of Use",
+        footer_privacy: "Privacy Policy",
+        footer_docs: "Documentation",
+        footer_copy: "© 2025 Swipies AI. All rights reserved."
+      },
+      ru: {
+        nav_solution: "Решение",
+        nav_how: "Как это работает",
+        nav_selfhosted: "Self-Hosted",
+        nav_cases: "Кейсы",
+        nav_partners: "Партнёры",
+        nav_pricing: "Цены",
+        nav_faq: "Вопросы",
+        nav_cta: "Демо",
+        hero_badge: "Корпоративная AI-платформа",
+        hero_h1: "Корпоративный AI. Ваша инфраструктура. Ваши данные.",
+        hero_sub: "Разверните RAG-пайплайны на базе любой LLM — прямо на ваших серверах. Ваши данные никогда не покидают ваш контур. Никогда.",
+        hero_cta1: "Демо",
+        hero_cta2: "Связаться с нами",
+        prob_num: "01 — Проблема",
+        prob_title: "Почему стандартный AI не подходит для бизнеса",
+        prob1_h: "Данные покидают ваш периметр",
+        prob1_p: "Каждый API-запрос к внешним AI-провайдерам отправляет ваши данные на сторонние серверы — кошмар для комплаенса.",
+        prob2_h: "Универсальный AI без контекста",
+        prob2_p: "Публичные модели не понимают вашу бизнес-документацию и внутренние данные. Ответы поверхностные и ненадёжные.",
+        prob3_h: "Нет контроля над стеком",
+        prob3_p: "Вы не контролируете версию модели, аптайм, инфраструктуру или частоту обновлений. Ваш AI — чужое решение.",
+        sol_num: "02 — Решение",
+        sol_title: "On-Premise RAG на ваших серверах",
+        sol_sub: "Swipies AI разворачивает полную AI-инфраструктуру внутри вашей среды. Полный суверенитет данных, ноль внешних зависимостей.",
+        sol1_h: "Развертывание RAG On-Premise",
+        sol1_p: "Полный RAG-пайплайн — загрузка документов, векторная индексация, поиск и генерация — разворачивается прямо на ваших серверах.",
+        sol2_h: "Работает с вашими данными",
+        sol2_p: "Подключите существующие документы, базы данных, CRM и внутренние инструменты. База знаний строится из ваших реальных данных.",
+        sol3_h: "Любая LLM, ваш выбор",
+        sol3_p: "Поддержка OpenAI, Anthropic Claude, xAI Grok и полностью локальных моделей через Ollama. Переключайте модели без изменения инфраструктуры.",
+        sol4_h: "Полный White-Label для SaaS",
+        sol4_p: "Встройте Swipies AI в свой продукт под своим брендом. Предлагайте AI-функции клиентам — на вашей инфраструктуре.",
+        sol5_h: "Локальные серверы в Узбекистане",
+        sol5_p: "Развертывание моделей ИИ на высокопроизводительных серверах, физически расположенных на территории Республики Узбекистан в полном соответствии с местным законодательством.",
+        how_num: "03 — Как это работает",
+        how_title: "Развёртывание за 10 рабочих дней",
+        how1_h: "Аудит инфраструктуры",
+        how1_p: "Мы проводим аудит серверов, источников данных и требований безопасности для проектирования оптимальной архитектуры.",
+        how2_h: "Развёртывание RAG + LLM",
+        how2_p: "Мы разворачиваем полный RAG-пайплайн и выбранную LLM прямо на вашей инфраструктуре. В течение 10 рабочих дней.",
+        how3_h: "Ваша команда начинает работу",
+        how3_p: "Ваша команда и клиенты получают корпоративный AI — полностью приватный, полностью контролируемый. Данные остаются у вас.",
+        selfhosted_num: "04 — Установка (Self-Hosted)",
+        selfhosted_title: "Запускайте Swipies AI на собственном оборудовании",
+        selfhosted_subtitle: "Загрузите наши Docker-контейнеры, настройте окружение и вставьте лицензионный ключ, чтобы разблокировать максимальную производительность.",
+        selfhosted_step1_h: "1. Загрузите и запустите",
+        selfhosted_step1_p: "Разверните стек в контейнерах за считанные минуты с помощью Docker Compose или Helm-чартов Kubernetes.",
+        selfhosted_step2_h: "2. Введите лицензионный ключ",
+        selfhosted_step2_p: "Вставьте ваш лицензионный ключ в веб-панель управления, чтобы активировать ускорение GPU и снять лимиты.",
+        selfhosted_step3_h: "3. Полная автономия",
+        selfhosted_step3_p: "Сервер работает полностью автономно. Нет телеметрии, не требуется внешнее подключение к интернету для закрытых сетей.",
+        cases_num: "05 — Кейсы",
+        cases_title: "Для отраслей, где данные — на первом месте",
+        case1_label: "SaaS / ERP",
+        case1_h: "Встройте AI в свой продукт",
+        case1_p: "White-label решение для ваших клиентов. OEM-модель — ваш бренд, ваша инфраструктура, данные клиентов остаются приватными.",
+        case2_label: "Банки и финансы",
+        case2_h: "AI на конфиденциальных данных",
+        case2_p: "AI для транзакций, клиентских профилей и финансовых документов. Полное соответствие регуляторам.",
+        case3_label: "Юриспруденция",
+        case3_h: "AI для дел и договоров",
+        case3_p: "Поиск, анализ и обобщение судебной практики, договоров и документов комплаенса в вашей безопасной среде.",
+        case4_label: "Крупные предприятия",
+        case4_h: "Внутренняя база знаний AI",
+        case4_p: "Мгновенный доступ к корпоративной документации, политикам HR, техническим руководствам через приватный AI.",
+        partners_num: "06 — Партнёры",
+        partners_title: "Нам доверяют",
+        price_num: "07 — Цены",
+        price_title: "Гибкие варианты развертывания",
+        starter: "Стартер",
+        starter_price: "$40",
+        starter_period: "/мес",
+        starter_desc: "Для небольших команд. Полный AI-функционал на управляемой облачной инфраструктуре Swipies.",
+        starter_f1: "Облачное развертывание",
+        starter_f2: "Полный RAG-пайплайн",
+        starter_f3: "Стандартная поддержка",
+        starter_f4: "Управляемая инфраструктура",
+        starter_cta: "Начать работу",
+        license: "Лицензия (Self-Hosted)",
+        license_price: "От $190",
+        license_period: "/мес",
+        license_desc: "Приобретите лицензионный ключ и запустите Swipies AI на своей инфраструктуре. Самостоятельная установка.",
+        license_f1: "Self-hosted (Docker/k8s)",
+        license_f2: "Активация лицензионным ключом",
+        license_f3: "Без лимитов на данные и команду",
+        license_f4: "Ускорение GPU и векторов",
+        license_f5: "Работа offline (закрытый контур)",
+        license_f6: "Регулярные обновления",
+        license_cta: "Купить ключ",
+        enterprise: "Enterprise",
+        ent_price: "От $700",
+        ent_period: "/мес",
+        ent_desc: "Индивидуальный расчёт на основе вашей инфраструктуры и объёма данных.",
+        ent_f1: "On-premise развертывание",
+        ent_f2: "Настройка LLM",
+        ent_f3: "Выделенная поддержка",
+        ent_f4: "White-label",
+        ent_f5: "Гарантия SLA",
+        ent_f6: "Суверенитет данных",
+        ent_cta: "Получить предложение",
+        faq_num: "08 — Вопросы",
+        faq_title: "Часто задаваемые вопросы",
+        faq1_q: "Наши данные покидают серверы?",
+        faq1_a: "Нет, никогда. Swipies AI развёрнут полностью на вашей инфраструктуре. Документы, базы данных и запросы остаются в вашей среде.",
+        faq2_q: "Сколько времени занимает развертывание?",
+        faq2_a: "Типичное развертывание — 10 рабочих дней. Включает аудит инфраструктуры, настройку RAG, конфигурацию LLM, тестирование и запуск.",
+        faq3_q: "Какие LLM вы поддерживаете?",
+        faq3_a: "OpenAI (GPT-4, GPT-4o), Anthropic (Claude 3, 3.5), xAI (Grok) и локальные модели через Ollama. Модели можно переключать в любой момент.",
+        faq4_q: "Предлагаете ли вы white-label?",
+        faq4_a: "Да. SaaS и ERP компании могут встроить Swipies AI под своим брендом. Клиенты работают с AI, нативным для вашего продукта.",
+        faq5_q: "Что такое RAG и почему это важно?",
+        faq5_a: "RAG (Retrieval-Augmented Generation) — технология, при которой AI извлекает релевантную информацию из ваших данных перед генерацией ответа. Ответы основаны на ваших документах — точные и достоверные.",
+        faq6_q: "Как работает лицензия self-hosted?",
+        faq6_a: "Вы загружаете наши Docker Compose или Kubernetes Helm-чарты, устанавливаете Swipies AI на собственные серверы и вводите купленный лицензионный ключ в веб-интерфейсе. Это разблокирует все возможности платформы, снимает ограничения и позволяет работать локально без подключения к интернету.",
+        faq7_q: "Можно ли развернуть модели ИИ на серверах в Узбекистане?",
+        faq7_a: "Да, конечно. Мы поддерживаем развертывание языковых моделей (LLM) и RAG-систем на серверах, физически расположенных на территории Узбекистана. Это гарантирует 100% соответствие требованиям законодательства Республики Узбекистан (в частности, статье 27.1 Закона «О персональных данных»).",
+        contact_num: "09 — Контакты",
+        contact_title: "Обсудим ваше развертывание",
+        form_company: "Компания",
+        form_name: "ФИО",
+        form_email: "Email",
+        form_phone: "Телефон",
+        form_msg: "Сообщение",
+        form_submit: "Отправить",
+        form_required: "Обязательно",
+        ci_email: "Email",
+        ci_phone: "Телефон",
+        ci_location: "Местоположение",
+        ci_loc_val: "Узбекистан, Андижан",
+        ci_note: "Персональный менеджер для каждого развертывания. Гарантии SLA. Среднее время ответа: < 2 часов.",
+        fcta_h: "Готовы внедрить AI в вашу инфраструктуру?",
+        fcta_p: "Разверните корпоративный AI на своих серверах. Ваши данные остаются вашими.",
+        footer_desc: "Корпоративная on-premise AI-платформа. RAG-пайплайны на ваших серверах с полным суверенитетом данных.",
+        footer_platform: "Платформа",
+        footer_company: "Компания",
+        footer_connect: "Связь",
+        footer_tutorials: "Обучение",
+        footer_terms: "Условия",
+        footer_privacy: "Политика конфиденциальности",
+        footer_docs: "Документация",
+        footer_copy: "© 2025 Swipies AI. Все права защищены."
+      },
+      uz: {
+        nav_solution: "Yechim",
+        nav_how: "Qanday ishlaydi",
+        nav_selfhosted: "Self-Hosted",
+        nav_cases: "Foydalanish",
+        nav_partners: "Hamkorlar",
+        nav_pricing: "Narxlar",
+        nav_faq: "Savollar",
+        nav_cta: "Demo",
+        hero_badge: "Korporativ AI platforma",
+        hero_h1: "Korporativ AI. Sizning infratuzilmangiz. Sizning ma'lumotlaringiz.",
+        hero_sub: "Istalgan LLM asosida on-premise RAG pipeline'larni to'g'ridan-to'g'ri serverlaringizda joylashtiring. Ma'lumotlaringiz hech qachon tashqariga chiqmaydi.",
+        hero_cta1: "Demo",
+        hero_cta2: "Bog'lanish",
+        prob_num: "01 — Muammo",
+        prob_title: "Nima uchun standart AI korporativ sektorda ishlamaydi",
+        prob1_h: "Ma'lumotlar tashqariga chiqadi",
+        prob1_p: "Tashqi AI provayderlariga har bir API so'rov sizning maxfiy ma'lumotlaringizni uchinchi tomon serverlariga yuboradi.",
+        prob2_h: "Umumiy AI, kontekstsiz",
+        prob2_p: "Ommaviy modellar sizning ma'lumotlaringizni tushunmaydi. Javoblar yuzaki va ishonchsiz.",
+        prob3_h: "Stek ustidan nazorat yo'q",
+        prob3_p: "Model versiyasi, uptime yoki yangilanishlarni nazorat qila olmaysiz. AI boshqa birovning qarori.",
+        sol_num: "02 — Yechim",
+        sol_title: "Serverlaringizda ishlaydigan On-Premise RAG",
+        sol_sub: "Swipies AI to'liq AI infratuzilmasini sizning muhitingizga joylashtiradi. To'liq ma'lumotlar suvereniteti.",
+        sol1_h: "On-Premise RAG joylashtirish",
+        sol1_p: "To'liq RAG pipeline — hujjatlarni yuklash, vektor indeksatsiya, qidirish va generatsiya — to'g'ridan-to'g'ri serverlaringizda.",
+        sol2_h: "Ma'lumotlaringiz bilan ishlaydi",
+        sol2_p: "Mavjud hujjatlar, ma'lumotlar bazalari, CRM va ichki vositalarni ulang. Bilim bazasi haqiqiy ma'lumotlaringizdan quriladi.",
+        sol3_h: "Istalgan LLM, sizning tanlovingiz",
+        sol3_p: "OpenAI, Anthropic Claude, xAI Grok va Ollama orqali to'liq lokal modellar qo'llab-quvvatlanadi.",
+        sol4_h: "SaaS uchun to'liq White-Label",
+        sol4_p: "Swipies AI'ni o'z brendingiz ostida mahsulotingizga joylashtiring. Mijozlaringizga AI imkoniyatlarini taklif qiling.",
+        sol5_h: "O'zbekistondagi lokal serverlar",
+        sol5_p: "AI modellarini O'zbekiston Respublikasi hududida joylashgan yuqori unumdorlikka ega serverlarda ishga tushiring va mahalliy ma'lumotlarni saqlash qonunlariga mosligini ta'minlang.",
+        how_num: "03 — Qanday ishlaydi",
+        how_title: "10 ish kunida joylashtiriladi",
+        how1_h: "Infratuzilma auditi",
+        how1_p: "Serverlar, ma'lumot manbalari og'irligi va xavfsizlik talablarini tekshiramiz.",
+        how2_h: "RAG + LLM joylashtirish",
+        how2_p: "To'liq RAG pipeline va tanlangan LLM'ni infratuzilmangizga joylashtiramiz. 10 ish kuni ichida.",
+        how3_h: "Jamoangiz ishga tushadi",
+        how3_p: "Jamoangiz korporativ AI'dan foydalanishni boshlaydi — to'liq maxfiy, to'liq nazorat ostida.",
+        selfhosted_num: "04 — O'rnatish (Self-Hosted)",
+        selfhosted_title: "Swipies AI-ni o'z uskunangizda ishga tushiring",
+        selfhosted_subtitle: "Docker konteynerlarimizni yuklab oling, muhitni sozlang va maksimal unumdorlikni faollashtirish uchun litsenziya kalitini kiriting.",
+        selfhosted_step1_h: "1. Yuklab oling va ishga tushiring",
+        selfhosted_step1_p: "Docker Compose yoki Kubernetes Helm-chartlari yordamida stekni bir necha daqiqada joylashtiring.",
+        selfhosted_step2_h: "2. Litsenziya kalitini kiriting",
+        selfhosted_step2_p: "GPU tezlashuvini faollashtirish va cheklovlarni olib tashlash uchun Swipies litsenziya kalitini kiriting.",
+        selfhosted_step3_h: "3. To'liq avtonomiya",
+        selfhosted_step3_p: "Server to'liq mustaqil ishlaydi. Telemetriya yo'q, yopiq tarmoqlar uchun tashqi internet talab etilmaydi.",
+        cases_num: "05 — Foydalanish",
+        cases_title: "Ma'lumotlar xavfsizligi muhim bo'lgan sohalar uchun",
+        case1_label: "SaaS / ERP",
+        case1_h: "AI'ni mahsulotingizga joylashtiring",
+        case1_p: "White-label yechim. OEM modeli — sizning brendingiz, infratuzilmangiz, mijozlar ma'lumotlari maxfiy qoladi.",
+        case2_label: "Banklar va moliya",
+        case2_h: "Maxfiy ma'lumotlarda AI",
+        case2_p: "Tranzaksiyalar, mijoz profillari va moliyaviy hujjatlar ustida AI. To'liq regulyator muvofiqlik.",
+        case3_label: "Huquq va muvofiqlik",
+        case3_h: "Ish fayllari va shartnomalar uchun AI",
+        case3_p: "Sud amaliyoti, shartnomalar va muvofiqlik hujjatlarini qidirish va tahlil qilish.",
+        case4_label: "Yirik korxonalar",
+        case4_h: "Ichki bilim bazasi AI",
+        case4_p: "Har bir xodimga korporativ hujjatlar, HR siyosatlari va texnik qo'llanmalarga tezkor kirish.",
+        partners_num: "06 — Hamkorlar",
+        partners_title: "Bizga ishonishadi",
+        price_num: "07 — Narxlar",
+        price_title: "Moslashuvchan joylashtirish variantlari",
+        starter: "Starter",
+        starter_price: "$40",
+        starter_period: "/oy",
+        starter_desc: "Kichik jamoalar uchun. Swipies bulut infratuzilmasida xavfsiz AI funksionalligi.",
+        starter_f1: "Bulut joylashtirish",
+        starter_f2: "To'liq RAG pipeline",
+        starter_f3: "Standart qo'llab-quvvatlash",
+        starter_f4: "Boshqariladigan infratuzilma",
+        starter_cta: "Boshlash",
+        license: "Self-Hosted Litsenziya",
+        license_price: "$190 dan",
+        license_period: "/oy",
+        license_desc: "Litsenziya kalitini sotib oling va Swipies AI-ni o'z infratuzilmangizda ishga tushiring. Mustaqil o'rnatish.",
+        license_f1: "Self-hosted (Docker/k8s)",
+        license_f2: "Litsenziya kaliti orqali faollashtirish",
+        license_f3: "Cheksiz jamoa va ma'lumotlar",
+        license_f4: "GPU va Vektor tezlashuvi",
+        license_f5: "Offline / Yopiq rejim",
+        license_f6: "Muntazam yangilanishlar",
+        license_cta: "Kalitni sotib olish",
+        enterprise: "Enterprise",
+        ent_price: "$700 dan",
+        ent_period: "/oy",
+        ent_desc: "Infratuzilma va ma'lumotlar hajmiga qarab individual hisob-kitob.",
+        ent_f1: "On-premise joylashtirish",
+        ent_f2: "Maxsus LLM sozlash",
+        ent_f3: "Shaxsiy qo'llab-quvvatlash",
+        ent_f4: "White-label imkoniyati",
+        ent_f5: "SLA kafolati",
+        ent_f6: "Ma'lumotlar suvereniteti",
+        ent_cta: "Taklif olish",
+        faq_num: "08 — Savollar",
+        faq_title: "Ko'p beriladigan savollar",
+        faq1_q: "Ma'lumotlarimiz serverlardan chiqadimi?",
+        faq1_a: "Yo'q, hech qachon. Swipies AI to'liq sizning infratuzilmangizda joylashtiriladi. Hujjatlar va so'rovlar muhitingizda qoladi.",
+        faq2_q: "Joylashtirish qancha vaqt oladi?",
+        faq2_a: "Odatiy joylashtirish — 10 ish kuni. Audit, RAG sozlash, LLM konfiguratsiya, test va ishga tushirish.",
+        faq3_q: "Qaysi LLM'larni qo'llab-quvvatlaysiz?",
+        faq3_a: "OpenAI (GPT-4, GPT-4o), Anthropic (Claude 3, 3.5), xAI (Grok) va Ollama orqali lokal modellar. Istalgan vaqtda almashtiriladi.",
+        faq4_q: "White-label taklif qilasizmi?",
+        faq4_a: "Ha. SaaS va ERP kompaniyalari Swipies AI'ni o'z brendi ostida joylashtirishi mumkin.",
+        faq5_q: "RAG nima va nima uchun muhim?",
+        faq5_a: "RAG — javob yaratishdan oldin AI sizning ma'lumotlaringizdan tegishli axborotni oladi. Javoblar haqiqiy hujjatlarga asoslangan — aniq va ishonchli.",
+        faq6_q: "Self-hosted litsenziya qanday ishlaydi?",
+        faq6_a: "Siz bizning Docker Compose yoki Kubernetes Helm-chartlarimizni yuklab olasiz, Swipies AI-ni o'z serverlaringizga o'rnatasiz va sotib olingan litsenziya kalitini veb-interfeysda kiritasiz. Bu platformaning barcha imkoniyatlarini ochadi, cheklovlarni olib tashlaydi va internetga ulanmasdan lokal ishlash imkonini beradi.",
+        faq7_q: "AI modellarini O'zbekistondagi serverlarga o'rnatish mumkinmi?",
+        faq7_a: "Albatta. Biz LLM va RAG tizimlarini to'g'ridan-to'g'ri O'zbekiston hududida joylashgan serverlarda ishga tushirishni to'liq qo'llab-quvvatlaymiz. Bu shaxsiy ma'lumotlarni saqlashga oid qonunchilik talablariga (xususan, 'Shaxsiy ma'lumotlar to'g'risida'gi qonunning 27.1-moddasiga) to'liq mos kelishini ta'minlaydi.",
+        contact_num: "09 — Aloqa",
+        contact_title: "Joylashtirishingizni muhokama qilaylik",
+        form_company: "Kompaniya nomi",
+        form_name: "To'liq ism",
+        form_email: "Email",
+        form_phone: "Telefon",
+        form_msg: "Xabar",
+        form_submit: "Xabar yuborish",
+        form_required: "Majburiy",
+        ci_email: "Email",
+        ci_phone: "Telefon",
+        ci_location: "Joylashuv",
+        ci_loc_val: "O'zbekiston, Andijon",
+        ci_note: "Har bir joylashtirish uchun shaxsiy menejer. SLA kafolatlari. O'rtacha javob vaqti: < 2 soat.",
+        fcta_h: "AI'ni infratuzilmangizga joriy qilishga tayyormisiz?",
+        fcta_p: "Korporativ AI'ni serverlaringizda joylashtiring. Ma'lumotlaringiz sizniki bo'lib qoladi.",
+        footer_desc: "Korporativ on-premise AI platforma. Serverlaringizda RAG pipeline'lar, to'liq ma'lumotlar suvereniteti.",
+        footer_platform: "Platforma",
+        footer_company: "Company",
+        footer_connect: "Aloqa",
+        footer_tutorials: "Qo'llanmalar",
+        footer_terms: "Foydalanish shartlari",
+        footer_privacy: "Maxfiylik siyosati",
+        footer_docs: "Hujjatlar",
+        footer_copy: "© 2025 Swipies AI. Barcha huquqlar himoyalangan."
+      }
+    };
+
+    /* ===== STATE & LANGUAGE INTERACTIVE SYSTEM ===== */
+    let currentLang = 'en';
+
+    function setLanguage(lang, activeClick = false) {
+      if (!T[lang]) return;
+      currentLang = lang;
+
+      // Trigger GA4 and Yandex Metrika event if actively switched by user
+      if (activeClick) {
+        trackAnalyticsEvent('language_switch', { language: lang });
+      }
+
+      // Update language selector buttons globally across all desktop & mobile switchers
+      document.querySelectorAll('.lang-switch button, #langSwitch button').forEach(btn => {
+        if (btn.getAttribute('data-lang') === lang) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      // Update DOM translations globally
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (T[lang][key]) {
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            el.placeholder = T[lang][key];
+          } else {
+            const svg = el.querySelector('svg');
+            if (svg) {
+              el.textContent = T[lang][key];
+              el.appendChild(svg);
+            } else {
+              el.textContent = T[lang][key];
+            }
+          }
+        }
+      });
+
+      // Save selection
+      localStorage.setItem('swipies_lang', lang);
+      updateAuthStatus();
+    }
+
+    function updateAuthStatus() {
+      const isLoggedIn = !!(localStorage.getItem('Authorization') && (localStorage.getItem('UserInfo') || localStorage.getItem('userInfo') || localStorage.getItem('token')));
+      const savedLang = localStorage.getItem('swipies_lang') || 'en';
+
+      const consoleTexts = {
+        en: 'Go to Console',
+        ru: 'Панель управления',
+        uz: 'Konsolga o‘tish'
+      };
+
+      document.querySelectorAll('[data-i18n="nav_cta"]').forEach(el => {
+        if (isLoggedIn) {
+          el.textContent = consoleTexts[savedLang] || 'Console';
+          el.href = 'https://api.swipies.app/';
+          el.target = '_self';
+        } else {
+          el.textContent = T[savedLang].nav_cta;
+          el.href = 'login.html';
+          el.target = '_self';
+        }
+      });
+
+      document.querySelectorAll('[data-i18n="hero_cta1"]').forEach(el => {
+        if (isLoggedIn) {
+          el.textContent = consoleTexts[savedLang] || 'Console';
+          el.href = 'https://api.swipies.app/';
+          el.target = '_self';
+        } else {
+          el.textContent = T[savedLang].hero_cta1;
+          el.href = 'login.html';
+          el.target = '_self';
+        }
+      });
+
+      const starterBtn = document.querySelector('[data-i18n="starter_cta"]');
+      if (starterBtn) {
+        if (isLoggedIn) {
+          starterBtn.href = 'https://api.swipies.app/pricing?plan=plus';
+          starterBtn.target = '_self';
+        } else {
+          starterBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dplus';
+          starterBtn.target = '_self';
+        }
+      }
+
+      const licenseBtn = document.querySelector('[data-i18n="license_cta"]');
+      if (licenseBtn) {
+        if (isLoggedIn) {
+          licenseBtn.href = 'https://api.swipies.app/pricing?plan=license';
+          licenseBtn.target = '_self';
+        } else {
+          licenseBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dlicense';
+          licenseBtn.target = '_self';
+        }
+      }
+    }
+
+    // Global Language Switch Event Delegate
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.lang-switch button, #langSwitch button');
+      if (btn) {
+        const lang = btn.getAttribute('data-lang');
+        setLanguage(lang, true);
+      }
+    });
+
+    /* ===== FAQ ACCORDION INTERACTIVITY ===== */
+    document.querySelectorAll('.faq-question').forEach(button => {
+      button.addEventListener('click', () => {
+        const item = button.parentElement;
+        const answer = item.querySelector('.faq-answer');
+        const isOpen = item.classList.contains('open');
+
+        document.querySelectorAll('.faq-item').forEach(el => {
+          el.classList.remove('open');
+          el.querySelector('.faq-answer').style.maxHeight = null;
+        });
+
+        if (!isOpen) {
+          item.classList.add('open');
+          answer.style.maxHeight = answer.scrollHeight + 'px';
+        }
+      });
+    });
+
+    /* ===== MOBILE NAVIGATION OVERLAY GENERATION ===== */
+    const hamburger = document.getElementById('hamburger');
+    const mobileMenu = document.getElementById('mobileMenu');
+    const navLinks = document.getElementById('navLinks');
+
+    // Construct premium mobile menu structure programmatically
+    function initializeMobileMenu() {
+      mobileMenu.innerHTML = ''; // Clear stub
+
+      // 1. Mobile Menu Header
+      const header = document.createElement('div');
+      header.className = 'mobile-menu-header';
+
+      const logo = document.createElement('a');
+      logo.href = '#';
+      logo.className = 'nav-logo';
+      logo.innerHTML = 'Swipies<span>AI</span>';
+      logo.addEventListener('click', () => closeMobileMenu());
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'mobile-menu-close';
+      closeBtn.setAttribute('aria-label', 'Close Menu');
+      closeBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+      closeBtn.addEventListener('click', () => closeMobileMenu());
+
+      header.appendChild(logo);
+      header.appendChild(closeBtn);
+      mobileMenu.appendChild(header);
+
+      // 2. Navigation Links
+      const linksContainer = document.createElement('div');
+      linksContainer.className = 'mobile-menu-links';
+
+      // Clone original links to preserve data-i18n attributes
+      Array.from(navLinks.children).forEach(link => {
+        const clonedLink = link.cloneNode(true);
+        clonedLink.addEventListener('click', () => closeMobileMenu());
+        linksContainer.appendChild(clonedLink);
+      });
+      mobileMenu.appendChild(linksContainer);
+
+      // 3. Mobile Language Switcher
+      const langSwitchContainer = document.createElement('div');
+      langSwitchContainer.style.padding = '0.5rem 0';
+
+      const mobileLangSwitch = document.createElement('div');
+      mobileLangSwitch.className = 'lang-switch';
+      mobileLangSwitch.innerHTML = `
+    <button data-lang="en">EN</button>
+    <button data-lang="ru">RU</button>
+    <button data-lang="uz">UZ</button>
+  `;
+      langSwitchContainer.appendChild(mobileLangSwitch);
+      mobileMenu.appendChild(langSwitchContainer);
+
+      // 4. Action Buttons (Footer CTAs)
+      const menuFooter = document.createElement('div');
+      menuFooter.className = 'mobile-menu-footer';
+
+      const tryDemoBtn = document.createElement('a');
+      tryDemoBtn.href = 'login.html';
+      tryDemoBtn.className = 'btn-primary';
+      tryDemoBtn.setAttribute('data-i18n', 'nav_cta');
+      tryDemoBtn.textContent = 'Try Demo';
+      tryDemoBtn.addEventListener('click', () => closeMobileMenu());
+
+      const talkSalesBtn = document.createElement('a');
+      talkSalesBtn.href = '#contact';
+      talkSalesBtn.className = 'btn-secondary';
+      talkSalesBtn.setAttribute('data-i18n', 'hero_cta2');
+      talkSalesBtn.textContent = 'Talk to Sales';
+      talkSalesBtn.addEventListener('click', () => closeMobileMenu());
+
+      menuFooter.appendChild(tryDemoBtn);
+      menuFooter.appendChild(talkSalesBtn);
+      mobileMenu.appendChild(menuFooter);
+    }
+
+    function openMobileMenu() {
+      mobileMenu.classList.add('open');
+      hamburger.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling when open
+    }
+
+    function closeMobileMenu() {
+      mobileMenu.classList.remove('open');
+      hamburger.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = ''; // Restore background scrolling
+    }
+
+    // Hamburger click listener
+    hamburger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = mobileMenu.classList.contains('open');
+      if (isOpen) {
+        closeMobileMenu();
+      } else {
+        openMobileMenu();
+      }
+    });
+
+    // Close mobile menu when clicking outside panel bounds
+    document.addEventListener('click', (e) => {
+      if (mobileMenu.classList.contains('open') && !mobileMenu.contains(e.target) && !hamburger.contains(e.target)) {
+        closeMobileMenu();
+      }
+    });
+
+    /* ===== CONTACT FORM SUBMISSION WITH VALIDATION ===== */
+    window.handleSubmit = function (event) {
+      event.preventDefault();
+
+      const company = document.getElementById('f-company');
+      const name = document.getElementById('f-name');
+      const email = document.getElementById('f-email');
+      const phone = document.getElementById('f-phone');
+      const msg = document.getElementById('f-msg');
+
+      let isValid = true;
+
+      [company, name, email].forEach(input => {
+        if (!input.value.trim()) {
+          input.classList.add('error');
+          isValid = false;
+        } else {
+          input.classList.remove('error');
+        }
+      });
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.value.trim())) {
+        email.classList.add('error');
+        isValid = false;
+      }
+
+      if (!isValid) return false;
+
+      // Save form submission record to localStorage (making it fully functional for the Admin Panel)
+      const refCodeSaved = localStorage.getItem('swipies_ref') || '';
+      const newSubmission = {
+        id: 'sub_' + Date.now(),
+        company: company.value.trim(),
+        name: name.value.trim(),
+        email: email.value.trim(),
+        phone: phone.value.trim() || '',
+        message: msg.value.trim() || '',
+        referralCode: refCodeSaved,
+        date: new Date().toISOString(),
+        read: false
+      };
+
+      try {
+        const currentSubmissions = JSON.parse(localStorage.getItem('swipies_submissions') || '[]');
+        currentSubmissions.unshift(newSubmission);
+        localStorage.setItem('swipies_submissions', JSON.stringify(currentSubmissions));
+      } catch (err) {
+        console.error('Error saving submission locally:', err);
+      }
+
+      // Submit to the main database of the platform
+      fetch('/api/v1/leads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          company: company.value.trim(),
+          name: name.value.trim(),
+          email: email.value.trim(),
+          phone: phone.value.trim() || '',
+          message: msg.value.trim() || '',
+          referral_code: refCodeSaved
+        })
+      }).then(res => res.json())
+        .then(res => {
+          if (res && res.code === 0) {
+            console.log('Lead successfully saved in database.');
+          } else {
+            console.warn('Backend responded with error for lead submission:', res);
+          }
+        })
+        .catch(err => {
+          console.error('Error posting lead to main database:', err);
+        });
+
+      // Trigger GA4 & Yandex Metrika form submission event
+      trackAnalyticsEvent('form_submit');
+
+      const submitBtn = event.target.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.style.background = 'var(--green)';
+      submitBtn.style.color = '#fff';
+      submitBtn.textContent = currentLang === 'en' ? 'Success! Message Sent' : currentLang === 'ru' ? 'Успешно отправлено!' : 'Muvaffaqiyatli yuborildi!';
+
+      setTimeout(() => {
+        document.getElementById('contactForm').reset();
+        submitBtn.disabled = false;
+        submitBtn.style.background = 'var(--accent)';
+        submitBtn.style.color = 'var(--bg)';
+        setLanguage(currentLang);
+      }, 3000);
+
+      return false;
+    };
+
+    // Global CTA Click Event Tracking Delegate for GA4 & Yandex Metrika
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('a');
+      if (!link) return;
+
+      const href = link.getAttribute('href') || '';
+      const isDemo = href.includes('api.swipies.app') || link.getAttribute('data-i18n') === 'nav_cta' || link.getAttribute('data-i18n') === 'hero_cta1' || link.getAttribute('data-i18n') === 'starter_cta';
+      const isSales = href === '#contact' || link.getAttribute('data-i18n') === 'hero_cta2' || link.getAttribute('data-i18n') === 'ent_cta';
+
+      if (isDemo) {
+        trackAnalyticsEvent('demo_click');
+      } else if (isSales) {
+        trackAnalyticsEvent('sales_click');
+      }
+    });
+
+    /* ===== SCROLL REVEAL (INTERSECTION OBSERVER) ===== */
+    const revealCallback = (entries, observer) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    };
+
+    const revealObserver = new IntersectionObserver(revealCallback, {
+      root: null,
+      threshold: 0.12
+    });
+
+    document.querySelectorAll('.reveal').forEach(el => {
+      revealObserver.observe(el);
+    });
+
+    // Optimized sticky navbar heights & drop shadow on scroll
+    window.addEventListener('scroll', () => {
+      const nav = document.getElementById('navbar');
+      if (window.scrollY > 20) {
+        nav.style.background = 'rgba(8,12,20,0.96)';
+        nav.style.boxShadow = '0 10px 30px -10px rgba(0,0,0,0.6)';
+        if (window.innerWidth >= 1024) {
+          nav.style.height = '52px'; // Tighter sticky scrolling height
+        }
+      } else {
+        nav.style.background = 'rgba(8,12,20,0.92)';
+        nav.style.boxShadow = 'none';
+        if (window.innerWidth >= 1024) {
+          nav.style.height = '60px'; // Natural initial height
+        }
+      }
+    });
+
+    /* ===== INITIALIZE ===== */
+    document.addEventListener('DOMContentLoaded', () => {
+      // Construct mobile navigation panel programmatically
+      initializeMobileMenu();
+
+      // Detect default browser/system language if first-time visitor, otherwise honor saved choice
+      let defaultLang = 'en';
+      const savedLang = localStorage.getItem('swipies_lang');
+
+      if (savedLang) {
+        defaultLang = savedLang;
+      } else {
+        const sysLanguages = navigator.languages || [navigator.language || navigator.userLanguage || ''];
+        for (let i = 0; i < sysLanguages.length; i++) {
+          const code = sysLanguages[i].substring(0, 2).toLowerCase();
+          if (['en', 'ru', 'uz'].includes(code)) {
+            defaultLang = code;
+            break;
+          }
+        }
+      }
+      setLanguage(defaultLang);
+
+      // Referral / Affiliate Tracking Integration
+      const urlParams = new URLSearchParams(window.location.search);
+      const refCode = urlParams.get('ref') || urlParams.get('aff') || urlParams.get('promo') || urlParams.get('referrer');
+      if (refCode) {
+        localStorage.setItem('swipies_ref', refCode);
+      }
+      
+      const activeRef = localStorage.getItem('swipies_ref');
+      if (activeRef) {
+        const badge = document.getElementById('referralBadge');
+        const codeSpan = document.getElementById('badgeRefCode');
+        if (badge && codeSpan) {
+          codeSpan.textContent = activeRef;
+          badge.style.display = 'flex';
+        }
+      }
+
+      setTimeout(() => {
+        const hero = document.getElementById('hero');
+        if (hero) hero.classList.add('visible');
+      }, 100);
+    });
+
+    window.closeReferralBadge = function() {
+      const badge = document.getElementById('referralBadge');
+      if (badge) {
+        badge.style.display = 'none';
+      }
+    };
+  </script>
+
+  <!-- Referral Active Floating Badge -->
+  <div id="referralBadge" class="referral-badge" style="display: none;">
+    <div class="badge-dot"></div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="badge-icon"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    <span>Referral active: <strong id="badgeRefCode"></strong></span>
+    <button class="badge-close" onclick="closeReferralBadge()">&times;</button>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="terms_title_page">Terms of Use — Swipies AI</title>
+  <meta name="description" content="Terms of Use and Legal Agreement for Swipies AI platform.">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .legal-container {
+      padding: 8rem 0 6rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .legal-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 3.5rem 3rem;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+    }
+    .legal-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 2rem;
+      margin-bottom: 2.5rem;
+    }
+    .legal-header h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      margin-bottom: 0.5rem;
+    }
+    .legal-header .date {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .legal-body {
+      font-size: var(--t-body);
+      color: var(--text-secondary);
+      line-height: 1.75;
+    }
+    .legal-body h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 2.5rem;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.3px;
+    }
+    .legal-body p {
+      margin-bottom: 1.25rem;
+    }
+    .legal-body ul {
+      list-style: disc;
+      padding-left: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .legal-body li {
+      margin-bottom: 0.5rem;
+    }
+    .legal-footer {
+      margin-top: 3rem;
+      border-top: 1px solid var(--border);
+      padding-top: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+    .legal-footer a {
+      font-size: var(--t-small);
+      color: var(--text-muted);
+      transition: color 0.12s;
+    }
+    .legal-footer a:hover {
+      color: var(--text);
+    }
+    @media (max-width: 600px) {
+      .legal-box {
+        padding: 2rem 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVIGATION -->
+<nav class="nav" id="navbar">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">Swipies<span>AI</span></a>
+    <div class="nav-right">
+      <div class="lang-switch" id="langSwitch">
+        <button class="active" data-lang="en">EN</button>
+        <button data-lang="ru">RU</button>
+        <button data-lang="uz">UZ</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="container">
+  <div class="legal-container">
+    <div class="legal-box">
+      <div class="legal-header">
+        <h1 data-i18n="terms_h1">Terms of Use</h1>
+        <div class="date"><span data-i18n="terms_updated">Last updated</span>: June 25, 2026</div>
+      </div>
+      
+      <div class="legal-body" id="legalBody">
+        <!-- Content will be injected dynamically based on language -->
+      </div>
+      
+      <div class="legal-footer">
+        <a href="/" data-i18n="terms_back">&larr; Back to Homepage</a>
+        <a href="privacy.html" data-i18n="terms_privacy">Privacy Policy &rarr;</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const T = {
+  en: {
+    terms_title_page: "Terms of Use — Swipies AI",
+    terms_h1: "Terms of Use",
+    terms_updated: "Last updated",
+    terms_back: "&larr; Back to Homepage",
+    terms_privacy: "Privacy Policy &rarr;"
+  },
+  ru: {
+    terms_title_page: "Условия использования — Swipies AI",
+    terms_h1: "Условия использования",
+    terms_updated: "Последнее обновление",
+    terms_back: "&larr; На главную",
+    terms_privacy: "Политика конфиденциальности &rarr;"
+  },
+  uz: {
+    terms_title_page: "Foydalanish shartlari — Swipies AI",
+    terms_h1: "Foydalanish shartlari",
+    terms_updated: "Oxirgi yangilanish",
+    terms_back: "&larr; Bosh sahifaga qaytish",
+    terms_privacy: "Maxfiylik siyosati &rarr;"
+  }
+};
+
+const content = {
+  en: `
+    <h2>1. Acceptance of Terms</h2>
+    <p>By accessing or using the Swipies AI platform, websites, and associated services, you agree to comply with and be bound by these Terms of Use. If you do not agree to these terms, please do not access or use the platform.</p>
+    
+    <h2>2. Platform Services & Licensing</h2>
+    <p>Swipies AI provides on-premise RAG (Retrieval-Augmented Generation) deployment packages, Docker configuration manifests, and managed cloud environments. Self-hosted deployments require a valid license key, which must be obtained and renewed in accordance with your subscription terms.</p>
+    
+    <h2>3. Intellectual Property Rights</h2>
+    <p>The Swipies AI platform, including its software, code structure, custom RAG orchestrations, designs, and brand identifiers, are the proprietary intellectual property of Swipies AI. You are granted a limited, non-exclusive, non-transferable, revocable license to run and manage the software instance strictly on your authorized hardware.</p>
+    
+    <h2>4. Data Sovereignty and Compliance</h2>
+    <p>For on-premise deployments, you retain full sovereignty and responsibility for the data ingested, indexed, and processed by Swipies AI. You agree to utilize the platform in strict compliance with applicable local and international data protection laws (such as GDPR, HIPAA, and national regulations).</p>
+    
+    <h2>5. Limitation of Liability</h2>
+    <p>In no event shall Swipies AI, its developers, or affiliates be liable for any direct, indirect, incidental, special, or consequential damages (including loss of data, security breaches caused by third-party LLM providers, or service disruptions) arising out of the use or inability to use the platform.</p>
+    
+    <h2>6. Term Changes</h2>
+    <p>We reserve the right to modify these Terms of Use at any time. Updates will be posted on this page with the modified date. Continued use of the platform constitutes agreement to the updated terms.</p>
+    
+    <h2>7. Contact Information</h2>
+    <p>For questions or support regarding these Terms of Use, please contact legal@swipies.app or albakiev.sardobek@gmail.com.</p>
+  `,
+  ru: `
+    <h2>1. Согласие с условиями</h2>
+    <p>Получая доступ или используя платформу Swipies AI, её веб-сайты и связанные службы, вы соглашаетесь соблюдать эти Условия использования. Если вы не согласны с данными условиями, пожалуйста, воздержитесь от использования платформы.</p>
+    
+    <h2>2. Услуги и лицензирование</h2>
+    <p>Swipies AI предоставляет пакеты локального развертывания RAG (Retrieval-Augmented Generation), конфигурации Docker и управляемые облачные среды. Для локального развертывания требуется действующий лицензионный ключ, который должен быть приобретен и продлен в соответствии с условиями вашей подписки.</p>
+    
+    <h2>3. Интеллектуальная собственность</h2>
+    <p>Платформа Swipies AI, включая программное обеспечение, структуру кода, настройки оркестрации RAG, дизайн и товарные знаки, является собственностью Swipies AI. Вам предоставляется ограниченная, неисключительная, непередаваемая, отзывная лицензия на запуск ПО строго на вашем авторизованном оборудовании.</p>
+    
+    <h2>4. Суверенитет данных и соответствие требованиям</h2>
+    <p>При локальном (on-premise) развертывании вы сохраняете полный контроль и несете полную ответственность за данные, загружаемые, индексируемые и обрабатываемые с помощью Swipies AI. Вы соглашаетесь использовать платформу в строгом соответствии с применимыми законами о защите данных (GDPR и др.).</p>
+    
+    <h2>5. Ограничение ответственности</h2>
+    <p>Ни при каких обстоятельствах Swipies AI, её разработчики или аффилированные лица не несут ответственности за любые прямые, косвенные, случайные или особые убытки (включая потерю данных, утечки из-за внешних LLM-провайдеров или перебои в обслуживании), возникшие в результате использования ПО.</p>
+    
+    <h2>6. Изменение условий</h2>
+    <p>Мы оставляем за собой право изменять настоящие Условия использования в любое время. Изменения публикуются на этой странице. Продолжение использования платформы означает согласие с обновленными условиями.</p>
+    
+    <h2>7. Контакты</h2>
+    <p>По всем вопросам, связанным с настоящими Условиями использования, обращайтесь по адресу legal@swipies.app или albakiev.sardobek@gmail.com.</p>
+  `,
+  uz: `
+    <h2>1. Shartlarni qabul qilish</h2>
+    <p>Swipies AI platformasiga, uning veb-saytlariga va bog'liq xizmatlariga kirish yoki ulardan foydalanish orqali siz ushbu Foydalanish shartlariga rioya qilishga rozilik bildirasiz. Agar siz ushbu shartlarga rozi bo'lmasangiz, platformadan foydalanmang.</p>
+    
+    <h2>2. Xizmatlar va litsenziyalash</h2>
+    <p>Swipies AI lokal RAG (Retrieval-Augmented Generation) paketlarini, Docker konfiguratsiyalarini va boshqariladigan bulut tizimlarini taqdim etadi. Lokal o'rnatishlar uchun haqiqiy litsenziya kaliti talab qilinadi, u obuna shartlariga muvofiq sotib olinishi va yangilanishi kerak.</p>
+    
+    <h2>3. Intellektual mulk</h2>
+    <p>Swipies AI platformasi, jumladan uning dasturiy ta'minoti, kod tuzilishi, maxsus RAG tizimlari, dizaynlari va brend identifikatorlari Swipies AI ning xususiy mulkidir. Sizga dasturni faqat ruxsat etilgan uskunangizda ishga tushirish uchun cheklangan va qaytarib olinadigan litsenziya beriladi.</p>
+    
+    <h2>4. Ma'lumotlar suvereniteti va qonun muvofiqligi</h2>
+    <p>Lokal joylashtirishda siz Swipies AI tomonidan qayta ishlanadigan va indekslanadigan ma'lumotlar ustidan to'liq huquq va mas'uliyatni saqlab qolasiz. Siz platformani ma'lumotlarni muhofaza qilish qonunlariga (GDPR va milliy tartibga solishlar) muvofiq ishlatishga rozilik bildirasiz.</p>
+    
+    <h2>5. Javobgarlikni cheklash</h2>
+    <p>Hech qanday holatda Swipies AI, uning ishlab chiquvchilari yoki hamkorlari platformadan foydalanish yoki foydalana olmaslik natijasida kelib chiqadigan har qanday bevosita yoki bilvosita zararlar (ma'lumotlar yo'qolishi, uchinchi tomon LLM provayderlari sababli xavfsizlik buzilishi) uchun javobgar bo'lmaydi.</p>
+    
+    <h2>6. Shartlarning o'zgarishi</h2>
+    <p>Biz ushbu Foydalanish shartlarini istalgan vaqtda o'zgartirish huquqini saqlab qolamiz. Yangilanishlar ushbu sahifada e'lon qilinadi. Platformadan foydalanishda davom etish yangilangan shartlarga rozilikni bildiradi.</p>
+    
+    <h2>7. Aloqa ma'lumotlari</h2>
+    <p>Ushbu shartlar yuzasidan savollar bo'lsa, legal@swipies.app yoki albakiev.sardobek@gmail.com manziliga murojaat qiling.</p>
+  `
+};
+
+let currentLang = 'en';
+
+function setLanguage(lang) {
+  if (!T[lang]) return;
+  currentLang = lang;
+  
+  // Update buttons
+  document.querySelectorAll('#langSwitch button').forEach(btn => {
+    if (btn.getAttribute('data-lang') === lang) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Update DOM translations
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (T[lang][key]) {
+      el.innerHTML = T[lang][key];
+    }
+  });
+
+  // Inject content
+  document.getElementById('legalBody').innerHTML = content[lang];
+
+  // Save selection
+  localStorage.setItem('swipies_lang', lang);
+}
+
+// Language Switch Event Listeners
+document.getElementById('langSwitch').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (btn) {
+    const lang = btn.getAttribute('data-lang');
+    setLanguage(lang);
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const savedLang = localStorage.getItem('swipies_lang') || 'en';
+  setLanguage(savedLang);
+});
+</script>
+</body>
+</html>

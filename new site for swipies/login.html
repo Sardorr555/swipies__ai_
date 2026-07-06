@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="login_title_page">Login — Swipies AI</title>
+  <meta name="description" content="Access Swipies AI Cloud Console or On-Premise Admin Dashboard.">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .login-container {
+      min-height: calc(100vh - 120px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      position: relative;
+      z-index: 2;
+    }
+    .login-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 3rem 2.5rem;
+      width: 100%;
+      max-width: 540px;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+    }
+    .login-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .login-header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .login-header p {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+    }
+    .login-options {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .login-option-card {
+      display: block;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+    .login-option-card:hover {
+      border-color: var(--accent);
+      background: var(--bg4);
+      transform: translateY(-2px);
+    }
+    .login-option-card h3 {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: justify;
+      gap: 0.5rem;
+    }
+    .login-option-card h3 span {
+      color: var(--accent);
+    }
+    .login-option-card p {
+      font-size: var(--t-small);
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .login-footer {
+      margin-top: 2rem;
+      text-align: center;
+    }
+    .login-footer a {
+      font-size: var(--t-small);
+      color: var(--text-muted);
+      transition: color 0.12s;
+    }
+    .login-footer a:hover {
+      color: var(--text);
+    }
+    .nav-logo-center {
+      display: inline-flex;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      justify-content: center;
+    }
+    .nav-logo-center span {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVIGATION -->
+<nav class="nav" id="navbar">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">Swipies<span>AI</span></a>
+    <div class="nav-right">
+      <div class="lang-switch" id="langSwitch">
+        <button class="active" data-lang="en">EN</button>
+        <button data-lang="ru">RU</button>
+        <button data-lang="uz">UZ</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="login-container">
+  <div class="login-box" style="text-align: center;">
+    <div class="login-header">
+      <div class="nav-logo-center">Swipies<span>AI</span></div>
+      <h1 data-i18n="login_redirect">Redirecting to login...</h1>
+      <p data-i18n="login_redirect_sub">Please wait while we take you to the Cloud Console.</p>
+    </div>
+    
+    <div style="margin: 2rem 0;">
+      <svg class="spinner" viewBox="0 0 50 50" style="animation: rotate 2s linear infinite; margin: 0 auto; width: 50px; height: 50px;">
+        <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="var(--accent)" style="stroke-linecap: round; animation: dash 1.5s ease-in-out infinite;"></circle>
+      </svg>
+      <div id="referralStatus" style="font-size:0.8rem; color:var(--accent); margin-top:1.5rem; font-family:var(--font-mono); display:none;"></div>
+    </div>
+
+    <div class="login-footer">
+      <a href="/" data-i18n="login_back">&larr; Back to Homepage</a>
+    </div>
+  </div>
+</main>
+
+<style>
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
+@keyframes dash {
+  0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+  100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+}
+</style>
+
+<script>
+const T = {
+  en: {
+    login_title_page: "Redirecting — Swipies AI",
+    login_redirect: "Redirecting to Cloud Console...",
+    login_redirect_sub: "Please wait while we take you to the secure login page.",
+    login_back: "&larr; Back to Homepage"
+  },
+  ru: {
+    login_title_page: "Перенаправление — Swipies AI",
+    login_redirect: "Перенаправление в Облако...",
+    login_redirect_sub: "Пожалуйста, подождите, мы перенаправляем вас на страницу входа.",
+    login_back: "&larr; На главную"
+  },
+  uz: {
+    login_title_page: "Yo'naltirilmoqda — Swipies AI",
+    login_redirect: "Bulutli konsolga yo'naltirilmoqda...",
+    login_redirect_sub: "Iltimos, xavfsiz kirish sahifasiga o'tilguncha kuting.",
+    login_back: "&larr; Bosh sahifaga qaytish"
+  }
+};
+
+let currentLang = 'en';
+
+function setLanguage(lang) {
+  if (!T[lang]) return;
+  currentLang = lang;
+  
+  // Update buttons
+  document.querySelectorAll('#langSwitch button').forEach(btn => {
+    if (btn.getAttribute('data-lang') === lang) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Update DOM translations
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (T[lang][key]) {
+      el.innerHTML = T[lang][key];
+    }
+  });
+
+  // Save selection
+  localStorage.setItem('swipies_lang', lang);
+}
+
+// Language Switch Event Listeners
+document.getElementById('langSwitch').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (btn) {
+    const lang = btn.getAttribute('data-lang');
+    setLanguage(lang);
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const savedLang = localStorage.getItem('swipies_lang') || 'en';
+  setLanguage(savedLang);
+
+  // Capture referral parameter in login page too
+  const urlParams = new URLSearchParams(window.location.search);
+  const refCode = urlParams.get('ref') || urlParams.get('aff') || urlParams.get('promo') || urlParams.get('referrer');
+  if (refCode) {
+    localStorage.setItem('swipies_ref', refCode);
+  }
+
+  const activeRef = localStorage.getItem('swipies_ref');
+  if (activeRef) {
+    const statusDiv = document.getElementById('referralStatus');
+    if (statusDiv) {
+      statusDiv.textContent = `Applying referral partner: ${activeRef}`;
+      statusDiv.style.display = 'block';
+    }
+  }
+
+  // Immediate redirect to secure cloud console
+  setTimeout(() => {
+    let redirectUrl = "https://api.swipies.app/login";
+    if (activeRef) {
+      redirectUrl += "?ref=" + encodeURIComponent(activeRef);
+    }
+    window.location.href = redirectUrl;
+  }, 1000);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+{
+  "communities": {
+    "0": [
+      "scripts_core",
+      "scripts_core_bm25",
+      "scripts_core_bm25_fit",
+      "scripts_core_bm25_init",
+      "scripts_core_bm25_score",
+      "scripts_core_bm25_tokenize",
+      "scripts_core_detect_domain",
+      "scripts_core_load_csv",
+      "scripts_core_rationale_110",
+      "scripts_core_rationale_115",
+      "scripts_core_rationale_134",
+      "scripts_core_rationale_160",
+      "scripts_core_rationale_166",
+      "scripts_core_rationale_191",
+      "scripts_core_rationale_213",
+      "scripts_core_rationale_235",
+      "scripts_core_rationale_97",
+      "scripts_core_search",
+      "scripts_core_search_csv",
+      "scripts_core_search_stack"
+    ],
+    "1": [
+      "scripts_design_system",
+      "scripts_design_system_detect_page_type",
+      "scripts_design_system_format_ascii_box",
+      "scripts_design_system_format_markdown",
+      "scripts_design_system_format_master_md",
+      "scripts_design_system_format_page_override_md",
+      "scripts_design_system_generate_design_system",
+      "scripts_design_system_generate_intelligent_overrides",
+      "scripts_design_system_persist_design_system",
+      "scripts_design_system_rationale_1021",
+      "scripts_design_system_rationale_243",
+      "scripts_design_system_rationale_368",
+      "scripts_design_system_rationale_464",
+      "scripts_design_system_rationale_492",
+      "scripts_design_system_rationale_543",
+      "scripts_design_system_rationale_806",
+      "scripts_design_system_rationale_915"
+    ],
+    "2": [
+      "scripts_design_system_designsystemgenerator",
+      "scripts_design_system_designsystemgenerator_apply_reasoning",
+      "scripts_design_system_designsystemgenerator_extract_results",
+      "scripts_design_system_designsystemgenerator_find_reasoning_rule",
+      "scripts_design_system_designsystemgenerator_generate",
+      "scripts_design_system_designsystemgenerator_init",
+      "scripts_design_system_designsystemgenerator_load_reasoning",
+      "scripts_design_system_designsystemgenerator_multi_domain_search",
+      "scripts_design_system_designsystemgenerator_select_best_match",
+      "scripts_design_system_rationale_123",
+      "scripts_design_system_rationale_160",
+      "scripts_design_system_rationale_164",
+      "scripts_design_system_rationale_38",
+      "scripts_design_system_rationale_44",
+      "scripts_design_system_rationale_52",
+      "scripts_design_system_rationale_65",
+      "scripts_design_system_rationale_89"
+    ],
+    "3": [
+      "composio_design_system",
+      "cursor_design_system",
+      "elevenlabs_design_system",
+      "expo_design_system",
+      "figma_design_system",
+      "framer_design_system",
+      "hashicorp_design_system",
+      "ibm_design_system",
+      "intercom_design_system",
+      "kraken_design_system",
+      "linear_app_design_system",
+      "lovable_design_system",
+      "mintlify_design_system",
+      "miro_design_system"
+    ],
+    "4": [
+      "mistralai_designsystem",
+      "mongodb_designsystem",
+      "notion_designsystem",
+      "nvidia_designsystem",
+      "ollama_designsystem",
+      "opencodeai_designsystem",
+      "pinterest_designsystem",
+      "posthog_designsystem",
+      "raycast_designsystem",
+      "replicate_designsystem",
+      "resend_designsystem",
+      "revolut_designsystem",
+      "runwayml_designsystem",
+      "sanity_designsystem"
+    ],
+    "5": [
+      "popular_web_designs_skill",
+      "popular_web_designs_templates_airbnb_md",
+      "popular_web_designs_templates_airtable_md",
+      "popular_web_designs_templates_apple_md",
+      "popular_web_designs_templates_bmw_md",
+      "popular_web_designs_templates_cal_md",
+      "popular_web_designs_templates_claude_md",
+      "popular_web_designs_templates_clay_md",
+      "popular_web_designs_templates_clickhouse_md",
+      "popular_web_designs_templates_cohere_md",
+      "popular_web_designs_templates_coinbase_md"
+    ],
+    "6": [
+      "anti_slop_design_references_colors_md",
+      "anti_slop_design_references_layouts_md",
+      "anti_slop_design_references_typography_md",
+      "anti_slop_design_skill"
+    ],
+    "7": [
+      "app",
+      "app_icons",
+      "app_revealcallback",
+      "app_revealobserver"
+    ],
+    "8": [
+      "scripts_search",
+      "scripts_search_format_output",
+      "scripts_search_rationale_31"
+    ],
+    "9": [
+      "translations",
+      "translations_t"
+    ],
+    "10": [
+      "ui_ux_pro_max_skill",
+      "zapier_design_system"
+    ],
+    "11": [
+      "admin_html"
+    ],
+    "12": [
+      "index_html"
+    ],
+    "13": [
+      "sentry_designsystem"
+    ],
+    "14": [
+      "spacex_designsystem"
+    ],
+    "15": [
+      "spotify_designsystem"
+    ],
+    "16": [
+      "stripe_designsystem"
+    ],
+    "17": [
+      "supabase_designsystem"
+    ],
+    "18": [
+      "superhuman_designsystem"
+    ],
+    "19": [
+      "together_ai_designsystem"
+    ],
+    "20": [
+      "uber_designsystem"
+    ],
+    "21": [
+      "vercel_designsystem"
+    ],
+    "22": [
+      "voltagent_designsystem"
+    ],
+    "23": [
+      "warp_designsystem"
+    ],
+    "24": [
+      "webflow_designsystem"
+    ],
+    "25": [
+      "wise_designsystem"
+    ],
+    "26": [
+      "xai_designsystem"
+    ]
+  },
+  "cohesion": {
+    "0": 0.14736842105263157,
+    "1": 0.16911764705882354,
+    "2": 0.16176470588235295,
+    "3": 0.14285714285714285,
+    "4": 0.18681318681318682,
+    "5": 0.18181818181818182,
+    "6": 0.5,
+    "7": 0.5,
+    "8": 0.6666666666666666,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0,
+    "26": 1.0
+  },
+  "gods": [
+    {
+      "id": "composio_design_system",
+      "label": "Design System: Composio",
+      "degree": 13
+    },
+    {
+      "id": "scripts_design_system_designsystemgenerator",
+      "label": "DesignSystemGenerator",
+      "degree": 11
+    },
+    {
+      "id": "popular_web_designs_skill",
+      "label": "Popular Web Designs Skill",
+      "degree": 10
+    },
+    {
+      "id": "scripts_core_search_csv",
+      "label": "_search_csv()",
+      "degree": 8
+    },
+    {
+      "id": "scripts_core_bm25",
+      "label": "BM25",
+      "degree": 7
+    },
+    {
+      "id": "scripts_core_search",
+      "label": "search()",
+      "degree": 7
+    },
+    {
+      "id": "scripts_design_system_generate_design_system",
+      "label": "generate_design_system()",
+      "degree": 7
+    },
+    {
+      "id": "scripts_design_system_persist_design_system",
+      "label": "persist_design_system()",
+      "degree": 5
+    },
+    {
+      "id": "scripts_design_system_generate_intelligent_overrides",
+      "label": "_generate_intelligent_overrides()",
+      "degree": 5
+    },
+    {
+      "id": "resend_designsystem",
+      "label": "Resend Design System",
+      "degree": 5
+    }
+  ],
+  "surprises": [
+    {
+      "source": "_generate_intelligent_overrides()",
+      "target": "search()",
+      "source_files": [
+        ".agent/skills/ui-ux-pro-max/scripts/design_system.py",
+        ".agent/skills/ui-ux-pro-max/scripts/core.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "NVIDIA Design System",
+      "target": "Resend Design System",
+      "source_files": [
+        ".agent/skills/popular-web-designs/templates/nvidia.md",
+        ".agent/skills/popular-web-designs/templates/resend.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `NVIDIA Design System` unexpectedly reaches hub `Resend Design System`"
+    },
+    {
+      "source": "Raycast Design System",
+      "target": "Resend Design System",
+      "source_files": [
+        ".agent/skills/popular-web-designs/templates/raycast.md",
+        ".agent/skills/popular-web-designs/templates/resend.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `Raycast Design System` unexpectedly reaches hub `Resend Design System`"
+    },
+    {
+      "source": "Resend Design System",
+      "target": "Sanity Design System",
+      "source_files": [
+        ".agent/skills/popular-web-designs/templates/resend.md",
+        ".agent/skills/popular-web-designs/templates/sanity.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `Sanity Design System` unexpectedly reaches hub `Resend Design System`"
+    },
+    {
+      "source": "Revolut Design System",
+      "target": "Resend Design System",
+      "source_files": [
+        ".agent/skills/popular-web-designs/templates/revolut.md",
+        ".agent/skills/popular-web-designs/templates/resend.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `Revolut Design System` unexpectedly reaches hub `Resend Design System`"
+    }
+  ],
+  "tokens": {
+    "input": 263299,
+    "output": 8570
+  }
+}

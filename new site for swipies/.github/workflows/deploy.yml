@@ -1,0 +1,43 @@
+name: Deploy Swipies Website
+
+on:
+  push:
+    branches:
+      - swipies_25 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to server (with git pull)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            echo "=== DEPLOY STARTED ==="
+
+            cd ~/landing_swipies
+        
+            echo "Pull latest changes from swipies_25"
+            git fetch origin swipies_25
+            git checkout -B swipies_25 FETCH_HEAD
+            git reset --hard FETCH_HEAD
+        
+            echo "Copying files to web root /var/www/html"
+            sudo mkdir -p /var/www/html
+            sudo cp -r ~/landing_swipies/. /var/www/html/
+            
+            echo "Set permissions on web root"
+            sudo chown -R www-data:www-data /var/www/html
+            sudo chmod -R 755 /var/www/html
+        
+            echo "Restart Nginx"
+            sudo systemctl restart nginx
+        
+            echo "=== DEPLOY FINISHED ==="
