@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import Icon from '@ant-design/icons';
 import { IconComponentProps } from '@ant-design/icons/lib/components/Icon';
 import { memo, useMemo } from 'react';
-import { IconFontFill } from './icon-font';
+import { IconFontFill } from './icon-font-base';
 import { RAGFlowAvatar } from './ragflow-avatar';
 import { useIsDarkTheme } from './theme-provider';
 
