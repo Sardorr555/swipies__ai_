@@ -539,7 +539,8 @@ const Login = () => {
           password: rsaPassWord,
         });
         if (code === 0) {
-          navigate('/');
+          const redirectTo = searchParams.get('redirect') || '/';
+          navigate(redirectTo);
         }
       } else {
         const code = await register({

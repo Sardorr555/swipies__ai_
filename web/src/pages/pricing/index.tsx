@@ -13,9 +13,9 @@ import {
   LucideZap,
   ShieldCheck,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 
 // UZS Formatter
 const formatUZS = (amount: number) => {
@@ -112,6 +112,19 @@ const pricingTranslations = {
         ],
         cta: 'Contact Us',
       },
+      license: {
+        name: 'Self-Hosted License',
+        description: 'Run Swipies AI on your own infrastructure',
+        features: [
+          'Self-hosted (Docker/k8s) deployment',
+          'Activate via license key',
+          'No ingestion or team limits',
+          'GPU & Vector database acceleration',
+          'Offline / Air-gapped environment support',
+          'Regular security and feature updates',
+        ],
+        cta: 'Purchase Key',
+      },
     },
     referralTitle: 'Want to expand your limits for free?',
     referralSubtitle:
@@ -190,6 +203,19 @@ const pricingTranslations = {
           'Кастомные интеграции',
         ],
         cta: 'Связаться с нами',
+      },
+      license: {
+        name: 'Self-Hosted License',
+        description: 'Запуск Swipies AI на вашей собственной инфраструктуре',
+        features: [
+          'Локальное развертывание (Docker/k8s)',
+          'Активация по лицензионному ключу',
+          'Нет ограничений на загрузку и команду',
+          'Ускорение графического процессора и векторной базы данных',
+          'Работа в закрытом контуре / Офлайн-режим',
+          'Регулярные обновления безопасности и функций',
+        ],
+        cta: 'Купить ключ',
       },
     },
     referralTitle: 'Хотите бесплатно расширить свои лимиты?',
@@ -270,6 +296,19 @@ const pricingTranslations = {
         ],
         cta: 'Biz bilan bogʻlaning',
       },
+      license: {
+        name: 'Self-Hosted License',
+        description: "Swipies AI-ni o'zingizning infratuzilmangizda ishga tushiring",
+        features: [
+          'Mahalliy joylashtirish (Docker/k8s)',
+          'Litsenziya kaliti orqali faollashtirish',
+          "Yuklash va jamoa a'zolariga cheklovlar yo'q",
+          'Grafik protsessor va vektor bazasi tezlashuvi',
+          'Yopiq tarmoqda ishlash / Oflayn rejim',
+          'Muntazam xavfsizlik va yangilanishlar',
+        ],
+        cta: 'Kalitni sotib olish',
+      },
     },
     referralTitle: 'Limitlaringizni bepul kengaytirmoqchimisiz?',
     referralSubtitle:
@@ -346,6 +385,19 @@ const pricingTranslations = {
           '定制化集成',
         ],
         cta: '联系我们',
+      },
+      license: {
+        name: '自主托管许可证',
+        description: '在您自己的基础设施上运行 Swipies AI',
+        features: [
+          '自主托管 (Docker/k8s) 部署',
+          '通过许可证密钥激活',
+          '无摄取或团队限制',
+          'GPU 和向量数据库加速',
+          '支持离线/气隙环境',
+          '定期安全和功能更新',
+        ],
+        cta: '购买密钥',
       },
     },
     referralTitle: '想要免费扩展您的额度吗？',
@@ -437,6 +489,14 @@ export default function PricingPage() {
       disabled: false,
       popular: true,
     },
+    license: {
+      name: tPrice.plans.license.name,
+      pricePerMonth: isUzbekistanUser ? 2470000 : 190,
+      description: tPrice.plans.license.description,
+      features: tPrice.plans.license.features,
+      cta: tPrice.plans.license.cta,
+      disabled: false,
+    },
     enterprise: {
       name: tPrice.plans.enterprise.name,
       pricePerMonth: 0,
@@ -454,9 +514,9 @@ export default function PricingPage() {
   ];
 
   const [selectedPeriod, setSelectedPeriod] = useState(1);
-  const [activePlanKey, setActivePlanKey] = useState<'plus' | 'pro' | null>(
-    null,
-  );
+  const [activePlanKey, setActivePlanKey] = useState<
+    'plus' | 'pro' | 'license' | null
+  >(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [step, setStep] = useState<
     'card' | 'processing_card' | 'otp' | 'processing_otp' | 'success'
@@ -488,6 +548,7 @@ export default function PricingPage() {
 
   const plusPrices = calculatePrices(PLANS.plus.pricePerMonth);
   const proPrices = calculatePrices(PLANS.pro.pricePerMonth);
+  const licensePrices = calculatePrices(PLANS.license.pricePerMonth);
 
   const baseAmount = activePlan ? activePlan.pricePerMonth * selectedPeriod : 0;
   const discountAmount = isUzbekistanUser
@@ -507,7 +568,9 @@ export default function PricingPage() {
     (!isLocalCard &&
       (cleanCardNumber.startsWith('4') || cleanCardNumber.startsWith('5')));
 
-  const handleOpenCheckout = (key: 'plus' | 'pro' | 'enterprise') => {
+  const [searchParams] = useSearchParams();
+
+  const handleOpenCheckout = (key: 'plus' | 'pro' | 'license' | 'enterprise') => {
     if (key === 'enterprise') {
       window.open('https://t.me/albakiev01', '_blank');
       return;
@@ -523,6 +586,20 @@ export default function PricingPage() {
     setError('');
     setRagflowResult(null);
   };
+
+  useEffect(() => {
+    const planParam = searchParams.get('plan');
+    if (planParam) {
+      const lowerParam = planParam.toLowerCase();
+      if (lowerParam === 'plus') {
+        handleOpenCheckout('plus');
+      } else if (lowerParam === 'pro') {
+        handleOpenCheckout('pro');
+      } else if (lowerParam === 'license' || lowerParam === 'self-hosted' || lowerParam === 'self_hosted') {
+        handleOpenCheckout('license');
+      }
+    }
+  }, [searchParams]);
 
   const handleCardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -651,7 +728,7 @@ export default function PricingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: userEmail,
-          plan: activePlan?.name,
+          plan: activePlanKey,
           months: selectedPeriod,
           expiryDate: expiryDate.toISOString(),
         }),
@@ -729,7 +806,7 @@ export default function PricingPage() {
           </div>
 
           {/* Pricing Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch max-w-6xl mx-auto w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch max-w-7xl mx-auto w-full">
             {/* Plus Card */}
             <div className="border border-border bg-bg-component rounded-2xl p-5 sm:p-6 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg min-h-[480px]">
               <div>
@@ -825,6 +902,52 @@ export default function PricingPage() {
                 onClick={() => handleOpenCheckout('pro')}
               >
                 {PLANS.pro.cta}
+              </Button>
+            </div>
+
+            {/* Self-Hosted License Card */}
+            <div className="border border-border bg-bg-component rounded-2xl p-5 sm:p-6 flex flex-col justify-between transition-all hover:border-[#478AF5] hover:shadow-lg min-h-[480px]">
+              <div>
+                <div className="mb-4">
+                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
+                    {PLANS.license.name}
+                  </h3>
+                  <p className="text-xs text-text-secondary">
+                    {PLANS.license.description}
+                  </p>
+                </div>
+                <div className="mb-4">
+                  <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-text-primary">
+                    {displayedPrice(licensePrices.perMonth)}
+                  </span>
+                  <span className="text-text-secondary text-xs sm:text-sm">
+                    {tPrice.mo}
+                  </span>
+                  {selectedPeriod > 1 && (
+                    <div className="text-[11px] text-emerald-500 font-semibold mt-1">
+                      {tPrice.billedTotal
+                        .replace('{{total}}', displayedPrice(licensePrices.total))
+                        .replace('{{months}}', selectedPeriod.toString())}
+                    </div>
+                  )}
+                </div>
+                <ul className="space-y-2 mb-6">
+                  {PLANS.license.features.map((feature) => (
+                    <li
+                      key={feature}
+                      className="flex items-start gap-2 text-xs sm:text-sm text-text-secondary"
+                    >
+                      <LucideCheck className="size-4 text-[#42D7E7] shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                className="w-full bg-[#478AF5]/10 hover:bg-[#478AF5]/20 text-[#478AF5] border border-[#478AF5]/20 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
+                onClick={() => handleOpenCheckout('license')}
+              >
+                {PLANS.license.cta}
               </Button>
             </div>
 
@@ -1137,18 +1260,46 @@ export default function PricingPage() {
                     <p className="text-emerald-500 font-bold mb-1">
                       ✅ {tPrice.subActivated}
                     </p>
-                    <p className="text-text-secondary">
+                    <p className="text-text-secondary mb-1">
                       {tPrice.checkoutPlan}:{' '}
                       <span className="text-text-primary font-semibold">
-                        {activePlan.name}
+                        {activePlan?.name}
                       </span>
                     </p>
-                    <p className="text-text-secondary">
+                    <p className="text-text-secondary mb-3">
                       Account:{' '}
                       <span className="text-text-primary font-semibold">
                         {userEmail}
                       </span>
                     </p>
+                    {ragflowResult?.licenseKey && (
+                      <div className="mt-3 pt-3 border-t border-emerald-500/10">
+                        <p className="text-emerald-500 font-bold mb-2">
+                          🔑 Your License Key:
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            readOnly
+                            value={ragflowResult.licenseKey}
+                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                            className="flex-1 bg-white border border-border rounded-lg px-3 py-1.5 text-black text-xs font-mono select-all focus:outline-none"
+                          />
+                          <Button
+                            onClick={() => {
+                              navigator.clipboard.writeText(ragflowResult.licenseKey);
+                              alert('License key copied to clipboard!');
+                            }}
+                            className="bg-[#478AF5] text-white hover:bg-[#3a7ae0] text-xs px-3 py-1.5 h-auto rounded-lg"
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                        <p className="text-text-secondary text-[10px] mt-2 leading-relaxed">
+                          Copy this key and paste it in the System License Activation page to activate your instance.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 mb-6 text-left text-xs sm:text-sm text-yellow-600">

@@ -520,6 +520,8 @@ async def system_provision():
         credits = 5000 * months
     elif plan == "pro":
         credits = 10000 * months
+    elif plan == "license":
+        credits = 999999 * months
 
     TenantService.update_by_id(
         user.id,

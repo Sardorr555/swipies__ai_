@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="privacy_title_page">Privacy Policy — Swipies AI</title>
+  <meta name="description" content="Privacy Policy and Data Protection Agreement for Swipies AI.">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .legal-container {
+      padding: 8rem 0 6rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .legal-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 3.5rem 3rem;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+    }
+    .legal-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 2rem;
+      margin-bottom: 2.5rem;
+    }
+    .legal-header h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      margin-bottom: 0.5rem;
+    }
+    .legal-header .date {
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .legal-body {
+      font-size: var(--t-body);
+      color: var(--text-secondary);
+      line-height: 1.75;
+    }
+    .legal-body h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 2.5rem;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.3px;
+    }
+    .legal-body p {
+      margin-bottom: 1.25rem;
+    }
+    .legal-body ul {
+      list-style: disc;
+      padding-left: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .legal-body li {
+      margin-bottom: 0.5rem;
+    }
+    .legal-footer {
+      margin-top: 3rem;
+      border-top: 1px solid var(--border);
+      padding-top: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+    .legal-footer a {
+      font-size: var(--t-small);
+      color: var(--text-muted);
+      transition: color 0.12s;
+    }
+    .legal-footer a:hover {
+      color: var(--text);
+    }
+    @media (max-width: 600px) {
+      .legal-box {
+        padding: 2rem 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVIGATION -->
+<nav class="nav" id="navbar">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">Swipies<span>AI</span></a>
+    <div class="nav-right">
+      <div class="lang-switch" id="langSwitch">
+        <button class="active" data-lang="en">EN</button>
+        <button data-lang="ru">RU</button>
+        <button data-lang="uz">UZ</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="container">
+  <div class="legal-container">
+    <div class="legal-box">
+      <div class="legal-header">
+        <h1 data-i18n="privacy_h1">Privacy Policy</h1>
+        <div class="date"><span data-i18n="privacy_updated">Last updated</span>: June 25, 2026</div>
+      </div>
+      
+      <div class="legal-body" id="legalBody">
+        <!-- Content will be injected dynamically based on language -->
+      </div>
+      
+      <div class="legal-footer">
+        <a href="/" data-i18n="privacy_back">&larr; Back to Homepage</a>
+        <a href="terms.html" data-i18n="privacy_terms">Terms of Use &rarr;</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const T = {
+  en: {
+    privacy_title_page: "Privacy Policy — Swipies AI",
+    privacy_h1: "Privacy Policy",
+    privacy_updated: "Last updated",
+    privacy_back: "&larr; Back to Homepage",
+    privacy_terms: "Terms of Use &rarr;"
+  },
+  ru: {
+    privacy_title_page: "Политика конфиденциальности — Swipies AI",
+    privacy_h1: "Политика конфиденциальности",
+    privacy_updated: "Последнее обновление",
+    privacy_back: "&larr; На главную",
+    privacy_terms: "Условия использования &rarr;"
+  },
+  uz: {
+    privacy_title_page: "Maxfiylik siyosati — Swipies AI",
+    privacy_h1: "Maxfiylik siyosati",
+    privacy_updated: "Oxirgi yangilanish",
+    privacy_back: "&larr; Bosh sahifaga qaytish",
+    privacy_terms: "Foydalanish shartlari &rarr;"
+  }
+};
+
+const content = {
+  en: `
+    <h2>1. Information We Collect</h2>
+    <p>We collect information you provide directly to us, such as when you submit a sales contact form, subscribe to our newsletter, request support, or purchase a self-hosted license. This information may include your name, email address, company name, phone number, and message content.</p>
+    
+    <h2>2. On-Premise Data Processing (Data Sovereignty)</h2>
+    <p>Swipies AI is designed as a self-hosted platform. For local (on-premise) deployments, we do NOT collect, transmit, store, or have access to any business documents, databases, user queries, vector embeddings, or generated LLM responses processed inside your server instance. All data remains strictly within your self-contained perimeter.</p>
+    
+    <h2>3. How We Use Information</h2>
+    <p>We use the contact information we collect to:</p>
+    <ul>
+      <li>Respond to your requests, queries, and support questions.</li>
+      <li>Validate, manage, and verify license keys for self-hosted software instances.</li>
+      <li>Provide software updates and security alerts related to your deployment.</li>
+      <li>Analyze website performance and user interactions via Google Analytics 4 (if opted-in).</li>
+    </ul>
+    
+    <h2>4. Data Storage and Retention</h2>
+    <p>Any sales queries submitted through our contact forms are stored securely. We retain contact details only for as long as necessary to fulfill the purposes outlined in this policy or to comply with legally mandated storage periods.</p>
+    
+    <h2>5. Cookies and Web Analytics</h2>
+    <p>We utilize essential cookies for platform settings (such as language preferences). In addition, we use Google Analytics 4 (GA4) to track aggregated, anonymous traffic patterns on our public landing page to improve the user experience. You can opt out of analytical tracking at any time by configuring your browser's privacy settings.</p>
+    
+    <h2>6. Sharing of Information</h2>
+    <p>We do not sell, trade, or otherwise transfer your personal contact information to third parties. We may only disclose information when required by law or to protect our legal rights.</p>
+    
+    <h2>7. Contact Us</h2>
+    <p>If you have any questions about this Privacy Policy or data security, please contact legal@swipies.app or albakiev.sardobek@gmail.com.</p>
+  `,
+  ru: `
+    <h2>1. Информация, которую мы собираем</h2>
+    <p>Мы собираем информацию, которую вы предоставляете непосредственно нам: при заполнении контактной формы, запросе поддержки или покупке лицензии. Это может быть ваше имя, адрес электронной почты, название компании, номер телефона и текст сообщения.</p>
+    
+    <h2>2. Локальная обработка данных (суверенитет данных)</h2>
+    <p>Платформа Swipies AI разработана для локального (on-premise) развертывания. Мы НЕ собираем, НЕ передаем, НЕ храним и НЕ имеем доступа к вашим документам, базам данных, запросам пользователей или ответам LLM, обрабатываемым внутри вашего локального сервера.</p>
+    
+    <h2>3. Как мы используем информацию</h2>
+    <p>Мы используем собранные данные для:</p>
+    <ul>
+      <li>Ответа на ваши запросы и оказания технической поддержки.</li>
+      <li>Управления лицензионными ключами и верификации подписок.</li>
+      <li>Доставки обновлений и уведомлений безопасности.</li>
+      <li>Анализа работы сайта и улучшения пользовательского опыта (через Google Analytics 4).</li>
+    </ul>
+    
+    <h2>4. Безопасность и хранение данных</h2>
+    <p>Все запросы через форму обратной связи хранятся в безопасности. Мы храним контактные данные только в течение срока, необходимого для целей, изложенных в настоящей политике, или установленного законом.</p>
+    
+    <h2>5. Cookies и аналитика</h2>
+    <p>Мы используем файлы cookie для сохранения настроек платформы (например, выбранного языка). Также мы используем Google Analytics 4 (GA4) для сбора анонимной статистики о посещаемости нашего лендинга. Вы можете заблокировать cookies в настройках вашего браузера.</p>
+    
+    <h2>6. Предоставление информации третьим лицам</h2>
+    <p>Мы не продаем, не передаем и не раскрываем ваши контактные данные третьим лицам, за исключением случаев, предусмотренных законом.</p>
+    
+    <h2>7. Контакты</h2>
+    <p>По всем вопросам касательно политики конфиденциальности или безопасности данных обращайтесь на legal@swipies.app или albakiev.sardobek@gmail.com.</p>
+  `,
+  uz: `
+    <h2>1. Biz to'playdigan ma'lumotlar</h2>
+    <p>Biz siz to'g'ridan-to'g'ri taqdim etgan ma'lumotlarni yig'amiz (aloqa formasini to'ldirganda, litsenziya sotib olganda yoki qo'llab-quvvatlash so'raganda). Bunga ism, kompaniya nomi, email, telefon raqami va xabar matni kirishi mumkin.</p>
+    
+    <h2>2. Lokal qayta ishlash (ma'lumotlar suvereniteti)</h2>
+    <p>Swipies AI lokal (on-premise) ishlashga mo'ljallangan platformadir. Biz sizning serveringizda ishlanadigan hujjatlar, ma'lumotlar bazalari, so'rovlar yoki AI javoblarini to'plamaymiz, uzatmaymiz va ularga kirish huquqiga ega emasmiz. Ma'lumotlar to'liq o'z konturingizda qoladi.</p>
+    
+    <h2>3. Ma'lumotlardan qanday foydalanamiz</h2>
+    <p>Biz to'plangan ma'lumotlardan quyidagilar uchun foydalanamiz:</p>
+    <ul>
+      <li>Sizning so'rovlaringizga va qo'llab-quvvatlash savollaringizga javob berish.</li>
+      <li>Self-hosted litsenziya kalitlarini boshqarish va tekshirish.</li>
+      <li>Tizim yangilanishlari va xavfsizlik ogohlantirishlarini yuborish.</li>
+      <li>Google Analytics 4 yordamida sayt faoliyatini tahlil qilish.</li>
+    </ul>
+    
+    <h2>4. Ma'lumotlarni saqlash</h2>
+    <p>Biz yuborilgan so'rovlarni xavfsiz saqlaymiz va ularni faqat ushbu siyosatda belgilangan maqsadlar yoki qonun talablari uchun zarur bo'lgan muddat davomida saqlab turamiz.</p>
+    
+    <h2>5. Cookies va veb-tahlil</h2>
+    <p>Biz platforma sozlamalarini (til kabi) saqlash uchun cookies fayllaridan foydalanamiz. Shuningdek, landing sahifamiz ishlashini yaxshilash maqsadida Google Analytics 4 (GA4) orqali anonim tashrif buyuruvchilar statistikasini yig'amiz. Buni brauzeringiz sozlamalarida cheklashingiz mumkin.</p>
+    
+    <h2>6. Ma'lumotlarni baham ko'rish</h2>
+    <p>Biz shaxsiy ma'lumotlarni uchinchi shaxslarga sotmaymiz yoki bermaymiz. Ma'lumotlar faqat qonun talab qilgan holatlarda yoki huquqlarimizni himoya qilish uchun oshkor qilinishi mumkin.</p>
+    
+    <h2>7. Aloqa</h2>
+    <p>Maxfiylik siyosati bo'yicha savollaringiz bo'lsa, legal@swipies.app yoki albakiev.sardobek@gmail.com manziliga murojaat qiling.</p>
+  `
+};
+
+let currentLang = 'en';
+
+function setLanguage(lang) {
+  if (!T[lang]) return;
+  currentLang = lang;
+  
+  // Update buttons
+  document.querySelectorAll('#langSwitch button').forEach(btn => {
+    if (btn.getAttribute('data-lang') === lang) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Update DOM translations
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (T[lang][key]) {
+      el.innerHTML = T[lang][key];
+    }
+  });
+
+  // Inject content
+  document.getElementById('legalBody').innerHTML = content[lang];
+
+  // Save selection
+  localStorage.setItem('swipies_lang', lang);
+}
+
+// Language Switch Event Listeners
+document.getElementById('langSwitch').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (btn) {
+    const lang = btn.getAttribute('data-lang');
+    setLanguage(lang);
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const savedLang = localStorage.getItem('swipies_lang') || 'en';
+  setLanguage(savedLang);
+});
+</script>
+</body>
+</html>
