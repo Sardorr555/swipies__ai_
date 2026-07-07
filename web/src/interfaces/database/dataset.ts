@@ -149,6 +149,9 @@ export interface ITenantInfo {
   speech2text_id: string;
   rerank_id?: string;
   tts_id: string;
+  plan_type?: string;
+  plan_expiry_date?: string;
+  credit?: number;
   // Tenant model IDs
   tenant_asr_id?: string;
   tenant_embd_id?: string;

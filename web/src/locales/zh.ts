@@ -1297,6 +1297,7 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
       logout: '登出',
       api: 'API',
       referral: '推荐计划',
+      subscription: '订阅管理',
       username: '用户名',
       usernameMessage: '请输入用户名',
       usernameMaxLength: '名称最多 {{max}} 个字符。',
