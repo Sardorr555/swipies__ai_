@@ -17,6 +17,8 @@
 package dao
 
 import (
+	"time"
+
 	"ragflow/internal/entity"
 )
 
@@ -54,17 +56,20 @@ type TenantWithRole struct {
 
 // TenantInfo tenant information with role (for owner tenant)
 type TenantInfo struct {
-	TenantID  string  `gorm:"column:tenant_id" json:"tenant_id"`
-	Name      *string `gorm:"column:name" json:"name,omitempty"`
-	LLMID     string  `gorm:"column:llm_id" json:"llm_id"`
-	EmbDID    string  `gorm:"column:embd_id" json:"embd_id"`
-	RerankID  string  `gorm:"column:rerank_id" json:"rerank_id"`
-	ASRID     string  `gorm:"column:asr_id" json:"asr_id"`
-	Img2TxtID string  `gorm:"column:img2txt_id" json:"img2txt_id"`
-	TTSID     *string `gorm:"column:tts_id" json:"tts_id,omitempty"`
-	OCRID     *string `gorm:"column:ocr_id" json:"ocr_id,omitempty"`
-	ParserIDs string  `gorm:"column:parser_ids" json:"parser_ids"`
-	Role      string  `gorm:"column:role" json:"role"`
+	TenantID       string     `gorm:"column:tenant_id" json:"tenant_id"`
+	Name           *string    `gorm:"column:name" json:"name,omitempty"`
+	LLMID          string     `gorm:"column:llm_id" json:"llm_id"`
+	EmbDID         string     `gorm:"column:embd_id" json:"embd_id"`
+	RerankID       string     `gorm:"column:rerank_id" json:"rerank_id"`
+	ASRID          string     `gorm:"column:asr_id" json:"asr_id"`
+	Img2TxtID      string     `gorm:"column:img2txt_id" json:"img2txt_id"`
+	TTSID          *string    `gorm:"column:tts_id" json:"tts_id,omitempty"`
+	OCRID          *string    `gorm:"column:ocr_id" json:"ocr_id,omitempty"`
+	ParserIDs      string     `gorm:"column:parser_ids" json:"parser_ids"`
+	Credit         int64      `gorm:"column:credit" json:"credit"`
+	PlanType       string     `gorm:"column:plan_type" json:"plan_type"`
+	PlanExpiryDate *time.Time `gorm:"column:plan_expiry_date" json:"plan_expiry_date,omitempty"`
+	Role           string     `gorm:"column:role" json:"role"`
 }
 
 // GetInfoByUserID get tenant information for the owner tenant of a user
@@ -72,7 +77,7 @@ func (dao *TenantDAO) GetInfoByUserID(userID string) ([]*TenantInfo, error) {
 	var results []*TenantInfo
 
 	err := DB.Model(&entity.Tenant{}).
-		Select("tenant.id as tenant_id, tenant.name, tenant.llm_id, tenant.embd_id, tenant.rerank_id, tenant.asr_id, tenant.img2txt_id, tenant.tts_id, tenant.ocr_id, tenant.parser_ids, user_tenant.role").
+		Select("tenant.id as tenant_id, tenant.name, tenant.llm_id, tenant.embd_id, tenant.rerank_id, tenant.asr_id, tenant.img2txt_id, tenant.tts_id, tenant.ocr_id, tenant.parser_ids, tenant.credit, tenant.plan_type, tenant.plan_expiry_date, user_tenant.role").
 		Joins("INNER JOIN user_tenant ON user_tenant.tenant_id = tenant.id").
 		Where("user_tenant.user_id = ? AND user_tenant.status = ? AND user_tenant.role = ? AND tenant.status = ?", userID, "1", "owner", "1").
 		Scan(&results).Error

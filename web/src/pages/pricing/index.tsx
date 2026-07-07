@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { BRAND } from '@/constants/branding';
 import { useSystemConfig } from '@/hooks/use-system-request';
-import { useFetchUserInfo } from '@/hooks/use-user-setting-request';
+import { useFetchUserInfo, useFetchTenantInfo } from '@/hooks/use-user-setting-request';
 import { Routes } from '@/routes';
 import {
   CheckCircle,
@@ -130,6 +130,9 @@ const pricingTranslations = {
     referralSubtitle:
       'Invite friends to Swipies and get +1 GB storage and +5 agents/apps for each referral!',
     referralButton: 'Get Referral Link',
+    activePlanBadge: 'Your Active Plan',
+    activePlanExpiry: 'Expires on {{date}}',
+    activePlanLifetime: 'Lifetime access',
   },
   ru: {
     backToDashboard: 'Назад на главную',
@@ -222,6 +225,9 @@ const pricingTranslations = {
     referralSubtitle:
       'Приглашайте друзей в Swipies и получайте +1 ГБ диска и +5 агентов/приложений за каждого!',
     referralButton: 'Получить реферальную ссылку',
+    activePlanBadge: 'Ваш активный тариф',
+    activePlanExpiry: 'Истекает {{date}}',
+    activePlanLifetime: 'Бессрочный доступ',
   },
   uz: {
     backToDashboard: 'Boshqaruv paneliga qaytish',
@@ -314,6 +320,9 @@ const pricingTranslations = {
     referralSubtitle:
       'Do‘stlaringizni Swipies-ga taklif qiling va har bir referal uchun +1 GB xotira va +5 ta agent/ilova oling!',
     referralButton: 'Referal havolasini olish',
+    activePlanBadge: 'Sizning faol tarifingiz',
+    activePlanExpiry: 'Amal qilish muddati: {{date}}',
+    activePlanLifetime: 'Muddatsiz kirish',
   },
   zh: {
     backToDashboard: '返回仪表板',
@@ -404,6 +413,9 @@ const pricingTranslations = {
     referralSubtitle:
       '邀请好友加入 Swipies，每成功邀请一位即可获得 +1 GB 存储空间和 +5 个 Agent/应用！',
     referralButton: '获取推荐链接',
+    activePlanBadge: '您的当前订阅',
+    activePlanExpiry: '有效期至 {{date}}',
+    activePlanLifetime: '终身访问权限',
   },
 };
 
@@ -422,6 +434,35 @@ export default function PricingPage() {
 
   const { data: userInfo } = useFetchUserInfo();
   const userEmail = userInfo?.email || '';
+
+  const { data: tenantInfo } = useFetchTenantInfo();
+  const currentPlan = (tenantInfo?.plan_type || 'free').toLowerCase();
+  const expiryDate = tenantInfo?.plan_expiry_date;
+
+  const getExpiryText = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      if (d.getFullYear() > new Date().getFullYear() + 20) {
+        return tPrice.activePlanLifetime;
+      }
+      return tPrice.activePlanExpiry.replace(
+        '{{date}}',
+        d.toLocaleDateString(
+          lang === 'zh'
+            ? 'zh-CN'
+            : lang === 'ru'
+              ? 'ru-RU'
+              : lang === 'uz'
+                ? 'uz-UZ'
+                : 'en-US',
+        ),
+      );
+    } catch {
+      return '';
+    }
+  };
 
   // Determine if the user is from Uzbekistan
   const isUzbekistanUser = (() => {
@@ -782,6 +823,23 @@ export default function PricingPage() {
               {tPrice.subtitle}
             </p>
 
+            {/* Active Subscription Banner */}
+            {currentPlan && currentPlan !== 'free' && (
+              <div className="max-w-md mx-auto mt-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center gap-3">
+                <ShieldCheck className="size-6 text-emerald-500 shrink-0" />
+                <div className="text-left">
+                  <h4 className="text-sm font-bold text-text-primary">
+                    {tPrice.activePlanBadge}: <span className="text-[#478AF5] capitalize">{currentPlan}</span>
+                  </h4>
+                  {expiryDate && (
+                    <p className="text-xs text-text-secondary">
+                      {getExpiryText(expiryDate)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Billing Period Selector */}
             <div className="inline-flex items-center gap-2 bg-bg-component border border-border p-1 rounded-xl mt-4 sm:mt-6">
               {PERIODS.map((period) => (
@@ -845,12 +903,29 @@ export default function PricingPage() {
                   ))}
                 </ul>
               </div>
-              <Button
-                className="w-full bg-[#478AF5]/10 hover:bg-[#478AF5]/20 text-[#478AF5] border border-[#478AF5]/20 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
-                onClick={() => handleOpenCheckout('plus')}
-              >
-                {PLANS.plus.cta}
-              </Button>
+              {currentPlan === 'plus' ? (
+                <div className="w-full mt-auto">
+                  <Button
+                    className="w-full bg-emerald-600 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-default"
+                    disabled
+                  >
+                    <ShieldCheck className="size-4 shrink-0" />
+                    {tPrice.activePlanBadge}
+                  </Button>
+                  {expiryDate && (
+                    <p className="text-[10px] text-emerald-500 font-semibold text-center mt-1">
+                      {getExpiryText(expiryDate)}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  className="w-full bg-[#478AF5]/10 hover:bg-[#478AF5]/20 text-[#478AF5] border border-[#478AF5]/20 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
+                  onClick={() => handleOpenCheckout('plus')}
+                >
+                  {PLANS.plus.cta}
+                </Button>
+              )}
             </div>
 
             {/* Pro Card */}
@@ -897,12 +972,29 @@ export default function PricingPage() {
                   ))}
                 </ul>
               </div>
-              <Button
-                className="w-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md border-0 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
-                onClick={() => handleOpenCheckout('pro')}
-              >
-                {PLANS.pro.cta}
-              </Button>
+              {currentPlan === 'pro' ? (
+                <div className="w-full mt-auto">
+                  <Button
+                    className="w-full bg-emerald-600 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-default"
+                    disabled
+                  >
+                    <ShieldCheck className="size-4 shrink-0" />
+                    {tPrice.activePlanBadge}
+                  </Button>
+                  {expiryDate && (
+                    <p className="text-[10px] text-emerald-500 font-semibold text-center mt-1">
+                      {getExpiryText(expiryDate)}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  className="w-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md border-0 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
+                  onClick={() => handleOpenCheckout('pro')}
+                >
+                  {PLANS.pro.cta}
+                </Button>
+              )}
             </div>
 
             {/* Self-Hosted License Card */}
@@ -943,12 +1035,29 @@ export default function PricingPage() {
                   ))}
                 </ul>
               </div>
-              <Button
-                className="w-full bg-[#478AF5]/10 hover:bg-[#478AF5]/20 text-[#478AF5] border border-[#478AF5]/20 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
-                onClick={() => handleOpenCheckout('license')}
-              >
-                {PLANS.license.cta}
-              </Button>
+              {currentPlan === 'license' ? (
+                <div className="w-full mt-auto">
+                  <Button
+                    className="w-full bg-emerald-600 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-default"
+                    disabled
+                  >
+                    <ShieldCheck className="size-4 shrink-0" />
+                    {tPrice.activePlanBadge}
+                  </Button>
+                  {expiryDate && (
+                    <p className="text-[10px] text-emerald-500 font-semibold text-center mt-1">
+                      {getExpiryText(expiryDate)}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  className="w-full bg-[#478AF5]/10 hover:bg-[#478AF5]/20 text-[#478AF5] border border-[#478AF5]/20 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
+                  onClick={() => handleOpenCheckout('license')}
+                >
+                  {PLANS.license.cta}
+                </Button>
+              )}
             </div>
 
             {/* Enterprise Card */}

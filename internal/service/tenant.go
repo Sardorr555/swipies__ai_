@@ -24,6 +24,7 @@ import (
 	"ragflow/internal/engine"
 	"ragflow/internal/entity"
 	"strings"
+	"time"
 )
 
 // TenantService tenant service
@@ -58,16 +59,19 @@ func NewTenantService() *TenantService {
 
 // TenantInfoResponse tenant information response
 type TenantInfoResponse struct {
-	TenantID  string  `json:"tenant_id"`
-	Name      *string `json:"name,omitempty"`
-	LLMID     string  `json:"llm_id"`
-	EmbDID    string  `json:"embd_id"`
-	RerankID  string  `json:"rerank_id"`
-	ASRID     string  `json:"asr_id"`
-	Img2TxtID string  `json:"img2txt_id"`
-	TTSID     *string `json:"tts_id,omitempty"`
-	ParserIDs string  `json:"parser_ids"`
-	Role      string  `json:"role"`
+	TenantID       string     `json:"tenant_id"`
+	Name           *string    `json:"name,omitempty"`
+	LLMID          string     `json:"llm_id"`
+	EmbDID         string     `json:"embd_id"`
+	RerankID       string     `json:"rerank_id"`
+	ASRID          string     `json:"asr_id"`
+	Img2TxtID      string     `json:"img2txt_id"`
+	TTSID          *string    `json:"tts_id,omitempty"`
+	ParserIDs      string     `json:"parser_ids"`
+	Credit         int64      `json:"credit"`
+	PlanType       string     `json:"plan_type"`
+	PlanExpiryDate *time.Time `json:"plan_expiry_date,omitempty"`
+	Role           string     `json:"role"`
 }
 
 // GetTenantInfo get tenant information for the current user (owner tenant)
@@ -82,16 +86,19 @@ func (s *TenantService) GetTenantInfo(userID string) (*TenantInfoResponse, error
 	// Return the first tenant (should be only one owner tenant per user)
 	ti := tenantInfos[0]
 	return &TenantInfoResponse{
-		TenantID:  ti.TenantID,
-		Name:      ti.Name,
-		LLMID:     ti.LLMID,
-		EmbDID:    ti.EmbDID,
-		RerankID:  ti.RerankID,
-		ASRID:     ti.ASRID,
-		Img2TxtID: ti.Img2TxtID,
-		TTSID:     ti.TTSID,
-		ParserIDs: ti.ParserIDs,
-		Role:      ti.Role,
+		TenantID:       ti.TenantID,
+		Name:           ti.Name,
+		LLMID:          ti.LLMID,
+		EmbDID:         ti.EmbDID,
+		RerankID:       ti.RerankID,
+		ASRID:          ti.ASRID,
+		Img2TxtID:      ti.Img2TxtID,
+		TTSID:          ti.TTSID,
+		ParserIDs:      ti.ParserIDs,
+		Credit:         ti.Credit,
+		PlanType:       ti.PlanType,
+		PlanExpiryDate: ti.PlanExpiryDate,
+		Role:           ti.Role,
 	}, nil
 }
 

@@ -24,6 +24,7 @@ import (
 	"ragflow/internal/common"
 	"ragflow/internal/engine/redis"
 	"ragflow/internal/entity"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,10 +47,31 @@ func NewSystemService() *SystemService {
 	}
 }
 
+// PricingConfig represents system pricing plans
+type PricingConfig struct {
+	PlusUSD float64 `json:"plus_usd"`
+	PlusUZS float64 `json:"plus_uzs"`
+	ProUSD  float64 `json:"pro_usd"`
+	ProUZS  float64 `json:"pro_uzs"`
+}
+
 // ConfigResponse system configuration response
 type ConfigResponse struct {
-	RegisterEnabled      int  `json:"registerEnabled"`
-	DisablePasswordLogin bool `json:"disablePasswordLogin"`
+	RegisterEnabled      int            `json:"registerEnabled"`
+	DisablePasswordLogin bool           `json:"disablePasswordLogin"`
+	Pricing              *PricingConfig `json:"pricing,omitempty"`
+}
+
+func (s *SystemService) getSettingVal(name string, defaultVal float64) float64 {
+	settings, err := s.systemSettingsDAO.GetByName(name)
+	if err != nil || len(settings) != 1 {
+		return defaultVal
+	}
+	val, err := strconv.ParseFloat(settings[0].Value, 64)
+	if err != nil {
+		return defaultVal
+	}
+	return val
 }
 
 // GetConfig get system configuration
@@ -59,9 +81,21 @@ func (s *SystemService) GetConfig() (*ConfigResponse, error) {
 	if !cfg.Authentication.RegisterEnabled {
 		registerEnabled = 0
 	}
+
+	plusUSD := s.getSettingVal("pricing.plus.usd", 20.0)
+	plusUZS := s.getSettingVal("pricing.plus.uzs", 199000.0)
+	proUSD := s.getSettingVal("pricing.pro.usd", 40.0)
+	proUZS := s.getSettingVal("pricing.pro.uzs", 400000.0)
+
 	return &ConfigResponse{
 		RegisterEnabled:      registerEnabled,
 		DisablePasswordLogin: cfg.Authentication.DisablePasswordLogin,
+		Pricing: &PricingConfig{
+			PlusUSD: plusUSD,
+			PlusUZS: plusUZS,
+			ProUSD:  proUSD,
+			ProUZS:  proUZS,
+		},
 	}, nil
 }
 
