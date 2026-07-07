@@ -99,7 +99,23 @@ const withLazyRoute = (
   importer: () => Promise<{ default: React.ComponentType<any> }>,
   fallback: React.ReactNode = defaultRouteFallback,
 ) => {
-  const LazyComponent = lazy(importer);
+  const LazyComponent = lazy(() =>
+    importer().catch((error) => {
+      const errorMsg = String(error.message || error);
+      const isChunkError =
+        errorMsg.includes('Failed to fetch dynamically imported module') ||
+        errorMsg.includes('Failed to load module script') ||
+        errorMsg.includes('loading chunk') ||
+        errorMsg.includes('dynamic') ||
+        error.name === 'TypeError';
+      if (isChunkError) {
+        console.warn('Failed to load dynamic chunk, forcing reload...', error);
+        window.location.reload();
+        return { default: () => null };
+      }
+      throw error;
+    })
+  );
   const Wrapped: React.FC<any> = (props) => (
     <Suspense fallback={fallback}>
       <LazyComponent {...props} />
