@@ -17,7 +17,7 @@ const {
 export const listLicenses = () => request.get(licenseList);
 
 export const createLicensePay = (name: string, durationMonths: number) =>
-  request.post(licenseCreatePay, { name, duration_months: durationMonths });
+  request.post(licenseCreatePay, { data: { name, duration_months: durationMonths } });
 
 export const preApplyLicensePay = (
   transactionId: string,
@@ -25,19 +25,23 @@ export const preApplyLicensePay = (
   expiry: string,
 ) =>
   request.post(licensePreApplyPay, {
-    transaction_id: transactionId,
-    card_number: cardNumber,
-    expiry,
+    data: {
+      transaction_id: transactionId,
+      card_number: cardNumber,
+      expiry,
+    },
   });
 
 export const applyLicensePay = (transactionId: string, otp: string) =>
   request.post(licenseApplyPay, {
-    transaction_id: transactionId,
-    otp,
+    data: {
+      transaction_id: transactionId,
+      otp,
+    },
   });
 
 export const renameLicense = (licenseId: string, name: string) =>
-  request.patch(licenseUpdate(licenseId), { name });
+  request.patch(licenseUpdate(licenseId), { data: { name } });
 
 export const revokeLicense = (licenseId: string) =>
   request.delete(licenseDelete(licenseId));
@@ -57,9 +61,11 @@ export const adminIssueLicense = (
   durationMonths: number,
 ) =>
   request.post(adminLicenseList, {
-    user_email: userEmail,
-    name,
-    duration_months: durationMonths,
+    data: {
+      user_email: userEmail,
+      name,
+      duration_months: durationMonths,
+    },
   });
 
 export const adminRevokeLicense = (licenseId: string) =>
@@ -71,4 +77,4 @@ export const updateAdminLicensePricing = (pricing: {
   price_6_months: number;
   price_12_months: number;
   price_per_month_custom: number;
-}) => request.post(adminLicensePricing, pricing);
+}) => request.post(adminLicensePricing, { data: pricing });
