@@ -180,3 +180,15 @@ services:
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  docs:
+    build:
+      context: ../ragflow-docs
+      dockerfile: Dockerfile
+    container_name: swipies-docs
+    ports:
+      - "127.0.0.1:${DOCS_HTTP_PORT:-9500}:80"
+    networks:
+      - ragflow
+    restart: unless-stopped
+

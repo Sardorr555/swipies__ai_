@@ -501,7 +501,7 @@ Prosedürel Bellek: Öğrenilen beceriler, alışkanlıklar ve otomatik prosedü
       action: 'İşlem',
       parsingStatus: 'Ayrıştırma durumu',
       parsingStatusTip:
-        "Belge ayrıştırma süresi çeşitli faktörlere bağlıdır. Bilgi Grafiği, RAPTOR, Otomatik Soru Çıkarma veya Otomatik Anahtar Kelime Çıkarma gibi özelliklerin etkinleştirilmesi işlem süresini önemli ölçüde artıracaktır. İlerleme çubuğu durursa, lütfen şu SSS'ye başvurun: https://ragflow.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.",
+        "Belge ayrıştırma süresi çeşitli faktörlere bağlıdır. Bilgi Grafiği, RAPTOR, Otomatik Soru Çıkarma veya Otomatik Anahtar Kelime Çıkarma gibi özelliklerin etkinleştirilmesi işlem süresini önemli ölçüde artıracaktır. İlerleme çubuğu durursa, lütfen şu SSS'ye başvurun: https://docs.swipies.app/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.",
       processBeginAt: 'Başlangıç zamanı',
       processDuration: 'Süre',
       progressMsg: 'İlerleme',
@@ -575,11 +575,11 @@ Prosedürel Bellek: Öğrenilen beceriler, alışkanlıklar ve otomatik prosedü
       childrenDelimiterTip:
         'Bir sınırlayıcı bir veya birden fazla özel karakterden oluşabilir. Birden fazla karakter ise ters tırnak içine alındığından emin olun( ``). Örneğin, sınırlayıcılarınızı şöyle yapılandırırsanız: \\n`##`;, metinleriniz satır sonlarında, çift kare işaretlerinde (##) ve noktalı virgüllerde ayrılacaktır.',
       html4excel: "Excel'i HTML'ye dönüştür",
-      html4excelTip: `Genel parçalama yöntemi ile kullanın. Devre dışı bırakıldığında, datasetteki elektronik tablolar (XLSX veya XLS(Excel 97-2003)) anahtar-değer çiftlerine ayrıştırılır. Etkinleştirildiğinde HTML tablolarına ayrıştırılır; orijinal tabloda 12'den fazla satır varsa her 12 satırda bölünür. Ayrıntılar için bkz. https://ragflow.io/docs/dev/enable_excel2html.`,
+      html4excelTip: `Genel parçalama yöntemi ile kullanın. Devre dışı bırakıldığında, datasetteki elektronik tablolar (XLSX veya XLS(Excel 97-2003)) anahtar-değer çiftlerine ayrıştırılır. Etkinleştirildiğinde HTML tablolarına ayrıştırılır; orijinal tabloda 12'den fazla satır varsa her 12 satırda bölünür. Ayrıntılar için bkz. https://docs.swipies.app/docs/dev/enable_excel2html.`,
       autoKeywords: 'Otomatik anahtar kelime',
-      autoKeywordsTip: `Her parça için otomatik olarak N anahtar kelime çıkarır ve o anahtar kelimeleri içeren sorgular için sıralamalarını artırır. 'Yapılandırma'da belirtilen indeksleme modeli tarafından ekstra tokenlar tüketileceğini unutmayın. Bir parçaya eklenen anahtar kelimeleri parça listesinden kontrol edebilir veya güncelleyebilirsiniz. Ayrıntılar için bkz. https://ragflow.io/docs/dev/autokeyword_autoquestion.`,
+      autoKeywordsTip: `Her parça için otomatik olarak N anahtar kelime çıkarır ve o anahtar kelimeleri içeren sorgular için sıralamalarını artırır. 'Yapılandırma'da belirtilen indeksleme modeli tarafından ekstra tokenlar tüketileceğini unutmayın. Bir parçaya eklenen anahtar kelimeleri parça listesinden kontrol edebilir veya güncelleyebilirsiniz. Ayrıntılar için bkz. https://docs.swipies.app/docs/dev/autokeyword_autoquestion.`,
       autoQuestions: 'Otomatik soru',
-      autoQuestionsTip: `Her parça için otomatik olarak N soru çıkarır ve o soruları içeren sorgular için sıralamalarını artırır. Bir parçaya eklenen soruları parça listesinden kontrol edebilir veya güncelleyebilirsiniz. Bir hata oluşursa bu özellik parçalama işlemini bozmaz, ancak orijinal parçaya boş bir sonuç ekleyebilir. 'Yapılandırma'da belirtilen indeksleme modeli tarafından ekstra tokenlar tüketileceğini unutmayın. Ayrıntılar için bkz. https://ragflow.io/docs/dev/autokeyword_autoquestion.`,
+      autoQuestionsTip: `Her parça için otomatik olarak N soru çıkarır ve o soruları içeren sorgular için sıralamalarını artırır. Bir parçaya eklenen soruları parça listesinden kontrol edebilir veya güncelleyebilirsiniz. Bir hata oluşursa bu özellik parçalama işlemini bozmaz, ancak orijinal parçaya boş bir sonuç ekleyebilir. 'Yapılandırma'da belirtilen indeksleme modeli tarafından ekstra tokenlar tüketileceğini unutmayın. Ayrıntılar için bkz. https://docs.swipies.app/docs/dev/autokeyword_autoquestion.`,
       redo: 'Mevcut {{chunkNum}} parçayı temizlemek istiyor musunuz?',
       setMetaData: 'Meta veri ayarla',
       pleaseInputJson: 'Lütfen JSON girin',
@@ -830,7 +830,7 @@ Prosedürel Bellek: Öğrenilen beceriler, alışkanlıklar ve otomatik prosedü
 `,
       useRaptor: 'RAPTOR',
       useRaptorTip:
-        "RAPTOR çok adımlı soru-cevap görevleri için kullanılabilir. Dosyalar sayfasına gidin, Oluştur > RAPTOR'a tıklayarak etkinleştirin. Ayrıntılar için bkz. https://ragflow.io/docs/dev/enable_raptor.",
+        "RAPTOR çok adımlı soru-cevap görevleri için kullanılabilir. Dosyalar sayfasına gidin, Oluştur > RAPTOR'a tıklayarak etkinleştirin. Ayrıntılar için bkz. https://docs.swipies.app/docs/dev/enable_raptor.",
       prompt: 'İstem',
       promptTip:
         'Görevi tanımlamak, nasıl yanıt vermesi gerektiğini belirtmek ve diğer çeşitli gereksinimleri belirlemek için sistem istemini kullanın. Sistem istemi genellikle LLM için çeşitli veri girdileri olarak hizmet eden anahtarlarla (değişkenlerle) birlikte kullanılır. Kullanacağınız anahtarları göstermek için eğik çizgi `/` veya (x) düğmesini kullanın.',
@@ -853,7 +853,7 @@ Yukarısı özetlemeniz gereken içeriktir.`,
       entityTypes: 'Varlık türleri',
       vietnamese: 'Vietnamca',
       pageRank: 'Sayfa sıralaması',
-      pageRankTip: `Alım sırasında belirli datasets'e daha yüksek PageRank puanı atayabilirsiniz. İlgili puan, bu datasetlerden alınan parçaların hibrit benzerlik puanlarına eklenir ve sıralamalarını yükseltir. Ayrıntılar için bkz. https://ragflow.io/docs/dev/set_page_rank.`,
+      pageRankTip: `Alım sırasında belirli datasets'e daha yüksek PageRank puanı atayabilirsiniz. İlgili puan, bu datasetlerden alınan parçaların hibrit benzerlik puanlarına eklenir ve sıralamalarını yükseltir. Ayrıntılar için bkz. https://docs.swipies.app/docs/dev/set_page_rank.`,
       tagName: 'Etiket',
       frequency: 'Sıklık',
       searchTags: 'Etiketleri ara',
@@ -861,7 +861,7 @@ Yukarısı özetlemeniz gereken içeriktir.`,
       tagTable: 'Tablo',
       tagSet: 'Etiket kümeleri',
       tagSetTip: `
-     <p> Dataset'inizdeki parçaları otomatik olarak etiketlemek için bir veya birden fazla etiket dataset seçin. Ayrıntılar için bkz. https://ragflow.io/docs/dev/use_tag_sets.</p>
+     <p> Dataset'inizdeki parçaları otomatik olarak etiketlemek için bir veya birden fazla etiket dataset seçin. Ayrıntılar için bkz. https://docs.swipies.app/docs/dev/use_tag_sets.</p>
 <p>Kullanıcı sorgusu da otomatik olarak etiketlenecektir.</p>
 Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katmanı ekleyerek alımı geliştirir.
 <p>Otomatik etiket ve otomatik anahtar kelime arasındaki fark:</p>
@@ -876,7 +876,7 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       addTag: 'Etiket ekle',
       useGraphRag: 'Bilgi grafiği',
       useGraphRagTip:
-        'İç içe geçmiş mantık içeren çok adımlı soru-cevabı geliştirmek için mevcut dataset dosya parçaları üzerinde bir bilgi grafiği oluşturun. Ayrıntılar için bkz. https://ragflow.io/docs/dev/construct_knowledge_graph.',
+        'İç içe geçmiş mantık içeren çok adımlı soru-cevabı geliştirmek için mevcut dataset dosya parçaları üzerinde bir bilgi grafiği oluşturun. Ayrıntılar için bkz. https://docs.swipies.app/docs/dev/construct_knowledge_graph.',
       graphRagMethod: 'Yöntem',
       graphRagMethodTip: `
       Hafif: (Varsayılan) Varlıkları ve ilişkileri çıkarmak için github.com/HKUDS/LightRAG tarafından sağlanan istemler kullanılır.</br>
@@ -1401,18 +1401,18 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       chatModelTip: 'Her yeni oluşturulan dataset için varsayılan LLM.',
       embeddingModel: 'Embedding',
       embeddingModelTip:
-        'Her yeni oluşturulan dataset için varsayılan embedding model. Açılır listede bir embedding model bulamıyorsanız, Swipies slim sürümünü (embedding modeller içermez) kullanıp kullanmadığınızı kontrol edin veya model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://ragflow.io/docs/dev/supported_models adresine bakın.',
+        'Her yeni oluşturulan dataset için varsayılan embedding model. Açılır listede bir embedding model bulamıyorsanız, Swipies slim sürümünü (embedding modeller içermez) kullanıp kullanmadığınızı kontrol edin veya model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://docs.swipies.app/docs/dev/supported_models adresine bakın.',
       img2txtModel: 'VLM',
       img2txtModelTip:
-        'Her yeni oluşturulan dataset için varsayılan VLM. Bir resmi veya videoyu tanımlar. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://ragflow.io/docs/dev/supported_models adresine bakın.',
+        'Her yeni oluşturulan dataset için varsayılan VLM. Bir resmi veya videoyu tanımlar. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://docs.swipies.app/docs/dev/supported_models adresine bakın.',
       sequence2txtModel: 'ASR',
       sequence2txtModelTip:
         'Her yeni oluşturulan dataset için varsayılan ASR modeli. Bu modeli sesleri ilgili metne dönüştürmek için kullanın.',
       rerankModel: 'Rerank',
-      rerankModelTip: `Parçaları yeniden sıralamak için varsayılan yeniden sıralama modeli. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://ragflow.io/docs/dev/supported_models adresine bakın.`,
+      rerankModelTip: `Parçaları yeniden sıralamak için varsayılan yeniden sıralama modeli. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://docs.swipies.app/docs/dev/supported_models adresine bakın.`,
       ttsModel: 'TTS',
       ttsModelTip:
-        'Varsayılan metin-konuşma dönüştürme modeli. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://ragflow.io/docs/dev/supported_models adresine bakın.',
+        'Varsayılan metin-konuşma dönüştürme modeli. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://docs.swipies.app/docs/dev/supported_models adresine bakın.',
       workspace: 'çalışma alanı',
       upgrade: 'Yükselt',
       addLlmTitle: 'LLM Ekle',

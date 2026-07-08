@@ -160,7 +160,7 @@ export function Header({
           variant="ghost"
           size="icon"
           className="size-8 text-text-secondary hover:text-text-primary"
-          to="https://ragflow.io/docs/dev/category/user-guides"
+          to="https://docs.swipies.app/docs/category/user-guides"
           target="_blank"
           rel="noreferrer noopener"
         >
