@@ -405,6 +405,23 @@ async def create():
             err = await _validate_llm_id(req.get("llm_id"), current_user.id, req.get("llm_setting"))
             if err:
                 return get_data_error_result(message=err)
+            if not is_licensed and req.get("llm_id"):
+                from api.db.joint_services.tenant_model_service import split_model_name
+                pure_model_name, _, provider_name = split_model_name(req.get("llm_id"))
+                if not provider_name:
+                    for fac in settings.FACTORY_LLM_INFOS:
+                        for llm in fac.get("llm", []):
+                            if llm.get("llm_name") == pure_model_name:
+                                provider_name = fac.get("name", "")
+                                break
+                        if provider_name:
+                            break
+                prov_lower = provider_name.lower() if provider_name else ""
+                if prov_lower not in ("openai", "google"):
+                    return get_json_result(
+                        code=402,
+                        message=f"Base version limit: Only Google and OpenAI models are allowed. Blocked model: {req.get('llm_id')}"
+                    )
 
         if "rerank_id" in req:
             err = await _validate_rerank_id(req.get("rerank_id"), current_user.id)
@@ -564,6 +581,25 @@ async def update_chat(chat_id):
             err = await _validate_llm_id(req.get("llm_id"), current_user.id, req.get("llm_setting"))
             if err:
                 return get_data_error_result(message=err)
+            from api.utils.license_verifier import check_license
+            is_licensed, _, _ = check_license()
+            if not is_licensed and req.get("llm_id"):
+                from api.db.joint_services.tenant_model_service import split_model_name
+                pure_model_name, _, provider_name = split_model_name(req.get("llm_id"))
+                if not provider_name:
+                    for fac in settings.FACTORY_LLM_INFOS:
+                        for llm in fac.get("llm", []):
+                            if llm.get("llm_name") == pure_model_name:
+                                provider_name = fac.get("name", "")
+                                break
+                        if provider_name:
+                            break
+                prov_lower = provider_name.lower() if provider_name else ""
+                if prov_lower not in ("openai", "google"):
+                    return get_json_result(
+                        code=402,
+                        message=f"Base version limit: Only Google and OpenAI models are allowed. Blocked model: {req.get('llm_id')}"
+                    )
 
         if "rerank_id" in req:
             err = await _validate_rerank_id(req.get("rerank_id"), current_user.id)
