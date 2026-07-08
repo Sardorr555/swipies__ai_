@@ -141,8 +141,8 @@ const LicensePage = () => {
 
   // Step 2: Submit Card Details
   const handleCardSubmit = async () => {
-    const cleanCard = cardNumber.replace(/\s+/g, '');
-    const cleanExpiry = cardExpiry.replace(/\s+/g, '');
+    const cleanCard = cardNumber.replace(/[^0-9]/g, '');
+    const cleanExpiry = cardExpiry.replace(/[^0-9]/g, '');
     if (cleanCard.length !== 16 || cleanExpiry.length !== 4) {
       message.error(t('setting.invalidCardDetails', 'Please enter a valid 16-digit card number and 4-digit expiry date (YYMM)'));
       return;
