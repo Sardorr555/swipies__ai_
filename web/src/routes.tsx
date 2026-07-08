@@ -83,6 +83,7 @@ export enum Routes {
   Pricing = '/pricing',
   PrivacyPolicy = '/privacy-policy',
   License = '/license',
+  Checkout = '/checkout',
 }
 
 const defaultRouteFallback = (
@@ -149,6 +150,11 @@ const routeConfigOptions = [
   {
     path: '/privacy-policy',
     Component: () => import('@/pages/privacy-policy'),
+    layout: false,
+  },
+  {
+    path: '/checkout',
+    Component: () => import('@/pages/checkout'),
     layout: false,
   },
   {

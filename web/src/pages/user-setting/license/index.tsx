@@ -20,6 +20,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import { 
   listLicenses, 
@@ -44,6 +45,7 @@ interface LicenseKeyItem {
 
 const LicensePage = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [licenses, setLicenses] = useState<LicenseKeyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -291,14 +293,7 @@ const LicensePage = () => {
             </h2>
             <Button 
               className="bg-accent-primary hover:bg-accent-primary/80 text-white font-semibold flex items-center gap-2 shadow-lg shadow-accent-primary/20 transition-all duration-300"
-              onClick={() => {
-                setPurchaseStep('plan');
-                setNewLicenseName('');
-                setCardNumber('');
-                setCardExpiry('');
-                setOtpCode('');
-                setIsPurchaseModalOpen(true);
-              }}
+              onClick={() => navigate('/checkout?plan=license&period=6')}
             >
               <Sparkles size={16} />
               {t('setting.buyLicense', 'Purchase License Key')}
@@ -328,9 +323,9 @@ const LicensePage = () => {
             </p>
             <Button
               className="bg-accent-primary hover:bg-accent-primary/90 text-white font-semibold"
-              onClick={() => setIsPurchaseModalOpen(true)}
+              onClick={() => navigate('/checkout?plan=license&period=6')}
             >
-              Get a License Key
+              {t('setting.buyLicense', 'Get a License Key')}
             </Button>
           </Card>
         ) : (

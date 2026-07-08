@@ -13,9 +13,9 @@ import {
   LucideZap,
   ShieldCheck,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useSearchParams, useNavigate } from 'react-router';
 
 // UZS Formatter
 const formatUZS = (amount: number) => {
@@ -421,6 +421,7 @@ const pricingTranslations = {
 
 export default function PricingPage() {
   const { i18n } = useTranslation();
+  const navigate = useNavigate();
   const currentLang = i18n.language || 'en';
   const lang = currentLang.startsWith('ru')
     ? 'ru'
@@ -555,7 +556,7 @@ export default function PricingPage() {
   ];
 
   const [selectedPeriod, setSelectedPeriod] = useState(1);
-  const [activePlanKey, setActivePlanKey] = useState<
+  const [activePlanKey] = useState<
     'plus' | 'pro' | 'license' | null
   >(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -611,22 +612,16 @@ export default function PricingPage() {
 
   const [searchParams] = useSearchParams();
 
-  const handleOpenCheckout = (key: 'plus' | 'pro' | 'license' | 'enterprise') => {
-    if (key === 'enterprise') {
-      window.open('https://t.me/albakiev01', '_blank');
-      return;
-    }
-    setActivePlanKey(key);
-    setIsModalOpen(true);
-    setStep('card');
-    setCardNumber('');
-    setExpiry('');
-    setCvc('');
-    setCardName('');
-    setOtp('');
-    setError('');
-    setRagflowResult(null);
-  };
+  const handleOpenCheckout = useCallback(
+    (key: 'plus' | 'pro' | 'license' | 'enterprise') => {
+      if (key === 'enterprise') {
+        window.open('https://t.me/albakiev01', '_blank');
+        return;
+      }
+      navigate(`/checkout?plan=${key}&period=${selectedPeriod}`);
+    },
+    [navigate, selectedPeriod],
+  );
 
   useEffect(() => {
     const planParam = searchParams.get('plan');
@@ -636,11 +631,15 @@ export default function PricingPage() {
         handleOpenCheckout('plus');
       } else if (lowerParam === 'pro') {
         handleOpenCheckout('pro');
-      } else if (lowerParam === 'license' || lowerParam === 'self-hosted' || lowerParam === 'self_hosted') {
+      } else if (
+        lowerParam === 'license' ||
+        lowerParam === 'self-hosted' ||
+        lowerParam === 'self_hosted'
+      ) {
         handleOpenCheckout('license');
       }
     }
-  }, [searchParams]);
+  }, [searchParams, handleOpenCheckout]);
 
   const handleCardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
