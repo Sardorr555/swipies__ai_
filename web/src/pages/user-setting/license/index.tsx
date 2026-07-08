@@ -491,30 +491,30 @@ const LicensePage = () => {
                 </span>
               </div>
 
-              <div className="border border-border-default/60 rounded-xl p-4 bg-gradient-to-br from-bg-component/60 to-bg-component/20 shadow-md relative overflow-hidden aspect-[1.586/1] flex flex-col justify-between text-text-primary">
+              <div className="border border-slate-800 rounded-xl p-4 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 shadow-lg relative overflow-hidden aspect-[1.586/1] flex flex-col justify-between text-white">
                 <div className="flex justify-between items-center">
-                  <CreditCard size={28} className="text-accent-primary" />
-                  <span className="text-[10px] tracking-widest opacity-60 font-bold">ATMOS GATEWAY</span>
+                  <CreditCard size={28} className="text-indigo-400" />
+                  <span className="text-[10px] tracking-widest opacity-80 font-bold text-slate-300">ATMOS GATEWAY</span>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-xs opacity-60 tracking-wider font-medium">CARD NUMBER</div>
+                  <div className="text-xs tracking-wider font-semibold text-slate-300">CARD NUMBER</div>
                   <Input
                     placeholder="8600 0000 0000 0000"
                     value={cardNumber}
                     onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
                     maxLength={19}
-                    className="bg-bg-input/60 border-border-default/40 font-mono text-base tracking-widest"
+                    className="bg-slate-950/60 border-slate-800 font-mono text-base tracking-widest text-white placeholder:text-slate-600 focus-visible:ring-indigo-500"
                   />
                 </div>
                 <div className="flex gap-4">
                   <div className="w-1/3 space-y-1">
-                    <span className="text-[9px] opacity-60 font-medium">EXPIRY</span>
+                    <span className="text-[9px] font-semibold text-slate-300">EXPIRY</span>
                     <Input
                       placeholder="YY/MM"
                       value={cardExpiry}
                       onChange={(e) => setCardExpiry(formatExpiryDate(e.target.value))}
                       maxLength={5}
-                      className="bg-bg-input/60 border-border-default/40 font-mono text-sm tracking-wider text-center"
+                      className="bg-slate-950/60 border-slate-800 font-mono text-sm tracking-wider text-center text-white placeholder:text-slate-600 focus-visible:ring-indigo-500"
                     />
                   </div>
                 </div>
