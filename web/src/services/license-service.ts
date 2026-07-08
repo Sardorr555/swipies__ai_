@@ -10,6 +10,8 @@ const {
   licenseDelete,
   adminLicenseList,
   adminLicenseAction,
+  adminLicensePricing,
+  licensePricing,
 } = api;
 
 export const listLicenses = () => request.get(licenseList);
@@ -40,6 +42,8 @@ export const renameLicense = (licenseId: string, name: string) =>
 export const revokeLicense = (licenseId: string) =>
   request.delete(licenseDelete(licenseId));
 
+export const getUserLicensePricing = () => request.get(licensePricing);
+
 // Admin services
 export const adminListLicenses = (params: {
   page?: number;
@@ -60,3 +64,11 @@ export const adminIssueLicense = (
 
 export const adminRevokeLicense = (licenseId: string) =>
   request.delete(adminLicenseAction(licenseId));
+
+export const getAdminLicensePricing = () => request.get(adminLicensePricing);
+
+export const updateAdminLicensePricing = (pricing: {
+  price_6_months: number;
+  price_12_months: number;
+  price_per_month_custom: number;
+}) => request.post(adminLicensePricing, pricing);

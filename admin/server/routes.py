@@ -796,3 +796,30 @@ def revoke_license(license_id):
     except Exception as e:
         return error_response(str(e), 500)
 
+
+@admin_bp.route("/licenses/pricing", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_license_pricing():
+    try:
+        res = LicenseMgr.get_pricing()
+        return success_response(res)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/licenses/pricing", methods=["POST"])
+@login_required
+@check_admin_auth
+def update_license_pricing():
+    try:
+        data = request.get_json()
+        if not data:
+            return error_response("Pricing configuration data is required", 400)
+        res = LicenseMgr.update_pricing(data)
+        return success_response(res)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+

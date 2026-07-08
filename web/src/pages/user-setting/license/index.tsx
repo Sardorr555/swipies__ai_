@@ -27,7 +27,8 @@ import {
   preApplyLicensePay, 
   applyLicensePay, 
   renameLicense, 
-  revokeLicense 
+  revokeLicense,
+  getUserLicensePricing
 } from '@/services/license-service';
 
 interface LicenseKeyItem {
@@ -46,6 +47,13 @@ const LicensePage = () => {
   const [licenses, setLicenses] = useState<LicenseKeyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Pricing configuration state
+  const [prices, setPrices] = useState({
+    price_6_months: 300000,
+    price_12_months: 500000,
+    price_per_month_custom: 50000,
+  });
 
   // Modals state
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
@@ -68,6 +76,17 @@ const LicensePage = () => {
   const [selectedLicense, setSelectedLicense] = useState<LicenseKeyItem | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
+  const fetchPrices = async () => {
+    try {
+      const res = await getUserLicensePricing();
+      if (res?.data?.code === 0 && res.data.data) {
+        setPrices(res.data.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchLicenses = async () => {
     setLoading(true);
     try {
@@ -85,6 +104,8 @@ const LicensePage = () => {
 
   useEffect(() => {
     fetchLicenses();
+    fetchPrices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCopy = (keyText: string, id: string) => {
@@ -175,7 +196,7 @@ const LicensePage = () => {
         setIsRenameModalOpen(false);
         fetchLicenses();
       }
-    } catch (err) {
+    } catch {
       message.error(t('setting.renameFailed', 'Failed to rename license'));
     }
   };
@@ -189,7 +210,7 @@ const LicensePage = () => {
         setIsRevokeModalOpen(false);
         fetchLicenses();
       }
-    } catch (err) {
+    } catch {
       message.error(t('setting.revokeFailed', 'Failed to revoke license'));
     }
   };
@@ -229,7 +250,7 @@ const LicensePage = () => {
     try {
       const date = new Date(dateStr);
       return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch (e) {
+    } catch {
       return dateStr;
     }
   };
@@ -303,7 +324,7 @@ const LicensePage = () => {
             </div>
             <h3 className="text-lg font-bold text-text-primary mb-2">No License Keys Found</h3>
             <p className="text-sm text-text-secondary max-w-md mx-auto mb-6">
-              You haven't purchased any commercial license keys yet. Purchase a key to deploy Swipies AI on your local or private clouds.
+              You haven&apos;t purchased any commercial license keys yet. Purchase a key to deploy Swipies AI on your local or private clouds.
             </p>
             <Button
               className="bg-accent-primary hover:bg-accent-primary/90 text-white font-semibold"
@@ -427,7 +448,7 @@ const LicensePage = () => {
                 >
                   <h4 className="font-bold text-text-primary">6 Months</h4>
                   <p className="text-xs text-text-secondary mt-1">Deploy on one local node</p>
-                  <div className="text-lg font-extrabold text-accent-primary mt-3">300,000 UZS</div>
+                  <div className="text-lg font-extrabold text-accent-primary mt-3">{(prices.price_6_months).toLocaleString()} UZS</div>
                 </div>
 
                 <div 
@@ -437,7 +458,7 @@ const LicensePage = () => {
                   <div className="absolute top-0 right-0 bg-accent-primary text-white text-[9px] font-extrabold px-2 py-0.5 rounded-bl">BEST VALUE</div>
                   <h4 className="font-bold text-text-primary">12 Months</h4>
                   <p className="text-xs text-text-secondary mt-1">Enterprise updates & support</p>
-                  <div className="text-lg font-extrabold text-accent-primary mt-3">500,000 UZS</div>
+                  <div className="text-lg font-extrabold text-accent-primary mt-3">{(prices.price_12_months).toLocaleString()} UZS</div>
                 </div>
               </div>
 
@@ -463,7 +484,11 @@ const LicensePage = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center text-sm text-text-secondary">
                 <span>Paying:</span>
-                <span className="font-bold text-accent-primary">{selectedDuration === 6 ? '300,000' : '500,000'} UZS</span>
+                <span className="font-bold text-accent-primary">
+                  {selectedDuration === 6 
+                    ? prices.price_6_months.toLocaleString() 
+                    : prices.price_12_months.toLocaleString()} UZS
+                </span>
               </div>
 
               <div className="border border-border-default/60 rounded-xl p-4 bg-gradient-to-br from-bg-component/60 to-bg-component/20 shadow-md relative overflow-hidden aspect-[1.586/1] flex flex-col justify-between text-text-primary">
@@ -623,7 +648,7 @@ const LicensePage = () => {
             <AlertTriangle size={20} className="shrink-0" />
             <p><strong>Warning:</strong> Revoking this license key will immediately deactivate any deployments running on it. This action cannot be undone.</p>
           </div>
-          <p className="text-sm text-text-secondary">Are you sure you want to revoke the license key <strong>"{selectedLicense?.name}"</strong>?</p>
+          <p className="text-sm text-text-secondary">Are you sure you want to revoke the license key <strong>&ldquo;{selectedLicense?.name}&rdquo;</strong>?</p>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="secondary" onClick={() => setIsRevokeModalOpen(false)}>Cancel</Button>
             <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={handleRevoke}>Revoke License</Button>

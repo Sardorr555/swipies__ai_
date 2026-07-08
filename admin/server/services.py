@@ -997,7 +997,13 @@ class LicenseMgr:
         lic_type = "yearly" if duration_months >= 12 else "6_months"
         key = generate_license(owner=user_email, expiry=expiry_str, lic_type=lic_type)
         
-        amount = 500000.0 if duration_months >= 12 else 300000.0
+        pricing = LicenseKeyService.get_license_pricing()
+        if duration_months == 6:
+            amount = pricing.get("price_6_months", 300000.0)
+        elif duration_months >= 12:
+            amount = pricing.get("price_12_months", 500000.0)
+        else:
+            amount = duration_months * pricing.get("price_per_month_custom", 50000.0)
         
         new_lic = {
             "id": license_id,
@@ -1014,4 +1020,21 @@ class LicenseMgr:
         
         LicenseKeyService.save(**new_lic)
         return {"success": True, "license_key": key}
+
+    @staticmethod
+    def get_pricing():
+        from api.db.services.license_key_service import LicenseKeyService
+        return LicenseKeyService.get_license_pricing()
+
+    @staticmethod
+    def update_pricing(pricing_dict):
+        from api.db.services.license_key_service import LicenseKeyService
+        for key in ["price_6_months", "price_12_months", "price_per_month_custom"]:
+            if key not in pricing_dict:
+                raise AdminException(f"Missing pricing field: {key}", 400)
+            try:
+                pricing_dict[key] = float(pricing_dict[key])
+            except ValueError:
+                raise AdminException(f"Invalid numeric value for {key}", 400)
+        return LicenseKeyService.set_license_pricing(pricing_dict)
 

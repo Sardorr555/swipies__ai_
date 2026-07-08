@@ -26,3 +26,51 @@ class LicenseKeyService(CommonService):
         if page_number and items_per_page:
             query = query.paginate(page_number, items_per_page)
         return list(query.dicts()), total
+
+    @classmethod
+    @DB.connection_context()
+    def get_license_pricing(cls):
+        from api.db.services.system_settings_service import SystemSettingsService
+        import json
+        try:
+            records = SystemSettingsService.get_by_name("license_price")
+            if records:
+                return json.loads(records[0].value)
+        except Exception:
+            pass
+        return {
+            "price_6_months": 300000.0,
+            "price_12_months": 500000.0,
+            "price_per_month_custom": 50000.0
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def set_license_pricing(cls, pricing_dict):
+        from api.db.services.system_settings_service import SystemSettingsService
+        from common.time_utils import current_timestamp, datetime_format
+        from datetime import datetime
+        import json
+        value_str = json.dumps(pricing_dict)
+        records = SystemSettingsService.get_by_name("license_price")
+        if records:
+            SystemSettingsService.update_by_name("license_price", {
+                "name": "license_price",
+                "source": "database",
+                "data_type": "json",
+                "value": value_str
+            })
+        else:
+            timestamp = current_timestamp()
+            cur_datetime = datetime_format(datetime.now())
+            SystemSettingsService.model.create(**{
+                "name": "license_price",
+                "source": "database",
+                "data_type": "json",
+                "value": value_str,
+                "create_time": timestamp,
+                "create_date": cur_datetime,
+                "update_time": timestamp,
+                "update_date": cur_datetime
+            })
+        return pricing_dict

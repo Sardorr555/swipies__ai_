@@ -142,6 +142,14 @@ def list_licenses():
     return get_json_result(data=licenses)
 
 
+@manager.route("/license/pricing", methods=["GET"])  # noqa: F821
+@login_required
+def get_license_price_config():
+    """Get the current license prices."""
+    pricing = LicenseKeyService.get_license_pricing()
+    return get_json_result(data=pricing)
+
+
 @manager.route("/license/pay/create", methods=["POST"])  # noqa: F821
 @login_required
 @validate_request("name", "duration_months")
@@ -152,12 +160,13 @@ async def create_license_pay():
     duration_months = int(req["duration_months"])
 
     # Determine amount in UZS
+    pricing = LicenseKeyService.get_license_pricing()
     if duration_months == 6:
-        amount = 300000.0
+        amount = pricing.get("price_6_months", 300000.0)
     elif duration_months == 12:
-        amount = 500000.0
+        amount = pricing.get("price_12_months", 500000.0)
     else:
-        amount = duration_months * 50000.0
+        amount = duration_months * pricing.get("price_per_month_custom", 50000.0)
 
     try:
         transaction_id = await atmos_client.create_transaction(amount, current_user.email)

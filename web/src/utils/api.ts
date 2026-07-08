@@ -421,4 +421,6 @@ export default {
   licenseDelete: (id: string) => `${restAPIv1}/license/${id}`,
   adminLicenseList: `${restAPIv1}/admin/licenses`,
   adminLicenseAction: (id: string) => `${restAPIv1}/admin/licenses/${id}`,
+  adminLicensePricing: `${restAPIv1}/admin/licenses/pricing`,
+  licensePricing: `${restAPIv1}/license/pricing`,
 };

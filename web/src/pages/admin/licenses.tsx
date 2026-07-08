@@ -11,15 +11,13 @@ import {
   Trash2,
   Copy,
   Check,
-  Calendar,
   User,
   ShieldAlert,
   ChevronLeft,
-  ChevronRight,
-  Clock
+  ChevronRight
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { adminListLicenses, adminIssueLicense, adminRevokeLicense } from '@/services/license-service';
+import { adminListLicenses, adminIssueLicense, adminRevokeLicense, getAdminLicensePricing, updateAdminLicensePricing } from '@/services/license-service';
 
 interface AdminLicenseItem {
   id: string;
@@ -42,6 +40,14 @@ const AdminLicensesPage = () => {
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Pricing settings state
+  const [prices, setPrices] = useState({
+    price_6_months: 300000,
+    price_12_months: 500000,
+    price_per_month_custom: 50000,
+  });
+  const [savePricingLoading, setSavePricingLoading] = useState(false);
+
   // Modals state
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
@@ -53,6 +59,34 @@ const AdminLicensesPage = () => {
   const [issueDuration, setIssueDuration] = useState<number>(12);
   const [issueLoading, setIssueLoading] = useState(false);
   const [issuedKey, setIssuedKey] = useState<string | null>(null);
+
+  const fetchPrices = async () => {
+    try {
+      const res = await getAdminLicensePricing();
+      if (res?.data?.code === 0 && res.data.data) {
+        setPrices(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pricing config', err);
+    }
+  };
+
+  const handleSavePrices = async () => {
+    setSavePricingLoading(true);
+    try {
+      const res = await updateAdminLicensePricing(prices);
+      if (res?.data?.code === 0) {
+        message.success(t('admin.pricingSavedSuccessfully', 'Pricing settings saved successfully'));
+        fetchPrices();
+      } else {
+        message.error(res?.data?.message || t('admin.failedToSavePricing', 'Failed to save pricing settings'));
+      }
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || t('admin.failedToSavePricing', 'Failed to save pricing settings'));
+    } finally {
+      setSavePricingLoading(false);
+    }
+  };
 
   const fetchLicenses = async () => {
     setLoading(true);
@@ -71,7 +105,12 @@ const AdminLicensesPage = () => {
   };
 
   useEffect(() => {
+    fetchPrices();
+  }, []);
+
+  useEffect(() => {
     fetchLicenses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search]);
 
   const handleCopy = (keyText: string, id: string) => {
@@ -115,7 +154,7 @@ const AdminLicensesPage = () => {
       } else {
         message.error(res?.data?.message || t('admin.revokeFailed', 'Failed to revoke license'));
       }
-    } catch (err) {
+    } catch {
       message.error(t('admin.revokeFailed', 'Failed to revoke license'));
     }
   };
@@ -153,7 +192,7 @@ const AdminLicensesPage = () => {
     if (!dateStr) return 'N/A';
     try {
       return new Date(dateStr).toLocaleDateString();
-    } catch (e) {
+    } catch {
       return dateStr;
     }
   };
@@ -178,6 +217,53 @@ const AdminLicensesPage = () => {
           Issue Manual License
         </Button>
       </div>
+
+      <Card className="border border-border-default bg-bg-component/20 backdrop-blur-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">License Pricing Settings</CardTitle>
+          <CardDescription className="text-xs text-text-secondary">Configure the pricing (in UZS) for different license durations.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-text-secondary">6 Months Price (UZS)</label>
+              <Input
+                type="number"
+                value={prices.price_6_months}
+                onChange={(e) => setPrices({ ...prices, price_6_months: Number(e.target.value) })}
+                className="bg-bg-input border-border-default h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-text-secondary">12 Months Price (UZS)</label>
+              <Input
+                type="number"
+                value={prices.price_12_months}
+                onChange={(e) => setPrices({ ...prices, price_12_months: Number(e.target.value) })}
+                className="bg-bg-input border-border-default h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-text-secondary">Custom Duration Price / Month (UZS)</label>
+              <Input
+                type="number"
+                value={prices.price_per_month_custom}
+                onChange={(e) => setPrices({ ...prices, price_per_month_custom: Number(e.target.value) })}
+                className="bg-bg-input border-border-default h-9"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button
+              className="bg-accent-primary hover:bg-accent-primary/95 text-white font-semibold h-9"
+              onClick={handleSavePrices}
+              disabled={savePricingLoading}
+            >
+              {savePricingLoading ? 'Saving...' : 'Save Prices'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border border-border-default bg-bg-component/20 backdrop-blur-sm">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -401,7 +487,7 @@ const AdminLicensesPage = () => {
             <p><strong>Warning:</strong> Revoking this license key will immediately disable it across all client environments. This action cannot be reverted.</p>
           </div>
           <p className="text-sm text-text-secondary">
-            Are you sure you want to revoke <strong>"{selectedLicense?.name}"</strong> owned by <strong>{selectedLicense?.user_email}</strong>?
+            Are you sure you want to revoke <strong>&ldquo;{selectedLicense?.name}&rdquo;</strong> owned by <strong>{selectedLicense?.user_email}</strong>?
           </p>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="secondary" onClick={() => setIsRevokeModalOpen(false)}>Cancel</Button>
