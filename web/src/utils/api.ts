@@ -411,4 +411,14 @@ export default {
   skillSearch: `${restAPIv1}/skills/search`,
   skillIndex: `${restAPIv1}/skills/index`,
   skillReindex: `${restAPIv1}/skills/reindex`,
+
+  // license
+  licenseList: `${restAPIv1}/license`,
+  licenseCreatePay: `${restAPIv1}/license/pay/create`,
+  licensePreApplyPay: `${restAPIv1}/license/pay/pre-apply`,
+  licenseApplyPay: `${restAPIv1}/license/pay/apply`,
+  licenseUpdate: (id: string) => `${restAPIv1}/license/${id}`,
+  licenseDelete: (id: string) => `${restAPIv1}/license/${id}`,
+  adminLicenseList: `${restAPIv1}/admin/licenses`,
+  adminLicenseAction: (id: string) => `${restAPIv1}/admin/licenses/${id}`,
 };

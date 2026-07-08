@@ -79,6 +79,7 @@ export enum Routes {
   AdminWhitelist = `${Admin}/whitelist`,
   AdminRoles = `${Admin}/roles`,
   AdminMonitoring = `${Admin}/monitoring`,
+  AdminLicenses = `${Admin}/licenses`,
   Pricing = '/pricing',
   PrivacyPolicy = '/privacy-policy',
   License = '/license',
@@ -440,6 +441,10 @@ const routeConfigOptions = [
               {
                 path: Routes.AdminReferrals,
                 Component: () => import('@/pages/admin/referrals'),
+              },
+              {
+                path: Routes.AdminLicenses,
+                Component: () => import('@/pages/admin/licenses'),
               },
               ...(IS_ENTERPRISE
                 ? [

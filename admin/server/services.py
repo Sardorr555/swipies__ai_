@@ -945,3 +945,67 @@ class ReferralMgr:
             "records": records,
             "stats": stats,
         }
+
+
+class LicenseMgr:
+    @staticmethod
+    def get_all_licenses(page=1, size=10, search=None):
+        from api.db.services.license_key_service import LicenseKeyService
+        from api.db.db_models import User
+        
+        licenses, total = LicenseKeyService.get_all_licenses(page_number=page, items_per_page=size, keywords=search)
+        
+        for lic in licenses:
+            user = User.select().where(User.id == lic["user_id"]).first()
+            lic["user_email"] = user.email if user else "Unknown"
+            
+        return {"licenses": licenses, "total": total}
+
+    @staticmethod
+    def revoke_license(license_id: str):
+        from api.db.services.license_key_service import LicenseKeyService
+        lic = LicenseKeyService.get_by_id(license_id)
+        if not lic:
+            raise AdminException("License not found", 404)
+        
+        LicenseKeyService.update_by_id(license_id, {"status": "revoked"})
+        return "License revoked successfully"
+
+    @staticmethod
+    def issue_license(user_email: str, name: str, duration_months: int):
+        from api.db.services.license_key_service import LicenseKeyService
+        from api.db.db_models import User
+        from generate_license import generate_license
+        from datetime import datetime, timedelta
+        import uuid
+        
+        users = User.select().where(User.email == user_email)
+        if not users:
+            raise AdminException(f"User with email {user_email} not found", 404)
+        user = users[0]
+        
+        expiry_date = datetime.now() + timedelta(days=30 * duration_months)
+        expiry_str = expiry_date.strftime("%Y-%m-%d")
+        
+        license_id = uuid.uuid4().hex
+        lic_type = "yearly" if duration_months >= 12 else "6_months"
+        key = generate_license(owner=user_email, expiry=expiry_str, lic_type=lic_type)
+        
+        amount = 500000.0 if duration_months >= 12 else 300000.0
+        
+        new_lic = {
+            "id": license_id,
+            "user_id": user.id,
+            "name": name,
+            "license_key": key,
+            "amount": amount,
+            "duration_months": duration_months,
+            "expiry_date": expiry_date,
+            "payment_id": "admin-issued",
+            "is_paid": True,
+            "status": "active"
+        }
+        
+        LicenseKeyService.save(**new_lic)
+        return {"success": True, "license_key": key}
+

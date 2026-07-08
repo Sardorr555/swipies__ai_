@@ -814,6 +814,22 @@ class InvitationCode(DataBaseModel):
         db_table = "invitation_code"
 
 
+class LicenseKey(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=255, null=False, help_text="License name/label")
+    license_key = CharField(max_length=1024, null=True, unique=True, help_text="Generated license activation key")
+    amount = FloatField(null=False, help_text="Payment amount in UZS")
+    duration_months = IntegerField(default=12, help_text="Duration in months")
+    expiry_date = DateTimeField(null=True, help_text="Expiration date")
+    payment_id = CharField(max_length=255, null=True, help_text="Atmos transaction ID")
+    is_paid = BooleanField(default=False, help_text="Is the payment completed")
+    status = CharField(max_length=32, default="pending", help_text="pending|active|revoked|expired", index=True)
+
+    class Meta:
+        db_table = "license_key"
+
+
 class LLMFactories(DataBaseModel):
     name = CharField(max_length=128, null=False, help_text="LLM factory name", primary_key=True)
     logo = TextField(null=True, help_text="llm logo base64")
