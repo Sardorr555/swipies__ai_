@@ -13,7 +13,13 @@ from api.db.db_models import LicenseKey
 from api.utils.api_utils import get_data_error_result, get_json_result, get_request_json, validate_request
 from common.constants import RetCode
 from common.misc_utils import get_uuid
-from generate_license import generate_license
+try:
+    from generate_license import generate_license
+except ImportError:
+    import sys
+    from pathlib import Path
+    sys.path.append(str(Path(__file__).resolve().parents[3]))
+    from generate_license import generate_license
 
 LOGGER = logging.getLogger(__name__)
 

@@ -975,7 +975,13 @@ class LicenseMgr:
     def issue_license(user_email: str, name: str, duration_months: int):
         from api.db.services.license_key_service import LicenseKeyService
         from api.db.db_models import User
-        from generate_license import generate_license
+        try:
+            from generate_license import generate_license
+        except ImportError:
+            import sys
+            from pathlib import Path
+            sys.path.append(str(Path(__file__).resolve().parents[2]))
+            from generate_license import generate_license
         from datetime import datetime, timedelta
         import uuid
         
