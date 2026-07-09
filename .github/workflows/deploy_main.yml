@@ -4,7 +4,7 @@ name: Deploy Ragflow
 on:
   push:
     branches:
-      - swipies_26
+      - licence_v
     paths:
       - '**'
       - '!swipies__ai_/landing/**'
@@ -30,8 +30,8 @@ jobs:
             cd ~/swipies__ai_
 
             echo "📥 Обновляем код..."
-            git fetch origin swipies_26
-            git reset --hard origin/swipies_26
+            git fetch origin licence_v
+            git reset --hard origin/licence_v
 
             cd docker
 
