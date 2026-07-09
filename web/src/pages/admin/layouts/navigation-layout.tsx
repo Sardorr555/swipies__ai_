@@ -13,6 +13,7 @@ import {
   LucideUserCog,
   LucideUserStar,
   LucideZap,
+  Key,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,11 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminReferrals,
         name: 'Referral Activity',
         icon: <Gift className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminLicenses,
+        name: 'Licenses',
+        icon: <Key className="size-[1em]" />,
       },
       ...(IS_ENTERPRISE
         ? [

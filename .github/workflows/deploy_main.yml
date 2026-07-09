@@ -4,7 +4,7 @@ name: Deploy Ragflow
 on:
   push:
     branches:
-      - swipies_25
+      - swipies_26
     paths:
       - '**'
       - '!swipies__ai_/landing/**'
@@ -24,13 +24,14 @@ jobs:
           host: ${{ secrets.EC2_HOST || secrets.SSH_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 45m
           script: |
             set -e
             cd ~/swipies__ai_
 
             echo "📥 Обновляем код..."
-            git fetch origin swipies_25
-            git reset --hard origin/swipies_25
+            git fetch origin swipies_26
+            git reset --hard origin/swipies_26
 
             cd docker
 

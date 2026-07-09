@@ -25,7 +25,7 @@ from flask_login import current_user, login_required, logout_user
 
 from auth import login_verify, login_admin, check_admin_auth
 from responses import success_response, error_response
-from services import UserMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, ReferralMgr
+from services import UserMgr, ServiceMgr, UserServiceMgr, SettingsMgr, ConfigMgr, EnvironmentsMgr, SandboxMgr, ReferralMgr, LicenseMgr
 from roles import RoleMgr
 from api.common.exceptions import AdminException
 from common.versions import get_ragflow_version
@@ -746,3 +746,80 @@ def get_referral_activity():
         return success_response(res)
     except Exception as e:
         return error_response(str(e), 500)
+
+
+@admin_bp.route("/licenses", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_licenses():
+    try:
+        page = int(request.args.get("page", 1))
+        size = int(request.args.get("size", 10))
+        search = request.args.get("search", "")
+
+        res = LicenseMgr.get_all_licenses(page=page, size=size, search=search)
+        return success_response(res)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/licenses", methods=["POST"])
+@login_required
+@check_admin_auth
+def issue_license():
+    try:
+        data = request.get_json()
+        if not data or "user_email" not in data or "name" not in data or "duration_months" not in data:
+            return error_response("user_email, name, and duration_months are required", 400)
+
+        user_email = data["user_email"]
+        name = data["name"]
+        duration_months = int(data["duration_months"])
+
+        res = LicenseMgr.issue_license(user_email, name, duration_months)
+        return success_response(res)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/licenses/<license_id>", methods=["DELETE"])
+@login_required
+@check_admin_auth
+def revoke_license(license_id):
+    try:
+        res = LicenseMgr.revoke_license(license_id)
+        return success_response(res)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/licenses/pricing", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_license_pricing():
+    try:
+        res = LicenseMgr.get_pricing()
+        return success_response(res)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/licenses/pricing", methods=["POST"])
+@login_required
+@check_admin_auth
+def update_license_pricing():
+    try:
+        data = request.get_json()
+        if not data:
+            return error_response("Pricing configuration data is required", 400)
+        res = LicenseMgr.update_pricing(data)
+        return success_response(res)
+    except AdminException as e:
+        return error_response(e.message, e.code)
+    except Exception as e:
+        return error_response(str(e), 500)
+

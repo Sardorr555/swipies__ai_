@@ -11,6 +11,7 @@ import { useChangeLanguage } from '@/hooks/logic-hooks';
 import {
   useFetchUserInfo,
   useListTenant,
+  useFetchTenantInfo,
 } from '@/hooks/use-user-setting-request';
 import { cn } from '@/lib/utils';
 import { TenantRole } from '@/pages/user-setting/constants';
@@ -41,6 +42,17 @@ export function Header({
   } = useFetchUserInfo();
 
   const { data: tenantData } = useListTenant();
+  const { data: tenantInfo } = useFetchTenantInfo();
+  const currentPlan = (tenantInfo?.plan_type || 'free').toLowerCase();
+
+  const upgradeLabel = useMemo(() => {
+    if (currentPlan === 'plus') return 'Plus';
+    if (currentPlan === 'pro') return 'Pro';
+    if (currentPlan === 'license') return 'License';
+    if (currentPlan === 'enterprise') return 'Enterprise';
+    return 'Upgrade';
+  }, [currentPlan]);
+
   const hasNotification = useMemo(
     () => tenantData?.some((x) => x.role === TenantRole.Invite),
     [tenantData],
@@ -103,7 +115,7 @@ export function Header({
           data-testid="upgrade-button"
         >
           <LucideZap className="size-3.5" />
-          <span className="hidden sm:inline">Upgrade</span>
+          <span className="hidden sm:inline">{upgradeLabel}</span>
         </Link>
 
         <a
@@ -148,7 +160,7 @@ export function Header({
           variant="ghost"
           size="icon"
           className="size-8 text-text-secondary hover:text-text-primary"
-          to="https://ragflow.io/docs/dev/category/user-guides"
+          to="https://docs.swipies.app/docs/category/user-guides"
           target="_blank"
           rel="noreferrer noopener"
         >

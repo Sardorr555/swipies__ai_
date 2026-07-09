@@ -750,6 +750,7 @@ export default {
       logout: 'Chiqish',
       api: 'API',
       referral: 'Referal dasturi',
+      subscription: 'Obuna',
       license: "Litsenziya va To'lov",
       username: 'Ism',
       usernameMessage: 'Foydalanuvchi nomini kiriting!',

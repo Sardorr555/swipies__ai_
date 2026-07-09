@@ -496,7 +496,7 @@ export default {
       action: '작업',
       parsingStatus: '파싱 상태',
       parsingStatusTip:
-        '문서 파싱 시간은 여러 요소에 따라 달라집니다. 지식 그래프, RAPTOR, 자동 질문 추출, 자동 키워드 추출 등의 기능을 활성화하면 처리 시간이 크게 늘어납니다. 진행 표시줄이 멈추면 다음 FAQ를 참고하세요: https://ragflow.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
+        '문서 파싱 시간은 여러 요소에 따라 달라집니다. 지식 그래프, RAPTOR, 자동 질문 추출, 자동 키워드 추출 등의 기능을 활성화하면 처리 시간이 크게 늘어납니다. 진행 표시줄이 멈추면 다음 FAQ를 참고하세요: https://docs.swipies.app/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
       processBeginAt: '시작 시간',
       processDuration: '소요 시간',
       progressMsg: '진행 상황',
@@ -570,11 +570,11 @@ export default {
         '구분자는 하나 또는 여러 특수 문자로 구성될 수 있습니다. 여러 문자인 경우 백틱(` `)으로 감싸야 합니다. 예를 들어 구분자를 \\n`##`;으로 설정하면 줄바꿈, 이중 해시 기호(##), 세미콜론에서 텍스트가 분리됩니다.',
 
       html4excel: 'Excel을 HTML로',
-      html4excelTip: `일반 chunking 방법과 함께 사용합니다. 비활성화 시 데이터셋의 스프레드시트(XLSX 또는 XLS(Excel 97-2003))는 키-값 쌍으로 파싱됩니다. 활성화 시 HTML 표로 파싱되며, 원래 표가 12행을 초과하면 12행마다 분리됩니다. 자세한 내용은 https://ragflow.io/docs/dev/enable_excel2html 을 참조하세요.`,
+      html4excelTip: `일반 chunking 방법과 함께 사용합니다. 비활성화 시 데이터셋의 스프레드시트(XLSX 또는 XLS(Excel 97-2003))는 키-값 쌍으로 파싱됩니다. 활성화 시 HTML 표로 파싱되며, 원래 표가 12행을 초과하면 12행마다 분리됩니다. 자세한 내용은 https://docs.swipies.app/docs/dev/enable_excel2html 을 참조하세요.`,
       autoKeywords: '자동 키워드',
-      autoKeywordsTip: `각 chunk에서 N개의 키워드를 자동으로 추출하여 해당 키워드가 포함된 쿼리에서의 순위를 높입니다. '설정'에서 지정된 인덱싱 모델이 추가 토큰을 소비합니다. chunk 목록에서 추가된 키워드를 확인하거나 업데이트할 수 있습니다. 자세한 내용은 https://ragflow.io/docs/dev/autokeyword_autoquestion 을 참조하세요.`,
+      autoKeywordsTip: `각 chunk에서 N개의 키워드를 자동으로 추출하여 해당 키워드가 포함된 쿼리에서의 순위를 높입니다. '설정'에서 지정된 인덱싱 모델이 추가 토큰을 소비합니다. chunk 목록에서 추가된 키워드를 확인하거나 업데이트할 수 있습니다. 자세한 내용은 https://docs.swipies.app/docs/dev/autokeyword_autoquestion 을 참조하세요.`,
       autoQuestions: '자동 질문',
-      autoQuestionsTip: `각 chunk에서 N개의 질문을 자동으로 추출하여 해당 질문이 포함된 쿼리에서의 순위를 높입니다. chunk 목록에서 추가된 질문을 확인하거나 업데이트할 수 있습니다. 오류가 발생해도 chunking 과정에 영향을 주지 않으나, 원래 chunk에 빈 결과가 추가될 수 있습니다. '설정'에서 지정된 인덱싱 모델이 추가 토큰을 소비합니다. 자세한 내용은 https://ragflow.io/docs/dev/autokeyword_autoquestion 을 참조하세요.`,
+      autoQuestionsTip: `각 chunk에서 N개의 질문을 자동으로 추출하여 해당 질문이 포함된 쿼리에서의 순위를 높입니다. chunk 목록에서 추가된 질문을 확인하거나 업데이트할 수 있습니다. 오류가 발생해도 chunking 과정에 영향을 주지 않으나, 원래 chunk에 빈 결과가 추가될 수 있습니다. '설정'에서 지정된 인덱싱 모델이 추가 토큰을 소비합니다. 자세한 내용은 https://docs.swipies.app/docs/dev/autokeyword_autoquestion 을 참조하세요.`,
       redo: '기존 {{chunkNum}}개의 chunk를 초기화하시겠습니까?',
       setMetaData: '메타데이터 설정',
       pleaseInputJson: 'JSON을 입력해 주세요',
@@ -839,7 +839,7 @@ export default {
 `,
       useRaptor: 'RAPTOR',
       useRaptorTip:
-        'RAPTOR는 멀티홉 질의응답 작업에 사용할 수 있습니다. 파일 탭에서 [생성 > RAPTOR]를 클릭하여 활성화하세요. 자세한 내용은 https://ragflow.io/docs/dev/enable_raptor 을 참조하세요.',
+        'RAPTOR는 멀티홉 질의응답 작업에 사용할 수 있습니다. 파일 탭에서 [생성 > RAPTOR]를 클릭하여 활성화하세요. 자세한 내용은 https://docs.swipies.app/docs/dev/enable_raptor 을 참조하세요.',
       prompt: '프롬프트',
       promptTip:
         'LLM의 역할, 원하는 응답 길이, 톤, 언어 등을 포함한 시스템 프롬프트를 사용하세요. 시스템 프롬프트는 LLM에 대한 다양한 데이터 입력으로 사용되는 키(변수)와 함께 자주 사용됩니다. 사용할 키를 표시하려면 슬래시 `/` 또는 (x) 버튼을 사용하세요.',
@@ -867,7 +867,7 @@ export default {
       entityTypes: '엔티티 유형',
       vietnamese: 'Tiếng Việt',
       pageRank: 'Page rank',
-      pageRankTip: `검색 시 특정 데이터셋에 더 높은 PageRank 점수를 부여할 수 있습니다. 해당 점수는 이 데이터셋에서 검색된 chunk의 하이브리드 유사도 점수에 추가되어 순위를 높입니다. 자세한 내용은 https://ragflow.io/docs/dev/set_page_rank 을 참조하세요.`,
+      pageRankTip: `검색 시 특정 데이터셋에 더 높은 PageRank 점수를 부여할 수 있습니다. 해당 점수는 이 데이터셋에서 검색된 chunk의 하이브리드 유사도 점수에 추가되어 순위를 높입니다. 자세한 내용은 https://docs.swipies.app/docs/dev/set_page_rank 을 참조하세요.`,
       tagName: '태그',
       frequency: '빈도',
       searchTags: '태그 검색',
@@ -875,7 +875,7 @@ export default {
       tagTable: '표',
       tagSet: '태그 세트',
       tagSetTip: `
-     <p> 데이터셋의 chunk에 자동 태그를 지정할 태그 데이터셋을 하나 이상 선택하세요. 자세한 내용은 https://ragflow.io/docs/dev/use_tag_sets 을 참조하세요.</p>
+     <p> 데이터셋의 chunk에 자동 태그를 지정할 태그 데이터셋을 하나 이상 선택하세요. 자세한 내용은 https://docs.swipies.app/docs/dev/use_tag_sets 을 참조하세요.</p>
 <p>사용자 쿼리도 자동으로 태그가 지정됩니다.</p>
 이 자동 태그 기능은 기존 데이터셋에 도메인별 지식 레이어를 추가하여 검색을 향상시킵니다.
 <p>자동 태그와 자동 키워드의 차이점:</p>
@@ -890,7 +890,7 @@ export default {
       addTag: '태그 추가',
       useGraphRag: '지식 그래프',
       useGraphRagTip:
-        '현재 데이터셋의 파일 청크에 대해 지식 그래프를 구성하여, 중첩된 논리가 포함된 멀티홉 질의응답(multi-hop QA) 성능을 향상시킵니다. 자세한 내용은 https://ragflow.io/docs/dev/construct_knowledge_graph 을 참조하세요.',
+        '현재 데이터셋의 파일 청크에 대해 지식 그래프를 구성하여, 중첩된 논리가 포함된 멀티홉 질의응답(multi-hop QA) 성능을 향상시킵니다. 자세한 내용은 https://docs.swipies.app/docs/dev/construct_knowledge_graph 을 참조하세요.',
       graphRagMethod: '방법',
       graphRagMethodTip: `
       Light: (기본값) github.com/HKUDS/LightRAG에서 제공하는 프롬프트를 사용하여 엔티티와 관계를 추출합니다. 더 적은 토큰, 메모리, 연산 리소스를 사용합니다.</br>
@@ -1007,7 +1007,7 @@ export default {
       topN: 'Top N',
       topNTip: `'유사도 임계값' 이상의 유사도 점수를 가진 모든 chunk가 LLM에 전송되는 것은 아닙니다. 검색된 chunk에서 'Top N'개를 선택합니다.`,
       variable: '변수',
-      variableTip: `RAGFlow의 채팅 어시스턴트 관리 API와 함께 사용하면 변수를 통해 더 유연한 시스템 프롬프트 전략을 개발할 수 있습니다. 정의된 변수는 '시스템 프롬프트'에서 LLM의 프롬프트 일부로 사용됩니다. {knowledge}는 지정된 데이터셋에서 검색된 chunk를 나타내는 예약 특수 변수이며, 모든 변수는 '시스템 프롬프트'에서 중괄호 {}로 묶어야 합니다. 자세한 내용은 https://ragflow.io/docs/dev/set_chat_variables 를 참조하세요.`,
+      variableTip: `RAGFlow의 채팅 어시스턴트 관리 API와 함께 사용하면 변수를 통해 더 유연한 시스템 프롬프트 전략을 개발할 수 있습니다. 정의된 변수는 '시스템 프롬프트'에서 LLM의 프롬프트 일부로 사용됩니다. {knowledge}는 지정된 데이터셋에서 검색된 chunk를 나타내는 예약 특수 변수이며, 모든 변수는 '시스템 프롬프트'에서 중괄호 {}로 묶어야 합니다. 자세한 내용은 https://docs.swipies.app/docs/dev/set_chat_variables 를 참조하세요.`,
       add: '추가',
       key: '키',
       optional: '선택 사항',
@@ -1567,18 +1567,18 @@ export default {
       chatModelTip: '새로 생성된 각 데이터셋의 기본 LLM입니다.',
       embeddingModel: 'Embedding',
       embeddingModelTip:
-        '새로 생성된 각 데이터셋의 기본 임베딩 모델입니다. 드롭다운에서 임베딩 모델을 찾을 수 없으면 RAGFlow 슬림 에디션(임베딩 모델 미포함)을 사용 중인지 확인하거나 https://ragflow.io/docs/dev/supported_models 에서 모델 제공업체가 이 모델을 지원하는지 확인하세요.',
+        '새로 생성된 각 데이터셋의 기본 임베딩 모델입니다. 드롭다운에서 임베딩 모델을 찾을 수 없으면 RAGFlow 슬림 에디션(임베딩 모델 미포함)을 사용 중인지 확인하거나 https://docs.swipies.app/docs/dev/supported_models 에서 모델 제공업체가 이 모델을 지원하는지 확인하세요.',
       img2txtModel: 'VLM',
       img2txtModelTip:
-        '새로 생성된 각 데이터셋의 기본 VLM입니다. 이미지나 동영상을 설명합니다. 드롭다운에서 모델을 찾을 수 없으면 https://ragflow.io/docs/dev/supported_models 에서 모델 제공업체가 이 모델을 지원하는지 확인하세요.',
+        '새로 생성된 각 데이터셋의 기본 VLM입니다. 이미지나 동영상을 설명합니다. 드롭다운에서 모델을 찾을 수 없으면 https://docs.swipies.app/docs/dev/supported_models 에서 모델 제공업체가 이 모델을 지원하는지 확인하세요.',
       sequence2txtModel: 'ASR',
       sequence2txtModelTip:
         '새로 생성된 각 데이터셋의 기본 ASR 모델입니다. 이 모델을 사용하여 음성을 텍스트로 변환하세요.',
       rerankModel: 'Rerank',
-      rerankModelTip: `Chunk rerank를 위한 기본 rerank 모델입니다. 드롭다운에서 모델을 찾을 수 없으면 https://ragflow.io/docs/dev/supported_models 에서 모델 제공업체가 이 모델을 지원하는지 확인하세요.`,
+      rerankModelTip: `Chunk rerank를 위한 기본 rerank 모델입니다. 드롭다운에서 모델을 찾을 수 없으면 https://docs.swipies.app/docs/dev/supported_models 에서 모델 제공업체가 이 모델을 지원하는지 확인하세요.`,
       ttsModel: 'TTS',
       ttsModelTip:
-        '기본 텍스트 음성 변환 모델입니다. 드롭다운에서 모델을 찾을 수 없으면 https://ragflow.io/docs/dev/supported_models 에서 모델 제공업체가 이 모델을 지원하는지 확인하세요.',
+        '기본 텍스트 음성 변환 모델입니다. 드롭다운에서 모델을 찾을 수 없으면 https://docs.swipies.app/docs/dev/supported_models 에서 모델 제공업체가 이 모델을 지원하는지 확인하세요.',
       workspace: '워크스페이스',
       upgrade: '업그레이드',
       addLlmTitle: 'LLM 추가',
