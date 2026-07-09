@@ -27,33 +27,10 @@ jobs:
           command_timeout: 45m
           script: |
             set -e
-            cd ~/swipies__ai_
-
-            echo "📥 Обновляем код..."
-            git fetch origin licence_v
-            git reset --hard origin/licence_v
-
-            cd docker
-
-            echo "🛑 Останавливаем старые контейнеры..."
-            docker compose down
-
-            echo "🐳 Собираем новые образы (с кэшированием для скорости)..."
-            docker compose build
-
-            echo "🚀 Запускаем..."
-            docker compose up -d --remove-orphans
-
-            echo "⏳ Ждем запуска сервисов..."
-            sleep 15
+            cd ~/swipies__ai_/docker
 
             echo "📊 Статус контейнеров:"
             docker compose ps
 
             echo "📝 Логи сервисов:"
-            docker compose logs --tail=100
-
-            echo "🧹 Чистим старые образы..."
-            docker image prune -f
-
-            echo "✅ Ragflow обновлён!"
+            docker compose logs --tail=200
