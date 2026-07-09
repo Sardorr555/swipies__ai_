@@ -340,6 +340,7 @@ async def create_provider_instance(tenant_id: str = None, provider_id_or_name: s
         description: Instance created successfully.
         schema:
           type: object
+    """
     from api.utils.license_verifier import check_license
     is_licensed, _, _ = check_license()
     if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google"):
@@ -413,6 +414,7 @@ async def verify_provider_api_key(provider_id_or_name: str = None):
         description: Instance created successfully.
         schema:
           type: object
+    """
     from api.utils.license_verifier import check_license
     is_licensed, _, _ = check_license()
     if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google"):
@@ -758,6 +760,7 @@ async def add_model_to_instance(tenant_id: str, provider_id_or_name: str, instan
     responses:
       200:
         description: Model added successfully.
+    """
     from api.utils.license_verifier import check_license
     is_licensed, _, _ = check_license()
     if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google"):
