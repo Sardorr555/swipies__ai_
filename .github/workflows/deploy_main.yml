@@ -44,6 +44,15 @@ jobs:
             echo "🚀 Запускаем..."
             docker compose up -d --remove-orphans
 
+            echo "⏳ Ждем запуска сервисов..."
+            sleep 15
+
+            echo "📊 Статус контейнеров:"
+            docker compose ps
+
+            echo "📝 Логи сервисов:"
+            docker compose logs --tail=100
+
             echo "🧹 Чистим старые образы..."
             docker image prune -f
 
