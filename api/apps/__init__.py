@@ -425,3 +425,31 @@ def _db_close(exception):
     if exception:
         logging.exception(f"Request failed: {exception}")
     close_connection()
+
+
+from api.utils import license_verifier
+
+@app.before_request
+async def limit_license():
+    normalized_path = request.path.rstrip('/')
+    # Allow authentication and system status/config/license paths
+    allowed_prefixes = [
+        "/v1/system/license",
+        "/v1/system/config",
+        "/v1/user/login",
+        "/v1/user/register",
+        "/v1/user/logout"
+    ]
+    if any(normalized_path.startswith(prefix) for prefix in allowed_prefixes):
+        return
+        
+    is_valid, msg, _ = license_verifier.check_license()
+    if not is_valid:
+        logging.warning(f"License check failed ({msg}) for path: {request.path}")
+        return jsonify({
+            "code": 402,
+            "message": f"License activation required: {msg}",
+            "data": None
+        }), 200
+
+

@@ -41,7 +41,7 @@ export function LicenseActivationModal() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const res = await request.post('/system/license', {
+      const res = await request.post('/api/v1/system/license', {
         data: { license_key: trimmedKey },
       });
       if (res && res.data && res.data.code === 0) {
