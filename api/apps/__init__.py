@@ -427,7 +427,7 @@ def _db_close(exception):
     close_connection()
 
 
-from api.utils import license_verifier
+from api.utils.license_verifier import check_license
 
 @app.before_request
 async def limit_license():
@@ -438,12 +438,21 @@ async def limit_license():
         "/v1/system/config",
         "/v1/user/login",
         "/v1/user/register",
-        "/v1/user/logout"
+        "/v1/user/logout",
+        "/v1/auth/login",
+        "/v1/users",
+        "/api/v1/system/license",
+        "/api/v1/system/config",
+        "/api/v1/user/login",
+        "/api/v1/user/register",
+        "/api/v1/user/logout",
+        "/api/v1/auth/login",
+        "/api/v1/users"
     ]
     if any(normalized_path.startswith(prefix) for prefix in allowed_prefixes):
         return
         
-    is_valid, msg, _ = license_verifier.check_license()
+    is_valid, msg, _ = check_license()
     if not is_valid:
         logging.warning(f"License check failed ({msg}) for path: {request.path}")
         return jsonify({
