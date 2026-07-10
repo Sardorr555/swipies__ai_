@@ -35,8 +35,10 @@ jobs:
 
             cd docker
 
-            echo "🛑 Останавливаем старые контейнеры..."
-            docker compose down
+            echo "🛑 Полностью останавливаем и удаляем все старые контейнеры..."
+            docker compose down --remove-orphans || true
+            docker ps -a -q | xargs -r docker rm -f || true
+            docker network prune -f || true
 
             echo "🐳 Собираем новые образы (с кэшированием для скорости)..."
             docker compose build
