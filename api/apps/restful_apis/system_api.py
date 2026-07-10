@@ -597,7 +597,7 @@ async def activate_license():
     if objs:
         SystemSettingsService.update_by_name("license.key", {"value": license_key})
     else:
-        SystemSettingsService.insert(
+        SystemSettingsService.save(
             name="license.key",
             value=license_key,
             source="variable",

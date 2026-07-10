@@ -19,6 +19,7 @@ export function LicenseActivationModal() {
   const [licenseKey, setLicenseKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [activationSuccess, setActivationSuccess] = useState<any>(null);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export function LicenseActivationModal() {
       setReason(reasonText || '');
       setOpen(true);
       setErrorMsg('');
+      setActivationSuccess(null);
     };
     return () => {
       window.showLicenseActivationModal = undefined;
@@ -45,11 +47,9 @@ export function LicenseActivationModal() {
         data: { license_key: trimmedKey },
       });
       if (res && res.data && res.data.code === 0) {
-        message.success(res.data.data?.message || 'License activated successfully!');
-        setOpen(false);
+        message.success('License activated successfully!');
+        setActivationSuccess(res.data.data);
         setLicenseKey('');
-        // Reload system settings and update UI
-        window.location.reload();
       } else {
         setErrorMsg(res?.data?.message || 'Failed to activate license.');
       }
@@ -60,6 +60,67 @@ export function LicenseActivationModal() {
       setLoading(false);
     }
   };
+
+  if (activationSuccess) {
+    const payload = activationSuccess.payload || {};
+    return (
+      <Modal
+        open={open}
+        onOpenChange={(newOpen) => {
+          if (!newOpen) {
+            window.location.reload();
+          }
+          setOpen(newOpen);
+        }}
+        title={
+          <div className="flex items-center gap-2 text-emerald-500 font-bold">
+            <LucideCheck className="w-5 h-5" />
+            <span>License Activated Successfully!</span>
+          </div>
+        }
+        showfooter={false}
+        maskClosable={false}
+        size="default"
+      >
+        <div className="flex flex-col gap-5 py-4 text-center items-center">
+          <div className="p-4 bg-emerald-500/10 rounded-full text-emerald-500 border border-emerald-500/20">
+            <LucideCheck className="w-12 h-12" />
+          </div>
+          
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-text-primary">Premium Unlocked</h3>
+            <p className="text-sm text-text-secondary">
+              {activationSuccess.message || 'Your commercial license is now active.'}
+            </p>
+          </div>
+
+          <div className="w-full bg-bg-card border border-border-default rounded-xl p-4 text-left space-y-3 text-sm">
+            <div className="flex justify-between border-b border-border-default/60 pb-2">
+              <span className="text-text-secondary font-medium">Licensed To:</span>
+              <span className="text-text-primary font-semibold font-mono">{payload.owner || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between border-b border-border-default/60 pb-2">
+              <span className="text-text-secondary font-medium">License Type:</span>
+              <span className="text-text-primary font-semibold capitalize">{payload.type || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-secondary font-medium">Expiration Date:</span>
+              <span className="text-text-primary font-semibold">{payload.expiry || 'N/A'}</span>
+            </div>
+          </div>
+
+          <div className="w-full pt-2">
+            <Button
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-11 animate-bounce"
+              onClick={() => window.location.reload()}
+            >
+              Restart & Apply Changes
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -130,7 +191,7 @@ export function LicenseActivationModal() {
 
         <div className="flex items-center justify-between gap-4 mt-2">
           <a
-            href="https://swipies.app/#pricing"
+            href="https://api.swipies.app/user-setting/license"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-accent-primary hover:underline flex items-center gap-1"
