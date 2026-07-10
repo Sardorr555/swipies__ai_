@@ -70,11 +70,6 @@ const menuItems = (t: TFunction, isSuperuser?: boolean) => {
       label: t('setting.referral'),
       key: Routes.Referrals,
     },
-    {
-      icon: <CreditCard className="size-[1em]" />,
-      label: t('setting.subscription'),
-      key: Routes.Subscription,
-    },
   ];
 
   if (isSuperuser) {

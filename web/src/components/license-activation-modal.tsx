@@ -189,33 +189,21 @@ export function LicenseActivationModal() {
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-4 mt-2">
-          <a
-            href="https://api.swipies.app/user-setting/license"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-accent-primary hover:underline flex items-center gap-1"
+        <div className="flex items-center justify-end gap-2 mt-2">
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={loading}
           >
-            <span>Buy License Key</span>
-            <LucideExternalLink className="w-3.5 h-3.5" />
-          </a>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="bg-accent-primary hover:bg-accent-primary/95 text-white"
-              onClick={handleActivate}
-              loading={loading}
-            >
-              Activate Key
-            </Button>
-          </div>
+            Cancel
+          </Button>
+          <Button
+            className="bg-accent-primary hover:bg-accent-primary/95 text-white"
+            onClick={handleActivate}
+            loading={loading}
+          >
+            Activate Key
+          </Button>
         </div>
       </div>
     </Modal>

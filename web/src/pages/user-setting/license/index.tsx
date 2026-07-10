@@ -289,18 +289,11 @@ const LicensePage = () => {
           <div className="flex justify-between items-center w-full">
             <h2 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
               <Key className="text-accent-primary" size={24} />
-              {t('setting.license', 'License & Billing')}
+              {t('setting.license', 'License Keys')}
             </h2>
-            <Button 
-              className="bg-accent-primary hover:bg-accent-primary/80 text-white font-semibold flex items-center gap-2 shadow-lg shadow-accent-primary/20 transition-all duration-300"
-              onClick={() => navigate('/checkout?plan=license&period=6')}
-            >
-              <Sparkles size={16} />
-              {t('setting.buyLicense', 'Purchase License Key')}
-            </Button>
           </div>
           <p className="text-text-secondary text-sm">
-            Purchase and manage license keys to activate Swipies AI on on-premise infrastructure.
+            Manage license keys to activate Swipies AI on on-premise infrastructure.
           </p>
         </header>
       }
@@ -318,15 +311,9 @@ const LicensePage = () => {
               <Key size={32} />
             </div>
             <h3 className="text-lg font-bold text-text-primary mb-2">No License Keys Found</h3>
-            <p className="text-sm text-text-secondary max-w-md mx-auto mb-6">
-              You haven&apos;t purchased any commercial license keys yet. Purchase a key to deploy Swipies AI on your local or private clouds.
+            <p className="text-sm text-text-secondary max-w-md mx-auto">
+              You haven&apos;t configured any commercial license keys yet. Contact your system administrator to assign license keys to your deployments.
             </p>
-            <Button
-              className="bg-accent-primary hover:bg-accent-primary/90 text-white font-semibold"
-              onClick={() => navigate('/checkout?plan=license&period=6')}
-            >
-              {t('setting.buyLicense', 'Get a License Key')}
-            </Button>
           </Card>
         ) : (
           <div className="grid gap-4">
