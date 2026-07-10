@@ -112,7 +112,7 @@ async def add_provider(tenant_id: str = None):
 
     from api.utils.license_verifier import check_license
     is_licensed, _, _ = check_license()
-    if not is_licensed and provider_name and provider_name.lower() not in ("openai", "google"):
+    if not is_licensed and provider_name and provider_name.lower() not in ("openai", "google", "gemini", "google cloud"):
         return get_json_result(code=402, message="Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to connect other custom models.")
 
     try:
@@ -343,7 +343,7 @@ async def create_provider_instance(tenant_id: str = None, provider_id_or_name: s
     """
     from api.utils.license_verifier import check_license
     is_licensed, _, _ = check_license()
-    if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google"):
+    if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google", "gemini", "google cloud"):
         return get_json_result(code=402, message="Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to connect other custom models.")
 
     data = await request.get_json()
@@ -417,7 +417,7 @@ async def verify_provider_api_key(provider_id_or_name: str = None):
     """
     from api.utils.license_verifier import check_license
     is_licensed, _, _ = check_license()
-    if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google"):
+    if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google", "gemini", "google cloud"):
         return get_json_result(code=402, message="Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to connect other custom models.")
 
     data = await request.get_json()
@@ -763,7 +763,7 @@ async def add_model_to_instance(tenant_id: str, provider_id_or_name: str, instan
     """
     from api.utils.license_verifier import check_license
     is_licensed, _, _ = check_license()
-    if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google"):
+    if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google", "gemini", "google cloud"):
         return get_json_result(code=402, message="Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to connect other custom models.")
 
     data = await request.get_json()

@@ -242,7 +242,7 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
                 if provider_name:
                     break
         prov_lower = provider_name.lower() if provider_name else ""
-        if prov_lower not in ("openai", "google"):
+        if prov_lower not in ("openai", "google", "gemini", "google cloud"):
             raise LookupError("Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to use other model providers.")
 
     pure_model_name, instance_name, provider_name = split_model_name(model_name)

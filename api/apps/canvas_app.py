@@ -108,7 +108,7 @@ async def save():
                                 if provider_name:
                                     break
                         prov_lower = provider_name.lower() if provider_name else ""
-                        if prov_lower not in ("openai", "google"):
+                        if prov_lower not in ("openai", "google", "gemini", "google cloud"):
                             return v
                     else:
                         res = check_dsl_models(v)

@@ -95,7 +95,7 @@ def list_providers(tenant_id: str, all_available: bool = False):
         from api.utils.license_verifier import check_license
         is_licensed, _, _ = check_license()
         if not is_licensed:
-            providers = [p for p in providers if p["name"].lower() in ("openai", "google")]
+            providers = [p for p in providers if p["name"].lower() in ("openai", "google", "gemini", "google cloud")]
         return True, providers
 
     # List tenant-configured providers
@@ -120,7 +120,7 @@ def list_providers(tenant_id: str, all_available: bool = False):
     from api.utils.license_verifier import check_license
     is_licensed, _, _ = check_license()
     if not is_licensed:
-        providers = [p for p in providers if p["name"].lower() in ("openai", "google")]
+        providers = [p for p in providers if p["name"].lower() in ("openai", "google", "gemini", "google cloud")]
     return True, providers
 
 
