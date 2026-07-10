@@ -130,12 +130,12 @@ export function LicenseActivationModal() {
 
         <div className="flex items-center justify-between gap-4 mt-2">
           <a
-            href="mailto:licensing@swipies.io?subject=Swipies%20Commercial%20License%20Inquiry"
+            href="https://swipies.app/#pricing"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-accent-primary hover:underline flex items-center gap-1"
           >
-            <span>Contact Sales for Key</span>
+            <span>Buy License Key</span>
             <LucideExternalLink className="w-3.5 h-3.5" />
           </a>
 
