@@ -19,7 +19,7 @@ def decode_license(license_key: str) -> dict | None:
             return payload
 
         raw = base64.b64decode(cleaned_key.encode())
-        parts = raw.split(b".")
+        parts = raw.rsplit(b".", 1)
         if len(parts) != 2:
             return None
         payload_bytes, sig_hex = parts[0], parts[1].decode()

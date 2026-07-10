@@ -1018,7 +1018,7 @@ class LicenseMgr:
             "status": "active"
         }
         
-        LicenseKeyService.save(**new_lic)
+        LicenseKeyService.insert(**new_lic)
         return {"success": True, "license_key": key}
 
     @staticmethod

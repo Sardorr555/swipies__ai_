@@ -515,13 +515,41 @@ async def system_provision():
     expiry_date = datetime.now() + timedelta(days=months * 30)
 
     # Plus: 5000 credits/mo, Pro: 10000 credits/mo
-    credits = 512
+    license_key = None
     if plan == "plus":
         credits = 5000 * months
     elif plan == "pro":
         credits = 10000 * months
     elif plan == "license":
         credits = 999999 * months
+        try:
+            from generate_license import generate_license
+        except ImportError:
+            import sys
+            from pathlib import Path
+            sys.path.append(str(Path(__file__).resolve().parents[3]))
+            from generate_license import generate_license
+        from api.db.services.license_key_service import LicenseKeyService
+        import uuid
+
+        license_name = req.get("license_name") or "Self-Hosted License"
+        expiry_str = expiry_date.strftime("%Y-%m-%d")
+        lic_type = "yearly" if months >= 12 else "6_months"
+        license_key = generate_license(owner=email, expiry=expiry_str, lic_type=lic_type)
+
+        lic_record = {
+            "id": uuid.uuid4().hex,
+            "user_id": user.id,
+            "name": license_name,
+            "amount": 0.0,
+            "duration_months": months,
+            "expiry_date": expiry_date,
+            "payment_id": f"system-prov-{uuid.uuid4().hex}",
+            "is_paid": True,
+            "status": "active",
+            "license_key": license_key
+        }
+        LicenseKeyService.insert(**lic_record)
 
     TenantService.update_by_id(
         user.id,
@@ -532,7 +560,8 @@ async def system_provision():
         }
     )
 
-    return get_json_result(data=True)
+    return get_json_result(data={"license_key": license_key} if license_key else True)
+
 
 
 @manager.route("/system/license", methods=["GET"])  # noqa: F821
@@ -603,7 +632,7 @@ async def activate_license():
     if objs:
         SystemSettingsService.update_by_name("license.key", {"value": license_key})
     else:
-        SystemSettingsService.insert(
+        SystemSettingsService.save(
             name="license.key",
             value=license_key,
             source="variable",
