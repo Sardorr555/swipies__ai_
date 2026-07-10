@@ -35,10 +35,9 @@ jobs:
 
             cd docker
 
-            echo "🛑 Полностью останавливаем и удаляем все старые контейнеры..."
+            echo "🛑 Полностью останавливаем и удаляем старые бэкенд контейнеры..."
             docker compose down --remove-orphans || true
-            docker ps -a -q | xargs -r docker rm -f || true
-            docker network prune -f || true
+            docker rm -f docker-minio-1 docker-mysql-1 docker-redis-1 docker-es01-1 ragflow-frontend docker-ragflow-cpu-1 docker-ragflow-gpu-1 docker-infinity-1 seekdb || true
 
             echo "🐳 Собираем новые образы (с кэшированием для скорости)..."
             docker compose build
