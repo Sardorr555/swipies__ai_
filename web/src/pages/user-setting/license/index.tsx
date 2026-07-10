@@ -7,7 +7,6 @@ import { Modal } from '@/components/ui/modal/modal';
 import message from '@/components/ui/message';
 import { 
   Key, 
-  Sparkles, 
   Trash2, 
   Edit3, 
   Copy, 
@@ -20,7 +19,6 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import { 
   listLicenses, 
@@ -45,7 +43,6 @@ interface LicenseKeyItem {
 
 const LicensePage = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [licenses, setLicenses] = useState<LicenseKeyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);

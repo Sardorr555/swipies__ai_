@@ -21,7 +21,6 @@ import {
   LucideUser,
   LucideUsers,
   LucideKey,
-  CreditCard,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
