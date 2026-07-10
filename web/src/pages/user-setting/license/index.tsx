@@ -2,249 +2,85 @@ import { useEffect, useState } from 'react';
 import Spotlight from '@/components/spotlight';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Modal } from '@/components/ui/modal/modal';
+import { Textarea } from '@/components/ui/textarea';
 import message from '@/components/ui/message';
+import request from '@/utils/request';
 import { 
   Key, 
-  Trash2, 
-  Edit3, 
-  Copy, 
-  Check, 
-  Calendar, 
-  CreditCard, 
   ShieldCheck, 
   Info,
-  Clock,
-  AlertTriangle
+  AlertTriangle,
+  LucideExternalLink
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
-import { 
-  listLicenses, 
-  createLicensePay, 
-  preApplyLicensePay, 
-  applyLicensePay, 
-  renameLicense, 
-  revokeLicense,
-  getUserLicensePricing
-} from '@/services/license-service';
 
-interface LicenseKeyItem {
-  id: string;
-  name: string;
-  license_key: string | null;
-  amount: number;
-  duration_months: number;
-  expiry_date: string | null;
-  create_time: number;
-  status: 'pending' | 'active' | 'revoked' | 'expired';
+interface LicenseStatus {
+  is_valid: boolean;
+  message: string;
+  payload?: {
+    owner: string;
+    expiry: string;
+    type: string;
+  };
+  license_key?: string;
 }
 
 const LicensePage = () => {
   const { t } = useTranslation();
-  const [licenses, setLicenses] = useState<LicenseKeyItem[]>([]);
+  const [status, setStatus] = useState<LicenseStatus | null>(null);
   const [loading, setLoading] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [licenseInput, setLicenseInput] = useState('');
+  const [updating, setUpdating] = useState(false);
 
-  // Pricing configuration state
-  const [prices, setPrices] = useState({
-    price_6_months: 300000,
-    price_12_months: 500000,
-    price_per_month_custom: 50000,
-  });
-
-  // Modals state
-  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
-  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-  const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
-
-  // Purchase flow state
-  const [purchaseStep, setPurchaseStep] = useState<'plan' | 'card' | 'otp' | 'success'>( 'plan');
-  const [newLicenseName, setNewLicenseName] = useState('');
-  const [selectedDuration, setSelectedDuration] = useState<6 | 12>(12);
-  const [transactionId, setTransactionId] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [generatedKey, setGeneratedKey] = useState('');
-  const [isMockTx, setIsMockTx] = useState(false);
-  const [payingLoading, setPayingLoading] = useState(false);
-
-  // Actions target
-  const [selectedLicense, setSelectedLicense] = useState<LicenseKeyItem | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-
-  const fetchPrices = async () => {
-    try {
-      const res = await getUserLicensePricing();
-      if (res?.data?.code === 0 && res.data.data) {
-        setPrices(res.data.data);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchLicenses = async () => {
+  const fetchLicenseStatus = async () => {
     setLoading(true);
     try {
-      const res = await listLicenses();
+      const res = await request.get('/api/v1/system/license');
       if (res?.data?.code === 0) {
-        setLicenses(res.data.data || []);
+        setStatus(res.data.data);
+        if (res.data.data?.license_key) {
+          setLicenseInput(res.data.data.license_key);
+        }
       }
     } catch (err) {
       console.error(err);
-      message.error(t('setting.failedToFetchLicenses', 'Failed to fetch licenses'));
+      message.error('Failed to load license details.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLicenses();
-    fetchPrices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchLicenseStatus();
   }, []);
 
-  const handleCopy = (keyText: string, id: string) => {
-    navigator.clipboard.writeText(keyText);
-    setCopiedId(id);
-    message.success(t('setting.copiedToClipboard', 'Copied to clipboard'));
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  // Step 1: Initialize Payment
-  const handleInitiatePayment = async () => {
-    if (!newLicenseName.trim()) {
-      message.error(t('setting.licenseNameRequired', 'Please enter a name for your license key'));
+  const handleActivate = async () => {
+    const trimmedKey = licenseInput.trim();
+    if (!trimmedKey) {
+      message.error('License key cannot be empty.');
       return;
     }
-    setPayingLoading(true);
+    setUpdating(true);
     try {
-      const res = await createLicensePay(newLicenseName, selectedDuration);
-      if (res?.data?.code === 0) {
-        const payData = res.data.data;
-        setTransactionId(payData.transaction_id);
-        setIsMockTx(payData.mock);
-        setPurchaseStep('card');
+      const res = await request.post('/api/v1/system/license', {
+        data: { license_key: trimmedKey },
+      });
+      if (res && res.data && res.data.code === 0) {
+        message.success('License activated successfully!');
+        setStatus(res.data.data);
       } else {
-        message.error(res?.data?.message || t('setting.paymentInitFailed', 'Failed to initiate payment'));
+        message.error(res?.data?.message || 'Failed to activate license.');
       }
     } catch (err: any) {
-      message.error(err?.response?.data?.message || t('setting.paymentInitFailed', 'Failed to initiate payment'));
+      const errMsg = err?.response?.data?.message || err?.message || 'Error occurred during activation.';
+      message.error(errMsg);
     } finally {
-      setPayingLoading(false);
+      setUpdating(false);
     }
   };
 
-  // Step 2: Submit Card Details
-  const handleCardSubmit = async () => {
-    const cleanCard = cardNumber.replace(/[^0-9]/g, '');
-    const cleanExpiry = cardExpiry.replace(/[^0-9]/g, '');
-    if (cleanCard.length !== 16 || cleanExpiry.length !== 4) {
-      message.error(t('setting.invalidCardDetails', 'Please enter a valid 16-digit card number and 4-digit expiry date (YYMM)'));
-      return;
-    }
-
-    setPayingLoading(true);
-    try {
-      const res = await preApplyLicensePay(transactionId, cleanCard, cleanExpiry);
-      if (res?.data?.code === 0) {
-        setPurchaseStep('otp');
-      } else {
-        message.error(res?.data?.message || t('setting.cardSubmissionFailed', 'Card submission failed'));
-      }
-    } catch (err: any) {
-      message.error(err?.response?.data?.message || t('setting.cardSubmissionFailed', 'Card submission failed'));
-    } finally {
-      setPayingLoading(false);
-    }
-  };
-
-  // Step 3: Verify OTP and generated key
-  const handleOtpVerify = async () => {
-    if (otpCode.length !== 6) {
-      message.error(t('setting.invalidOtpCode', 'Please enter a valid 6-digit verification code'));
-      return;
-    }
-
-    setPayingLoading(true);
-    try {
-      const res = await applyLicensePay(transactionId, otpCode);
-      if (res?.data?.code === 0 && res.data.data?.success) {
-        setGeneratedKey(res.data.data.license_key);
-        setPurchaseStep('success');
-        fetchLicenses();
-      } else {
-        message.error(res?.data?.message || t('setting.otpFailed', 'OTP verification failed'));
-      }
-    } catch (err: any) {
-      message.error(err?.response?.data?.message || t('setting.otpFailed', 'OTP verification failed'));
-    } finally {
-      setPayingLoading(false);
-    }
-  };
-
-  const handleRename = async () => {
-    if (!selectedLicense || !renameValue.trim()) return;
-    try {
-      const res = await renameLicense(selectedLicense.id, renameValue);
-      if (res?.data?.code === 0) {
-        message.success(t('setting.licenseRenamed', 'License renamed successfully'));
-        setIsRenameModalOpen(false);
-        fetchLicenses();
-      }
-    } catch {
-      message.error(t('setting.renameFailed', 'Failed to rename license'));
-    }
-  };
-
-  const handleRevoke = async () => {
-    if (!selectedLicense) return;
-    try {
-      const res = await revokeLicense(selectedLicense.id);
-      if (res?.data?.code === 0) {
-        message.success(t('setting.licenseRevoked', 'License revoked successfully'));
-        setIsRevokeModalOpen(false);
-        fetchLicenses();
-      }
-    } catch {
-      message.error(t('setting.revokeFailed', 'Failed to revoke license'));
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            Active
-          </span>
-        );
-      case 'revoked':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-            Revoked
-          </span>
-        );
-      case 'expired':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
-            Expired
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            Pending Payment
-          </span>
-        );
-    }
-  };
-
-  const formatDate = (dateStr: string | null) => {
+  const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
     try {
       const date = new Date(dateStr);
@@ -254,31 +90,6 @@ const LicensePage = () => {
     }
   };
 
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
-    const parts = [];
-
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-
-    if (parts.length > 0) {
-      return parts.join(' ');
-    } else {
-      return v;
-    }
-  };
-
-  const formatExpiryDate = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return `${v.slice(0, 2)}/${v.slice(2, 4)}`;
-    }
-    return v;
-  };
-
   return (
     <ProfileSettingWrapperCard
       header={
@@ -286,11 +97,11 @@ const LicensePage = () => {
           <div className="flex justify-between items-center w-full">
             <h2 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
               <Key className="text-accent-primary" size={24} />
-              {t('setting.license', 'License Keys')}
+              {t('setting.license', 'License & Activation')}
             </h2>
           </div>
           <p className="text-text-secondary text-sm">
-            Manage license keys to activate Swipies AI on on-premise infrastructure.
+            Activate Swipies AI premium commercial features on this deployment.
           </p>
         </header>
       }
@@ -302,338 +113,118 @@ const LicensePage = () => {
           <div className="flex items-center justify-center h-48">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-accent-primary"></div>
           </div>
-        ) : licenses.length === 0 ? (
-          <Card className="border border-border-default bg-bg-component/40 backdrop-blur-md relative overflow-hidden p-8 text-center">
-            <div className="p-4 bg-accent-primary/5 rounded-full text-accent-primary size-16 mx-auto flex items-center justify-center mb-4">
-              <Key size={32} />
-            </div>
-            <h3 className="text-lg font-bold text-text-primary mb-2">No License Keys Found</h3>
-            <p className="text-sm text-text-secondary max-w-md mx-auto">
-              You haven&apos;t configured any commercial license keys yet. Contact your system administrator to assign license keys to your deployments.
-            </p>
-          </Card>
         ) : (
-          <div className="grid gap-4">
-            {licenses.map((lic) => (
-              <Card key={lic.id} className="border border-border-default bg-bg-component/20 backdrop-blur-sm hover:bg-bg-component/30 transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-3">
-                        <h4 className="font-bold text-text-primary text-lg">{lic.name}</h4>
-                        {getStatusBadge(lic.status)}
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-text-secondary mt-1">
-                        <span className="flex items-center gap-1">
-                          <Calendar size={13} />
-                          Expires: {formatDate(lic.expiry_date)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock size={13} />
-                          {lic.duration_months} Months
-                        </span>
-                        <span>
-                          Cost: {lic.amount.toLocaleString()} UZS
-                        </span>
-                      </div>
+          <div className="grid gap-6">
+            {/* License Status Hero */}
+            {status?.is_valid ? (
+              <Card className="border border-emerald-500/20 bg-emerald-500/5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-6 opacity-[0.05] pointer-events-none text-emerald-500">
+                  <ShieldCheck size={140} />
+                </div>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-500/20 rounded-full text-emerald-400 border border-emerald-500/25">
+                      <ShieldCheck size={24} />
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-text-primary hover:bg-accent-primary/10 hover:text-accent-primary"
-                        onClick={() => {
-                          setSelectedLicense(lic);
-                          setRenameValue(lic.name);
-                          setIsRenameModalOpen(true);
-                        }}
-                      >
-                        <Edit3 size={14} className="mr-1" />
-                        Rename
-                      </Button>
-                      {lic.status !== 'revoked' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-500 border-red-500/20 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30"
-                          onClick={() => {
-                            setSelectedLicense(lic);
-                            setIsRevokeModalOpen(true);
-                          }}
-                        >
-                          <Trash2 size={14} className="mr-1" />
-                          Revoke
-                        </Button>
-                      )}
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                        Active License
+                      </span>
+                      <h3 className="text-lg font-bold text-text-primary mt-1">Premium Commercial Edition</h3>
                     </div>
                   </div>
 
-                  {lic.license_key && (
-                    <div className="mt-4 pt-4 border-t border-border-default/50 flex gap-3 items-center">
-                      <div className="bg-bg-base/50 border border-border-default rounded p-2 text-xs font-mono text-text-secondary flex-1 break-all select-all max-h-16 overflow-y-auto">
-                        {lic.license_key}
+                  <p className="text-sm text-text-secondary">
+                    {status.message || 'This system is running with a valid commercial license key.'}
+                  </p>
+
+                  {status.payload && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-emerald-500/10 text-sm">
+                      <div className="space-y-1">
+                        <span className="text-text-secondary block text-xs">Licensed To:</span>
+                        <span className="font-semibold text-text-primary font-mono">{status.payload.owner}</span>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-text-secondary hover:text-text-primary shrink-0"
-                        onClick={() => handleCopy(lic.license_key!, lic.id)}
-                      >
-                        {copiedId === lic.id ? <Check className="text-emerald-400" size={16} /> : <Copy size={16} />}
-                      </Button>
+                      <div className="space-y-1">
+                        <span className="text-text-secondary block text-xs">License Type / Duration:</span>
+                        <span className="font-semibold text-text-primary capitalize">
+                          {status.payload.type === 'yearly' ? 'Yearly (12 Months)' : status.payload.type === '6_months' ? '6 Months' : status.payload.type || 'Custom'}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-text-secondary block text-xs">Expiration Date:</span>
+                        <span className="font-semibold text-text-primary">{formatDate(status.payload.expiry)}</span>
+                      </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              <Card className="border border-amber-500/25 bg-amber-500/5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-6 opacity-[0.05] pointer-events-none text-amber-500">
+                  <AlertTriangle size={140} />
+                </div>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-500/20 rounded-full text-amber-400 border border-amber-500/25">
+                      <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
+                        No Active License
+                      </span>
+                      <h3 className="text-lg font-bold text-text-primary mt-1">Free / Base Edition</h3>
+                    </div>
+                  </div>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    You are currently running the base edition of Swipies. To unlock full LLM providers, custom agent canvases, and remove API limits, please activate a valid commercial license key.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Input & Activation Box */}
+            <Card className="border border-border-default bg-bg-component/10">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-text-primary">
+                    {status?.is_valid ? 'Update / Change License Key:' : 'Enter License Key:'}
+                  </label>
+                  <Textarea
+                    placeholder="Paste your base64-encoded Swipies License Key here..."
+                    value={licenseInput}
+                    onChange={(e) => setLicenseInput(e.target.value)}
+                    disabled={updating}
+                    className="font-mono text-xs"
+                    rows={6}
+                  />
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <div className="flex items-center gap-2 text-xs text-text-secondary">
+                    <Info size={16} className="text-accent-primary shrink-0" />
+                    <span>Need a key? Buy it at </span>
+                    <a
+                      href="https://api.swipies.app/user-setting/license"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 font-semibold text-accent-primary hover:underline"
+                    >
+                      api.swipies.app <LucideExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                  <Button
+                    className="bg-accent-primary hover:bg-accent-primary/95 text-white"
+                    onClick={handleActivate}
+                    loading={updating}
+                  >
+                    Activate / Update License
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
-
-      {/* PURCHASE FLOW MODAL */}
-      <Modal
-        title={
-          purchaseStep === 'plan' ? 'Select License Plan' :
-          purchaseStep === 'card' ? 'Enter Payment Details' :
-          purchaseStep === 'otp' ? 'SMS Verification' :
-          'Purchase Complete!'
-        }
-        open={isPurchaseModalOpen}
-        showfooter={false}
-        className="max-w-[480px]"
-        onOpenChange={(open) => {
-          if (!open) setIsPurchaseModalOpen(false);
-        }}
-      >
-        <div className="mt-4 space-y-6">
-          {purchaseStep === 'plan' && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-secondary">License Name / Label</label>
-                <Input
-                  placeholder="e.g. Swipies Production Server"
-                  value={newLicenseName}
-                  onChange={(e) => setNewLicenseName(e.target.value)}
-                  className="bg-bg-input border-border-default"
-                />
-              </div>
-
-              <label className="text-sm font-medium text-text-secondary block">Select Subscription Period</label>
-              <div className="grid grid-cols-2 gap-4">
-                <div 
-                  className={`border rounded-xl p-4 cursor-pointer transition-all duration-300 ${selectedDuration === 6 ? 'border-accent-primary bg-accent-primary/5 ring-1 ring-accent-primary' : 'border-border-default hover:border-border-default/80 bg-bg-component/20'}`}
-                  onClick={() => setSelectedDuration(6)}
-                >
-                  <h4 className="font-bold text-text-primary">6 Months</h4>
-                  <p className="text-xs text-text-secondary mt-1">Deploy on one local node</p>
-                  <div className="text-lg font-extrabold text-accent-primary mt-3">{(prices.price_6_months).toLocaleString()} UZS</div>
-                </div>
-
-                <div 
-                  className={`border rounded-xl p-4 cursor-pointer transition-all duration-300 relative overflow-hidden ${selectedDuration === 12 ? 'border-accent-primary bg-accent-primary/5 ring-1 ring-accent-primary' : 'border-border-default hover:border-border-default/80 bg-bg-component/20'}`}
-                  onClick={() => setSelectedDuration(12)}
-                >
-                  <div className="absolute top-0 right-0 bg-accent-primary text-white text-[9px] font-extrabold px-2 py-0.5 rounded-bl">BEST VALUE</div>
-                  <h4 className="font-bold text-text-primary">12 Months</h4>
-                  <p className="text-xs text-text-secondary mt-1">Enterprise updates & support</p>
-                  <div className="text-lg font-extrabold text-accent-primary mt-3">{(prices.price_12_months).toLocaleString()} UZS</div>
-                </div>
-              </div>
-
-              <div className="flex gap-2 items-start bg-bg-base/50 p-3 rounded-lg border border-border-default/50 text-xs text-text-secondary">
-                <Info size={16} className="text-accent-primary shrink-0 mt-0.5" />
-                <p>Payments are securely processed via the Atmos Gateway. The commercial key is tied to the selected duration.</p>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="secondary" onClick={() => setIsPurchaseModalOpen(false)}>Cancel</Button>
-                <Button 
-                  className="bg-accent-primary text-white" 
-                  onClick={handleInitiatePayment}
-                  disabled={payingLoading}
-                >
-                  {payingLoading ? 'Processing...' : 'Continue to Payment'}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {purchaseStep === 'card' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center text-sm text-text-secondary">
-                <span>Paying:</span>
-                <span className="font-bold text-accent-primary">
-                  {selectedDuration === 6 
-                    ? prices.price_6_months.toLocaleString() 
-                    : prices.price_12_months.toLocaleString()} UZS
-                </span>
-              </div>
-
-              <div className="border border-slate-800 rounded-xl p-4 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 shadow-lg relative overflow-hidden aspect-[1.586/1] flex flex-col justify-between text-white">
-                <div className="flex justify-between items-center">
-                  <CreditCard size={28} className="text-indigo-400" />
-                  <span className="text-[10px] tracking-widest opacity-80 font-bold text-slate-300">ATMOS GATEWAY</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-xs tracking-wider font-semibold text-slate-300">CARD NUMBER</div>
-                  <Input
-                    placeholder="8600 0000 0000 0000"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                    maxLength={19}
-                    className="bg-slate-950/60 border-slate-800 font-mono text-base tracking-widest text-white placeholder:text-slate-600 focus-visible:ring-indigo-500"
-                  />
-                </div>
-                <div className="flex gap-4">
-                  <div className="w-1/3 space-y-1">
-                    <span className="text-[9px] font-semibold text-slate-300">EXPIRY</span>
-                    <Input
-                      placeholder="YY/MM"
-                      value={cardExpiry}
-                      onChange={(e) => setCardExpiry(formatExpiryDate(e.target.value))}
-                      maxLength={5}
-                      className="bg-slate-950/60 border-slate-800 font-mono text-sm tracking-wider text-center text-white placeholder:text-slate-600 focus-visible:ring-indigo-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {isMockTx && (
-                <div className="flex gap-2 items-start bg-amber-500/10 p-3 rounded-lg border border-amber-500/20 text-xs text-amber-400">
-                  <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                  <p><strong>Sandbox Mode Enabled:</strong> Atmos credentials are not configured. Enter any 16-digit card and 4-digit expiry date to initiate a mock payment.</p>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="secondary" onClick={() => setPurchaseStep('plan')}>Back</Button>
-                <Button 
-                  className="bg-accent-primary text-white" 
-                  onClick={handleCardSubmit}
-                  disabled={payingLoading}
-                >
-                  {payingLoading ? 'Processing...' : 'Pay'}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {purchaseStep === 'otp' && (
-            <div className="space-y-4">
-              <div className="space-y-2 text-center">
-                <p className="text-sm text-text-secondary">A 6-digit verification code has been sent to your phone number connected to the card.</p>
-              </div>
-
-              <div className="flex flex-col items-center gap-3">
-                <Input
-                  placeholder="000 000"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
-                  maxLength={6}
-                  className="bg-bg-input border-border-default text-center text-xl tracking-widest font-bold max-w-[200px]"
-                />
-              </div>
-
-              {isMockTx && (
-                <div className="flex gap-2 items-start bg-amber-500/10 p-3 rounded-lg border border-amber-500/20 text-xs text-amber-400">
-                  <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                  <p><strong>Sandbox Verification:</strong> Enter any 6-digit OTP code (e.g. 123456) to successfully approve this transaction.</p>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="secondary" onClick={() => setPurchaseStep('card')}>Back</Button>
-                <Button 
-                  className="bg-accent-primary text-white" 
-                  onClick={handleOtpVerify}
-                  disabled={payingLoading}
-                >
-                  {payingLoading ? 'Verifying...' : 'Verify OTP'}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {purchaseStep === 'success' && (
-            <div className="space-y-5 text-center py-4">
-              <div className="p-4 bg-emerald-500/10 rounded-full text-emerald-400 size-16 mx-auto flex items-center justify-center">
-                <ShieldCheck size={36} />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-text-primary">License Issued Successfully!</h3>
-                <p className="text-xs text-text-secondary">Copy this key and paste it during deployment setup to activate Swipies AI Commercial Edition.</p>
-              </div>
-
-              <div className="space-y-2 text-left">
-                <label className="text-xs font-semibold text-text-secondary">License Activation Key</label>
-                <div className="flex gap-2 items-center bg-bg-base/80 border border-border-default rounded-lg p-3 font-mono text-xs text-text-primary break-all max-h-24 overflow-y-auto">
-                  {generatedKey}
-                </div>
-              </div>
-
-              <div className="flex gap-3 justify-center pt-4">
-                <Button 
-                  className="bg-accent-primary text-white flex items-center gap-2"
-                  onClick={() => handleCopy(generatedKey, 'success-key')}
-                >
-                  <Copy size={14} /> Copy Key
-                </Button>
-                <Button variant="secondary" onClick={() => setIsPurchaseModalOpen(false)}>Close</Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </Modal>
-
-      {/* RENAME MODAL */}
-      <Modal
-        title="Rename License"
-        open={isRenameModalOpen}
-        showfooter={false}
-        className="max-w-[400px]"
-        onOpenChange={(open) => {
-          if (!open) setIsRenameModalOpen(false);
-        }}
-      >
-        <div className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-text-secondary">New Name</label>
-            <Input
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              className="bg-bg-input border-border-default"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="secondary" onClick={() => setIsRenameModalOpen(false)}>Cancel</Button>
-            <Button className="bg-accent-primary text-white" onClick={handleRename}>Save</Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* REVOKE CONFIRMATION MODAL */}
-      <Modal
-        title="Revoke License Key"
-        open={isRevokeModalOpen}
-        showfooter={false}
-        className="max-w-[400px]"
-        onOpenChange={(open) => {
-          if (!open) setIsRevokeModalOpen(false);
-        }}
-      >
-        <div className="mt-4 space-y-4">
-          <div className="flex gap-3 bg-red-500/10 p-3 rounded-lg border border-red-500/20 text-sm text-red-400">
-            <AlertTriangle size={20} className="shrink-0" />
-            <p><strong>Warning:</strong> Revoking this license key will immediately deactivate any deployments running on it. This action cannot be undone.</p>
-          </div>
-          <p className="text-sm text-text-secondary">Are you sure you want to revoke the license key <strong>&ldquo;{selectedLicense?.name}&rdquo;</strong>?</p>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="secondary" onClick={() => setIsRevokeModalOpen(false)}>Cancel</Button>
-            <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={handleRevoke}>Revoke License</Button>
-          </div>
-        </div>
-      </Modal>
     </ProfileSettingWrapperCard>
   );
 };

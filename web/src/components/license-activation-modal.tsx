@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/modal/modal';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import message from '@/components/ui/message';
 import request from '@/utils/request';
 import { LucideZap, LucideCheck, LucideExternalLink } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 
 declare global {
   interface Window {
@@ -20,7 +19,6 @@ export function LicenseActivationModal() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [activationSuccess, setActivationSuccess] = useState<any>(null);
-  const { t } = useTranslation();
 
   useEffect(() => {
     window.showLicenseActivationModal = (reasonText?: string) => {
@@ -103,6 +101,18 @@ export function LicenseActivationModal() {
               <span className="text-text-secondary font-medium">License Type:</span>
               <span className="text-text-primary font-semibold capitalize">{payload.type || 'N/A'}</span>
             </div>
+            <div className="flex justify-between border-b border-border-default/60 pb-2">
+              <span className="text-text-secondary font-medium">Duration:</span>
+              <span className="text-text-primary font-semibold">
+                {payload.type === 'yearly' ? '12 Months' : payload.type === '6_months' ? '6 Months' : 'Custom'}
+              </span>
+            </div>
+            <div className="flex justify-between border-b border-border-default/60 pb-2">
+              <span className="text-text-secondary font-medium">Price / Amount Paid:</span>
+              <span className="text-text-primary font-semibold">
+                {payload.type === 'yearly' ? '500,000 UZS' : payload.type === '6_months' ? '300,000 UZS' : 'N/A'}
+              </span>
+            </div>
             <div className="flex justify-between">
               <span className="text-text-secondary font-medium">Expiration Date:</span>
               <span className="text-text-primary font-semibold">{payload.expiry || 'N/A'}</span>
@@ -145,6 +155,18 @@ export function LicenseActivationModal() {
 
         <div className="text-sm text-text-secondary leading-relaxed">
           You are currently running the <strong>Free / Base version</strong> of Swipies. To continue and unlock full capability, please activate a valid commercial license key.
+        </div>
+
+        <div className="p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg text-sm text-text-primary flex items-center justify-between">
+          <span>Need a license key?</span>
+          <a
+            href="https://api.swipies.app/user-setting/license"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 font-semibold text-accent-primary hover:underline"
+          >
+            Purchase License Key <LucideExternalLink className="w-4 h-4" />
+          </a>
         </div>
 
         <div className="bg-bg-card border border-border-default rounded-xl p-4 flex flex-col gap-3">
