@@ -1845,6 +1845,23 @@ def migrate_db():
     alter_db_add_column(migrator, "tenant", "plan_expiry_date", DateTimeField(null=True, index=True))
     alter_db_add_column(migrator, "user", "phone", CharField(max_length=32, null=True, help_text="phone number", index=True))
     alter_db_add_column(migrator, "user", "referred_by_id", CharField(max_length=32, null=True, help_text="referred by user id", index=True))
+
+    # Add missing license_key columns
+    alter_db_add_column(migrator, "license_key", "id", CharField(max_length=32, primary_key=True))
+    alter_db_add_column(migrator, "license_key", "user_id", CharField(max_length=32, null=False, index=True))
+    alter_db_add_column(migrator, "license_key", "name", CharField(max_length=255, null=False))
+    alter_db_add_column(migrator, "license_key", "license_key", CharField(max_length=1024, null=True, unique=True))
+    alter_db_add_column(migrator, "license_key", "amount", FloatField(null=False))
+    alter_db_add_column(migrator, "license_key", "duration_months", IntegerField(default=12))
+    alter_db_add_column(migrator, "license_key", "expiry_date", DateTimeField(null=True))
+    alter_db_add_column(migrator, "license_key", "payment_id", CharField(max_length=255, null=True))
+    alter_db_add_column(migrator, "license_key", "is_paid", BooleanField(default=False))
+    alter_db_add_column(migrator, "license_key", "status", CharField(max_length=32, default="pending", index=True))
+    alter_db_add_column(migrator, "license_key", "create_time", BigIntegerField(null=True, index=True))
+    alter_db_add_column(migrator, "license_key", "create_date", DateTimeField(null=True, index=True))
+    alter_db_add_column(migrator, "license_key", "update_time", BigIntegerField(null=True, index=True))
+    alter_db_add_column(migrator, "license_key", "update_date", DateTimeField(null=True, index=True))
+
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
     migrate_add_unique_email(migrator)

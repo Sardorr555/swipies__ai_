@@ -182,7 +182,7 @@ async def create_license_pay():
             "is_paid": False,
             "status": "pending"
         }
-        LicenseKeyService.save(**lic_record)
+        LicenseKeyService.insert(**lic_record)
 
         return get_json_result(data={
             "transaction_id": transaction_id,
