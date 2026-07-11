@@ -173,8 +173,8 @@ services:
       dockerfile: Dockerfile
     container_name: swipies-frontend
     environment:
-      - RAGFLOW_BACKEND=${RAGFLOW_BACKEND:-http://ragflow-cpu:9380}
-      - RAGFLOW_ADMIN_BACKEND=${RAGFLOW_ADMIN_BACKEND:-http://ragflow-cpu:9381}
+      - RAGFLOW_BACKEND=${RAGFLOW_BACKEND:-http://swipies-cpu:9380}
+      - RAGFLOW_ADMIN_BACKEND=${RAGFLOW_ADMIN_BACKEND:-http://swipies-cpu:9381}
       - NGINX_ENVSUBST_FILTER=RAGFLOW_BACKEND|RAGFLOW_ADMIN_BACKEND
     ports:
       - "127.0.0.1:${SVR_WEB_HTTP_PORT}:80"

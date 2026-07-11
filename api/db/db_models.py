@@ -818,7 +818,7 @@ class LicenseKey(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     user_id = CharField(max_length=32, null=False, index=True)
     name = CharField(max_length=255, null=False, help_text="License name/label")
-    license_key = CharField(max_length=1024, null=True, unique=True, help_text="Generated license activation key")
+    license_key = CharField(max_length=700, null=True, unique=True, help_text="Generated license activation key")
     amount = FloatField(null=False, help_text="Payment amount in UZS")
     duration_months = IntegerField(default=12, help_text="Duration in months")
     expiry_date = DateTimeField(null=True, help_text="Expiration date")
