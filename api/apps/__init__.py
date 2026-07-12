@@ -447,7 +447,15 @@ async def limit_license():
         "/api/v1/user/register",
         "/api/v1/user/logout",
         "/api/v1/auth/login",
-        "/api/v1/users"
+        "/api/v1/users",
+        "/api/v1/admin/analytics",
+        "/api/v1/admin/yandex_analytics",
+        "/api/v1/leads",
+        "/api/v1/admin/users",
+        "/v1/admin/analytics",
+        "/v1/admin/yandex_analytics",
+        "/v1/leads",
+        "/v1/admin/users"
     ]
     if any(normalized_path.startswith(prefix) for prefix in allowed_prefixes):
         return
