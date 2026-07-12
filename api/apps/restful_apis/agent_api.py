@@ -829,7 +829,7 @@ async def create_agent(tenant_id):
                                 if provider_name:
                                     break
                         prov_lower = provider_name.lower() if provider_name else ""
-                        if prov_lower not in ("openai", "google", "gemini", "google cloud"):
+                        if prov_lower not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
                             return v
                     else:
                         res = check_dsl_models(v)
@@ -1112,7 +1112,7 @@ async def update_agent(agent_id, tenant_id):
                                     if provider_name:
                                         break
                             prov_lower = provider_name.lower() if provider_name else ""
-                            if prov_lower not in ("openai", "google", "gemini", "google cloud"):
+                            if prov_lower not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
                                 return v
                         else:
                             res = check_dsl_models(v)

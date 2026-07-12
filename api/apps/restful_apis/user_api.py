@@ -712,7 +712,7 @@ async def set_tenant_info():
                             if provider_name:
                                 break
                     prov_lower = provider_name.lower() if provider_name else ""
-                    if prov_lower not in ("openai", "google", "gemini", "google cloud"):
+                    if prov_lower not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
                         return get_json_result(
                             code=402,
                             message=f"Base version limit: Only Google and OpenAI models are allowed. Blocked model: {v}"
