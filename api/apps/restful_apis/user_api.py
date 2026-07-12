@@ -1107,4 +1107,64 @@ async def admin_analytics_query():
         )
 
 
+@manager.route("/admin/yandex_analytics/query", methods=["POST"])
+@login_required
+async def admin_yandex_analytics_query():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="Unauthorized access",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+    
+    req = await get_request_json()
+    counter_id = req.get("counter_id")
+    oauth_token = req.get("oauth_token")
+    params = req.get("params", {})
+    
+    if not counter_id or not oauth_token:
+        return get_json_result(
+            data=False,
+            message="Missing required parameters: counter_id and oauth_token are required.",
+            code=RetCode.ARGUMENT_ERROR
+        )
+        
+    try:
+        import requests
+        
+        url = "https://api-metrika.yandex.net/stat/v1/data"
+        
+        headers = {
+            "Authorization": f"OAuth {oauth_token}",
+            "Accept": "application/json"
+        }
+        
+        query_params = dict(params)
+        query_params["ids"] = counter_id
+        
+        response = requests.get(url, params=query_params, headers=headers, timeout=15)
+        
+        if not response.ok:
+            try:
+                err_msg = response.json().get("message", "Yandex Metrika API query failed.")
+            except Exception:
+                err_msg = response.text or "Yandex Metrika API query failed."
+            return get_json_result(
+                data=False,
+                message=err_msg,
+                code=RetCode.OPERATING_ERROR
+            )
+            
+        return get_json_result(data=response.json())
+        
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(
+            data=False,
+            message=str(e),
+            code=RetCode.EXCEPTION_ERROR
+        )
+
+
+
 
