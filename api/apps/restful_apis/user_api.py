@@ -1030,3 +1030,81 @@ def delete_lead(lead_id):
     LeadService.filter_delete([Lead.id == lead_id])
     return get_json_result(data=True, message="Lead deleted successfully")
 
+
+@manager.route("/admin/analytics/query", methods=["POST"])
+@login_required
+async def admin_analytics_query():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="Unauthorized access",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+    
+    req = await get_request_json()
+    property_id = req.get("property_id")
+    service_key_str = req.get("service_account_key")
+    endpoint = req.get("endpoint", "runReport")
+    payload = req.get("payload")
+    
+    if not property_id or not service_key_str or not payload:
+        return get_json_result(
+            data=False,
+            message="Missing required parameters: property_id, service_account_key, and payload are required.",
+            code=RetCode.ARGUMENT_ERROR
+        )
+        
+    try:
+        import json
+        service_account_info = json.loads(service_key_str)
+    except Exception:
+        return get_json_result(
+            data=False,
+            message="Invalid Service Account JSON key format.",
+            code=RetCode.ARGUMENT_ERROR
+        )
+        
+    try:
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request
+        import requests
+        
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info,
+            scopes=['https://www.googleapis.com/auth/analytics.readonly']
+        )
+        credentials.refresh(Request())
+        access_token = credentials.token
+        
+        url = f"https://analyticsdata.googleapis.com/v1beta/properties/{property_id}:{endpoint}"
+        
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        
+        if not response.ok:
+            try:
+                err_msg = response.json().get("error", {}).get("message", "Google Analytics API query failed.")
+            except Exception:
+                err_msg = response.text or "Google Analytics API query failed."
+            return get_json_result(
+                data=False,
+                message=err_msg,
+                code=RetCode.OPERATING_ERROR
+            )
+            
+        return get_json_result(data=response.json())
+        
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(
+            data=False,
+            message=str(e),
+            code=RetCode.EXCEPTION_ERROR
+        )
+
+
+
