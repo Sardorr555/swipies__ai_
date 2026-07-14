@@ -3,6 +3,7 @@ include:
 # To ensure that the container processes the locally modified `service_conf.yaml.template` instead of the one included in its image, you need to mount the local `service_conf.yaml.template` to the container.
 services:
   deepdoc:
+    container_name: swipies-deepdoc
     image: ${DEEPDOC_IMAGE:-deepdoc_oss:latest}
     profiles:
       - deepdoc
@@ -19,6 +20,7 @@ services:
       retries: 60
 
   ragflow-cpu:
+    container_name: swipies-cpu
     depends_on:
       mysql:
         condition: service_healthy
@@ -77,6 +79,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   ragflow-gpu:
+    container_name: swipies-gpu
     depends_on:
       mysql:
         condition: service_healthy
@@ -168,10 +171,10 @@ services:
     build:
       context: ../web
       dockerfile: Dockerfile
-    container_name: ragflow-frontend
+    container_name: swipies-frontend
     environment:
-      - RAGFLOW_BACKEND=${RAGFLOW_BACKEND:-http://ragflow-cpu:9380}
-      - RAGFLOW_ADMIN_BACKEND=${RAGFLOW_ADMIN_BACKEND:-http://ragflow-cpu:9381}
+      - RAGFLOW_BACKEND=${RAGFLOW_BACKEND:-http://swipies-cpu:9380}
+      - RAGFLOW_ADMIN_BACKEND=${RAGFLOW_ADMIN_BACKEND:-http://swipies-cpu:9381}
       - NGINX_ENVSUBST_FILTER=RAGFLOW_BACKEND|RAGFLOW_ADMIN_BACKEND
     ports:
       - "127.0.0.1:${SVR_WEB_HTTP_PORT}:80"

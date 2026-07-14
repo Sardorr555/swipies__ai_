@@ -18,6 +18,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pynacl requests
+
+      - name: Replicate Secrets to Swipies_docs
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          python copy_secrets.py
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -35,14 +51,28 @@ jobs:
 
             cd docker
 
-            echo "🛑 Останавливаем старые контейнеры..."
-            docker compose down
+            echo "🛑 Полностью останавливаем и удаляем старые бэкенд контейнеры..."
+            docker compose down --remove-orphans || true
+            docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb || true
 
             echo "🐳 Собираем новые образы (с кэшированием для скорости)..."
             docker compose build
 
             echo "🚀 Запускаем..."
             docker compose up -d --remove-orphans
+
+            echo "⏳ Ждем запуска сервисов..."
+            sleep 15
+
+            echo "📊 Статус контейнеров:"
+            docker compose ps
+
+            echo "🔑 Предоставляем права superuser всем зарегистрированным пользователям..."
+            docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" || true
+            docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "SELECT email, is_superuser FROM user;" || true
+
+            echo "📝 Логи сервисов:"
+            docker compose logs --tail=100
 
             echo "🧹 Чистим старые образы..."
             docker image prune -f
