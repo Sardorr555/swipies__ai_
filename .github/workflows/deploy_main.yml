@@ -51,6 +51,15 @@ jobs:
 
             cd docker
 
+            if ! grep -q "dh-mirror.gitverse.ru" /etc/docker/daemon.json 2>/dev/null; then
+              echo "⚙️ Настраиваем зеркало Docker Hub для обхода блокировок и 502 Bad Gateway..."
+              sudo mkdir -p /etc/docker
+              echo '{"registry-mirrors": ["https://dh-mirror.gitverse.ru", "https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
+              echo "🔄 Перезапускаем Docker..."
+              sudo systemctl daemon-reload
+              sudo systemctl restart docker || sudo service docker restart || true
+            fi
+
             echo "🛑 Полностью останавливаем и удаляем старые бэкенд контейнеры..."
             docker compose down --remove-orphans || true
             docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb || true
