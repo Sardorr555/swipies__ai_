@@ -347,10 +347,7 @@ const routeConfigOptions = [
             path: `${Routes.UserSetting}${Routes.ChatChannel}`,
             Component: () => import('@/pages/user-setting/chat-channel'),
           },
-          {
-            path: `${Routes.UserSetting}${Routes.License}`,
-            Component: () => import('@/pages/user-setting/license'),
-          },
+
         ],
       },
       {

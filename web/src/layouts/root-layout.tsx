@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router';
 import { Header } from './components/header';
 import { LeftSidebar } from './components/left-sidebar';
-import { LicenseActivationModal } from '@/components/license-activation-modal';
+
 
 export function RootLayoutContainer({ children }: React.PropsWithChildren) {
   return (
@@ -18,7 +18,7 @@ export function RootLayoutContainer({ children }: React.PropsWithChildren) {
         </main>
       </div>
       
-      <LicenseActivationModal />
+
     </div>
   );
 }

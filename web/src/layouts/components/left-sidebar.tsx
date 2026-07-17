@@ -116,13 +116,11 @@ export function LeftSidebar({ className, ...props }: React.HTMLAttributes<HTMLDi
 
       {/* Sidebar Footer */}
       <div className="p-4 border-t border-border-default/40 flex flex-col gap-0.5 items-center">
-        <p className="text-[10px] text-text-secondary text-center font-semibold text-accent-primary">
-          Swipies AI Commercial Edition
-        </p>
         <p className="text-[9px] text-text-secondary text-center opacity-70">
-          v26.0 Licensed Version
+          Swipies AI
         </p>
       </div>
+
     </aside>
   );
 }
