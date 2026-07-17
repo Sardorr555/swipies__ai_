@@ -44,7 +44,7 @@ interface LicenseRecord {
   amount: number;
 }
 
-type Step = 'list' | 'plan' | 'card' | 'otp' | 'done';
+type Step = 'plan' | 'card' | 'otp' | 'done';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,71 +84,14 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-function LicenseCard({ lic }: { lic: LicenseRecord }) {
-  const active = lic.status === 'active' && lic.is_paid;
-  return (
-    <div
-      className={`rounded-xl border p-5 space-y-3 transition-all ${
-        active
-          ? 'border-emerald-500/30 bg-emerald-500/5'
-          : 'border-border-default bg-bg-card/30'
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {active ? (
-            <ShieldCheck size={18} className="text-emerald-400" />
-          ) : (
-            <LockKeyhole size={18} className="text-text-secondary" />
-          )}
-          <span className="font-semibold text-text-primary">{lic.name}</span>
-        </div>
-        <span
-          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-            active
-              ? 'bg-emerald-500/15 text-emerald-400'
-              : lic.status === 'pending'
-              ? 'bg-amber-500/15 text-amber-400'
-              : 'bg-red-500/15 text-red-400'
-          }`}
-        >
-          {lic.status}
-        </span>
-      </div>
-
-      {lic.license_key && (
-        <div className="flex items-center gap-2 bg-bg-base/60 rounded-lg px-3 py-2 text-xs font-mono text-text-secondary border border-border-default/40">
-          <span className="flex-1 truncate">{lic.license_key}</span>
-          <CopyButton value={lic.license_key} />
-        </div>
-      )}
-
-      <div className="flex items-center gap-5 text-xs text-text-secondary">
-        <span className="flex items-center gap-1">
-          <Calendar size={12} />
-          {lic.duration_months} months
-        </span>
-        {lic.expiry_date && (
-          <span className="flex items-center gap-1">
-            <Clock size={12} />
-            Expires: {fmtDate(lic.expiry_date)}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const LicensePurchasePage = () => {
-  const [step, setStep] = useState<Step>('list');
+  const [step, setStep] = useState<Step>('plan');
   const [pricing, setPricing] = useState<PricingConfig>({
     price_6_months: 300000,
     price_12_months: 500000,
   });
-  const [licenses, setLicenses] = useState<LicenseRecord[]>([]);
-  const [loadingLicenses, setLoadingLicenses] = useState(true);
 
   // Plan step
   const [selectedMonths, setSelectedMonths] = useState<6 | 12>(12);
@@ -170,26 +113,13 @@ const LicensePurchasePage = () => {
 
   // ── Load data ──────────────────────────────────────────────────────────────
 
-  const loadLicenses = useCallback(async () => {
-    setLoadingLicenses(true);
-    try {
-      const res = await listLicenses();
-      if (res?.data?.code === 0) setLicenses(res.data.data ?? []);
-    } catch {
-      // silent
-    } finally {
-      setLoadingLicenses(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadLicenses();
     getUserLicensePricing()
       .then((res: any) => {
         if (res?.data?.code === 0) setPricing(res.data.data);
       })
       .catch(() => {});
-  }, [loadLicenses]);
+  }, []);
 
   // ── Step: Plan → create transaction ───────────────────────────────────────
 
@@ -291,70 +221,8 @@ const LicensePurchasePage = () => {
             Buy a license key compatible with your Swipies AI deployment.
           </p>
         </header>
-      }
-    >
+      >
       <div className="h-full overflow-x-hidden overflow-y-auto pb-8 pr-1 mt-6 space-y-6 px-5">
-
-        {/* ── Step: List ───────────────────────────────────────────── */}
-        {step === 'list' && (
-          <>
-            {/* Active licenses */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-text-primary">Your Licenses</h3>
-                <button
-                  onClick={loadLicenses}
-                  className="text-text-secondary hover:text-accent-primary transition-colors"
-                  title="Refresh"
-                >
-                  <RefreshCw size={14} />
-                </button>
-              </div>
-
-              {loadingLicenses ? (
-                <div className="flex items-center justify-center h-24">
-                  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-accent-primary" />
-                </div>
-              ) : licenses.length === 0 ? (
-                <div className="rounded-xl border border-border-default bg-bg-card/20 p-8 text-center text-text-secondary text-sm">
-                  No licenses yet. Purchase one below.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {licenses.map((l) => (
-                    <LicenseCard key={l.id} lic={l} />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* CTA */}
-            <Card className="border border-accent-primary/20 bg-accent-primary/5 overflow-hidden">
-              <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={18} className="text-accent-primary" />
-                    <span className="font-bold text-text-primary">Get a License Key</span>
-                  </div>
-                  <p className="text-xs text-text-secondary leading-relaxed">
-                    Purchase a signed RSA license key compatible with Swipies AI deployments.
-                    Payments via Atmos (Uzbekistan).
-                  </p>
-                  <div className="flex gap-4 pt-1 text-xs text-text-secondary">
-                    <span>✓ 6 months — {fmt(pricing.price_6_months)}</span>
-                    <span>✓ 12 months — {fmt(pricing.price_12_months)}</span>
-                  </div>
-                </div>
-                <Button
-                  className="bg-accent-primary hover:bg-accent-primary/90 text-white gap-2 shrink-0"
-                  onClick={() => setStep('plan')}
-                >
-                  Buy License <ArrowRight size={15} />
-                </Button>
-              </CardContent>
-            </Card>
-          </>
-        )}
 
         {/* ── Step: Plan ───────────────────────────────────────────── */}
         {step === 'plan' && (
@@ -396,7 +264,7 @@ const LicensePurchasePage = () => {
                 onChange={(e) => setLicenseName(e.target.value)}
                 placeholder="My Swipies License"
               />
-              <p className="text-xs text-text-secondary">Used to identify this license in your list.</p>
+              <p className="text-xs text-text-secondary">Used to identify this license.</p>
             </div>
 
             {/* Total */}
@@ -405,18 +273,13 @@ const LicensePurchasePage = () => {
               <span className="font-bold text-text-primary">{fmt(price)}</span>
             </div>
 
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => setStep('list')}>
-                Back
-              </Button>
-              <Button
-                className="bg-accent-primary hover:bg-accent-primary/90 text-white flex-1 gap-2"
-                onClick={handleStartPurchase}
-                loading={loadingCard}
-              >
-                <CreditCard size={16} /> Pay with Atmos
-              </Button>
-            </div>
+            <Button
+              className="bg-accent-primary hover:bg-accent-primary/90 text-white w-full gap-2"
+              onClick={handleStartPurchase}
+              loading={loadingCard}
+            >
+              <CreditCard size={16} /> Pay with Atmos
+            </Button>
 
             {isMock && (
               <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
@@ -556,7 +419,7 @@ const LicensePurchasePage = () => {
                 {finalKey}
               </div>
               <p className="text-xs text-text-secondary">
-                ⚠ Save this key somewhere safe. It will also appear in your license list below.
+                ⚠ Save this key somewhere safe. It cannot be recovered later.
               </p>
             </div>
 
@@ -564,7 +427,7 @@ const LicensePurchasePage = () => {
               variant="ghost"
               className="gap-2"
               onClick={() => {
-                setStep('list');
+                setStep('plan');
                 setOtp('');
                 setCardNumber('');
                 setCardExpiry('');
@@ -573,7 +436,7 @@ const LicensePurchasePage = () => {
                 setLicenseName('My Swipies License');
               }}
             >
-              <ArrowRight size={14} /> View All Licenses
+              <ArrowRight size={14} /> Buy Another License
             </Button>
           </div>
         )}
