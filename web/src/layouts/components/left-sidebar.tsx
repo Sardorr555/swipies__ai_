@@ -78,11 +78,7 @@ export function LeftSidebar({
       {/* Logo */}
       <div className="px-5 pt-6 pb-5">
         <div className="flex items-center gap-2.5">
-          <div className="size-7 rounded-lg bg-accent-primary flex items-center justify-center shrink-0">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1L12.196 4V10L7 13L1.804 10V4L7 1Z" fill="white" fillOpacity="0.9"/>
-            </svg>
-          </div>
+          <img src="/logo.svg" className="size-7 shrink-0" alt="Swipies Logo" />
           <span className="text-[15px] font-semibold text-text-primary tracking-tight leading-none">
             Swipies
           </span>
