@@ -1,24 +1,17 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import message from '@/components/ui/message';
 import {
   Key,
-  ShieldCheck,
   CreditCard,
   CheckCircle2,
   Copy,
-  RefreshCw,
-  Calendar,
-  Clock,
-  Sparkles,
   ArrowRight,
   LockKeyhole,
 } from 'lucide-react';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import {
-  listLicenses,
   createLicensePay,
   preApplyLicensePay,
   applyLicensePay,
@@ -33,32 +26,12 @@ interface PricingConfig {
   price_per_month_custom?: number;
 }
 
-interface LicenseRecord {
-  id: string;
-  name: string;
-  license_key: string | null;
-  status: string;
-  is_paid: boolean;
-  duration_months: number;
-  expiry_date: string | null;
-  amount: number;
-}
-
 type Step = 'plan' | 'card' | 'otp' | 'done';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('uz-UZ').format(n) + ' UZS';
-
-const fmtDate = (d?: string | null) => {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -221,7 +194,8 @@ const LicensePurchasePage = () => {
             Buy a license key compatible with your Swipies AI deployment.
           </p>
         </header>
-      >
+      }
+    >
       <div className="h-full overflow-x-hidden overflow-y-auto pb-8 pr-1 mt-6 space-y-6 px-5">
 
         {/* ── Step: Plan ───────────────────────────────────────────── */}
