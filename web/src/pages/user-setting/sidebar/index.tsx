@@ -21,6 +21,7 @@ import {
   LucideUser,
   LucideUsers,
   CreditCard,
+  Key,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -73,6 +74,11 @@ const menuItems = (t: TFunction) => {
       icon: <CreditCard className="size-[1em]" />,
       label: t('setting.subscription'),
       key: Routes.Subscription,
+    },
+    {
+      icon: <Key className="size-[1em]" />,
+      label: 'License Key',
+      key: Routes.License,
     },
   ];
 
