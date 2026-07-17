@@ -92,10 +92,7 @@ def list_providers(tenant_id: str, all_available: bool = False):
                 provider["url"]["intl"] = "https://dashscope-intl.aliyuncs.com/compatible-model/v1"
             providers.append(provider)
         providers.sort(key=lambda x: (factory_rank_mapping.get(x["name"]), x["name"]))
-        from api.utils.license_verifier import check_license
-        is_licensed, _, _ = check_license()
-        if not is_licensed:
-            providers = [p for p in providers if p["name"].lower() in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio")]
+
         return True, providers
 
     # List tenant-configured providers
@@ -117,10 +114,7 @@ def list_providers(tenant_id: str, all_available: bool = False):
                 provider["url"]["intl"] = "https://dashscope-intl.aliyuncs.com/compatible-model/v1"
             providers.append(provider)
     providers.sort(key=lambda x: (factory_rank_mapping.get(x["name"]), x["name"]))
-    from api.utils.license_verifier import check_license
-    is_licensed, _, _ = check_license()
-    if not is_licensed:
-        providers = [p for p in providers if p["name"].lower() in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio")]
+
     return True, providers
 
 

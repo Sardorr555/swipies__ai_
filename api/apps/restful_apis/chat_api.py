@@ -367,16 +367,7 @@ async def create():
         if not ok:
             return get_data_error_result(message="Tenant not found!")
 
-        # Check license limits
-        from api.utils.license_verifier import check_license
-        is_licensed, _, _ = check_license()
-        if not is_licensed:
-            existing_chats = DialogService.query(tenant_id=current_user.id, status=StatusEnum.VALID.value)
-            if len(existing_chats) >= 1:
-                return get_json_result(
-                    code=402,
-                    message="Base version limit: You can only create and use 1 chat. Please activate a license."
-                )
+
 
         # Enforce plan limits
         from api.db.services.user_service import TenantLimitService
@@ -581,25 +572,7 @@ async def update_chat(chat_id):
             err = await _validate_llm_id(req.get("llm_id"), current_user.id, req.get("llm_setting"))
             if err:
                 return get_data_error_result(message=err)
-            from api.utils.license_verifier import check_license
-            is_licensed, _, _ = check_license()
-            if not is_licensed and req.get("llm_id"):
-                from api.db.joint_services.tenant_model_service import split_model_name
-                pure_model_name, _, provider_name = split_model_name(req.get("llm_id"))
-                if not provider_name:
-                    for fac in settings.FACTORY_LLM_INFOS:
-                        for llm in fac.get("llm", []):
-                            if llm.get("llm_name") == pure_model_name:
-                                provider_name = fac.get("name", "")
-                                break
-                        if provider_name:
-                            break
-                prov_lower = provider_name.lower() if provider_name else ""
-                if prov_lower not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
-                    return get_json_result(
-                        code=402,
-                        message=f"Base version limit: Only Google and OpenAI models are allowed. Blocked model: {req.get('llm_id')}"
-                    )
+
 
         if "rerank_id" in req:
             err = await _validate_rerank_id(req.get("rerank_id"), current_user.id)

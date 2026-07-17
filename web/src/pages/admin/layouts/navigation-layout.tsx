@@ -64,11 +64,7 @@ const AdminNavigationLayout = () => {
         name: 'Referral Activity',
         icon: <Gift className="size-[1em]" />,
       },
-      {
-        path: Routes.AdminLicenses,
-        name: 'Licenses',
-        icon: <Key className="size-[1em]" />,
-      },
+
       ...(IS_ENTERPRISE
         ? [
             {

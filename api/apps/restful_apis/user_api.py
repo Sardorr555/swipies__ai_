@@ -693,31 +693,6 @@ async def set_tenant_info():
     try:
         tid = req.pop("tenant_id")
 
-        # Check license limits for models if unlicensed
-        from api.utils.license_verifier import check_license
-        is_licensed, _, _ = check_license()
-        if not is_licensed:
-            from api.db.joint_services.tenant_model_service import split_model_name
-            from common import settings
-            for k in ["asr_id", "embd_id", "img2txt_id", "llm_id"]:
-                v = req.get(k)
-                if v:
-                    pure_model_name, _, provider_name = split_model_name(v)
-                    if not provider_name:
-                        for fac in settings.FACTORY_LLM_INFOS:
-                            for llm in fac.get("llm", []):
-                                if llm.get("llm_name") == pure_model_name:
-                                    provider_name = fac.get("name", "")
-                                    break
-                            if provider_name:
-                                break
-                    prov_lower = provider_name.lower() if provider_name else ""
-                    if prov_lower not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
-                        return get_json_result(
-                            code=402,
-                            message=f"Base version limit: Only Google and OpenAI models are allowed. Blocked model: {v}"
-                        )
-
         TenantService.update_by_id(tid, req)
         return get_json_result(data=True)
     except Exception as e:

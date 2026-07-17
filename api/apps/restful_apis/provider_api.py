@@ -110,10 +110,7 @@ async def add_provider(tenant_id: str = None):
 
     provider_name = data["provider_name"]
 
-    from api.utils.license_verifier import check_license
-    is_licensed, _, _ = check_license()
-    if not is_licensed and provider_name and provider_name.lower() not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
-        return get_json_result(code=402, message="Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to connect other custom models.")
+
 
     try:
         success, msg = provider_api_service.add_provider(tenant_id, provider_name)
@@ -341,10 +338,7 @@ async def create_provider_instance(tenant_id: str = None, provider_id_or_name: s
         schema:
           type: object
     """
-    from api.utils.license_verifier import check_license
-    is_licensed, _, _ = check_license()
-    if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
-        return get_json_result(code=402, message="Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to connect other custom models.")
+
 
     data = await request.get_json()
     if not data or "instance_name" not in data:
@@ -415,10 +409,7 @@ async def verify_provider_api_key(provider_id_or_name: str = None):
         schema:
           type: object
     """
-    from api.utils.license_verifier import check_license
-    is_licensed, _, _ = check_license()
-    if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
-        return get_json_result(code=402, message="Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to connect other custom models.")
+
 
     data = await request.get_json()
     if not data or ("api_key" not in data and provider_id_or_name != "VLLM"):
@@ -761,10 +752,7 @@ async def add_model_to_instance(tenant_id: str, provider_id_or_name: str, instan
       200:
         description: Model added successfully.
     """
-    from api.utils.license_verifier import check_license
-    is_licensed, _, _ = check_license()
-    if not is_licensed and provider_id_or_name and provider_id_or_name.lower() not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
-        return get_json_result(code=402, message="Base version limit: Only Google and OpenAI APIs are allowed. Please activate a license to connect other custom models.")
+
 
     data = await request.get_json()
     if not data or "model_name" not in data or "model_type" not in data:

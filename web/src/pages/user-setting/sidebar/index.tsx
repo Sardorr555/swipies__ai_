@@ -20,14 +20,13 @@ import {
   LucideUnplug,
   LucideUser,
   LucideUsers,
-  LucideKey,
   CreditCard,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHandleMenuClick } from './hooks';
 
-const menuItems = (t: TFunction, isSuperuser?: boolean) => {
+const menuItems = (t: TFunction) => {
   const items = [
     {
       icon: <LucideServer className="size-[1em]" />,
@@ -77,13 +76,6 @@ const menuItems = (t: TFunction, isSuperuser?: boolean) => {
     },
   ];
 
-  if (isSuperuser) {
-    items.push({
-      icon: <LucideKey className="size-[1em]" />,
-      label: t('setting.license'),
-      key: Routes.License,
-    });
-  }
 
   return items;
 };
@@ -118,7 +110,7 @@ export function SideBar() {
 
       <nav className="flex-1 overflow-auto mt-4 py-1">
         <ul className="px-2 md:px-6 flex flex-col gap-2 md:gap-5 items-center md:items-stretch">
-          {menuItems(t, !!userInfo?.is_superuser).map((item) => {
+          {menuItems(t).map((item) => {
             const { key, icon, label, ...rest } = item;
 
             return (

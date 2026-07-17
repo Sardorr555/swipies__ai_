@@ -801,53 +801,7 @@ async def create_agent(tenant_id):
             code=RetCode.ARGUMENT_ERROR,
         )
 
-    # Check license limits
-    from api.utils.license_verifier import check_license
-    from api.db.joint_services.tenant_model_service import split_model_name
-    is_licensed, _, _ = check_license()
-    if not is_licensed:
-        # 1. Limit to 1 agent maximum
-        existing_agents = UserCanvasService.query(user_id=tenant_id, canvas_category=req["canvas_category"])
-        if len(existing_agents) >= 1:
-            return get_json_result(
-                code=402,
-                message="Base version limit: You can only create and use 1 agent. Please activate a license."
-            )
 
-        # 2. Check models in DSL (only Google and OpenAI allowed)
-        def check_dsl_models(data):
-            if isinstance(data, dict):
-                for k, v in data.items():
-                    if k == "llm_id" and isinstance(v, str) and v:
-                        pure_model_name, _, provider_name = split_model_name(v)
-                        if not provider_name:
-                            for fac in settings.FACTORY_LLM_INFOS:
-                                for llm in fac.get("llm", []):
-                                    if llm.get("llm_name") == pure_model_name:
-                                        provider_name = fac.get("name", "")
-                                        break
-                                if provider_name:
-                                    break
-                        prov_lower = provider_name.lower() if provider_name else ""
-                        if prov_lower not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
-                            return v
-                    else:
-                        res = check_dsl_models(v)
-                        if res:
-                            return res
-            elif isinstance(data, list):
-                for item in data:
-                    res = check_dsl_models(item)
-                    if res:
-                        return res
-            return None
-
-        invalid_model = check_dsl_models(req["dsl"])
-        if invalid_model:
-            return get_json_result(
-                code=402,
-                message=f"Base version limit: Only Google and OpenAI APIs are allowed. Blocked model: {invalid_model}"
-            )
 
     if req.get("title") is None:
         return get_json_result(
@@ -1092,45 +1046,7 @@ async def update_agent(agent_id, tenant_id):
                 code=RetCode.ARGUMENT_ERROR,
             )
 
-        # Check license limits
-        from api.utils.license_verifier import check_license
-        from api.db.joint_services.tenant_model_service import split_model_name
-        is_licensed, _, _ = check_license()
-        if not is_licensed:
-            # Check models in DSL (only Google and OpenAI allowed)
-            def check_dsl_models(data):
-                if isinstance(data, dict):
-                    for k, v in data.items():
-                        if k == "llm_id" and isinstance(v, str) and v:
-                            pure_model_name, _, provider_name = split_model_name(v)
-                            if not provider_name:
-                                for fac in settings.FACTORY_LLM_INFOS:
-                                    for llm in fac.get("llm", []):
-                                        if llm.get("llm_name") == pure_model_name:
-                                            provider_name = fac.get("name", "")
-                                            break
-                                    if provider_name:
-                                        break
-                            prov_lower = provider_name.lower() if provider_name else ""
-                            if prov_lower not in ("openai", "google", "gemini", "google cloud", "builtin", "fastembed", "baai", "youdao", "paddleocr", "mineru", "opendataloader", "ollama", "vllm", "localai", "xinference", "lm-studio"):
-                                return v
-                        else:
-                            res = check_dsl_models(v)
-                            if res:
-                                return res
-                elif isinstance(data, list):
-                    for item in data:
-                        res = check_dsl_models(item)
-                        if res:
-                            return res
-                return None
 
-            invalid_model = check_dsl_models(req["dsl"])
-            if invalid_model:
-                return get_json_result(
-                    code=402,
-                    message=f"Base version limit: Only Google and OpenAI APIs are allowed. Blocked model: {invalid_model}"
-                )
 
     _, current_agent = UserCanvasService.get_by_id(agent_id)
     if req.get("title") is not None:
