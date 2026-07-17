@@ -380,6 +380,37 @@ async def setting_user():
         return get_json_result(data=False, message="Update failure!", code=RetCode.EXCEPTION_ERROR)
 
 
+@manager.route("/users/me", methods=["DELETE"])  # noqa: F821
+@login_required
+async def delete_user():
+    """
+    Deactivate user account (soft delete).
+    ---
+    tags:
+      - User
+    security:
+      - ApiKeyAuth: []
+    responses:
+      200:
+        description: Account deactivated successfully.
+        schema:
+          type: object
+    """
+    try:
+        # Set is_active to "0" and status to "0" to deactivate the account while keeping data
+        update_dict = {
+            "is_active": "0",
+            "status": "0",
+            "access_token": f"DEACTIVATED_{secrets.token_hex(16)}"
+        }
+        UserService.update_by_id(current_user.id, update_dict)
+        logout_user()
+        return get_json_result(data=True)
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(data=False, message="Deactivation failure!", code=RetCode.EXCEPTION_ERROR)
+
+
 @manager.route("/users/me", methods=["GET"])  # noqa: F821
 @login_required
 async def user_profile():

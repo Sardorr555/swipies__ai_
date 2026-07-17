@@ -18,13 +18,14 @@ import { useTranslate } from '@/hooks/common-hooks';
 import { TimezoneList } from '@/pages/user-setting/constants';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { t } from 'i18next';
-import { Loader2Icon, PenLine } from 'lucide-react';
-import { FC, useEffect, useMemo } from 'react';
+import { Loader2Icon, PenLine, Trash2 } from 'lucide-react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import { NICKNAME_MAX_LENGTH, NICKNAME_PATTERN } from './constants';
 import { EditType, modalTitle, useProfile } from './hooks/use-profile';
+import { useDeleteAccount } from '@/hooks/use-user-setting-request';
 
 const timezoneOptions = TimezoneList.map(({ name }) => ({
   value: name,
@@ -102,6 +103,14 @@ const ProfilePage: FC = () => {
     handleSave,
     handleAvatarUpload,
   } = useProfile();
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const { deleteAccount, loading: deleteLoading } = useDeleteAccount();
+
+  const handleDeleteAccount = async () => {
+    await deleteAccount();
+    setIsDeleteModalOpen(false);
+  };
 
   const form = useForm<z.infer<typeof baseSchema | typeof passwordSchema>>({
     resolver: zodResolver(
@@ -234,7 +243,68 @@ const ProfilePage: FC = () => {
             </Button>
           </div>
         </div>
+
+        {/* Delete Account */}
+        <div className="flex items-start gap-4 border-t border-border-default pt-8">
+          <label className="w-[190px] text-sm font-medium text-destructive">
+            {t('deleteAccount')}
+          </label>
+          <div className="flex-1 flex flex-col items-start gap-4">
+            <span className="text-text-secondary text-sm">
+              {t('deleteAccountDescription')}
+            </span>
+            <Button
+              variant="destructive"
+              type="button"
+              className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-md flex items-center gap-2"
+              onClick={() => setIsDeleteModalOpen(true)}
+            >
+              <Trash2 size={14} /> {t('deleteAccountBtn')}
+            </Button>
+          </div>
+        </div>
       </div>
+
+      {isDeleteModalOpen && (
+        <Modal
+          title={t('deleteAccountConfirmTitle')}
+          open={isDeleteModalOpen}
+          showfooter={false}
+          maskClosable={false}
+          titleClassName="text-base font-semibold text-destructive"
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsDeleteModalOpen(false);
+            }
+          }}
+          className="!w-[480px]"
+        >
+          <div className="space-y-6 mt-4">
+            <p className="text-sm text-text-secondary leading-relaxed">
+              {t('deleteAccountConfirmContent')}
+            </p>
+            <div className="w-full flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+              >
+                {deleteLoading && <Loader2Icon className="animate-spin mr-2" />}
+                {t('deleteAccountBtn')}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {editType && (
         <Modal

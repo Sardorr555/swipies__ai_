@@ -34,6 +34,10 @@ const methods = {
     url: setting,
     method: 'patch',
   },
+  deleteAccount: {
+    url: setting,
+    method: 'delete',
+  },
   userInfo: {
     url: userInfo,
     method: 'get',

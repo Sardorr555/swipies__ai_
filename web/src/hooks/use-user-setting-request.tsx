@@ -22,6 +22,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useWarnEmptyModel } from './use-warn-empty-model';
+import authorizationUtil, { redirectToLogin } from '@/utils/authorization-util';
 
 export const enum UserSettingApiAction {
   UserInfo = 'userInfo',
@@ -176,6 +177,28 @@ export const useSaveSetting = (silent = false) => {
   });
 
   return { data, loading, saveSetting: mutateAsync };
+};
+
+export const useDeleteAccount = () => {
+  const { t } = useTranslation();
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: ['deleteAccount'],
+    mutationFn: async () => {
+      const { data } = await userService.deleteAccount();
+      if (data.code === 0) {
+        message.success(t('message.modified') || 'Account deleted successfully.');
+        authorizationUtil.removeAll();
+        redirectToLogin();
+      }
+      return data?.code;
+    },
+  });
+
+  return { data, loading, deleteAccount: mutateAsync };
 };
 
 export const useFetchSystemVersion = () => {
