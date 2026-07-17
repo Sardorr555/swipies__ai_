@@ -21,6 +21,7 @@ import {
   LucideUser,
   LucideUsers,
   LucideKey,
+  CreditCard,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -68,6 +69,11 @@ const menuItems = (t: TFunction, isSuperuser?: boolean) => {
       icon: <LucideGift className="size-[1em]" />,
       label: t('setting.referral'),
       key: Routes.Referrals,
+    },
+    {
+      icon: <CreditCard className="size-[1em]" />,
+      label: t('setting.subscription'),
+      key: Routes.Subscription,
     },
   ];
 

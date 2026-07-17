@@ -109,6 +109,15 @@ export function Header({
         className="flex items-center gap-2 sm:gap-3 text-text-badge z-10 ml-auto"
         data-testid="auth-status"
       >
+        <Link
+          to={Routes.Pricing}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white rounded-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
+          data-testid="upgrade-button"
+        >
+          <LucideZap className="size-3.5" />
+          <span className="hidden sm:inline">{upgradeLabel}</span>
+        </Link>
+
         <a
           className="p-2 text-text-secondary hover:text-text-primary focus-visible:text-text-primary shrink-0 transition-colors"
           target="_blank"

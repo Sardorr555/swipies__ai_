@@ -143,6 +143,16 @@ const routeConfigOptions = [
     layout: false,
   },
   {
+    path: '/pricing',
+    Component: () => import('@/pages/pricing'),
+    layout: false,
+  },
+  {
+    path: '/checkout',
+    Component: () => import('@/pages/checkout'),
+    layout: false,
+  },
+  {
     path: '/privacy-policy',
     Component: () => import('@/pages/privacy-policy'),
     layout: false,
