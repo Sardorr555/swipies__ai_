@@ -41,9 +41,13 @@ def decode_license(license_key: str) -> dict | None:
 def verify_license_online(license_key: str) -> bool:
     if license_key.strip().startswith("SWIPIES-ACT-"):
         return True
+    import os
+    api_url = os.getenv("LICENSING_SERVER_URL") or os.getenv("SWIPIES_API_URL") or "https://api.swipies.io"
+    # Ensure URL ends without trailing slash when constructing route
+    api_url = api_url.rstrip("/")
     try:
         # Request verification to Swipies backend server
-        resp = requests.post("https://api.swipies.io/v1/licenses/verify", json={"license_key": license_key}, timeout=3.0)
+        resp = requests.post(f"{api_url}/v1/licenses/verify", json={"license_key": license_key}, timeout=3.0)
         if resp.status_code == 200:
             data = resp.json()
             return bool(data.get("valid", False))
