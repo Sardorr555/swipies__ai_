@@ -50,7 +50,10 @@ const menuItems = [
   { path: Routes.Files, name: 'header.fileManager', icon: LucideFolderOpen },
 ];
 
-export function LeftSidebar({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+export function LeftSidebar({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
 
@@ -67,21 +70,30 @@ export function LeftSidebar({ className, ...props }: React.HTMLAttributes<HTMLDi
   return (
     <aside
       className={cn(
-        'w-[240px] flex flex-col h-full bg-bg-component border-r border-border-default/40 select-none shrink-0',
-        className
+        'w-[220px] flex flex-col h-full bg-bg-base border-r border-border-default/30 select-none shrink-0',
+        className,
       )}
       {...props}
     >
-      {/* Sidebar Header */}
-      <div className="flex items-center gap-3 px-6 py-[22px] border-b border-border-default/40">
-        <div className="flex items-center justify-center size-8 bg-accent-primary/10 rounded-lg text-accent-primary font-bold text-lg">
-          S
+      {/* Logo */}
+      <div className="px-5 pt-6 pb-5">
+        <div className="flex items-center gap-2.5">
+          <img src="/logo.svg" className="size-7 shrink-0" alt="Swipies Logo" />
+          <span className="text-[15px] font-semibold text-text-primary tracking-tight leading-none">
+            Swipies
+          </span>
         </div>
-        <span className="font-bold text-lg text-text-primary tracking-tight">Navigation</span>
       </div>
 
-      {/* Navigation Links */}
-      <nav className="flex-grow py-6 px-4 space-y-1.5 overflow-y-auto">
+      {/* Nav label */}
+      <div className="px-5 pb-2">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-text-secondary/50">
+          Menu
+        </span>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
         {menuItems.map(({ path, name, icon: Icon, ...itemProps }) => {
           const isActive = path === activePath;
 
@@ -90,37 +102,37 @@ export function LeftSidebar({ className, ...props }: React.HTMLAttributes<HTMLDi
               key={path}
               to={path}
               className={cn(
-                'flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative',
+                'group flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 relative',
                 isActive
-                  ? 'bg-accent-primary text-white shadow-md shadow-accent-primary/25'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-card'
+                  ? 'text-text-primary bg-bg-card'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-card/60',
               )}
               {...(itemProps as any)}
             >
+              {/* Active indicator bar */}
+              {isActive && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-accent-primary" />
+              )}
+
               <Icon
                 className={cn(
-                  'size-[18px] transition-transform duration-200 group-hover:scale-110',
-                  isActive ? 'text-white' : 'text-text-secondary group-hover:text-text-primary'
+                  'size-4 shrink-0 transition-colors duration-150',
+                  isActive
+                    ? 'text-accent-primary'
+                    : 'text-text-secondary/70 group-hover:text-text-secondary',
                 )}
               />
-              <span className="truncate">{t(name)}</span>
 
-              {/* Subtle hover line/dot */}
-              {isActive && (
-                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white" />
-              )}
+              <span className="truncate">{t(name)}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Sidebar Footer */}
-      <div className="p-4 border-t border-border-default/40 flex flex-col gap-0.5 items-center">
-        <p className="text-[10px] text-text-secondary text-center font-semibold text-accent-primary">
-          Swipies AI Commercial Edition
-        </p>
-        <p className="text-[9px] text-text-secondary text-center opacity-70">
-          v26.0 Licensed Version
+      {/* Footer */}
+      <div className="px-5 py-5 border-t border-border-default/25">
+        <p className="text-[10px] text-text-secondary/40 font-medium tracking-wide">
+          Swipies AI
         </p>
       </div>
     </aside>
