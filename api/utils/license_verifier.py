@@ -19,7 +19,7 @@ def decode_license(license_key: str) -> dict | None:
             return payload
 
         raw = base64.b64decode(cleaned_key.encode())
-        parts = raw.split(b".")
+        parts = raw.rsplit(b".", 1)
         if len(parts) != 2:
             return None
         payload_bytes, sig_hex = parts[0], parts[1].decode()
@@ -58,5 +58,39 @@ def check_license() -> tuple[bool, str, dict | None]:
        message: explanation of status
        payload: dict or None
     """
-    # Main branch (swipies_26) has no licensing restrictions.
-    return True, "License active (Unrestricted Community Edition).", {"owner": "Swipies User", "expiry": "2099-12-31", "type": "unlimited"}
+    from api.db.services.system_settings_service import SystemSettingsService
+    try:
+        objs = list(SystemSettingsService.get_by_name("license.key"))
+        if not objs:
+            return False, "No license activated. Base Version mode.", None
+        license_key = objs[0].value
+        if not license_key:
+            return False, "No license activated. Base Version mode.", None
+            
+        payload = decode_license(license_key)
+        if not payload:
+            return False, "Invalid license signature.", None
+            
+        # Offline check: expiry
+        expiry_str = payload.get("expiry")
+        if not expiry_str:
+            return False, "License is missing expiry date.", payload
+            
+        try:
+            expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d")
+        except ValueError:
+            return False, "Invalid expiry date format.", payload
+            
+        if datetime.now() > expiry_date:
+            days_expired = (datetime.now() - expiry_date).days
+            return False, f"License expired {days_expired} days ago on {expiry_str}.", payload
+            
+        # Online check
+        online_ok = verify_license_online(license_key)
+        if not online_ok:
+            return False, "License revoked by server.", payload
+            
+        days_left = (expiry_date - datetime.now()).days
+        return True, f"License active. {days_left} days remaining until {expiry_str}.", payload
+    except Exception as e:
+        return False, f"Error verifying license: {str(e)}", None

@@ -79,9 +79,11 @@ export enum Routes {
   AdminWhitelist = `${Admin}/whitelist`,
   AdminRoles = `${Admin}/roles`,
   AdminMonitoring = `${Admin}/monitoring`,
+  AdminLicenses = `${Admin}/licenses`,
   Pricing = '/pricing',
   PrivacyPolicy = '/privacy-policy',
   License = '/license',
+  Checkout = '/checkout',
 }
 
 const defaultRouteFallback = (
@@ -99,7 +101,23 @@ const withLazyRoute = (
   importer: () => Promise<{ default: React.ComponentType<any> }>,
   fallback: React.ReactNode = defaultRouteFallback,
 ) => {
-  const LazyComponent = lazy(importer);
+  const LazyComponent = lazy(() =>
+    importer().catch((error) => {
+      const errorMsg = String(error.message || error);
+      const isChunkError =
+        errorMsg.includes('Failed to fetch dynamically imported module') ||
+        errorMsg.includes('Failed to load module script') ||
+        errorMsg.includes('loading chunk') ||
+        errorMsg.includes('dynamic') ||
+        error.name === 'TypeError';
+      if (isChunkError) {
+        console.warn('Failed to load dynamic chunk, forcing reload...', error);
+        window.location.reload();
+        return { default: () => null };
+      }
+      throw error;
+    })
+  );
   const Wrapped: React.FC<any> = (props) => (
     <Suspense fallback={fallback}>
       <LazyComponent {...props} />
@@ -122,11 +140,6 @@ const routeConfigOptions = [
   {
     path: '/login-next',
     Component: () => import('@/pages/login-next'),
-    layout: false,
-  },
-  {
-    path: '/pricing',
-    Component: () => import('@/pages/pricing'),
     layout: false,
   },
   {
@@ -424,6 +437,10 @@ const routeConfigOptions = [
               {
                 path: Routes.AdminReferrals,
                 Component: () => import('@/pages/admin/referrals'),
+              },
+              {
+                path: Routes.AdminLicenses,
+                Component: () => import('@/pages/admin/licenses'),
               },
               ...(IS_ENTERPRISE
                 ? [

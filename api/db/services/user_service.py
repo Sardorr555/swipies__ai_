@@ -369,6 +369,11 @@ class TenantLimitService:
     @classmethod
     @DB.connection_context()
     def check_apps_limit(cls, tenant_id: str) -> tuple[bool, str | None]:
+        from api.utils.license_verifier import check_license
+        is_licensed, _, _ = check_license()
+        if is_licensed:
+            return True, None
+
         ok, tenant = TenantService.get_by_id(tenant_id)
         if not ok:
             return True, None
@@ -406,6 +411,11 @@ class TenantLimitService:
     @classmethod
     @DB.connection_context()
     def check_storage_limit(cls, tenant_id: str, new_file_size: int = 0) -> tuple[bool, str | None]:
+        from api.utils.license_verifier import check_license
+        is_licensed, _, _ = check_license()
+        if is_licensed:
+            return True, None
+
         ok, tenant = TenantService.get_by_id(tenant_id)
         if not ok:
             return True, None
@@ -443,6 +453,11 @@ class TenantLimitService:
     @classmethod
     @DB.connection_context()
     def check_team_limit(cls, tenant_id: str) -> tuple[bool, str | None]:
+        from api.utils.license_verifier import check_license
+        is_licensed, _, _ = check_license()
+        if is_licensed:
+            return True, None
+
         ok, tenant = TenantService.get_by_id(tenant_id)
         if not ok:
             return True, None

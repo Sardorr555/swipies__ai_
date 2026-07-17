@@ -320,13 +320,15 @@ const SubscriptionPage = () => {
                     </span>
                   </div>
 
-                  <Button
-                    onClick={handleUpgradeRedirect}
-                    className="bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center gap-2 px-5 py-2 font-medium transition-all duration-200"
-                  >
-                    {tLocal.upgradeButton}
-                    <ArrowUpRight size={16} />
-                  </Button>
+                  {planKey !== 'license' && (
+                    <Button
+                      onClick={handleUpgradeRedirect}
+                      className="bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center gap-2 px-5 py-2 font-medium transition-all duration-200"
+                    >
+                      {tLocal.upgradeButton}
+                      <ArrowUpRight size={16} />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -408,12 +410,14 @@ const SubscriptionPage = () => {
             </div>
 
             {/* Extra information banner */}
-            <div className="p-4 rounded-xl border border-accent-primary/20 bg-accent-primary/5 flex items-start gap-3 mt-6">
-              <HelpCircle className="text-accent-primary shrink-0 mt-0.5" size={18} />
-              <p className="text-xs text-text-secondary leading-relaxed">
-                {tLocal.pricingRedirectTip}
-              </p>
-            </div>
+            {planKey !== 'license' && (
+              <div className="p-4 rounded-xl border border-accent-primary/20 bg-accent-primary/5 flex items-start gap-3 mt-6">
+                <HelpCircle className="text-accent-primary shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  {tLocal.pricingRedirectTip}
+                </p>
+              </div>
+            )}
           </>
         )}
       </div>
