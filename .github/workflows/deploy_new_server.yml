@@ -1,0 +1,121 @@
+name: Deploy Swipies to New Server
+
+on:
+  push:
+    branches:
+      - licence_v
+    paths:
+      - '**'
+      - '!swipies__ai_/landing/**'
+      - '!swipies__ai_/appsmith/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pynacl requests
+
+      - name: Replicate Secrets to Swipies_docs
+        env:
+          EC2_HOST: "100.31.87.176"
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+        run: |
+          python copy_secrets.py
+
+      - name: Install Docker and Deploy Swipies
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: "100.31.87.176"
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 45m
+          script: |
+            set -e
+
+            echo "🔄 Обновляем системные пакеты..."
+            sudo apt-get update -y
+
+            echo "📦 Устанавливаем базовые утилиты..."
+            sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release git
+
+            echo "🐳 Проверяем и устанавливаем Docker..."
+            if ! command -v docker &> /dev/null; then
+              echo "📥 Установка Docker..."
+              sudo mkdir -p /etc/apt/keyrings
+              curl -fsSL https://download.download.com/ || curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
+              echo \
+                "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+                $(lsb_release -cs) stable" | sudo tee /etc/docker/source.list.d/docker.list || echo \
+                "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+                $(lsb_release -cs) stable" | sudo tee /etc/docker/sources.list.d/docker.list > /dev/null
+              sudo apt-get update -y
+              sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            fi
+
+            echo "⚙️ Проверяем и устанавливаем Docker Compose..."
+            if ! docker compose version &> /dev/null; then
+              echo "📥 Установка Docker Compose..."
+              sudo apt-get install -y docker-compose-plugin
+            fi
+
+            echo "⚙️ Настраиваем зеркала Docker Hub для обхода блокировок и 502 Bad Gateway..."
+            sudo mkdir -p /etc/docker
+            echo '{"registry-mirrors": ["https://dh-mirror.gitverse.ru", "https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
+            echo "🔄 Перезапускаем Docker..."
+            sudo systemctl daemon-reload
+            sudo systemctl restart docker || sudo service docker restart || true
+
+            # Разрешаем запускать docker без sudo
+            sudo usermod -aG docker ubuntu || true
+
+            echo "🚀 Клонируем/обновляем репозиторий Swipies..."
+            if [ ! -d ~/swipies__ai_ ]; then
+              git clone -b licence_v https://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@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
+            fi
+
+            cd ~/swipies__ai_
+            git remote set-url origin https://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@github.com/Sardorr555/swipies__ai_.git || true
+            git fetch origin licence_v
+            git reset --hard origin/licence_v
+
+            cd docker
+
+            echo "🛑 Полностью останавливаем и удаляем старые бэкенд контейнеры..."
+            sudo docker compose down --remove-orphans || true
+            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb || true
+
+            echo "🐳 Собираем новые образы (с кэшированием для скорости)..."
+            sudo docker compose build
+
+            echo "🚀 Запускаем..."
+            sudo docker compose up -d --remove-orphans
+
+            echo "⏳ Ждем запуска сервисов..."
+            sleep 15
+
+            echo "📊 Статус контейнеров:"
+            sudo docker compose ps
+
+            echo "🔑 Предоставляем права superuser всем зарегистрированным пользователям..."
+            sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" || true
+            sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "SELECT email, is_superuser FROM user;" || true
+
+            echo "📝 Логи сервисов:"
+            sudo docker compose logs --tail=100
+
+            echo "🧹 Чистим старые образы..."
+            sudo docker image prune -f
+
+            echo "✅ Установка и запуск на новом сервере успешно завершены!"

@@ -4,7 +4,7 @@ name: Deploy Ragflow
 on:
   push:
     branches:
-      - licence_v
+      - disabled_branch
     paths:
       - '**'
       - '!swipies__ai_/landing/**'
