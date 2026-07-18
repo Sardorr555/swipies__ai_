@@ -48,6 +48,14 @@ jobs:
             echo "📥 Обновляем код..."
             git fetch origin swipies_26
             git reset --hard origin/swipies_26
+            git submodule update --init --recursive --force
+            if command -v pm2 &> /dev/null; then
+              echo "🔄 Перезапускаем Atmos Payment Server..."
+              cd "atmos payment system/server"
+              npm install
+              pm2 restart all || pm2 restart index || pm2 restart server || true
+              cd ~/swipies__ai_
+            fi
 
             cd docker
 
