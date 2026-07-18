@@ -24,6 +24,17 @@ interface LicenseStatus {
     type: string;
   };
   license_key?: string;
+  db_record?: {
+    id: string;
+    name: string;
+    amount: number;
+    duration_months: number;
+    expiry_date: string;
+    payment_id: string;
+    is_paid: boolean;
+    status: string;
+    create_date: string;
+  };
 }
 
 const LicensePage = () => {
@@ -83,11 +94,24 @@ const LicensePage = () => {
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
     try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+      const formattedStr = dateStr.includes(' ') ? dateStr.replace(' ', 'T') : dateStr;
+      const date = new Date(formattedStr);
+      return date.toLocaleDateString(undefined, { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     } catch {
       return dateStr;
     }
+  };
+
+  const formatPrice = (amount?: number) => {
+    if (amount === undefined || amount === null) return 'N/A';
+    if (amount === 0) return 'Free / Promo / System';
+    return `${amount.toLocaleString()} UZS`;
   };
 
   return (
@@ -139,7 +163,7 @@ const LicensePage = () => {
                   </p>
 
                   {status.payload && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-emerald-500/10 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-emerald-500/10 text-sm">
                       <div className="space-y-1">
                         <span className="text-text-secondary block text-xs">Licensed To:</span>
                         <span className="font-semibold text-text-primary font-mono">{status.payload.owner}</span>
@@ -147,13 +171,62 @@ const LicensePage = () => {
                       <div className="space-y-1">
                         <span className="text-text-secondary block text-xs">License Type / Duration:</span>
                         <span className="font-semibold text-text-primary capitalize">
-                          {status.payload.type === 'yearly' ? 'Yearly (12 Months)' : status.payload.type === '6_months' ? '6 Months' : status.payload.type || 'Custom'}
+                          {status.db_record 
+                            ? `${status.db_record.duration_months} Months (${status.db_record.name})` 
+                            : status.payload.type === 'yearly' ? 'Yearly (12 Months)' : status.payload.type === '6_months' ? '6 Months' : status.payload.type || 'Custom'}
                         </span>
                       </div>
                       <div className="space-y-1">
                         <span className="text-text-secondary block text-xs">Expiration Date:</span>
-                        <span className="font-semibold text-text-primary">{formatDate(status.payload.expiry)}</span>
+                        <span className="font-semibold text-text-primary">
+                          {status.db_record ? formatDate(status.db_record.expiry_date) : formatDate(status.payload.expiry)}
+                        </span>
                       </div>
+
+                      {status.db_record && (
+                        <>
+                          <div className="space-y-1">
+                            <span className="text-text-secondary block text-xs">Activation Date:</span>
+                            <span className="font-semibold text-text-primary">
+                              {formatDate(status.db_record.create_date)}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-text-secondary block text-xs">Purchase Price:</span>
+                            <span className="font-semibold text-emerald-400 font-mono">
+                              {formatPrice(status.db_record.amount)}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-text-secondary block text-xs">Payment Transaction:</span>
+                            <span className="font-semibold text-text-primary font-mono text-xs break-all">
+                              {status.db_record.payment_id || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-text-secondary block text-xs">License ID:</span>
+                            <span className="font-semibold text-text-primary font-mono text-xs break-all">
+                              {status.db_record.id}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-text-secondary block text-xs">Payment Status:</span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                              status.db_record.is_paid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                            }`}>
+                              {status.db_record.is_paid ? 'Paid' : 'Unpaid'}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-text-secondary block text-xs">Activation Status:</span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold capitalize ${
+                              status.db_record.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                            }`}>
+                              {status.db_record.status}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </CardContent>

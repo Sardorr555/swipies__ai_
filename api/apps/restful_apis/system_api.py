@@ -581,11 +581,27 @@ async def get_license():
     objs = list(SystemSettingsService.get_by_name("license.key"))
     raw_key = objs[0].value if objs and objs[0].value else ""
 
+    db_record = None
+    if raw_key:
+        from api.db.services.license_key_service import LicenseKeyService
+        lic_records = LicenseKeyService.query(license_key=raw_key)
+        if lic_records:
+            db_record = lic_records[0].to_dict()
+            from datetime import datetime
+            for key_field in ["expiry_date", "create_date", "update_date"]:
+                if db_record.get(key_field):
+                    val = db_record[key_field]
+                    if isinstance(val, datetime):
+                        db_record[key_field] = val.strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        db_record[key_field] = str(val)
+
     return get_json_result(data={
         "is_valid": is_valid,
         "message": msg,
         "payload": payload,
-        "license_key": raw_key
+        "license_key": raw_key,
+        "db_record": db_record
     })
 
 
