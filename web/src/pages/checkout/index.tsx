@@ -3,7 +3,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSystemConfig } from '@/hooks/use-system-request';
 import { useFetchUserInfo } from '@/hooks/use-user-setting-request';
-import { getUserLicensePricing } from '@/services/license-service';
+import { 
+  getUserLicensePricing,
+  createLicensePay,
+  preApplyLicensePay,
+  applyLicensePay 
+} from '@/services/license-service';
+import { getAuthorization } from '@/utils/authorization-util';
 import { Routes } from '@/routes';
 import {
   ArrowLeft,
@@ -344,6 +350,8 @@ export default function CheckoutPage() {
           expiryDate: expiryDate.toISOString(),
           // Pass license key name if self-hosted
           license_name: planQuery === 'license' ? licenseName : undefined,
+          amount: finalAmount,
+          payment_id: transactionId || generateUUID(),
         }),
       });
 
@@ -412,36 +420,56 @@ export default function CheckoutPage() {
         await triggerProvision();
       } else {
         // Local Uzcard / Humo payment via Atmos
-        const createRes = await fetch('/api/pay/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: finalAmount,
-            account: userEmail || 'guest',
-          }),
-        });
+        if (planQuery === 'license') {
+          // Use Flask backend API
+          const createRes = await createLicensePay(licenseName, selectedPeriod);
+          if (createRes?.data?.code !== 0) {
+            throw new Error(createRes?.data?.message || 'Payment init failed');
+          }
+          const txData = createRes.data.data;
+          setTransactionId(txData.transaction_id);
 
-        const txData = await createRes.json();
-        if (!createRes.ok) throw new Error(txData.error || txData.result?.description || 'Payment init failed');
+          const preRes = await preApplyLicensePay(txData.transaction_id, cleanCardNumber, formattedExpiry);
+          if (preRes?.data?.code !== 0) {
+            throw new Error(preRes?.data?.message || 'Card validation failed');
+          }
+          const preData = preRes.data.data;
+          const phone = preData.phone || preData.phone_number || preData.phoneMask || (preData.payload && preData.payload.phone) || '';
+          setMaskedPhone(phone);
+          setStep('otp');
+        } else {
+          // Use Node.js payment server
+          const createRes = await fetch('/api/pay/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: finalAmount,
+              account: userEmail || 'guest',
+            }),
+          });
 
-        setTransactionId(txData.transaction_id);
+          const txData = await createRes.json();
+          if (!createRes.ok) throw new Error(txData.error || txData.result?.description || 'Payment init failed');
 
-        const preRes = await fetch('/api/pay/pre-apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            transaction_id: txData.transaction_id,
-            card_number: cleanCardNumber,
-            expiry: formattedExpiry,
-          }),
-        });
+          setTransactionId(txData.transaction_id);
 
-        const preData = await preRes.json();
-        if (!preRes.ok) throw new Error(preData.error || preData.result?.description || 'Card validation failed');
+          const preRes = await fetch('/api/pay/pre-apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transaction_id: txData.transaction_id,
+              card_number: cleanCardNumber,
+              expiry: formattedExpiry,
+            }),
+          });
 
-        const phone = preData.phone || preData.phone_number || preData.phoneMask || (preData.payload && preData.payload.phone) || '';
-        setMaskedPhone(phone);
-        setStep('otp');
+          const preData = await preRes.json();
+          if (!preRes.ok) throw new Error(preData.error || preData.result?.description || 'Card validation failed');
+
+          const phone = preData.phone || preData.phone_number || preData.phoneMask || (preData.payload && preData.payload.phone) || '';
+          setMaskedPhone(phone);
+          setStep('otp');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Payment processing failed. Please try again.');
@@ -460,15 +488,31 @@ export default function CheckoutPage() {
     setPayingLoading(true);
 
     try {
-      const res = await fetch('/api/pay/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transaction_id: transactionId, otp }),
-      });
-      const confirmData = await res.json();
-      if (!res.ok) throw new Error(confirmData.error || 'Payment verification failed');
+      if (planQuery === 'license') {
+        // Use Flask backend API
+        const confirmRes = await applyLicensePay(transactionId || '', otp);
+        if (confirmRes?.data?.code !== 0) {
+          throw new Error(confirmRes?.data?.message || 'Payment verification failed');
+        }
+        const confirmData = confirmRes.data.data;
+        // In Flask backend, when payment is successful it returns { success: true, license_key: key }
+        setSuccessResult({
+          success: true,
+          licenseKey: confirmData.license_key
+        });
+        setStep('success');
+      } else {
+        // Use Node.js payment server
+        const res = await fetch('/api/pay/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transaction_id: transactionId, otp }),
+        });
+        const confirmData = await res.json();
+        if (!res.ok) throw new Error(confirmData.error || 'Payment verification failed');
 
-      await triggerProvision();
+        await triggerProvision();
+      }
     } catch (err: any) {
       setError(err.message || 'Invalid verification code. Please try again.');
     } finally {

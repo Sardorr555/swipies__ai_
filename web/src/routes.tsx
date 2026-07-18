@@ -148,13 +148,13 @@ const routeConfigOptions = [
     layout: false,
   },
   {
-    path: '/checkout',
-    Component: () => import('@/pages/checkout'),
+    path: '/privacy-policy',
+    Component: () => import('@/pages/privacy-policy'),
     layout: false,
   },
   {
-    path: '/privacy-policy',
-    Component: () => import('@/pages/privacy-policy'),
+    path: '/checkout',
+    Component: () => import('@/pages/checkout'),
     layout: false,
   },
   {

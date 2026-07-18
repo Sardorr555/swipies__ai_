@@ -581,6 +581,42 @@ async def get_license():
     objs = list(SystemSettingsService.get_by_name("license.key"))
     raw_key = objs[0].value if objs and objs[0].value else ""
 
+    db_record = None
+    if raw_key:
+        from api.db.services.license_key_service import LicenseKeyService
+        lic_records = LicenseKeyService.query(license_key=raw_key)
+        if lic_records:
+            db_record = lic_records[0].to_dict()
+            from datetime import datetime
+            for key_field in ["expiry_date", "create_date", "update_date"]:
+                if db_record.get(key_field):
+                    val = db_record[key_field]
+                    if isinstance(val, datetime):
+                        db_record[key_field] = val.strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        db_record[key_field] = str(val)
+        elif payload:
+            import hashlib
+            expiry_str = payload.get("expiry", "")
+            activated_at = payload.get("activated_at", "")
+            if not activated_at:
+                # Use current datetime as fallback if not present in payload
+                from datetime import datetime
+                activated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            lic_type = str(payload.get("type", "yearly"))
+            duration = 12 if "year" in lic_type.lower() else 6 if "6" in lic_type else 1
+            
+            db_record = {
+                "id": "dec-" + hashlib.md5(raw_key.encode()).hexdigest()[:16],
+                "name": payload.get("owner", "Self-Hosted License"),
+                "amount": float(payload.get("amount", 500000.0 if duration == 12 else 300000.0)),
+                "duration_months": duration,
+                "expiry_date": expiry_str + " 23:59:59" if expiry_str else "",
+                "payment_id": payload.get("payment_id", "external-activation"),
+                "is_paid": True,
+                "status": "active",
+                "create_date": activated_at
+            }
     return get_json_result(data={
         "is_valid": is_valid,
         "message": msg,
