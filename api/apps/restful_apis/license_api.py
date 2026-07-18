@@ -74,8 +74,11 @@ class AtmosClient:
         payload = {
             "amount": int(amount_uzs * 100),  # Atmos amount is in tiyins
             "account": account,
-            "store_id": int(self.store_id)
+            "store_id": int(self.store_id),
+            "lang": "ru"
         }
+
+        LOGGER.info("[Atmos create_transaction] REQUEST: url=%s payload=%s", f"{self.base_url}/merchant/pay/create", payload)
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -83,9 +86,24 @@ class AtmosClient:
                 headers=headers,
                 json=payload
             )
-            response.raise_for_status()
             data = response.json()
-            return data.get("transaction_id") or data.get("id")
+            LOGGER.info("[Atmos create_transaction] RESPONSE: status=%s body=%s", response.status_code, data)
+
+            # Atmos may return HTTP 200 with application-level errors in result.code
+            result = data.get("result") or {}
+            result_code = result.get("code")
+            if result_code is not None and result_code != 1:
+                description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
+                raise ValueError(f"Atmos payment error: {description} (code={result_code})")
+
+            if not response.is_success:
+                response.raise_for_status()
+
+            tx_id = data.get("transaction_id") or data.get("id")
+            if not tx_id:
+                description = result.get("description") or "No transaction_id returned from Atmos"
+                raise ValueError(f"Atmos payment error: {description}")
+            return tx_id
 
     async def pre_apply(self, transaction_id: str, card_number: str, expiry: str):
         if self.is_mock:
@@ -103,14 +121,26 @@ class AtmosClient:
             "store_id": int(self.store_id)
         }
 
+        LOGGER.info("[Atmos pre_apply] REQUEST: payload=%s", payload)
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{self.base_url}/merchant/pay/pre-apply",
                 headers=headers,
                 json=payload
             )
-            response.raise_for_status()
-            return response.json()
+            data = response.json()
+            LOGGER.info("[Atmos pre_apply] RESPONSE: status=%s body=%s", response.status_code, data)
+
+            result = data.get("result") or {}
+            result_code = result.get("code")
+            if result_code is not None and result_code != 1:
+                description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
+                raise ValueError(f"Atmos pre-apply error: {description} (code={result_code})")
+
+            if not response.is_success:
+                response.raise_for_status()
+            return data
 
     async def apply(self, transaction_id: str, otp: str):
         if self.is_mock:
@@ -129,14 +159,26 @@ class AtmosClient:
             "store_id": int(self.store_id)
         }
 
+        LOGGER.info("[Atmos apply] REQUEST: payload=%s", payload)
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{self.base_url}/merchant/pay/apply",
                 headers=headers,
                 json=payload
             )
-            response.raise_for_status()
-            return response.json()
+            data = response.json()
+            LOGGER.info("[Atmos apply] RESPONSE: status=%s body=%s", response.status_code, data)
+
+            result = data.get("result") or {}
+            result_code = result.get("code")
+            if result_code is not None and result_code != 1:
+                description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
+                raise ValueError(f"Atmos apply error: {description} (code={result_code})")
+
+            if not response.is_success:
+                response.raise_for_status()
+            return data
 
 
 atmos_client = AtmosClient()
@@ -240,9 +282,12 @@ async def apply_license_pay():
             return get_json_result(data={"success": True, "license_key": lic_record.license_key})
 
         res = await atmos_client.apply(transaction_id, otp)
-        result_code = res.get("result", {}).get("code", "")
+        result_code = res.get("result", {}).get("code")
 
-        if result_code == "OK":
+        # Atmos prod returns code=1 for success; mock mode uses "OK"
+        is_success = result_code == 1 or result_code == "OK" or result_code == "1"
+
+        if is_success:
             # Payment successful! Generate actual RSA license key
             expiry_date = datetime.now() + timedelta(days=30 * lic_record.duration_months)
             expiry_str = expiry_date.strftime("%Y-%m-%d")
