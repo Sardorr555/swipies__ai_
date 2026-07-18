@@ -30,7 +30,7 @@ class AtmosClient:
         self.secret = os.getenv("ATMOS_SECRET", "bMH7gjat2EgI3fTXoLJX7CRUcbAa")
         self.store_id = os.getenv("ATMOS_STORE_ID", "100506")
         
-        default_url = "https://api.atmos.uz" if self.key == "TpLRLagJ1SXiZ0dT_om5BT_I3Nga" else "https://sandbox-api.atmos.uz"
+        default_url = "https://partner.atmos.uz"
         self.base_url = os.getenv("ATMOS_BASE_URL", default_url)
         
         # Check mock override
