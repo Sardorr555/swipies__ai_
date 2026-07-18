@@ -45,9 +45,10 @@ jobs:
             set -e
             if [ ! -d ~/swipies__ai_ ]; then
               echo "🚀 Директория ~/swipies__ai_ не найдена. Клонируем репозиторий..."
-              git clone -b licence_v https://github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_ || git clone -b licence_v git@github.com:Sardorr555/swipies__ai_.git ~/swipies__ai_
+              git clone -b licence_v https://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@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
             fi
             cd ~/swipies__ai_
+            git remote set-url origin https://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@github.com/Sardorr555/swipies__ai_.git || true
 
             echo "📥 Обновляем код..."
             git fetch origin licence_v
