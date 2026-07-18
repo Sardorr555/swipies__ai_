@@ -53,6 +53,22 @@ jobs:
               echo "🔄 Перезапускаем Atmos Payment Server..."
               cd "atmos payment system/server"
               npm install
+
+              echo "📝 Записываем production .env для Atmos Payment Server..."
+              cat > .env << 'ENVEOF'
+ATMOS_STORE_ID=100506
+ATMOS_KEY=TpLRLagJ1SXiZ0dT_om5BT_I3Nga
+ATMOS_SECRET=bMH7gjat2EgI3fTXoLJX7CRUcbAa
+ATMOS_BASE_URL=https://api.atmos.uz
+PORT=3001
+FRONTEND_URL=https://swipies.app
+ADMIN_PASSWORD=0czavZsPcYfroExMAdb
+RAGFLOW_BASE_URL=https://swipies.app
+RAGFLOW_ADMIN_EMAIL=your-admin@swipies.app
+RAGFLOW_ADMIN_PASSWORD=your-admin-password
+RAGFLOW_PUBLIC_KEY_PATH=./ragflow_public.pem
+ENVEOF
+
               pm2 restart all || pm2 restart index || pm2 restart server || true
               cd ~/swipies__ai_
             fi
