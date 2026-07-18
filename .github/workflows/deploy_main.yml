@@ -69,29 +69,29 @@ jobs:
             fi
 
             echo "🛑 Полностью останавливаем и удаляем старые бэкенд контейнеры..."
-            docker compose down --remove-orphans || true
-            docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb || true
+            sudo docker compose down --remove-orphans || true
+            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb || true
 
             echo "🐳 Собираем новые образы (с кэшированием для скорости)..."
-            docker compose build
+            sudo docker compose build
 
             echo "🚀 Запускаем..."
-            docker compose up -d --remove-orphans
+            sudo docker compose up -d --remove-orphans
 
             echo "⏳ Ждем запуска сервисов..."
             sleep 15
 
             echo "📊 Статус контейнеров:"
-            docker compose ps
+            sudo docker compose ps
 
             echo "🔑 Предоставляем права superuser всем зарегистрированным пользователям..."
-            docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" || true
-            docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "SELECT email, is_superuser FROM user;" || true
+            sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" || true
+            sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "SELECT email, is_superuser FROM user;" || true
 
             echo "📝 Логи сервисов:"
-            docker compose logs --tail=100
+            sudo docker compose logs --tail=100
 
             echo "🧹 Чистим старые образы..."
-            docker image prune -f
+            sudo docker image prune -f
 
             echo "✅ Ragflow обновлён!"
