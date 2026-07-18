@@ -94,6 +94,8 @@ class AtmosClient:
             result_code = result.get("code")
             if result_code is not None and result_code != 1:
                 description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
+                if result_code == 102 or str(result_code) == "102":
+                    description = "SMS gateway error (code 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
                 raise ValueError(f"Atmos payment error: {description} (code={result_code})")
 
             if not response.is_success:
@@ -136,6 +138,8 @@ class AtmosClient:
             result_code = result.get("code")
             if result_code is not None and result_code != 1:
                 description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
+                if result_code == 102 or str(result_code) == "102":
+                    description = "SMS gateway error (code 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
                 raise ValueError(f"Atmos pre-apply error: {description} (code={result_code})")
 
             if not response.is_success:
