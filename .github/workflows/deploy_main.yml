@@ -70,7 +70,7 @@ jobs:
 
             echo "🛑 Полностью останавливаем и удаляем старые бэкенд контейнеры..."
             sudo docker compose down --remove-orphans || true
-            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb || true
+            sudo docker ps -a -q --filter "name=swipies-" | xargs -r sudo docker rm -f || true
 
             echo "🐳 Собираем новые образы (с кэшированием для скорости)..."
             sudo docker compose build
