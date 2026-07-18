@@ -74,7 +74,7 @@ class AtmosClient:
         payload = {
             "amount": int(amount_uzs * 100),  # Atmos amount is in tiyins
             "account": account,
-            "store_id": str(self.store_id),
+            "store_id": int(self.store_id),
             "lang": "ru"
         }
 
@@ -117,10 +117,10 @@ class AtmosClient:
             "Content-Type": "application/json"
         }
         payload = {
-            "transaction_id": transaction_id,
+            "transaction_id": int(transaction_id) if isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit()) else transaction_id,
             "card_number": card_number,
             "expiry": expiry,
-            "store_id": str(self.store_id)
+            "store_id": int(self.store_id)
         }
 
         LOGGER.info("[Atmos pre_apply] REQUEST: payload=%s", payload)
@@ -158,9 +158,9 @@ class AtmosClient:
             "Content-Type": "application/json"
         }
         payload = {
-            "transaction_id": transaction_id,
+            "transaction_id": int(transaction_id) if isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit()) else transaction_id,
             "otp": otp,
-            "store_id": str(self.store_id)
+            "store_id": int(self.store_id)
         }
 
         LOGGER.info("[Atmos apply] REQUEST: payload=%s", payload)
