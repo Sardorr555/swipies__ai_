@@ -30,7 +30,7 @@ class AtmosClient:
         self.secret = os.getenv("ATMOS_SECRET", "bMH7gjat2EgI3fTXoLJX7CRUcbAa")
         self.store_id = os.getenv("ATMOS_STORE_ID", "100506")
         
-        default_url = "https://partner.atmos.uz"
+        default_url = "https://apigw.atmos.uz"
         self.base_url = os.getenv("ATMOS_BASE_URL", default_url)
         
         # Check mock override
@@ -74,7 +74,7 @@ class AtmosClient:
         payload = {
             "amount": int(amount_uzs * 100),  # Atmos amount is in tiyins
             "account": account,
-            "store_id": int(self.store_id),
+            "store_id": str(self.store_id),
             "lang": "ru"
         }
 
@@ -118,7 +118,7 @@ class AtmosClient:
             "transaction_id": transaction_id,
             "card_number": card_number,
             "expiry": expiry,
-            "store_id": int(self.store_id)
+            "store_id": str(self.store_id)
         }
 
         LOGGER.info("[Atmos pre_apply] REQUEST: payload=%s", payload)
@@ -156,7 +156,7 @@ class AtmosClient:
         payload = {
             "transaction_id": transaction_id,
             "otp": otp,
-            "store_id": int(self.store_id)
+            "store_id": str(self.store_id)
         }
 
         LOGGER.info("[Atmos apply] REQUEST: payload=%s", payload)

@@ -59,7 +59,7 @@ jobs:
 ATMOS_STORE_ID=100506
 ATMOS_KEY=TpLRLagJ1SXiZ0dT_om5BT_I3Nga
 ATMOS_SECRET=bMH7gjat2EgI3fTXoLJX7CRUcbAa
-ATMOS_BASE_URL=https://partner.atmos.uz
+ATMOS_BASE_URL=https://apigw.atmos.uz
 PORT=3001
 FRONTEND_URL=https://swipies.app
 ADMIN_PASSWORD=0czavZsPcYfroExMAdb
