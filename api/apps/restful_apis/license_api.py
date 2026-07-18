@@ -26,11 +26,19 @@ LOGGER = logging.getLogger(__name__)
 
 class AtmosClient:
     def __init__(self):
-        self.key = os.getenv("ATMOS_KEY", "")
-        self.secret = os.getenv("ATMOS_SECRET", "")
-        self.store_id = os.getenv("ATMOS_STORE_ID", "")
-        self.base_url = os.getenv("ATMOS_BASE_URL", "https://sandbox-api.atmos.uz")
-        self.is_mock = not (self.key and self.secret and self.store_id)
+        self.key = os.getenv("ATMOS_KEY", "TpLRLagJ1SXiZ0dT_om5BT_I3Nga")
+        self.secret = os.getenv("ATMOS_SECRET", "bMH7gjat2EgI3fTXoLJX7CRUcbAa")
+        self.store_id = os.getenv("ATMOS_STORE_ID", "100506")
+        
+        default_url = "https://api.atmos.uz" if self.key == "TpLRLagJ1SXiZ0dT_om5BT_I3Nga" else "https://sandbox-api.atmos.uz"
+        self.base_url = os.getenv("ATMOS_BASE_URL", default_url)
+        
+        # Check mock override
+        mock_env = os.getenv("ATMOS_MOCK", "").lower()
+        if mock_env in ("true", "1"):
+            self.is_mock = True
+        else:
+            self.is_mock = not (self.key and self.secret and self.store_id)
 
     async def get_token(self):
         if self.is_mock:
