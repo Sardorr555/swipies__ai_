@@ -4,7 +4,6 @@ name: Deploy Ragflow
 on:
   push:
     branches:
-      - swipies_26
       - licence_v
     paths:
       - '**'
@@ -30,20 +29,24 @@ jobs:
 
       - name: Replicate Secrets to Swipies_docs
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: "100.31.87.176"
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
         run: |
           python copy_secrets.py
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST || secrets.SSH_HOST }}
+          host: "100.31.87.176"
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
           command_timeout: 45m
           script: |
             set -e
+            if [ ! -d ~/swipies__ai_ ]; then
+              echo "🚀 Директория ~/swipies__ai_ не найдена. Клонируем репозиторий..."
+              git clone -b licence_v https://github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_ || git clone -b licence_v git@github.com:Sardorr555/swipies__ai_.git ~/swipies__ai_
+            fi
             cd ~/swipies__ai_
 
             echo "📥 Обновляем код..."
@@ -51,6 +54,15 @@ jobs:
             git reset --hard origin/licence_v
 
             cd docker
+
+            if ! grep -q "dh-mirror.gitverse.ru" /etc/docker/daemon.json 2>/dev/null; then
+              echo "⚙️ Настраиваем зеркало Docker Hub для обхода блокировок и 502 Bad Gateway..."
+              sudo mkdir -p /etc/docker
+              echo '{"registry-mirrors": ["https://dh-mirror.gitverse.ru", "https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
+              echo "🔄 Перезапускаем Docker..."
+              sudo systemctl daemon-reload
+              sudo systemctl restart docker || sudo service docker restart || true
+            fi
 
             echo "🛑 Полностью останавливаем и удаляем старые бэкенд контейнеры..."
             docker compose down --remove-orphans || true
@@ -67,6 +79,10 @@ jobs:
 
             echo "📊 Статус контейнеров:"
             docker compose ps
+
+            echo "🔑 Предоставляем права superuser всем зарегистрированным пользователям..."
+            docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" || true
+            docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "SELECT email, is_superuser FROM user;" || true
 
             echo "📝 Логи сервисов:"
             docker compose logs --tail=100
