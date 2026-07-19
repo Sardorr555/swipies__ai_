@@ -24,6 +24,19 @@ except ImportError:
 LOGGER = logging.getLogger(__name__)
 
 
+def normalize_expiry(expiry: str) -> str:
+    clean = "".join(c for c in str(expiry) if c.isdigit())
+    if len(clean) == 4:
+        try:
+            first_two = int(clean[:2])
+            last_two = int(clean[2:])
+            if first_two <= 12 and last_two > 12:
+                return clean[2:] + clean[:2]
+        except ValueError:
+            pass
+    return clean
+
+
 class AtmosClient:
     def __init__(self):
         self.key = os.getenv("ATMOS_KEY", "TpLRLagJ1SXiZ0dT_om5BT_I3Nga")
@@ -74,45 +87,38 @@ class AtmosClient:
         payload = {
             "amount": int(amount_uzs * 100),  # Atmos amount is in tiyins
             "account": account,
-            "store_id": int(self.store_id),
+            "store_id": str(self.store_id),
             "lang": "ru"
         }
 
         LOGGER.info("[Atmos create_transaction] REQUEST: url=%s payload=%s", f"{self.base_url}/merchant/pay/create", payload)
 
-        try:
-            import uuid
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.base_url}/merchant/pay/create",
-                    headers=headers,
-                    json=payload,
-                    timeout=10.0
-                )
-                data = response.json()
-                LOGGER.info("[Atmos create_transaction] RESPONSE: status=%s body=%s", response.status_code, data)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}/merchant/pay/create",
+                headers=headers,
+                json=payload
+            )
+            data = response.json()
+            LOGGER.info("[Atmos create_transaction] RESPONSE: status=%s body=%s", response.status_code, data)
 
-                # Atmos may return HTTP 200 with application-level errors in result.code
-                result = data.get("result") or {}
-                result_code = result.get("code")
-                if result_code is not None and result_code != 1:
-                    description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
-                    LOGGER.warning("[Atmos create_transaction] Atmos API returned error: %s (code=%s). Falling back to mock transaction.", description, result_code)
-                    return f"mock-tx-{uuid.uuid4().hex}"
+            # Atmos may return HTTP 200 with application-level errors in result.code
+            result = data.get("result") or {}
+            result_code = result.get("code")
+            if result_code is not None and result_code != 1:
+                description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
+                if result_code == 102 or str(result_code) == "102":
+                    description = "SMS gateway error (code 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
+                raise ValueError(f"Atmos payment error: {description} (code={result_code})")
 
-                if not response.is_success:
-                    LOGGER.warning("[Atmos create_transaction] HTTP error: %s. Falling back to mock transaction.", response.status_code)
-                    return f"mock-tx-{uuid.uuid4().hex}"
+            if not response.is_success:
+                response.raise_for_status()
 
-                tx_id = data.get("transaction_id") or data.get("id")
-                if not tx_id:
-                    LOGGER.warning("[Atmos create_transaction] No transaction_id returned. Falling back to mock transaction.")
-                    return f"mock-tx-{uuid.uuid4().hex}"
-                return tx_id
-        except Exception as e:
-            import uuid
-            LOGGER.warning("[Atmos create_transaction] Exception during transaction creation: %s. Falling back to mock transaction.", str(e))
-            return f"mock-tx-{uuid.uuid4().hex}"
+            tx_id = data.get("transaction_id") or data.get("id")
+            if not tx_id:
+                description = result.get("description") or "No transaction_id returned from Atmos"
+                raise ValueError(f"Atmos payment error: {description}")
+            return tx_id
 
     async def pre_apply(self, transaction_id: str, card_number: str, expiry: str):
         if self.is_mock or (transaction_id and str(transaction_id).startswith("mock-tx-")):
@@ -123,11 +129,12 @@ class AtmosClient:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
+        normalized_exp = normalize_expiry(expiry)
         payload = {
             "transaction_id": int(transaction_id) if isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit()) else transaction_id,
             "card_number": card_number,
-            "expiry": expiry,
-            "store_id": int(self.store_id)
+            "expiry": normalized_exp,
+            "store_id": str(self.store_id)
         }
 
         LOGGER.info("[Atmos pre_apply] REQUEST: payload=%s", payload)
@@ -167,7 +174,7 @@ class AtmosClient:
         payload = {
             "transaction_id": int(transaction_id) if isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit()) else transaction_id,
             "otp": otp,
-            "store_id": int(self.store_id)
+            "store_id": str(self.store_id)
         }
 
         LOGGER.info("[Atmos apply] REQUEST: payload=%s", payload)
