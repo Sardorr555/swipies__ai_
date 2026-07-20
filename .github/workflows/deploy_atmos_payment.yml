@@ -1,0 +1,88 @@
+name: Deploy Atmos Payment System
+
+on:
+  push:
+    branches:
+      - swipies_26
+    paths:
+      - 'atmos payment system/**'
+      - '.github/workflows/deploy_atmos_payment.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-payment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy Atmos Payment System to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST || secrets.SSH_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 15m
+          script: |
+            set -e
+            echo "=========================================="
+            echo "💳 DEPLOYING ATMOS PAYMENT SYSTEM"
+            echo "=========================================="
+
+            cd ~/swipies__ai_
+
+            echo "📥 Fetching latest code..."
+            git fetch origin swipies_26
+            git reset --hard origin/swipies_26
+
+            echo "📥 Updating Atmos Payment System Submodule..."
+            cd ~/swipies__ai_/"atmos payment system"
+            git checkout main || true
+            git pull origin main || true
+
+            cd ~/swipies__ai_/"atmos payment system/server"
+
+            echo "📦 Installing npm dependencies..."
+            npm install
+
+            echo "📝 Writing production .env configuration..."
+            cat > .env << 'ENVEOF'
+ATMOS_STORE_ID=100506
+ATMOS_KEY=TpLRLagJ1SXiZ0dT_om5BT_I3Nga
+ATMOS_SECRET=bMH7gjat2EgI3fTXoLJX7CRUcbAa
+ATMOS_BASE_URL=https://apigw.atmos.uz
+PORT=3001
+FRONTEND_URL=https://swipies.app
+ADMIN_PASSWORD=0czavZsPcYfroExMAdb
+RAGFLOW_BASE_URL=https://swipies.app
+RAGFLOW_ADMIN_EMAIL=your-admin@swipies.app
+RAGFLOW_ADMIN_PASSWORD=your-admin-password
+RAGFLOW_PUBLIC_KEY_PATH=./ragflow_public.pem
+ENVEOF
+
+            echo "🔌 Freeing port 3001 from hanging processes..."
+            sudo fuser -k 3001/tcp 2>/dev/null || true
+
+            # Load NVM and PM2 environment
+            export NVM_DIR="$HOME/.nvm"
+            if [ -s "$NVM_DIR/nvm.sh" ]; then
+              . "$NVM_DIR/nvm.sh"
+            fi
+            export PATH="$PATH:$HOME/.npm-global/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+
+            if ! command -v pm2 &> /dev/null; then
+              echo "⚙️ Installing PM2 globally..."
+              npm install -g pm2 || sudo npm install -g pm2 || true
+            fi
+
+            echo "🔄 Restarting Atmos Payment service in PM2..."
+            pm2 delete atmos-payment 2>/dev/null || true
+            pm2 start index.js --name "atmos-payment" --update-env
+            pm2 save || true
+
+            echo "⏳ Checking health status..."
+            sleep 2
+            curl -s http://localhost:3001/api/health || true
+
+            echo "✅ Atmos Payment System deployment completed successfully!"
