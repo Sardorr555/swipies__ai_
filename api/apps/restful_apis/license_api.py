@@ -103,13 +103,14 @@ class AtmosClient:
             LOGGER.info("[Atmos create_transaction] RESPONSE: status=%s body=%s", response.status_code, data)
 
             # Atmos may return HTTP 200 with application-level errors in result.code
+            hint = data.get("hint")
             result = data.get("result") or {}
             result_code = result.get("code")
-            if result_code is not None and result_code != 1:
-                description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
-                if result_code == 102 or str(result_code) == "102":
-                    description = "SMS gateway error (code 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
-                raise ValueError(f"Atmos payment error: {description} (code={result_code})")
+            if (result_code is not None and result_code != 1) or hint == 102 or str(hint) == "102":
+                description = result.get("description") or result.get("message") or f"Atmos error code {result_code or hint}"
+                if result_code == 102 or str(result_code) == "102" or hint == 102 or str(hint) == "102":
+                    description = "SMS gateway error (code/hint 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
+                raise ValueError(f"Atmos payment error: {description} (code={result_code or hint})")
 
             if not response.is_success:
                 response.raise_for_status()
@@ -148,13 +149,14 @@ class AtmosClient:
             data = response.json()
             LOGGER.info("[Atmos pre_apply] RESPONSE: status=%s body=%s", response.status_code, data)
 
+            hint = data.get("hint")
             result = data.get("result") or {}
             result_code = result.get("code")
-            if result_code is not None and result_code != 1:
-                description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
-                if result_code == 102 or str(result_code) == "102":
-                    description = "SMS gateway error (code 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
-                raise ValueError(f"Atmos pre-apply error: {description} (code={result_code})")
+            if (result_code is not None and result_code != 1) or hint == 102 or str(hint) == "102":
+                description = result.get("description") or result.get("message") or f"Atmos error code {result_code or hint}"
+                if result_code == 102 or str(result_code) == "102" or hint == 102 or str(hint) == "102":
+                    description = "SMS gateway error (code/hint 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
+                raise ValueError(f"Atmos pre-apply error: {description} (code={result_code or hint})")
 
             if not response.is_success:
                 response.raise_for_status()

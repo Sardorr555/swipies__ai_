@@ -55,15 +55,19 @@ jobs:
             if [ -s "$NVM_DIR/nvm.sh" ]; then
               . "$NVM_DIR/nvm.sh"
             fi
-            export PATH="$PATH:$HOME/.npm-global/bin:$HOME/.config/yarn/global/node_modules/.bin"
+            export PATH="$PATH:$HOME/.npm-global/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
 
-            if command -v pm2 &> /dev/null; then
-              echo "🔄 Перезапускаем Atmos Payment Server..."
-              cd "atmos payment system/server"
-              npm install
+            if ! command -v pm2 &> /dev/null; then
+              echo "⚙️ Устанавливаем PM2 глобально..."
+              npm install -g pm2 || sudo npm install -g pm2 || true
+            fi
 
-              echo "📝 Записываем production .env для Atmos Payment Server..."
-              cat > .env << 'ENVEOF'
+            echo "🔄 Настраиваем и перезапускаем Atmos Payment Server в PM2..."
+            cd "atmos payment system/server"
+            npm install
+
+            echo "📝 Записываем production .env для Atmos Payment Server..."
+            cat > .env << 'ENVEOF'
 ATMOS_STORE_ID=100506
 ATMOS_KEY=TpLRLagJ1SXiZ0dT_om5BT_I3Nga
 ATMOS_SECRET=bMH7gjat2EgI3fTXoLJX7CRUcbAa
@@ -77,9 +81,10 @@ RAGFLOW_ADMIN_PASSWORD=your-admin-password
 RAGFLOW_PUBLIC_KEY_PATH=./ragflow_public.pem
 ENVEOF
 
-              pm2 restart all || pm2 restart index || pm2 restart server || pm2 start index.js --name "atmos-payment" || true
-              cd ~/swipies__ai_
-            fi
+            pm2 delete atmos-payment 2>/dev/null || true
+            pm2 start index.js --name "atmos-payment" --update-env
+            pm2 save || true
+            cd ~/swipies__ai_
 
             cd docker
 
