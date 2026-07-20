@@ -46,11 +46,11 @@ export function Header({
   const currentPlan = (tenantInfo?.plan_type || 'free').toLowerCase();
 
   const upgradeLabel = useMemo(() => {
-    if (currentPlan === 'plus') return 'Plus';
-    if (currentPlan === 'pro') return 'Pro';
-    if (currentPlan === 'license') return 'License';
-    if (currentPlan === 'enterprise') return 'Enterprise';
-    return 'Upgrade';
+    if (currentPlan.includes('plus')) return 'Plus Plan';
+    if (currentPlan.includes('pro')) return 'Pro Plan';
+    if (currentPlan.includes('license')) return 'License';
+    if (currentPlan.includes('enterprise')) return 'Enterprise';
+    return 'Upgrade to Pro';
   }, [currentPlan]);
 
   const hasNotification = useMemo(

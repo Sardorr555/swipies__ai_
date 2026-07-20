@@ -14,6 +14,9 @@ import {
   ShieldCheck,
   Users,
   Zap,
+  Check,
+  Sparkles,
+  Key,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -30,7 +33,10 @@ const pricingTranslations: Record<string, any> = {
     lifetimeAccess: 'Lifetime Access',
     upgradeButton: 'Change Plan / Upgrade',
     pricingRedirectTip: 'Want to view other pricing options or billing details? Go to the Pricing page.',
-    featuresInclude: 'What is included in your plan:',
+    featuresInclude: 'What is included in your current plan:',
+    allPlansTitle: 'Available Subscription Plans & Features',
+    currentPlanBadge: 'Current Plan',
+    selectPlan: 'Upgrade / Select',
     statusActive: 'Active',
     resources: {
       storage: 'Dataset Storage',
@@ -72,7 +78,10 @@ const pricingTranslations: Record<string, any> = {
     lifetimeAccess: 'Бессрочный доступ',
     upgradeButton: 'Изменить тариф / Обновить',
     pricingRedirectTip: 'Хотите посмотреть другие тарифы или детали оплаты? Перейдите на страницу тарифов.',
-    featuresInclude: 'Что входит в ваш тариф:',
+    featuresInclude: 'Что входит в ваш текущий тариф:',
+    allPlansTitle: 'Все доступные тарифные планы и их возможности:',
+    currentPlanBadge: 'Текущий тариф',
+    selectPlan: 'Перейти / Выбрать',
     statusActive: 'Активен',
     resources: {
       storage: 'Хранилище данных',
@@ -114,7 +123,10 @@ const pricingTranslations: Record<string, any> = {
     lifetimeAccess: 'Cheksiz Kirish',
     upgradeButton: 'Tarifni Oʻzgartirish / Yangilash',
     pricingRedirectTip: 'Boshqa tariflar yoki toʻlov tafsilotlarini koʻrmoqchimisiz? Tariflar sahifasiga oʻting.',
-    featuresInclude: 'Tarifingizga quyidagilar kiradi:',
+    featuresInclude: 'Joriy tarifingizga quyidagilar kiradi:',
+    allPlansTitle: 'Barcha obuna tariflari va ularning imkoniyatlari:',
+    currentPlanBadge: 'Joriy Tarif',
+    selectPlan: 'Tanlash / Oʻtish',
     statusActive: 'Faol',
     resources: {
       storage: 'Dataset xotirasi',
@@ -147,49 +159,74 @@ const pricingTranslations: Record<string, any> = {
       },
     },
   },
-  zh: {
-    title: '订阅与计费',
-    subtitle: '管理您的订阅计划，查看资源使用额度及信用点余额。',
-    activePlan: '当前计划',
-    creditBalance: '信用额度余额',
-    expiryDate: '到期时间',
-    lifetimeAccess: '永久有效',
-    upgradeButton: '更改计划 / 升级',
-    pricingRedirectTip: '想要查看其他定价方案或账单详情？请前往定价页面。',
-    featuresInclude: '您的计划包含以下权益：',
-    statusActive: '生效中',
-    resources: {
-      storage: '知识库存储空间',
-      apps: '智能体及聊天应用数',
-      team: '团队成员数',
-      credits: '每月信用额度',
-    },
-    unlimited: '无限制',
-    selfHostedUnlimited: '本地部署（无限制）',
-    planDetails: {
-      free: {
-        name: '免费版 / 试用',
-        description: '个人使用与功能试用',
-      },
-      plus: {
-        name: 'Plus 计划',
-        description: '适合活跃的个人用户',
-      },
-      pro: {
-        name: 'Pro 计划',
-        description: '适合专业人士与小型团队',
-      },
-      license: {
-        name: '企业授权版 (Self-Hosted)',
-        description: '在您自己的基础设施上部署和运行 Swipies',
-      },
-      enterprise: {
-        name: '企业定制版',
-        description: '为大中型组织量身定制的专属方案',
-      },
-    },
-  },
 };
+
+const ALL_PLAN_CARDS = [
+  {
+    key: 'free',
+    name: 'Free / Trial',
+    price: 'Free',
+    storage: '50 MB',
+    apps: '3 Apps',
+    team: '1 Member',
+    credits: '100 Credits/mo',
+    features: [
+      '3 Agents & Chat Apps',
+      '50 MB Dataset storage',
+      '1 Team member',
+      'Basic model support',
+    ],
+  },
+  {
+    key: 'plus',
+    name: 'Plus Plan',
+    price: '199,000 UZS / mo',
+    storage: '5 GB',
+    apps: '50 Apps',
+    team: '5 Members',
+    credits: '5,000 Credits/mo',
+    features: [
+      '50 Agents & Chat Apps',
+      '5 GB Dataset storage',
+      '5 Team members',
+      '5,000 Credits / month',
+      'Fast processing priority',
+    ],
+  },
+  {
+    key: 'pro',
+    name: 'Pro Plan',
+    price: '400,000 UZS / mo',
+    storage: '15 GB',
+    apps: 'Unlimited Apps',
+    team: '15 Members',
+    credits: '10,000 Credits/mo',
+    popular: true,
+    features: [
+      'Unlimited Agents & Chat Apps',
+      '15 GB Dataset storage',
+      '15 Team members',
+      '10,000 Credits / month',
+      'Priority GPU execution & support',
+    ],
+  },
+  {
+    key: 'license',
+    name: 'Self-Hosted License',
+    price: 'Custom / 6–12 months',
+    storage: 'Unlimited (Local)',
+    apps: 'Unlimited Apps',
+    team: 'Unlimited Members',
+    credits: 'Unlimited',
+    features: [
+      'Self-hosted Docker/k8s deployment',
+      'Activated via License Key',
+      'Unlimited Dataset storage & team',
+      'GPU & Vector DB acceleration',
+      'Offline / Air-gapped environment',
+    ],
+  },
+];
 
 const SubscriptionPage = () => {
   const { i18n } = useTranslation();
@@ -252,8 +289,12 @@ const SubscriptionPage = () => {
 
   const limits = getResourceLimits();
 
-  const handleUpgradeRedirect = () => {
-    navigate(Routes.Pricing);
+  const handleUpgradeRedirect = (targetPlan?: string) => {
+    if (targetPlan === 'license') {
+      navigate('/user-setting/license');
+    } else {
+      navigate(Routes.Pricing);
+    }
   };
 
   return (
@@ -272,7 +313,7 @@ const SubscriptionPage = () => {
     >
       <Spotlight />
 
-      <div className="h-full overflow-x-hidden overflow-y-auto space-y-6 pb-8 pr-1">
+      <div className="h-full overflow-x-hidden overflow-y-auto space-y-8 pb-12 pr-1">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-2">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-solid border-accent-primary border-r-transparent"></div>
@@ -281,23 +322,22 @@ const SubscriptionPage = () => {
         ) : (
           <>
             {/* Active Plan Detail Hero Card */}
-            <Card className="border border-border-default bg-bg-component/40 backdrop-blur-md overflow-hidden relative">
+            <Card className="border border-border-default bg-bg-component/40 backdrop-blur-md overflow-hidden relative shadow-md">
               <div className="absolute top-0 right-0 p-6 opacity-[0.03] pointer-events-none">
                 <ShieldCheck size={180} />
               </div>
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-accent-primary bg-accent-primary/10 px-2.5 py-1 rounded-full">
-                    {tLocal.activePlan}
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/20 inline-flex items-center gap-1.5">
+                    <CheckCircle size={14} /> {tLocal.activePlan}
                   </span>
-                  <h3 className="text-2xl font-extrabold text-text-primary mt-2 flex items-center gap-2">
+                  <h3 className="text-3xl font-extrabold text-text-primary mt-3 flex items-center gap-2">
                     {planInfo.name}
-                    <CheckCircle className="text-emerald-500 shrink-0" size={20} />
                   </h3>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-text-secondary">{tLocal.creditBalance}</span>
-                  <div className="text-2xl font-extrabold text-text-primary">
+                  <span className="text-xs text-text-secondary font-medium">{tLocal.creditBalance}</span>
+                  <div className="text-3xl font-extrabold text-accent-primary mt-0.5">
                     {tenantInfo?.credit !== undefined ? tenantInfo.credit.toLocaleString() : '0'}
                   </div>
                 </div>
@@ -320,104 +360,187 @@ const SubscriptionPage = () => {
                     </span>
                   </div>
 
-                  {planKey !== 'license' && (
-                    <Button
-                      onClick={handleUpgradeRedirect}
-                      className="bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center gap-2 px-5 py-2 font-medium transition-all duration-200"
-                    >
-                      {tLocal.upgradeButton}
-                      <ArrowUpRight size={16} />
-                    </Button>
-                  )}
+                  <Button
+                    onClick={() => handleUpgradeRedirect()}
+                    className="bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center gap-2 px-5 py-2.5 font-bold transition-all duration-200 shadow-md shadow-accent-primary/20"
+                  >
+                    {tLocal.upgradeButton}
+                    <ArrowUpRight size={16} />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
 
             {/* Plan Features / Resource Limits Title */}
-            <h4 className="text-lg font-bold tracking-tight text-text-primary pt-2">
-              {tLocal.featuresInclude}
-            </h4>
+            <div className="space-y-4">
+              <h4 className="text-lg font-bold tracking-tight text-text-primary">
+                {tLocal.featuresInclude}
+              </h4>
 
-            {/* Resource Limit cards grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Card 1: Storage Limit */}
-              <Card className="border border-border-default bg-bg-component/25 backdrop-blur-sm transition-all duration-300 hover:border-accent-primary/45">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                      {tLocal.resources.storage}
-                    </p>
-                    <p className="text-2xl font-extrabold text-text-primary tracking-tight">
-                      {limits.storage}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
-                    <HardDrive size={22} />
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Resource Limit cards grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Card 1: Storage Limit */}
+                <Card className="border border-border-default bg-bg-component/25 backdrop-blur-sm transition-all duration-300 hover:border-accent-primary/45">
+                  <CardContent className="p-5 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                        {tLocal.resources.storage}
+                      </p>
+                      <p className="text-2xl font-extrabold text-text-primary tracking-tight">
+                        {limits.storage}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
+                      <HardDrive size={22} />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Card 2: Agent/App Limit */}
-              <Card className="border border-border-default bg-bg-component/25 backdrop-blur-sm transition-all duration-300 hover:border-accent-primary/45">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                      {tLocal.resources.apps}
-                    </p>
-                    <p className="text-2xl font-extrabold text-text-primary tracking-tight">
-                      {limits.apps}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
-                    <Cpu size={22} />
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Card 2: Agent/App Limit */}
+                <Card className="border border-border-default bg-bg-component/25 backdrop-blur-sm transition-all duration-300 hover:border-accent-primary/45">
+                  <CardContent className="p-5 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                        {tLocal.resources.apps}
+                      </p>
+                      <p className="text-2xl font-extrabold text-text-primary tracking-tight">
+                        {limits.apps}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
+                      <Cpu size={22} />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Card 3: Team Limit */}
-              <Card className="border border-border-default bg-bg-component/25 backdrop-blur-sm transition-all duration-300 hover:border-accent-primary/45">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                      {tLocal.resources.team}
-                    </p>
-                    <p className="text-2xl font-extrabold text-text-primary tracking-tight">
-                      {limits.team}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
-                    <Users size={22} />
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Card 3: Team Limit */}
+                <Card className="border border-border-default bg-bg-component/25 backdrop-blur-sm transition-all duration-300 hover:border-accent-primary/45">
+                  <CardContent className="p-5 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                        {tLocal.resources.team}
+                      </p>
+                      <p className="text-2xl font-extrabold text-text-primary tracking-tight">
+                        {limits.team}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
+                      <Users size={22} />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Card 4: Credits/month */}
-              <Card className="border border-border-default bg-bg-component/25 backdrop-blur-sm transition-all duration-300 hover:border-accent-primary/45">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                      {tLocal.resources.credits}
-                    </p>
-                    <p className="text-2xl font-extrabold text-text-primary tracking-tight">
-                      {limits.credits}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
-                    <Zap size={22} />
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Card 4: Credits/month */}
+                <Card className="border border-border-default bg-bg-component/25 backdrop-blur-sm transition-all duration-300 hover:border-accent-primary/45">
+                  <CardContent className="p-5 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                        {tLocal.resources.credits}
+                      </p>
+                      <p className="text-2xl font-extrabold text-text-primary tracking-tight">
+                        {limits.credits}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
+                      <Zap size={22} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            <hr className="border-border-default/60 my-6" />
+
+            {/* SECTION: ALL SUBSCRIPTION PLANS COMPARISON */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xl font-bold tracking-tight text-text-primary flex items-center gap-2">
+                    <Sparkles className="text-accent-primary" size={22} />
+                    {tLocal.allPlansTitle}
+                  </h4>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Compare features across all Swipies AI subscription tiers.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
+                {ALL_PLAN_CARDS.map((card) => {
+                  const isCurrent = planKey === card.key;
+
+                  return (
+                    <div
+                      key={card.key}
+                      className={`rounded-2xl border p-5 flex flex-col justify-between transition-all relative ${
+                        isCurrent
+                          ? 'border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/30'
+                          : card.popular
+                          ? 'border-accent-primary bg-accent-primary/5 ring-1 ring-accent-primary/30'
+                          : 'border-border-default bg-bg-card/20 hover:border-accent-primary/40'
+                      }`}
+                    >
+                      {card.popular && !isCurrent && (
+                        <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent-primary text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm uppercase tracking-wider">
+                          Most Popular
+                        </span>
+                      )}
+
+                      <div className="space-y-4">
+                        <div>
+                          <h5 className="font-extrabold text-base text-text-primary">{card.name}</h5>
+                          <div className="text-lg font-bold text-accent-primary mt-1">{card.price}</div>
+                        </div>
+
+                        <ul className="space-y-2 border-t border-border-default/50 pt-3">
+                          {card.features.map((feat, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-xs text-text-secondary">
+                              <Check size={14} className="text-emerald-400 shrink-0 mt-0.5" />
+                              <span>{feat}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="pt-6 mt-auto">
+                        {isCurrent ? (
+                          <div className="w-full bg-emerald-500/20 text-emerald-400 font-bold py-2 rounded-xl text-xs text-center border border-emerald-500/30 flex items-center justify-center gap-1.5">
+                            <CheckCircle size={14} />
+                            {tLocal.currentPlanBadge}
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => handleUpgradeRedirect(card.key)}
+                            variant={card.popular ? 'default' : 'outline'}
+                            className={`w-full text-xs font-bold py-2 rounded-xl ${
+                              card.popular
+                                ? 'bg-accent-primary hover:bg-accent-primary/90 text-white'
+                                : 'border-border-default text-text-primary hover:border-accent-primary/50'
+                            }`}
+                          >
+                            {card.key === 'license' ? (
+                              <span className="flex items-center gap-1.5">
+                                <Key size={14} /> License Keys
+                              </span>
+                            ) : (
+                              tLocal.selectPlan
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Extra information banner */}
-            {planKey !== 'license' && (
-              <div className="p-4 rounded-xl border border-accent-primary/20 bg-accent-primary/5 flex items-start gap-3 mt-6">
-                <HelpCircle className="text-accent-primary shrink-0 mt-0.5" size={18} />
-                <p className="text-xs text-text-secondary leading-relaxed">
-                  {tLocal.pricingRedirectTip}
-                </p>
-              </div>
-            )}
+            <div className="p-4 rounded-xl border border-accent-primary/20 bg-accent-primary/5 flex items-start gap-3 mt-6">
+              <HelpCircle className="text-accent-primary shrink-0 mt-0.5" size={18} />
+              <p className="text-xs text-text-secondary leading-relaxed">
+                {tLocal.pricingRedirectTip}
+              </p>
+            </div>
           </>
         )}
       </div>
