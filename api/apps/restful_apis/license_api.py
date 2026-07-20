@@ -102,12 +102,17 @@ class AtmosClient:
             data = response.json()
             LOGGER.info("[Atmos create_transaction] RESPONSE: status=%s body=%s", response.status_code, data)
 
-            # Atmos may return HTTP 200 with application-level errors in result.code
+            # Atmos returns result.code as "OK", 1, "1", 0, or "0" on success
             hint = data.get("hint")
             result = data.get("result") or {}
             result_code = result.get("code")
-            if (result_code is not None and result_code != 1) or hint == 102 or str(hint) == "102":
-                description = result.get("description") or result.get("message") or f"Atmos error code {result_code or hint}"
+            is_success = (
+                result_code in ("OK", 1, "1", 0, "0") or 
+                (result_code is None and data.get("transaction_id"))
+            ) and hint != 102 and str(hint) != "102"
+
+            if not is_success:
+                description = result.get("description") or result.get("message") or data.get("message") or f"Atmos error code {result_code or hint}"
                 if result_code == 102 or str(result_code) == "102" or hint == 102 or str(hint) == "102":
                     description = "SMS gateway error (code/hint 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
                 raise ValueError(f"Atmos payment error: {description} (code={result_code or hint})")
@@ -152,8 +157,13 @@ class AtmosClient:
             hint = data.get("hint")
             result = data.get("result") or {}
             result_code = result.get("code")
-            if (result_code is not None and result_code != 1) or hint == 102 or str(hint) == "102":
-                description = result.get("description") or result.get("message") or f"Atmos error code {result_code or hint}"
+            is_success = (
+                result_code in ("OK", 1, "1", 0, "0") or 
+                (result_code is None and data.get("status") == "waiting_otp")
+            ) and hint != 102 and str(hint) != "102"
+
+            if not is_success:
+                description = result.get("description") or result.get("message") or data.get("message") or f"Atmos error code {result_code or hint}"
                 if result_code == 102 or str(result_code) == "102" or hint == 102 or str(hint) == "102":
                     description = "SMS gateway error (code/hint 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
                 raise ValueError(f"Atmos pre-apply error: {description} (code={result_code or hint})")
@@ -165,7 +175,7 @@ class AtmosClient:
     async def apply(self, transaction_id: str, otp: str):
         if self.is_mock or (transaction_id and str(transaction_id).startswith("mock-tx-")):
             if otp and len(otp) == 6:
-                return {"result": {"code": 1}}
+                return {"result": {"code": "OK"}}
             return {"result": {"code": "ERROR", "description": "Invalid OTP. Use 6 digits in sandbox."}}
 
         token = await self.get_token()
@@ -192,8 +202,10 @@ class AtmosClient:
 
             result = data.get("result") or {}
             result_code = result.get("code")
-            if result_code is not None and result_code != 1:
-                description = result.get("description") or result.get("message") or f"Atmos error code {result_code}"
+            is_success = result_code in ("OK", 1, "1", 0, "0")
+
+            if not is_success:
+                description = result.get("description") or result.get("message") or data.get("message") or f"Atmos error code {result_code}"
                 raise ValueError(f"Atmos apply error: {description} (code={result_code})")
 
             if not response.is_success:
