@@ -39,6 +39,7 @@ from api.utils.reference_metadata_utils import (
     enrich_chunks_with_document_metadata,
     resolve_reference_metadata_preferences,
 )
+from api.utils.sensitive_data_replacer import SensitiveDataReplacer
 from api.db.joint_services.tenant_model_service import get_tenant_default_model_by_type, get_model_config_from_provider_instance, get_model_type_by_name
 from common.time_utils import current_timestamp, datetime_format
 from common.text_utils import normalize_arabic_digits
@@ -311,11 +312,19 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
         attachments = "\n\n".join(text_attachments)
 
     prompt_config = dialog.prompt_config
+    sensitive_config = prompt_config.get("sensitive_data_replacement") or {}
+    sensitive_rules = sensitive_config.get("rules", []) if sensitive_config.get("enabled") else []
+
     tts_mdl = None
     if prompt_config.get("tts"):
         default_tts_model = get_tenant_default_model_by_type(dialog.tenant_id, LLMType.TTS)
         tts_mdl = LLMBundle(dialog.tenant_id, default_tts_model, trace_context=chat_mdl.trace_context, langfuse_session_id=session_id)
     msg = [{"role": m["role"], "content": re.sub(r"##\d+\$\$", "", m["content"])} for m in messages if m["role"] != "system"]
+    if sensitive_rules:
+        for m in msg:
+            if m.get("role") == "user" and isinstance(m.get("content"), str):
+                m["content"] = SensitiveDataReplacer.apply_forward(m["content"], sensitive_rules)
+
     if attachments and msg:
         msg[-1]["content"] += attachments
     if model_config["model_type"] == "chat" and image_attachments:
@@ -330,15 +339,17 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
                 flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
                 yield {"answer": "", "reference": {}, "audio_binary": None, "prompt": "", "created_at": time.time(), "final": False, **flags}
                 continue
-            yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "prompt": "", "created_at": time.time(), "final": False}
+            clean_value = SensitiveDataReplacer.apply_reverse(value, sensitive_rules) if sensitive_rules else value
+            yield {"answer": clean_value, "reference": {}, "audio_binary": tts(tts_mdl, clean_value), "prompt": "", "created_at": time.time(), "final": False}
     else:
         if model_config["model_type"] == "chat":
             answer = await chat_mdl.async_chat(prompt_config.get("system", ""), msg, dialog.llm_setting)
         else:
             answer = await chat_mdl.async_chat(prompt_config.get("system", ""), msg, dialog.llm_setting, images=image_files)
+        clean_answer = SensitiveDataReplacer.apply_reverse(answer, sensitive_rules) if sensitive_rules else answer
         user_content = msg[-1].get("content", "[content not available]")
-        logging.debug("User: {}|Assistant: {}".format(user_content, answer))
-        yield {"answer": answer, "reference": {}, "audio_binary": tts(tts_mdl, answer), "prompt": "", "created_at": time.time()}
+        logging.debug("User: {}|Assistant: {}".format(user_content, clean_answer))
+        yield {"answer": clean_answer, "reference": {}, "audio_binary": tts(tts_mdl, clean_answer), "prompt": "", "created_at": time.time()}
 
 
 def get_models(dialog, trace_context=None, langfuse_session_id=None):
@@ -589,6 +600,15 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     if toolcall_session and tools:
         chat_mdl.bind_tools(toolcall_session, tools)
     bind_models_ts = timer()
+
+    prompt_config = dialog.prompt_config
+    sensitive_config = prompt_config.get("sensitive_data_replacement") or {}
+    sensitive_rules = sensitive_config.get("rules", []) if sensitive_config.get("enabled") else []
+
+    if sensitive_rules:
+        for m in messages:
+            if m.get("role") == "user" and isinstance(m.get("content"), str):
+                m["content"] = SensitiveDataReplacer.apply_forward(m["content"], sensitive_rules)
 
     retriever = settings.retriever
     questions = [m["content"] for m in messages if m["role"] == "user"][-3:]
@@ -879,7 +899,8 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
             )
             langfuse_generation.end()
 
-        return {"answer": think + answer, "reference": refs, "prompt": re.sub(r"\n", "  \n", prompt), "created_at": time.time()}
+        final_ans = SensitiveDataReplacer.apply_reverse(think + answer, sensitive_rules) if sensitive_rules else think + answer
+        return {"answer": final_ans, "reference": refs, "prompt": re.sub(r"\n", "  \n", prompt), "created_at": time.time()}
 
     if langfuse_tracer:
         try:
@@ -912,7 +933,8 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
                 flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
                 yield {"answer": "", "reference": {}, "audio_binary": None, "final": False, **flags}
                 continue
-            yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "final": False}
+            clean_value = SensitiveDataReplacer.apply_reverse(value, sensitive_rules) if sensitive_rules else value
+            yield {"answer": clean_value, "reference": {}, "audio_binary": tts(tts_mdl, clean_value), "final": False}
         full_answer = last_state.full_text if last_state else ""
         if full_answer:
             final = await decorate_answer(_extract_visible_answer(thought + full_answer))

@@ -42,6 +42,22 @@ export function useChatSettingSchema() {
         fields: z.array(z.string()).optional(),
       })
       .optional(),
+    sensitive_data_replacement: z
+      .object({
+        enabled: z.boolean().optional(),
+        rules: z
+          .array(
+            z.object({
+              id: z.string(),
+              search_value: z.string(),
+              replace_value: z.string(),
+              case_sensitive: z.boolean().optional(),
+              is_regex: z.boolean().optional(),
+            }),
+          )
+          .optional(),
+      })
+      .optional(),
   });
 
   const formSchema = z.object({

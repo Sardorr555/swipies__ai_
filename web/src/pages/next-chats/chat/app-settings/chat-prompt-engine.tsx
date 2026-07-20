@@ -25,8 +25,8 @@ import { prefixName } from '@/utils/form';
 import { getDirAttribute } from '@/utils/text-direction';
 import { useEffect, useMemo } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
 import { DynamicVariableForm } from './dynamic-variable';
+import { SensitiveDataReplacementFormField } from '@/components/sensitive-data-replacement-form-field';
 
 interface ChatPromptEngineProps {
   prefix?: string;
@@ -231,6 +231,7 @@ export function ChatPromptEngine({ prefix = '' }: ChatPromptEngineProps) {
         <DynamicVariableForm
           name={prefixName(prefix, 'prompt_config.parameters')}
         ></DynamicVariableForm>
+        <SensitiveDataReplacementFormField prefix={prefix} />
       </div>
     </Collapse>
   );
