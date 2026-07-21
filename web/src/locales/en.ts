@@ -1042,6 +1042,7 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
       operation: 'Operation',
       sensitiveDataReplacement: 'Sensitive Data Replacement',
       sensitiveDataReplacementTip: 'Automatically anonymize sensitive data before sending queries to LLM.',
+      sensitiveDataStorageWarning: 'The information you enter is stored on our servers. By enabling this toggle, you agree to this.',
       anonymizationRules: 'Replacement Rules',
       noSensitiveRules: 'No rules added yet. Click "Add Rule" to create one.',
       searchValue: 'Search Value',

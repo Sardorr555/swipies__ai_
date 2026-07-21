@@ -150,6 +150,9 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
               <p className="text-xs text-muted-foreground">
                 {t('chat.sensitiveDataReplacementTip', 'Automatically anonymize user data before sending queries to LLM.')}
               </p>
+              <p className="text-[10px] text-yellow-600 dark:text-yellow-500 font-medium">
+                {t('chat.sensitiveDataStorageWarning', 'The information you enter is stored on our servers. By enabling this toggle, you agree to this.')}
+              </p>
             </div>
             <FormControl>
               <Switch
@@ -163,11 +166,11 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
 
       {isEnabled && (
         <div className="space-y-3 pt-2">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               {t('chat.anonymizationRules', 'Replacement Rules')}
             </span>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"

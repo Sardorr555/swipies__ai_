@@ -849,6 +849,7 @@ export default {
       operation: 'Операция',
       sensitiveDataReplacement: 'Замена конфиденциальных данных',
       sensitiveDataReplacementTip: 'Автоматически заменяет персональные и конфиденциальные данные перед отправкой в LLM.',
+      sensitiveDataStorageWarning: 'Вводимая вами информация сохраняется у нас. Включая этот переключатель, вы соглашаетесь с этим.',
       anonymizationRules: 'Правила замены',
       noSensitiveRules: 'Правила еще не добавлены. Нажмите "Добавить правило", чтобы создать новое.',
       searchValue: 'Что искать',
