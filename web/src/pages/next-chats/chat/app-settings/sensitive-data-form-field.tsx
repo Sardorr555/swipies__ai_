@@ -101,8 +101,8 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
           if (Array.isArray(parsed)) {
             importedRules = parsed.map((item, idx) => ({
               id: item.id || `${Date.now()}_${idx}`,
-              search: item.search || '',
-              replace: item.replace || '',
+              search: item.search !== undefined && item.search !== null ? String(item.search) : '',
+              replace: item.replace !== undefined && item.replace !== null ? String(item.replace) : '',
               case_sensitive: Boolean(item.case_sensitive),
               is_regex: Boolean(item.is_regex),
             }));
@@ -115,8 +115,8 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
               const parts = line.split(',');
               return {
                 id: `${Date.now()}_${idx}`,
-                search: parts[0]?.trim() || '',
-                replace: parts[1]?.trim() || '',
+                search: parts[0] !== undefined && parts[0] !== null ? String(parts[0]).trim() : '',
+                replace: parts[1] !== undefined && parts[1] !== null ? String(parts[1]).trim() : '',
                 case_sensitive: parts[2]?.trim().toLowerCase() === 'true',
                 is_regex: parts[3]?.trim().toLowerCase() === 'true',
               };

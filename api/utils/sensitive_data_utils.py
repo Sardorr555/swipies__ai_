@@ -90,10 +90,10 @@ def anonymize_messages(messages: list, rules: list) -> list:
     for msg in anonymized_msgs:
         if isinstance(msg, dict) and msg.get("role") in ("user", "system", "assistant"):
             content = msg.get("content")
-            if isinstance(content, str):
-                msg["content"] = anonymize_text(content, rules)
+            if isinstance(content, (str, int, float)):
+                msg["content"] = anonymize_text(str(content), rules)
             elif isinstance(content, list):
                 for part in content:
                     if isinstance(part, dict) and part.get("type") in ("text", "input_text") and "text" in part:
-                        part["text"] = anonymize_text(part["text"], rules)
+                        part["text"] = anonymize_text(str(part["text"]), rules)
     return anonymized_msgs
