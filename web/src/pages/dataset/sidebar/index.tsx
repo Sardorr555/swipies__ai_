@@ -1,26 +1,17 @@
-import { isEmpty } from 'lodash';
-
-import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-
-import {
-  LucideFolderOpen,
-  LucideLogs,
-  LucideSettings,
-  LucideTextSearch,
-} from 'lucide-react';
-
 import { IconFontFill } from '@/components/icon-font';
 import { RAGFlowAvatar } from '@/components/ragflow-avatar';
 import { Button } from '@/components/ui/button';
 import { useSecondPathName } from '@/hooks/route-hook';
 import { useFetchKnowledgeGraph } from '@/hooks/use-knowledge-request';
+import { IDataset } from '@/interfaces/database/dataset';
 import { cn, formatBytes } from '@/lib/utils';
 import { Routes } from '@/routes';
 import { formatPureDate } from '@/utils/date';
-
-import { IDataset } from '@/interfaces/database/dataset';
-import { useParams } from 'react-router';
+import { isEmpty } from 'lodash';
+import { LucideArrowLeft, LucideFolderOpen, LucideLogs, LucideSettings, LucideTextSearch } from 'lucide-react';
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link, useParams } from 'react-router';
 
 type PropType = {
   refreshCount?: number;
@@ -70,6 +61,20 @@ export function SideBar({ dataset: data }: PropType) {
 
   return (
     <aside className="flex flex-col w-64 relative">
+      <div className="px-5 pb-3">
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+          className="gap-2 w-full justify-start text-text-secondary hover:text-text-primary border-border-button"
+        >
+          <Link to={Routes.Datasets}>
+            <LucideArrowLeft className="size-4" />
+            <span>{t('common.back') || 'Назад к датасетам'}</span>
+          </Link>
+        </Button>
+      </div>
+
       <header
         className="px-5 pb-4 grid grid-cols-[auto_1fr] grid-rows-[auto_auto] gap-x-3"
         style={{
