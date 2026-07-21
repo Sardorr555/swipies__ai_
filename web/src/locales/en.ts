@@ -65,6 +65,8 @@ export default {
       nextPage: 'Next',
       previous: 'Previous',
       add: 'Add',
+      import: 'Import',
+      export: 'Export',
       remove: 'Remove',
       search: 'Search',
       reset: 'Reset',

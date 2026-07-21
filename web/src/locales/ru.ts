@@ -60,6 +60,8 @@ export default {
       previousPage: 'Назад',
       nextPage: 'Вперед',
       add: 'Добавить',
+      import: 'Импорт',
+      export: 'Экспорт',
       remove: 'Удалить',
       search: 'Поиск',
       noDataFound: 'Данные не найдены.',

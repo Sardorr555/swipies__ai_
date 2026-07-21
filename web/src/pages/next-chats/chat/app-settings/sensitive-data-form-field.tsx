@@ -6,7 +6,6 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -146,11 +145,10 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
             <div className="space-y-1">
               <div className="flex items-center space-x-2 font-medium text-sm">
                 <ShieldAlert className="size-4 text-primary" />
-                <span>{t('chat.sensitiveDataReplacement') || 'Sensitive Data Replacement'}</span>
+                <span>{t('chat.sensitiveDataReplacement', 'Sensitive Data Replacement')}</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                {t('chat.sensitiveDataReplacementTip') ||
-                  'Automatically anonymize user data before sending queries to LLM.'}
+                {t('chat.sensitiveDataReplacementTip', 'Automatically anonymize user data before sending queries to LLM.')}
               </p>
             </div>
             <FormControl>
@@ -167,7 +165,7 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
         <div className="space-y-3 pt-2">
           <div className="flex justify-between items-center">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {t('chat.anonymizationRules') || 'Replacement Rules'}
+              {t('chat.anonymizationRules', 'Replacement Rules')}
             </span>
             <div className="flex items-center space-x-2">
               <Button
@@ -178,7 +176,7 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
                 className="h-7 text-xs gap-1"
               >
                 <Upload className="size-3" />
-                {t('common.import') || 'Import'}
+                {t('common.import', 'Import')}
               </Button>
               <input
                 ref={fileInputRef}
@@ -196,7 +194,7 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
                 className="h-7 text-xs gap-1"
               >
                 <Download className="size-3" />
-                {t('common.export') || 'Export'}
+                {t('common.export', 'Export')}
               </Button>
 
               <Button
@@ -207,24 +205,24 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
                 className="h-7 text-xs gap-1"
               >
                 <Plus className="size-3" />
-                {t('common.add') || 'Add Rule'}
+                {t('common.add', 'Add Rule')}
               </Button>
             </div>
           </div>
 
           {fields.length === 0 ? (
             <div className="text-center py-6 border border-dashed rounded-md text-xs text-muted-foreground">
-              {t('chat.noSensitiveRules') || 'No rules added yet. Click "Add Rule" to create one.'}
+              {t('chat.noSensitiveRules', 'No rules added yet. Click "Add Rule" to create one.')}
             </div>
           ) : (
             <div className="border rounded-md overflow-hidden bg-card">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="py-2 text-xs">{t('chat.searchValue') || 'Search Value'}</TableHead>
-                    <TableHead className="py-2 text-xs">{t('chat.replaceValue') || 'Replace Value'}</TableHead>
-                    <TableHead className="py-2 text-xs w-20 text-center">{t('chat.caseSensitive') || 'Case'}</TableHead>
-                    <TableHead className="py-2 text-xs w-16 text-center">{t('chat.regex') || 'Regex'}</TableHead>
+                    <TableHead className="py-2 text-xs">{t('chat.searchValue', 'Search Value')}</TableHead>
+                    <TableHead className="py-2 text-xs">{t('chat.replaceValue', 'Replace Value')}</TableHead>
+                    <TableHead className="py-2 text-xs w-20 text-center">{t('chat.caseSensitive', 'Case')}</TableHead>
+                    <TableHead className="py-2 text-xs w-16 text-center">{t('chat.regex', 'Regex')}</TableHead>
                     <TableHead className="py-2 text-xs w-12 text-right"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -240,7 +238,7 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
                               <FormControl>
                                 <Input
                                   {...field}
-                                  placeholder={t('chat.searchPlaceholder') || 'e.g. Иван Иванов'}
+                                  placeholder={t('chat.searchPlaceholder', 'e.g. Иван Иванов')}
                                   className="h-8 text-xs bg-background"
                                 />
                               </FormControl>
@@ -259,7 +257,7 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
                               <FormControl>
                                 <Input
                                   {...field}
-                                  placeholder={t('chat.replacePlaceholder') || 'e.g. CLIENT_NAME'}
+                                  placeholder={t('chat.replacePlaceholder', 'e.g. CLIENT_NAME')}
                                   className="h-8 text-xs bg-background"
                                 />
                               </FormControl>

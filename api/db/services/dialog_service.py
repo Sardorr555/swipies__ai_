@@ -332,7 +332,9 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
             stream_iter = chat_mdl.async_chat_streamly_delta(prompt_config.get("system", ""), msg, dialog.llm_setting)
         else:
             stream_iter = chat_mdl.async_chat_streamly_delta(prompt_config.get("system", ""), msg, dialog.llm_setting, images=image_files)
+        last_state = None
         async for kind, value, state in _stream_with_think_delta(stream_iter):
+            last_state = state
             if kind == "marker":
                 flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
                 yield {"answer": "", "reference": {}, "audio_binary": None, "prompt": "", "created_at": time.time(), "final": False, **flags}
@@ -340,6 +342,13 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
             if sensitive_enabled and sensitive_rules and value:
                 value = deanonymize_text(value, sensitive_rules)
             yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "prompt": "", "created_at": time.time(), "final": False}
+
+        full_answer = last_state.full_text if last_state else ""
+        if full_answer:
+            full_answer = _extract_visible_answer(full_answer)
+            if sensitive_enabled and sensitive_rules:
+                full_answer = deanonymize_text(full_answer, sensitive_rules)
+            yield {"answer": full_answer, "reference": {}, "audio_binary": None, "prompt": "", "created_at": time.time(), "final": True}
     else:
         if model_config["model_type"] == "chat":
             answer = await chat_mdl.async_chat(prompt_config.get("system", ""), msg, dialog.llm_setting)
@@ -941,7 +950,8 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
             final = await decorate_answer(_extract_visible_answer(thought + full_answer))
             final["final"] = True
             final["audio_binary"] = None
-            final["answer"] = ""
+            if not (sensitive_enabled and sensitive_rules):
+                final["answer"] = ""
             yield final
     else:
         if llm_model_config["model_type"] == "chat":

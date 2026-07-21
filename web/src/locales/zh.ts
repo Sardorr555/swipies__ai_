@@ -55,6 +55,8 @@ export default {
       nextPage: '下一页',
       previous: '上一步',
       add: '添加',
+      import: '导入',
+      export: '导出',
       remove: '移除',
       search: '搜索',
       reset: '重置',

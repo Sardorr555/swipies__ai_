@@ -9,9 +9,14 @@ def anonymize_text(text: str, rules: list) -> str:
     if not text or not isinstance(text, str) or not rules:
         return text
 
-    for rule in rules:
-        if not isinstance(rule, dict):
-            continue
+    # Sort rules to process longest search values first to prevent substring collisions
+    sorted_rules = sorted(
+        [r for r in rules if isinstance(r, dict) and r.get("search")],
+        key=lambda r: len(str(r.get("search"))),
+        reverse=True
+    )
+
+    for rule in sorted_rules:
         search_val = rule.get("search")
         replace_val = rule.get("replace")
         if not search_val or not replace_val:
@@ -37,9 +42,14 @@ def deanonymize_text(text: str, rules: list) -> str:
     if not text or not isinstance(text, str) or not rules:
         return text
 
-    for rule in rules:
-        if not isinstance(rule, dict):
-            continue
+    # Sort rules to process longest replace values first to prevent substring collisions
+    sorted_rules = sorted(
+        [r for r in rules if isinstance(r, dict) and r.get("replace")],
+        key=lambda r: len(str(r.get("replace"))),
+        reverse=True
+    )
+
+    for rule in sorted_rules:
         search_val = rule.get("search")
         replace_val = rule.get("replace")
         if not search_val or not replace_val:
@@ -60,7 +70,7 @@ def anonymize_messages(messages: list, rules: list) -> list:
 
     anonymized_msgs = deepcopy(messages)
     for msg in anonymized_msgs:
-        if isinstance(msg, dict) and msg.get("role") in ("user", "system"):
+        if isinstance(msg, dict) and msg.get("role") in ("user", "system", "assistant"):
             content = msg.get("content")
             if isinstance(content, str):
                 msg["content"] = anonymize_text(content, rules)
