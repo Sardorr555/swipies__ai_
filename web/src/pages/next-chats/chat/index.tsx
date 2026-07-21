@@ -1,5 +1,8 @@
+import EmbedDialog from '@/components/embed-dialog';
+import { useShowEmbedModal } from '@/components/embed-dialog/use-show-embed-dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { SharedFrom } from '@/constants/chat';
 import {
   useFetchSessionList,
   useFetchSessionManually,
@@ -8,11 +11,18 @@ import {
 import { IClientConversation } from '@/interfaces/database/chat';
 import { RootLayoutContainer } from '@/layouts/root-layout';
 import { cn } from '@/lib/utils';
+import { Routes } from '@/routes';
 import { useMount } from 'ahooks';
 import { isEmpty } from 'lodash';
-import { LucideArrowBigLeft, LucideArrowUpRight } from 'lucide-react';
+import {
+  LucideArrowBigLeft,
+  LucideArrowLeft,
+  LucideArrowUpRight,
+  LucideCode,
+} from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link, useParams } from 'react-router';
 import { useHandleClickConversationCard } from '../hooks/use-click-card';
 import { ChatSettings } from './app-settings/chat-settings';
 import { MultipleChatBox } from './chat-box/next-multiple-chat-box';
@@ -23,6 +33,7 @@ import { useSwitchDebugMode } from './use-switch-debug-mode';
 
 export default function Chat() {
   const { t } = useTranslation();
+  const { id } = useParams();
   const [currentConversation, setCurrentConversation] =
     useState<IClientConversation>({} as IClientConversation);
 
@@ -38,6 +49,9 @@ export default function Chat() {
   const { conversationId, isNew } = useGetChatSearchParams();
 
   const { data: dialogList } = useFetchSessionList();
+
+  const { showEmbedModal, hideEmbedModal, embedVisible, beta } =
+    useShowEmbedModal();
 
   const currentConversationName = useMemo(() => {
     return (
@@ -115,23 +129,63 @@ export default function Chat() {
             <CardContent className="flex p-0 h-full">
               <Card className="flex flex-col flex-1 bg-transparent min-w-0">
                 <CardHeader
-                  className={cn('p-5', {
+                  className={cn('p-4 border-b border-border-button bg-bg-card/40', {
                     'border-b-0.5 border-border-button': hasSingleChatBox,
                   })}
                 >
-                  <CardTitle className="flex justify-between items-center text-base gap-2">
-                    <div className="truncate">{currentConversationName}</div>
+                  <div className="flex items-center justify-between gap-4 w-full">
+                    {/* Left: Back to main page button */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2 text-text-secondary hover:text-text-primary border-border-button shrink-0"
+                        data-testid="chat-detail-back-button"
+                      >
+                        <Link to={Routes.Chats}>
+                          <LucideArrowLeft className="size-4" />
+                          <span>{t('common.back') || 'Назад'}</span>
+                        </Link>
+                      </Button>
+                      <span className="truncate text-sm font-semibold text-text-primary hidden md:inline ml-2">
+                        {currentConversationName}
+                      </span>
+                    </div>
 
-                    <Button
-                      variant="ghost"
-                      onClick={switchDebugMode}
-                      data-testid="chat-detail-multimodel-toggle"
-                    >
-                      <LucideArrowUpRight />
-                      {t('chat.multipleModels')}
-                    </Button>
-                  </CardTitle>
+                    {/* Center: Embed into webpage button */}
+                    <div className="flex items-center justify-center">
+                      <Button
+                        onClick={showEmbedModal}
+                        size="sm"
+                        className="gap-2 bg-gradient-to-r from-[#478AF5] to-[#42D7E7] hover:from-[#3a7ae0] hover:to-[#35c5d4] text-white font-semibold px-4 py-1.5 rounded-full shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
+                        data-testid="chat-detail-embed-button-prominent"
+                      >
+                        <LucideCode className="size-4 stroke-[2.2]" />
+                        <span className="text-xs sm:text-sm">
+                          {t('common.embedIntoSite') || 'Embed into webpage'}
+                        </span>
+                      </Button>
+                    </div>
+
+                    {/* Right: Multiple Models Toggle */}
+                    <div className="flex items-center justify-end gap-2 min-w-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={switchDebugMode}
+                        data-testid="chat-detail-multimodel-toggle"
+                        className="text-xs gap-1"
+                      >
+                        <LucideArrowUpRight className="size-4" />
+                        <span className="hidden sm:inline">
+                          {t('chat.multipleModels')}
+                        </span>
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
+
                 <CardContent className="flex-1 p-0 min-h-0">
                   <SingleChatBox
                     controller={controller}
@@ -146,6 +200,16 @@ export default function Chat() {
           </Card>
         </article>
       </section>
+
+      {/* Embed Dialog */}
+      <EmbedDialog
+        visible={embedVisible}
+        hideModal={hideEmbedModal}
+        token={id || conversationId || ''}
+        from={SharedFrom.Chat}
+        beta={beta}
+        isAgent={false}
+      />
     </RootLayoutContainer>
   );
 }
