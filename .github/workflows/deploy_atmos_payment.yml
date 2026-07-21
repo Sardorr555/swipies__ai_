@@ -3,7 +3,6 @@ name: Deploy Atmos Payment System
 on:
   push:
     branches:
-      - test
       - swipies_26
     paths:
       - 'atmos payment system/**'
@@ -33,11 +32,9 @@ jobs:
 
             cd ~/swipies__ai_
 
-            DEPLOY_BRANCH="${GITHUB_REF_NAME:-test}"
-            echo "📥 Fetching latest code (branch: ${DEPLOY_BRANCH})..."
-            git fetch origin "${DEPLOY_BRANCH}"
-            git checkout "${DEPLOY_BRANCH}" || git checkout -b "${DEPLOY_BRANCH}" "origin/${DEPLOY_BRANCH}"
-            git reset --hard "origin/${DEPLOY_BRANCH}"
+            echo "📥 Fetching latest code..."
+            git fetch origin swipies_26
+            git reset --hard origin/swipies_26
 
             echo "📥 Updating Atmos Payment System Submodule..."
             cd ~/swipies__ai_/"atmos payment system"
