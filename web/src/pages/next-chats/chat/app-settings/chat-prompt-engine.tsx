@@ -25,8 +25,9 @@ import { prefixName } from '@/utils/form';
 import { getDirAttribute } from '@/utils/text-direction';
 import { useEffect, useMemo } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { DynamicVariableForm } from './dynamic-variable';
-import { SensitiveDataReplacementFormField } from '@/components/sensitive-data-replacement-form-field';
+import { SensitiveDataFormField } from './sensitive-data-form-field';
 
 interface ChatPromptEngineProps {
   prefix?: string;
@@ -133,6 +134,7 @@ export function ChatPromptEngine({ prefix = '' }: ChatPromptEngineProps) {
         <TavilyFormField
           name={prefixName(prefix, 'prompt_config.tavily_api_key')}
         ></TavilyFormField>
+        <SensitiveDataFormField prefix={prefix} />
         <MetadataFilter></MetadataFilter>
         <FormField
           control={form.control}
@@ -231,7 +233,6 @@ export function ChatPromptEngine({ prefix = '' }: ChatPromptEngineProps) {
         <DynamicVariableForm
           name={prefixName(prefix, 'prompt_config.parameters')}
         ></DynamicVariableForm>
-        <SensitiveDataReplacementFormField prefix={prefix} />
       </div>
     </Collapse>
   );

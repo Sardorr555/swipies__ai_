@@ -8,6 +8,19 @@ export interface IDocumentDownloadInfo {
   size?: number;
 }
 
+export interface SensitiveDataRule {
+  id: string;
+  search: string;
+  replace: string;
+  case_sensitive?: boolean;
+  is_regex?: boolean;
+}
+
+export interface SensitiveDataReplacementConfig {
+  enabled: boolean;
+  rules: SensitiveDataRule[];
+}
+
 export interface PromptConfig {
   empty_response: string;
   parameters: Parameter[];
@@ -26,6 +39,7 @@ export interface PromptConfig {
     include?: boolean;
     fields?: string[];
   };
+  sensitive_data_replacement?: SensitiveDataReplacementConfig;
 }
 
 export interface Parameter {

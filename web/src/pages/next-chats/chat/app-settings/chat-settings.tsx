@@ -61,6 +61,10 @@ export function ChatSettings({ hasSingleChatBox }: ChatSettingsProps) {
           include: false,
           fields: undefined,
         },
+        sensitive_data_replacement: {
+          enabled: false,
+          rules: [],
+        },
       },
       top_n: 8,
       similarity_threshold: 0.2,
