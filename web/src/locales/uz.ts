@@ -2176,59 +2176,80 @@ Important structured information may include: names, dates, locations, events, k
     },
     privacyPolicy: {
       back: 'Orqaga',
-      title: 'Maxfiylik siyosati',
-      effectiveDate: 'Kuchga kirish sanasi',
-      section1Title: '1. Kirish',
+      title: "Maxfiylik siyosati va Ma'lumotlarga ishlov berish SLA",
+      effectiveDate: 'Soʻnggi yangilanish sanasi',
+      slaBadge1: '99.9% Mavjudlik SLA',
+      slaBadge2: 'AES-256 Shifrlash',
+      slaBadge3: "Ko'p ijarachili izolyatsiya",
+      slaBadge4: 'AI Model Tayyorlashsiz',
+      section1Title: '1. Umumiy qoidalar va SLA shartnomasi',
       section1Text:
-        'Swipies ("biz", "bizning") ga xush kelibsiz. Biz sizning maxfiyligingizni qadrlaymiz va shaxsiy ma\'lumotlaringizni himoya qilishga intilamiz. Ushbu Maxfiylik siyosati Swipies platformasi va uning xizmatlaridan foydalanganingizda ma\'lumotlaringizni qanday yig\'ishimiz, ishlatishimiz, saqlashimiz va himoya qilishimizni tushuntiradi.',
-      section2Title: "2. Biz qanday ma'lumotlarni yig'amiz",
+        'Ushbu hujjat Swipies platformasida ("biz", "bizning", "platforma") foydalanuvchilar maʼlumotlarini yigʻish, saqlash, himoya qilish va oʻchirish qoidalarini belgilaydi hamda xizmat koʻrsatish darajasi (SLA — Service Level Agreement) parametrlarini tasdiqlaydi. Platformadan foydalanish orqali siz ushbu shartnoma shartlarini toʻliq qabul qilasiz.',
+      section2Title: "2. Yig'iladigan ma'lumotlar toifalari",
       section2Text:
-        "Biz quyidagi shaxsiy ma'lumotlar toifalarini yig'ishimiz mumkin:",
+        "Biz faqat sun'iy intellekt xizmatlari va bilimlar bazasi qidiruvi uchun zarur bo'lgan minimal ma'lumotlarni yig'amiz:",
       section2Item1:
-        "Hisob ma'lumotlari: ism (taxallus), elektron pochta manzili, telefon raqami va parol (shifrlangan holda saqlanadi).",
+        "Profil ma'lumotlari: ism (taxallus), elektron pochta, telefon raqami, parol xeshi, avtorizatsiya va obuna tokenlari.",
       section2Item2:
-        "Foydalanish ma'lumotlari: platformamiz bilan qanday muomala qilishingiz haqida ma'lumotlar, jumladan, tashrif buyurilgan sahifalar, foydalanilgan funksiyalar va vaqt belgilari.",
+        "Yuklanadigan kontent: hujjatlar (PDF, DOCX, TXT, CSV, XLSX, Markdown), tasvirlar, audio yozuvlar va bilimlar bazasi fayllari.",
       section2Item3:
-        "Kontent ma'lumotlari: platformada yuklagan yoki yaratgan hujjatlar, ma'lumotlar to'plamlari va boshqa fayllar.",
+        "Vektorli ko'rinishlar (embreddinglar): hujjatlarni indekslash jarayonida yaratilgan raqamli vektorlar va matn bo'laklari (chanklar).",
       section2Item4:
-        "Texnik ma'lumotlar: IP-manzil, brauzer turi, qurilma ma'lumotlari va operatsion tizim.",
-      section3Title: "3. Ma'lumotlaringizni qanday ishlatamiz",
+        "Muloqotlar tarixi va kontekst: prompterlar, xabarlar tarixi, agentlarning oralik qadamlari (reasoning), API chaqiruvlari metrikasi va loglari.",
+      section2Item5:
+        "Texnik metrikalar: IP-manzil, brauzer ma'lumotlari, javob berish vaqti va tizim resurslaridan foydalanish loglari.",
+      section3Title: "3. Saqlash arxitekturasi va shifrlash",
       section3Text:
-        "Biz shaxsiy ma'lumotlaringizni quyidagi maqsadlarda ishlatamiz:",
+        "Ma'lumotlarni saqlash yuqori darajadagi axborot xavfsizligi standartlariga muvofiq tashkil etilgan:",
       section3Item1:
-        "Xizmatlarimizni taqdim etish va qo'llab-quvvatlash, jumladan, hisobni boshqarish va kirishni nazorat qilish.",
+        "Relyatsion ma'lumotlar bazalari: metama'lumotlar, sozlamalar va muloqotlar strukturasi MySQL/PostgreSQL bazalarida saqlanadi.",
       section3Item2:
-        'Platformamizdagi foydalanuvchi tajribasini yaxshilash va shaxsiylashtirish.',
+        "Ob'ektli saqlash (MinIO/S3): yuklangan asl fayllar cheklangan kirish huquqiga ega izolyatsiyalangan ob'ekt omborida saqlanadi.",
       section3Item3:
-        "Hisobingiz, yangilanishlar va qo'llab-quvvatlash so'rovlari bo'yicha siz bilan bog'lanish.",
+        "Qidiruv va vektor indekslari: matn bo'laklari va vektorlar maxsus qidiruv tizimlarida (Elasticsearch/Infinity) indekslanadi.",
       section3Item4:
-        "Platformamiz xavfsizligini ta'minlash va firibgarlik yoki ruxsatsiz kirishni oldini olish.",
+        "Shifrlash standartlari: barcha ma'lumotlar AES-256 algoritmi bilan shifrlanadi. Trafik uzatish TLS 1.3 / HTTPS protokollari orqali amalga oshiriladi.",
       section3Item5:
-        "Qonuniy majburiyatlar va me'yoriy talablarga rioya qilish.",
-      section4Title: "4. Ma'lumotlarni saqlash va xavfsizlik",
+        "Ko'p ijarachili izolyatsiya (Tenant Isolation): har bir foydalanuvchi va ijarachi ma'lumotlari baza darajasida qat'iy ajratilgan.",
+      section4Title: "4. Ma'lumotlarga ishlov berish va RAG qidiruvi",
       section4Text:
-        "Biz shaxsiy ma'lumotlaringizni himoya qilish uchun shifrlash, kirishni nazorat qilish va xavfsiz server infratuzilmasi kabi sanoat standart xavfsizlik choralarini qo'llaymiz. Ma'lumotlaringiz xavfsiz serverlarda saqlanadi va faqat vakolatli xodimlar tomonidan foydalanilishi mumkin.",
-      section5Title: '5. Uchinchi tomonlarga uzatish',
+        "Fayllar yuklanganda tizim matnni ajratib oladi (OCR, parsing), chanklarga bo'ladi va gibrid indeks quradi. Ishlangan ma'lumotlar faqat sizning so'rovingizga javob tayyorlash uchun ishlatiladi.",
+      section5Title: "5. Maxfiy ma'lumotlarni almashtirish (Sensitive Data Replacement)",
       section5Text:
-        "Biz shaxsiy ma'lumotlaringizni uchinchi tomonlarga sotmaymiz, almashmaymiz va ijaraga bermaymiz. Biz anonimlashtrilgan, jamlangan ma'lumotlarni tahliliy maqsadlarda ulashishimiz mumkin.",
-      section6Title: '6. Sizning huquqlaringiz',
+        "Platformada avtomatik anonimlashtirish moduli mavjud:",
+      section5Item1:
+        "Mahalliy niqoblash: so'rov neyrotarmoqqa yuborilishidan oldin belgilangan matnli va RegEx qoidalar bo'yicha maxfiy ma'lumotlar anonim belgilarga almashtiriladi.",
+      section5Item2:
+        "Qaytadan tiklash (Deanonymization): neyrotarmoqdan javob olingach, anonim belgilar avtomatik ravishda asl qiymatlariga tiklanadi.",
+      section5Item3:
+        "Slayderni yoqish orqali siz ushbu qoidalar ishlovi va saqlanishiga SLA doirasida rozilik bildirasiz.",
+      section6Title: "6. Uchinchi tomonlarga uzatish va tashqi LLMlar",
       section6Text:
-        "Yurisdiksiyangizga qarab, shaxsiy ma'lumotlaringiz bo'yicha quyidagi huquqlarga ega bo'lishingiz mumkin:",
-      section6Item1:
-        "Kirish huquqi: biz siz haqingizda saqlaydigan shaxsiy ma'lumotlarning nusxasini so'rashingiz mumkin.",
-      section6Item2:
-        "Tuzatish huquqi: hisob sozlamalari orqali noto'g'ri shaxsiy ma'lumotlarni yangilashingiz yoki tuzatishingiz mumkin.",
-      section6Item3:
-        "O'chirish huquqi: qo'llab-quvvatlash xizmatiga murojaat qilib, hisobingiz va bog'liq ma'lumotlarni o'chirishni so'rashingiz mumkin.",
-      section7Title: '7. Cookie-fayllar va kuzatish',
+        "Biz ma'lumotlaringizni sotmaymiz. Ma'lumotlar faqat foydalanuvchi tomonidan tanlangan LLM provayderlariga (OpenAI, Anthropic, DeepSeek, Google) yuboriladi. Ular bilan tuzilgan shartnomalar ma'lumotlaringiz sun'iy intellekt modellarini o'qitish uchun ISHLATILMASLIGINI kafolatlaydi.",
+      section7Title: "7. Xizmat ko'rsatish darajasi (SLA) va mavjudlik",
       section7Text:
-        "Biz sessiya holatini saqlash, afzalliklaringizni eslab qolish va xizmatlarimizni yaxshilash uchun cookie-fayllar va shunga o'xshash texnologiyalardan foydalanamiz.",
-      section8Title: "8. Ushbu siyosatdagi o'zgarishlar",
+        "Biz platformaning oylik mavjudlik darajasini (Uptime SLA) kamida 99.9% deb kafolatlaymiz:",
+      section7Item1:
+        "Avtomatik zaxiralash: ma'lumotlar bazalari va omborlarning har kungi zaxira nusxalari yaratiladi.",
+      section7Item2:
+        "Xatoliklarga chidamlilik: mikroxizmatlarning takrorlanishi va avtomatik miqyoslanadigan server infratuzilmasi.",
+      section7Item3:
+        "24/7 Monitoring: tizimlar holatining uzluksiz nazorati va hodisalar haqida tezkor xabardor qilish.",
+      section8Title: "8. Saqlash muddatlari va ma'lumotlarni o'chirish",
       section8Text:
-        "Biz ushbu Maxfiylik siyosatini vaqti-vaqti bilan yangilashimiz mumkin. Har qanday o'zgarishlar ushbu sahifada yangilangan kuchga kirish sanasi bilan e'lon qilinadi.",
-      section9Title: "9. Biz bilan bog'lanish",
+        "Ma'lumotlaringiz hisobingiz faol bo'lgan davomida saqlanadi. Siz xohlagan vaqtda muloqotlarni, bilimlar bazasini yoki butun hisobingizni o'chirib tashlashingiz mumkin. O'chirilgach, ma'lumotlar qayta tiklanmaydigan qilib butunlay o'chiriladi.",
+      section9Title: "9. Kirish nazorati va xavfsizlik auditi",
       section9Text:
-        "Ushbu Maxfiylik siyosati yoki shaxsiy ma'lumotlaringiz bo'yicha savollaringiz bo'lsa, biz bilan bog'laning: {{email}}",
+        "Ma'lumotlarga kirish ruxsatlari rollar modeliga (RBAC) asoslangan. Platforma xodimlarining foydalanuvchi kontentiga kirishi qat'iyan taqiqlangan.",
+      section10Title: "10. Cookie fayllari va mahalliy xotira",
+      section10Text:
+        "Biz Cookie va LocalStorage'dan faqat avtorizatsiya sessiyasini (JWT), til va mavzu sozlamalarini saqlash uchun foydalanamiz.",
+      section11Title: "11. Foydalanuvchi huquqlari va rozilik",
+      section11Text:
+        "Siz ma'lumotlaringizni ko'rish, eksport qilish va o'chirish huquqiga egasiz. Swipies'dan foydalanish ushbu Maxfiylik siyosati va SLA shartlariga rozilikni bildiradi.",
+      section12Title: "12. Xavfsizlik xizmati bilan bog'lanish",
+      section12Text:
+        "Maxfiylik, xavfsizlik va SLA masalalari bo'yicha qo'llab-quvvatlash xizmatimizga murojaat qilishingiz mumkin: {{email}}",
     },
   },
 };

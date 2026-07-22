@@ -2787,5 +2787,82 @@ Tokenizer 会根据所选方式将内容存储为对应的数据结构。`,
       referredBy: '推荐人',
       referredById: '推荐人 ID',
     },
+    privacyPolicy: {
+      back: '返回',
+      title: '隐私政策与数据处理 SLA',
+      effectiveDate: '最后更新日期',
+      slaBadge1: '99.9% 可用性 SLA',
+      slaBadge2: 'AES-256 加密',
+      slaBadge3: '多租户隔离',
+      slaBadge4: '无 AI 模型训练',
+      section1Title: '1. 概述与 SLA 协议',
+      section1Text:
+        '本文件规定了 Swipies 平台（以下简称“我们”、“平台”）收集、存储、安全保护、处理和删除用户数据的规则，并明确了服务等级协议（SLA）参数。使用本平台即表示您无条件接受本协议条款。',
+      section2Title: '2. 我们收集的数据类别',
+      section2Text:
+        '我们仅收集和处理 AI 服务、知识库搜索和多智能体运行所需的最小必要数据：',
+      section2Item1:
+        '账户数据：姓名（昵称）、电子邮箱、电话号码、密码哈希、身份验证令牌及订阅层级。',
+      section2Item2:
+        '上传内容：文档（PDF、DOCX、TXT、CSV、XLSX、Markdown）、图像、音频记录及知识库文件。',
+      section2Item3:
+        '向量表示（Embeddings）：在文档索引过程中生成的数值向量和文本切片（Chunks）。',
+      section2Item4:
+        '对话历史与上下文：提示词、消息历史、智能体推理步骤（Reasoning）、调用指标及 API 日志。',
+      section2Item5:
+        '技术指标：IP 地址、浏览器信息、响应延迟及系统资源利用率日志。',
+      section3Title: '3. 数据存储架构与加密',
+      section3Text:
+        '数据存储架构严格遵循企业级安全标准设计：',
+      section3Item1:
+        '关系型数据库：元数据、会话配置及对话结构存储在加密的 MySQL/PostgreSQL 数据库中。',
+      section3Item2:
+        '对象存储（MinIO/S3）：上传的原始文件存储在具有严格边界访问控制的独立对象存储桶中。',
+      section3Item3:
+        '搜索与向量索引：文档切片和向量索引存储在独立的向量搜索引擎（Elasticsearch/Infinity）中。',
+      section3Item4:
+        '加密标准：静态数据采用 AES-256 算法加密。客户端、服务器及服务之间的数据传输均使用 TLS 1.3 / HTTPS 协议。',
+      section3Item5:
+        '多租户隔离（Tenant Isolation）：每个租户和用户数据集在数据库和访问密钥级别均实现了逻辑与密码学隔离。',
+      section4Title: '4. 数据处理、切片与 RAG 检索',
+      section4Text:
+        '上传文件后，平台执行文本提取（OCR、解析）、语义切片和混合索引（全文+向量）。处理后的数据仅用于为大模型回答您的查询提供检索上下文。',
+      section5Title: '5. 敏感数据替换（脱敏模块）',
+      section5Text:
+        '平台提供内置的自动脱敏系统：',
+      section5Item1:
+        '本地掩码：在将提示词发送至外部大模型之前，匹配指定文本和正则表达式规则的敏感值将被替换为匿名占位符。',
+      section5Item2:
+        '逆向脱敏：收到大模型流式响应后，匿名占位符将在服务器端自动还原为原始值，然后再展示给客户端。',
+      section5Item3:
+        '防泄漏保障：启用敏感数据替换即表示您同意在本 SLA 约束下进行规则处理与存储。',
+      section6Title: '6. 第三方共享与外部大模型',
+      section6Text:
+        '我们绝不会向第三方出售或出租您的个人数据。数据仅通过企业 API 协议传输至用户选择的大模型提供商（OpenAI、Anthropic、DeepSeek、Google 等），并明确保证您的数据不会用于训练第三方 AI 模型。',
+      section7Title: '7. 服务等级协议（SLA）与可用性保证',
+      section7Text:
+        '我们保证月度平台可用性 SLA 不低于 99.9%（计划维护窗口除外）：',
+      section7Item1:
+        '自动备份：每日对关系型数据库和对象存储执行自动备份。',
+      section7Item2:
+        '容错能力：微服务实例冗余及自动扩展的服务架构。',
+      section7Item3:
+        '24/7 系统监控：持续监控健康状况并提供实时事件通知。',
+      section8Title: '8. 数据保留与永久删除',
+      section8Text:
+        '只要您的账户保持活跃，您的数据就会一直保留。您保留随时彻底删除任何对话、数据集、上传文件或整个账户的绝对权利。删除后，数据将从数据库、对象存储和向量索引中物理永久清除，且无法恢复。',
+      section9Title: '9. 访问控制与安全审计',
+      section9Text:
+        '用户数据的访问权限受基于角色的访问控制（RBAC）严格限制。严禁平台工作人员访问用户内容，除非在处理技术故障时获得客户明确的书面支持工单授权。',
+      section10Title: '10. Cookie 与本地存储',
+      section10Text:
+        '我们使用 Cookie 和 LocalStorage 仅用于维持已验证的会话（JWT）、界面主题偏好和语言选择。',
+      section11Title: '11. 用户权利与 SLA 接受',
+      section11Text:
+        '您保留访问、导出、更正和删除数据的完整权利。继续使用 Swipies 即表示接受本隐私政策与数据处理 SLA。',
+      section12Title: '12. 安全联系与支持',
+      section12Text:
+        '如需咨询数据隐私、安全问题或 SLA 事项，请联系我们的支持团队：{{email}}',
+    },
   },
 };

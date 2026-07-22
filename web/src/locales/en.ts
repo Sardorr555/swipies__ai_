@@ -3388,57 +3388,80 @@ Important structured information may include: names, dates, locations, events, k
     },
     privacyPolicy: {
       back: 'Back',
-      title: 'Privacy Policy',
-      effectiveDate: 'Effective date',
-      section1Title: '1. Introduction',
+      title: 'Privacy Policy & Data Processing SLA',
+      effectiveDate: 'Last updated',
+      slaBadge1: '99.9% Uptime SLA',
+      slaBadge2: 'AES-256 Encryption',
+      slaBadge3: 'Multi-Tenant Isolation',
+      slaBadge4: 'Zero AI Training',
+      section1Title: '1. Overview & SLA Agreement',
       section1Text:
-        'Welcome to Swipies ("we", "our", "us"). We value your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, store, and protect your information when you use the Swipies platform and its services.',
-      section2Title: '2. Data We Collect',
-      section2Text: 'We may collect the following categories of personal data:',
+        'This document governs the collection, storage, security, processing, and deletion of user data on the Swipies platform ("we", "our", "platform"), and defines the Service Level Agreement (SLA) parameters. By using the platform, you unconditionally accept the terms of this agreement.',
+      section2Title: '2. Data Categories We Collect',
+      section2Text:
+        'We collect and process only the minimum necessary data required for AI services, knowledge base search, and multi-agent operations:',
       section2Item1:
-        'Account information: name (nickname), email address, phone number, and password (stored in encrypted form).',
+        'Account Data: name (nickname), email address, phone number, password hash, authentication tokens, and subscription tier.',
       section2Item2:
-        'Usage data: information about how you interact with our platform, including pages visited, features used, and timestamps.',
+        'Uploaded Content: documents (PDF, DOCX, TXT, CSV, XLSX, Markdown), images, audio recordings, and knowledge base files.',
       section2Item3:
-        'Content data: documents, datasets, and other files you upload or create within the platform.',
+        'Vector Embeddings: generated numeric floating-point vectors and text chunks created during document indexing.',
       section2Item4:
-        'Technical data: IP address, browser type, device information, and operating system.',
-      section3Title: '3. How We Use Your Data',
-      section3Text: 'We use your personal data for the following purposes:',
+        'Conversation History & Context: prompts, message history, agent intermediate steps (reasoning), call metrics, and API logs.',
+      section2Item5:
+        'Technical Metrics: IP address, browser information, response latency, and system resource utilization logs.',
+      section3Title: '3. Data Storage Architecture & Encryption',
+      section3Text:
+        'Data storage is engineered to adhere to enterprise security standards:',
       section3Item1:
-        'To provide and maintain our services, including account management and access control.',
+        'Relational Databases: Metadata, session configurations, and conversation structures are stored in encrypted MySQL/PostgreSQL databases.',
       section3Item2:
-        'To improve and personalize the user experience on our platform.',
+        'Object Storage (MinIO/S3): Uploaded raw files are stored in isolated object storage buckets with strict perimeter access control.',
       section3Item3:
-        'To communicate with you regarding your account, updates, and support requests.',
+        'Search & Vector Indexes: Document chunks and embeddings are indexed in isolated vector search engines (Elasticsearch/Infinity).',
       section3Item4:
-        'To ensure the security of our platform and prevent fraud or unauthorized access.',
+        'Encryption Standards: Data at rest is encrypted using AES-256 algorithms. Data in transit between clients, servers, and services uses TLS 1.3 / HTTPS.',
       section3Item5:
-        'To comply with legal obligations and regulatory requirements.',
-      section4Title: '4. Data Storage and Security',
+        'Multi-Tenant Isolation: Each tenant and user dataset is logically and cryptographically isolated at database and access-key levels.',
+      section4Title: '4. Data Processing, Chunking & RAG Retrieval',
       section4Text:
-        'We employ industry-standard security measures, including encryption, access controls, and secure server infrastructure, to protect your personal data. Your data is stored on secure servers and is accessible only to authorized personnel. We retain your data for as long as your account is active or as necessary to fulfill the purposes outlined in this policy.',
-      section5Title: '5. Third-Party Sharing',
+        'Upon file upload, the platform performs text extraction (OCR, parsing), semantic chunking, and hybrid indexing (full-text + vector). Processed data is used strictly to provide retrieval context for LLM responses to your queries.',
+      section5Title: '5. Sensitive Data Replacement (Anonymization Module)',
       section5Text:
-        'We do not sell, trade, or rent your personal data to third parties. We may share anonymized, aggregated data for analytical purposes. We may disclose personal data if required by law, court order, or governmental regulation, or to protect the rights and safety of Swipies and its users.',
-      section6Title: '6. Your Rights',
+        'The platform provides a built-in automated anonymization system:',
+      section5Item1:
+        'Local Masking: Prior to sending prompts to external LLMs, sensitive values matching defined string and RegEx rules are replaced with anonymous placeholders.',
+      section5Item2:
+        'Reverse Deanonymization: Upon receiving LLM stream responses, anonymous placeholders are automatically restored back to original values on the server before client display.',
+      section5Item3:
+        'Leak Prevention: By enabling Sensitive Data Replacement, you consent to rule processing and rule storage under this SLA.',
+      section6Title: '6. Third-Party Sharing & External LLMs',
       section6Text:
-        'Depending on your jurisdiction, you may have the following rights regarding your personal data:',
-      section6Item1:
-        'Right to access: You may request a copy of the personal data we hold about you.',
-      section6Item2:
-        'Right to rectification: You may update or correct inaccurate personal data through your account settings.',
-      section6Item3:
-        'Right to deletion: You may request the deletion of your account and associated data by contacting support.',
-      section7Title: '7. Cookies and Tracking',
+        'We do not sell, trade, or rent your personal data to third parties. Data is transmitted exclusively to user-selected LLM providers (OpenAI, Anthropic, DeepSeek, Google, etc.) via enterprise API agreements guaranteeing your data is NOT used for training third-party AI models.',
+      section7Title: '7. Service Level Agreement (SLA) & Availability',
       section7Text:
-        'We use cookies and similar technologies to maintain session state, remember your preferences, and improve our services. You can manage cookie preferences through your browser settings. Disabling cookies may affect the functionality of certain features.',
-      section8Title: '8. Changes to This Policy',
+        'We guarantee a target monthly platform Uptime SLA of at least 99.9%, excluding scheduled maintenance windows:',
+      section7Item1:
+        'Automated Backups: Daily automated backups of relational databases and object stores.',
+      section7Item2:
+        'Fault Tolerance: Redundant microservice instances and automatically scaling server infrastructure.',
+      section7Item3:
+        '24/7 System Monitoring: Continuous health monitoring with real-time incident notifications.',
+      section8Title: '8. Data Retention & Permanent Deletion',
       section8Text:
-        'We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date. We encourage you to review this policy periodically. Continued use of our services after changes constitutes your acceptance of the updated policy.',
-      section9Title: '9. Contact Us',
+        'Your data is retained for as long as your account remains active. You maintain the absolute right to purge any chat, dataset, uploaded file, or entire account. Upon deletion, data is physically and permanently removed from databases, object stores, and vector indexes without recovery.',
+      section9Title: '9. Access Control & Security Auditing',
       section9Text:
-        'If you have any questions or concerns regarding this Privacy Policy or your personal data, please contact us at: {{email}}',
+        'Access to user data is restricted via Role-Based Access Control (RBAC). Platform staff access to user content is strictly prohibited, except under explicit written customer support tickets for technical troubleshooting.',
+      section10Title: '10. Cookies & Local Storage',
+      section10Text:
+        'We utilize Cookies and LocalStorage strictly for maintaining authenticated sessions (JWT), UI theme preferences, and language selection.',
+      section11Title: '11. User Rights & SLA Acceptance',
+      section11Text:
+        'You reserve full rights to access, export, rectify, and delete your data. Continued usage of Swipies constitutes acceptance of this Privacy Policy and Data SLA.',
+      section12Title: '12. Security Contact & Support',
+      section12Text:
+        'For data privacy, security questions, or SLA inquiries, please contact our support team at: {{email}}',
     },
   },
 };

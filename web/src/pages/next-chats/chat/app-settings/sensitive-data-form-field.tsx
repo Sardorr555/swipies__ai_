@@ -30,6 +30,7 @@ import {
 import React, { useRef } from 'react';
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 
 interface SensitiveDataFormFieldProps {
   prefix?: string;
@@ -151,7 +152,10 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
                 {t('chat.sensitiveDataReplacementTip', 'Automatically anonymize user data before sending queries to LLM.')}
               </p>
               <p className="text-[10px] text-yellow-600 dark:text-yellow-500 font-medium">
-                {t('chat.sensitiveDataStorageWarning', 'The information you enter is stored on our servers. By enabling this toggle, you agree to this.')}
+                {t('chat.sensitiveDataStorageWarning', 'The information you enter is stored on our servers. By enabling this toggle, you agree to this.')}{' '}
+                <Link to="/privacy-policy" className="underline hover:text-primary transition-colors">
+                  {t('privacyPolicy.title', 'Privacy Policy & Data Processing SLA')}
+                </Link>
               </p>
             </div>
             <FormControl>
