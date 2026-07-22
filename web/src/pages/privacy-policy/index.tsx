@@ -1,29 +1,21 @@
 import { BRAND } from '@/constants/branding';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, ShieldCheck, Server, Lock, Bot } from 'lucide-react';
+import { ShieldCheck, Server, Lock, Bot } from 'lucide-react';
 import './index.less';
 
 const PrivacyPolicy = () => {
   const { t } = useTranslation('translation', { keyPrefix: 'privacyPolicy' });
-  const navigate = useNavigate();
 
   return (
     <div className="privacy-policy-page">
       <div className="privacy-policy-container">
         <div className="privacy-policy-header">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="back-button"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {t('back')}
-          </Button>
           <div className="header-brand">
             <img src="/logo.svg" alt="logo" className="w-8 h-8 mr-3" />
             <span className="brand-name">{BRAND.name}</span>
+          </div>
+          <div className="header-title-tag">
+            Enterprise SLA & Data Policy
           </div>
         </div>
 
@@ -106,6 +98,12 @@ const PrivacyPolicy = () => {
           <section className="policy-section">
             <h2>{t('section6Title')}</h2>
             <p>{t('section6Text')}</p>
+            {t('section6Item1') && (
+              <ul>
+                <li>{t('section6Item1')}</li>
+                <li>{t('section6Item2')}</li>
+              </ul>
+            )}
           </section>
 
           {/* Section 7 */}
@@ -131,6 +129,14 @@ const PrivacyPolicy = () => {
           <section className="policy-section">
             <h2>{t('section9Title')}</h2>
             <p>{t('section9Text')}</p>
+            {t('section9Item1') && (
+              <ul>
+                <li>{t('section9Item1')}</li>
+                <li>{t('section9Item2')}</li>
+                <li>{t('section9Item3')}</li>
+                <li>{t('section9Item4')}</li>
+              </ul>
+            )}
           </section>
 
           {/* Section 10 */}
@@ -148,7 +154,25 @@ const PrivacyPolicy = () => {
           {/* Section 12 */}
           <section className="policy-section">
             <h2>{t('section12Title')}</h2>
-            <p>{t('section12Text', { email: 'support@swipies.io' })}</p>
+            <p>{t('section12Text')}</p>
+          </section>
+
+          {/* Section 13 */}
+          <section className="policy-section">
+            <h2>{t('section13Title')}</h2>
+            <p>{t('section13Text')}</p>
+          </section>
+
+          {/* Section 14 */}
+          <section className="policy-section">
+            <h2>{t('section14Title')}</h2>
+            <p>{t('section14Text')}</p>
+          </section>
+
+          {/* Section 15 */}
+          <section className="policy-section">
+            <h2>{t('section15Title')}</h2>
+            <p>{t('section15Text', { email: 'support@swipies.io' })}</p>
           </section>
         </div>
       </div>

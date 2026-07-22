@@ -3387,81 +3387,101 @@ Important structured information may include: names, dates, locations, events, k
       batchDeleteSessions: 'Delete Sessions',
     },
     privacyPolicy: {
-      back: 'Back',
-      title: 'Privacy Policy & Data Processing SLA',
+      title: 'Service Level Agreement (SLA) & Data Protection Policy',
       effectiveDate: 'Last updated',
       slaBadge1: '99.9% Uptime SLA',
       slaBadge2: 'AES-256 Encryption',
       slaBadge3: 'Multi-Tenant Isolation',
       slaBadge4: 'Zero AI Training',
-      section1Title: '1. Overview & SLA Agreement',
+      section1Title: '1. Overview & SLA Scope',
       section1Text:
-        'This document governs the collection, storage, security, processing, and deletion of user data on the Swipies platform ("we", "our", "platform"), and defines the Service Level Agreement (SLA) parameters. By using the platform, you unconditionally accept the terms of this agreement.',
-      section2Title: '2. Data Categories We Collect',
+        'This Service Level Agreement (SLA) and Data Protection Policy governs the collection, storage, security, anonymization, utilization, and physical purging of data across the Swipies platform ("we", "our", "platform"), establishing legal and technical guarantees for service availability. Utilizing any platform component, API, or agent implies full acceptance of all terms contained herein.',
+      section2Title: '2. Exhaustive Data Collection Categories',
       section2Text:
-        'We collect and process only the minimum necessary data required for AI services, knowledge base search, and multi-agent operations:',
+        'The platform collects and processes strictly the data required for authentication, LLM response generation, Retrieval-Augmented Generation (RAG) operations, and agent orchestration:',
       section2Item1:
-        'Account Data: name (nickname), email address, phone number, password hash, authentication tokens, and subscription tier.',
+        'Account Information: Name/nickname, email address, phone number, hashed password (argon2/bcrypt), JWT authorization tokens, and subscription tier.',
       section2Item2:
-        'Uploaded Content: documents (PDF, DOCX, TXT, CSV, XLSX, Markdown), images, audio recordings, and knowledge base files.',
+        'User Uploaded Content: Documents (PDF, DOCX, TXT, CSV, XLSX, Markdown, HTML), images, audio recordings, tables, and file metadata.',
       section2Item3:
-        'Vector Embeddings: generated numeric floating-point vectors and text chunks created during document indexing.',
+        'Vector Embeddings & Indexes: Generated semantic text chunks and multi-dimensional floating-point vector embeddings created during indexing.',
       section2Item4:
-        'Conversation History & Context: prompts, message history, agent intermediate steps (reasoning), call metrics, and API logs.',
+        'Conversation History & Context: Prompts, message history, agent intermediate reasoning steps (thought logs), tool calls, and model outputs.',
       section2Item5:
-        'Technical Metrics: IP address, browser information, response latency, and system resource utilization logs.',
-      section3Title: '3. Data Storage Architecture & Encryption',
+        'Technical & Service Metrics: IP addresses, web server logs, session tokens, timestamps, model latency metrics, and browser configurations.',
+      section3Title: '3. Data Storage Architecture & Encryption Parameters',
       section3Text:
-        'Data storage is engineered to adhere to enterprise security standards:',
+        'Swipies data storage infrastructure is engineered in compliance with strict enterprise security standards:',
       section3Item1:
-        'Relational Databases: Metadata, session configurations, and conversation structures are stored in encrypted MySQL/PostgreSQL databases.',
+        'Relational Databases (MySQL / PostgreSQL): Encrypted storage of user accounts, assistant configurations, session states, and metadata.',
       section3Item2:
-        'Object Storage (MinIO/S3): Uploaded raw files are stored in isolated object storage buckets with strict perimeter access control.',
+        'Object Storage (MinIO / AWS S3): Physical storage of raw uploaded files in isolated containers with strict perimeter access controls.',
       section3Item3:
-        'Search & Vector Indexes: Document chunks and embeddings are indexed in isolated vector search engines (Elasticsearch/Infinity).',
+        'Vector & Search Engines (Elasticsearch / Infinity): Isolated storage of text chunks and vector embeddings for semantic and keyword retrieval.',
       section3Item4:
-        'Encryption Standards: Data at rest is encrypted using AES-256 algorithms. Data in transit between clients, servers, and services uses TLS 1.3 / HTTPS.',
+        'Encryption SLA: Data at rest is encrypted using AES-256 algorithms. Data in transit is protected using TLS 1.3 / HTTPS protocols with Perfect Forward Secrecy.',
       section3Item5:
-        'Multi-Tenant Isolation: Each tenant and user dataset is logically and cryptographically isolated at database and access-key levels.',
-      section4Title: '4. Data Processing, Chunking & RAG Retrieval',
+        'Multi-Tenant Isolation: Each tenant and user dataset is logically and cryptographically isolated at database and key levels, preventing cross-tenant leakage.',
+      section4Title: '4. Data Processing, Chunking & Hybrid RAG Retrieval',
       section4Text:
-        'Upon file upload, the platform performs text extraction (OCR, parsing), semantic chunking, and hybrid indexing (full-text + vector). Processed data is used strictly to provide retrieval context for LLM responses to your queries.',
-      section5Title: '5. Sensitive Data Replacement (Anonymization Module)',
+        'Upon file upload, the system executes asynchronous text extraction (OCR, parsing), semantic chunking, and vector index generation. Extracted data is used exclusively to build retrieval context for your LLM queries.',
+      section5Title: '5. Sensitive Data Replacement Module (Anonymization)',
       section5Text:
-        'The platform provides a built-in automated anonymization system:',
+        'To safeguard confidential information, the platform provides a built-in automated local anonymization engine (SDR):',
       section5Item1:
-        'Local Masking: Prior to sending prompts to external LLMs, sensitive values matching defined string and RegEx rules are replaced with anonymous placeholders.',
+        'Local Masking: Prior to dispatching prompts to external LLMs, sensitive values matching string and RegEx rules are replaced with anonymous placeholders.',
       section5Item2:
-        'Reverse Deanonymization: Upon receiving LLM stream responses, anonymous placeholders are automatically restored back to original values on the server before client display.',
+        'Stream Deanonymization: Upon receiving streaming responses from external models, anonymous placeholders are restored back to original values on the server before rendering.',
       section5Item3:
-        'Leak Prevention: By enabling Sensitive Data Replacement, you consent to rule processing and rule storage under this SLA.',
-      section6Title: '6. Third-Party Sharing & External LLMs',
+        'Privacy Guarantee: Enabling Sensitive Data Replacement constitutes explicit consent to rule processing under this SLA.',
+      section6Title: '6. External LLMs & Zero AI Training Commitment',
       section6Text:
-        'We do not sell, trade, or rent your personal data to third parties. Data is transmitted exclusively to user-selected LLM providers (OpenAI, Anthropic, DeepSeek, Google, etc.) via enterprise API agreements guaranteeing your data is NOT used for training third-party AI models.',
-      section7Title: '7. Service Level Agreement (SLA) & Availability',
+        'We do not sell, rent, or trade user data. Data transmission occurs exclusively to user-selected model providers (OpenAI, Anthropic, DeepSeek, Google, Cohere):',
+      section6Item1:
+        'Zero AI Model Training: Commercial API contracts guarantee that your prompts, documents, and data are NEVER used to train or fine-tune public base AI models.',
+      section6Item2:
+        'Secured API Channels: External LLM API calls are executed over encrypted TLS channels without persistent data retention by providers.',
+      section7Title: '7. Service Availability SLA (99.9% Uptime Guarantee)',
       section7Text:
-        'We guarantee a target monthly platform Uptime SLA of at least 99.9%, excluding scheduled maintenance windows:',
+        'Swipies guarantees a target monthly platform availability rate (Uptime SLA) of at least 99.9%:',
       section7Item1:
-        'Automated Backups: Daily automated backups of relational databases and object stores.',
+        'Redundancy & High Availability: Microservice replication, load balancing, and auto-scaling server architecture.',
       section7Item2:
-        'Fault Tolerance: Redundant microservice instances and automatically scaling server infrastructure.',
+        'Backups (RPO/RTO): Daily automated backups of databases and object stores with a 30-day retention depth.',
       section7Item3:
-        '24/7 System Monitoring: Continuous health monitoring with real-time incident notifications.',
-      section8Title: '8. Data Retention & Permanent Deletion',
+        '24/7 Monitoring: Continuous health monitoring and instant incident alerts for engineering teams.',
+      section8Title: '8. Scheduled Maintenance Windows',
       section8Text:
-        'Your data is retained for as long as your account remains active. You maintain the absolute right to purge any chat, dataset, uploaded file, or entire account. Upon deletion, data is physically and permanently removed from databases, object stores, and vector indexes without recovery.',
-      section9Title: '9. Access Control & Security Auditing',
+        'Planned maintenance is conducted during low-traffic periods. Users receive at least 48 hours advance notice via the platform UI. Scheduled maintenance hours are excluded from SLA downtime calculations.',
+      section9Title: '9. Incident Classification & Support SLA Response Times',
       section9Text:
-        'Access to user data is restricted via Role-Based Access Control (RBAC). Platform staff access to user content is strictly prohibited, except under explicit written customer support tickets for technical troubleshooting.',
-      section10Title: '10. Cookies & Local Storage',
+        'Customer support tickets are categorized by severity level with mandatory response time SLAs:',
+      section9Item1:
+        'P1 - Critical (Total primary feature outage): Initial response < 15 mins, updates every 30 mins.',
+      section9Item2:
+        'P2 - High (Major performance degradation or partial feature failure): Initial response < 1 hour.',
+      section9Item3:
+        'P3 - Medium (Minor localized bug with available workaround): Initial response < 4 hours.',
+      section9Item4:
+        'P4 - Low (General inquiries, configuration assistance, feedback): Initial response < 8 business hours.',
+      section10Title: '10. Data Retention & Permanent Purging Protocol',
       section10Text:
-        'We utilize Cookies and LocalStorage strictly for maintaining authenticated sessions (JWT), UI theme preferences, and language selection.',
-      section11Title: '11. User Rights & SLA Acceptance',
+        'Your data is retained only during your active account lifecycle. You hold the right to purge any chat, dataset, file, or full account. Upon deletion, data is physically and permanently purged from databases, S3 object stores, and vector indexes without recovery.',
+      section11Title: '11. Access Control (RBAC) & Internal Audits',
       section11Text:
-        'You reserve full rights to access, export, rectify, and delete your data. Continued usage of Swipies constitutes acceptance of this Privacy Policy and Data SLA.',
-      section12Title: '12. Security Contact & Support',
+        'Data access is restricted by Role-Based Access Control (RBAC). Platform staff access to customer content is strictly forbidden, permitted only upon explicit written support ticket authorization.',
+      section12Title: '12. Session Tokens & Cookie Usage',
       section12Text:
-        'For data privacy, security questions, or SLA inquiries, please contact our support team at: {{email}}',
+        'The platform utilizes strictly necessary session Cookies and LocalStorage to maintain JWT authentication, language selection, theme preferences, and state.',
+      section13Title: '13. Compliance Standards (GDPR-Ready)',
+      section13Text:
+        'Swipies platform infrastructure is engineered in compliance with international privacy standards (GDPR-ready), supporting rights to access, rectification, restriction, and complete erasure ("right to be forgotten").',
+      section14Title: '14. User Rights & SLA Acceptance',
+      section14Text:
+        'Registering an account or utilizing Swipies platform services constitutes binding acceptance of this Service Level Agreement and Data Protection Policy.',
+      section15Title: '15. Security Contact & DPO',
+      section15Text:
+        'For security questions, SLA inquiries, or data erasure requests, please contact our Data Protection Officer at: {{email}}',
     },
   },
 };
