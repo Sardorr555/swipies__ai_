@@ -2192,6 +2192,201 @@ Important structured information may include: names, dates, locations, events, k
         "Profil ma'lumotlari: ism (taxallus), elektron pochta, telefon raqami, parol xeshi, avtorizatsiya va obuna tokenlari.",
       section2Item2:
         "Yuklanadigan kontent: hujjatlar (PDF, DOCX, TXT, CSV, XLSX, Markdown), tasvirlar, audio yozuvlar va bilimlar bazasi fayllari.",
+      delFile: 'Delete file',
+      delFiles: 'Delete files',
+      delFilesContent: 'Selected {{count}} files',
+      delChat: 'Delete chat',
+      delMember: 'Delete member',
+    },
+
+    empty: {
+      noMCP: 'No MCP servers available',
+      agentTitle: 'No agent app created yet',
+      datasetTitle: 'No dataset created yet',
+      chatTitle: 'No chat app created yet',
+      searchTitle: 'No search app created yet',
+      addNow: 'Add Now',
+    },
+
+    admin: {
+      loginTitle: 'Admin console',
+      title: 'Swipies AI',
+      confirm: 'Confirm',
+      close: 'Close',
+      yes: 'Yes',
+      no: 'No',
+      delete: 'Delete',
+      cancel: 'Cancel',
+      reset: 'Reset',
+      import: 'Import',
+      description: 'Description',
+      noDescription: 'No description',
+
+      resourceType: {
+        dataset: 'Dataset',
+        chat: 'Chat',
+        agent: 'Agent',
+        search: 'Search',
+        file: 'File',
+        team: 'Team',
+        memory: 'Memory',
+      },
+
+      permissionType: {
+        enable: 'Enable',
+        read: 'Read',
+        write: 'Write',
+        share: 'Share',
+      },
+
+      serviceStatus: 'Service status',
+      userManagement: 'User management',
+      registrationWhitelist: 'Registration whitelist',
+      roles: 'Roles',
+      monitoring: 'Monitoring',
+
+      back: 'Back',
+      active: 'Active',
+      inactive: 'Inactive',
+      enable: 'Enable',
+      disable: 'Disable',
+      all: 'All',
+      actions: 'Actions',
+      newUser: 'New user',
+      email: 'Email',
+      name: 'Name',
+      nickname: 'Nickname',
+      status: 'Status',
+      id: 'ID',
+      referrals: 'Taklif qilinganlar (referallar)',
+      referredBy: 'Kim taklif qilgan',
+      referredById: 'Taklif qiluvchi ID si',
+      serviceType: 'Service type',
+      host: 'Host',
+      port: 'Port',
+
+      role: 'Role',
+      user: 'User',
+      superuser: 'Superuser',
+
+      createTime: 'Create time',
+      lastLoginTime: 'Last login time',
+      lastUpdateTime: 'Last update time',
+
+      isAnonymous: 'Is anonymous',
+      isSuperuser: 'Is superuser',
+
+      deleteUser: 'Delete user',
+      deleteUserConfirmation: 'Are you sure you want to delete this user?',
+
+      createNewUser: 'Create new user',
+      changePassword: 'Change password',
+      newPassword: 'New password',
+      confirmNewPassword: 'Confirm new password',
+      password: 'Password',
+      confirmPassword: 'Confirm password',
+
+      invalidEmail: 'Please input a valid email address!',
+      passwordRequired: 'Please input your password!',
+      passwordMinLength: 'Password must be more than 8 characters.',
+      confirmPasswordRequired: 'Please confirm your password!',
+      confirmPasswordDoNotMatch: 'The password that you entered do not match!',
+
+      read: 'Read',
+      write: 'Write',
+      share: 'Share',
+      create: 'Create',
+
+      extraInfo: 'Extra information',
+      serviceDetail: `Service {{name}} detail`,
+      taskExecutorDetail: 'Task executor detail',
+
+      whitelistManagement: 'Whitelist management',
+      exportAsExcel: 'Export Excel',
+      importFromExcel: 'Import Excel',
+      createEmail: 'Create email',
+      deleteEmail: 'Delete email',
+      editEmail: 'Edit email',
+      deleteWhitelistEmailConfirmation:
+        'Are you sure you want to delete this email from whitelist? This action cannot be undone.',
+
+      importWhitelist: 'Import whitelist (Excel)',
+      importSelectExcelFile: 'Excel file (.xlsx)',
+      importOverwriteExistingEmails: 'Overwrite existing emails',
+      importInvalidExcelFile: 'Please select a valid Excel file',
+      importFileRequired: 'Please select a file to import',
+      importFileTips:
+        'File must contain a single header column named <code>email</code>.',
+
+      chunkNum: 'Chunks',
+      docNum: 'Documents',
+      tokenNum: 'Tokens used',
+      language: 'Language',
+      createDate: 'Create date',
+      updateDate: 'Update date',
+      permission: 'Permission',
+
+      agentTitle: 'Agent title',
+      canvasCategory: 'Canvas category',
+
+      newRole: 'New role',
+      addNewRole: 'Add new role',
+      roleName: 'Role name',
+      roleNameRequired: 'Role name is required',
+      resources: 'Resources',
+
+      editRoleDescription: 'Edit role description',
+      deleteRole: 'Delete role',
+      deleteRoleConfirmation:
+        'Are you sure you want to delete this role? This action cannot be undone.',
+
+      alive: 'Alive',
+      timeout: 'Timeout',
+      fail: 'Fail',
+    },
+    subscription: {
+      upgradeRequired: 'Upgrade Required',
+      recommended: 'Recommended',
+      currentPlan: 'Current Plan',
+      upgrade: 'Upgrade',
+      messagesPerMonth: 'messages/month',
+      chatbots: 'chatbots',
+      models: 'Models',
+      mcpAccess: 'MCP Access',
+      customModels: 'Custom Models (BYOK)',
+      chatbotLimitReached:
+        'You have reached your chatbot limit ({{current}}/{{max}}). Please upgrade to create more chatbots.',
+      messageLimitReached:
+        'You have reached your monthly message limit ({{current}}/{{max}}). Please upgrade to continue.',
+      modelNotAllowed:
+        'This model is not available in your current plan. Please upgrade to access it.',
+      mcpNotAllowed:
+        'MCP (Model Context Protocol) is not available in your current plan. Please upgrade to Pro.',
+      customModelNotAllowed:
+        'Custom models (BYOK) are not available in your current plan. Please upgrade to Pro.',
+      limitReached:
+        'You have reached your plan limit. Please upgrade to continue.',
+      paymentFailed: 'Failed to initiate payment. Please try again.',
+      paymentError: 'An error occurred while processing payment.',
+    },
+    privacyPolicy: {
+      back: 'Orqaga',
+      title: "Maxfiylik siyosati va Ma'lumotlarga ishlov berish SLA",
+      effectiveDate: 'Soʻnggi yangilanish sanasi',
+      slaBadge1: '99.9% Mavjudlik SLA',
+      slaBadge2: 'AES-256 Shifrlash',
+      slaBadge3: "Ko'p ijarachili izolyatsiya",
+      slaBadge4: 'AI Model Tayyorlashsiz',
+      section1Title: '1. Umumiy qoidalar va SLA shartnomasi',
+      section1Text:
+        'Ushbu hujjat Swipies platformasida ("biz", "bizning", "platforma") foydalanuvchilar maʼlumotlarini yigʻish, saqlash, himoya qilish va oʻchirish qoidalarini belgilaydi hamda xizmat koʻrsatish darajasi (SLA — Service Level Agreement) parametrlarini tasdiqlaydi. Platformadan foydalanish orqali siz ushbu shartnoma shartlarini toʻliq qabul qilasiz.',
+      section2Title: "2. Yig'iladigan ma'lumotlar toifalari",
+      section2Text:
+        "Biz faqat sun'iy intellekt xizmatlari va bilimlar bazasi qidiruvi uchun zarur bo'lgan minimal ma'lumotlarni yig'amiz:",
+      section2Item1:
+        "Profil ma'lumotlari: ism (taxallus), elektron pochta, telefon raqami, parol xeshi, avtorizatsiya va obuna tokenlari.",
+      section2Item2:
+        "Yuklanadigan kontent: hujjatlar (PDF, DOCX, TXT, CSV, XLSX, Markdown), tasvirlar, audio yozuvlar va bilimlar bazasi fayllari.",
       section2Item3:
         "Vektorli ko'rinishlar (embreddinglar): hujjatlarni indekslash jarayonida yaratilgan raqamli vektorlar va matn bo'laklari (chanklar).",
       section2Item4:
@@ -2222,7 +2417,7 @@ Important structured information may include: names, dates, locations, events, k
       section5Item2:
         "Qaytadan tiklash (Deanonymization): neyrotarmoqdan javob olingach, anonim belgilar avtomatik ravishda asl qiymatlariga tiklanadi.",
       section5Item3:
-        "Slayderni yoqish orqali siz ushbu qoidalar ishlovi va saqlanishiga SLA doirasida rozilik bildirasiz.",
+        "Slayderni yoqish yoki oʻchirishdan qatʼi nazar, barcha kiritilgan qoidalar va maʼlumotlar serverimizda saqlanib qoladi. Kalitni oʻzgartirish orqali siz ushbu SLA shartlariga rozilik bildirasiz.",
       section6Title: "6. Uchinchi tomonlarga uzatish va tashqi LLMlar",
       section6Text:
         "Biz ma'lumotlaringizni sotmaymiz. Ma'lumotlar faqat foydalanuvchi tomonidan tanlangan LLM provayderlariga (OpenAI, Anthropic, DeepSeek, Google) yuboriladi. Ular bilan tuzilgan shartnomalar ma'lumotlaringiz sun'iy intellekt modellarini o'qitish uchun ISHLATILMASLIGINI kafolatlaydi.",
