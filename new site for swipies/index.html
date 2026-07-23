@@ -1779,16 +1779,14 @@
             <span class="code-dot"></span>
             <span class="code-dot"></span>
             <span class="code-dot"></span>
-            <span class="code-title">terminal — deploy.sh</span>
+            <span class="code-title">terminal — install.sh</span>
           </div>
-          <pre class="code-content"><code class="mono"><span class="accent"># 1. Download Swipies compose config</span>
-curl -fsSL https://swipies.app/docker-compose.yml -o docker-compose.yml
+          <pre class="code-content"><code class="mono"><span class="accent"># 1-Command Automatic Installer (Pull prebuilt containers & run)</span>
+curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/install.sh | bash
 
-<span class="accent"># 2. Add your license to env file</span>
-echo "SWIPIES_LICENSE=SWIPIES-9A2B-7C4E-8F1D" >> .env
-
-<span class="accent"># 3. Spin up the platform</span>
-docker compose up -d --build</code></pre>
+<span class="accent"># System Requirements:</span>
+<span class="accent"># Minimum Specs: 16 GB RAM | 6 vCPU | 50 GB SSD (Ubuntu 20.04+)</span>
+<span class="accent"># Recommended: 32 GB RAM | 8 vCPU / NVIDIA GPU Acceleration</span></code></pre>
         </div>
       </div>
     </div>
@@ -2207,9 +2205,9 @@ docker compose up -d --build</code></pre>
         how3_p: "Your team and clients get enterprise-grade AI — fully private, fully controlled, fully yours. Data stays with you.",
         selfhosted_num: "04 — Self-Hosted",
         selfhosted_title: "Run Swipies AI on Your Own Hardware",
-        selfhosted_subtitle: "Pull our Docker containers, configure your environment, and paste your license key to unlock maximum performance.",
-        selfhosted_step1_h: "1. Pull and Run",
-        selfhosted_step1_p: "Deploy our containerized stack in minutes using Docker Compose or Kubernetes Helm charts.",
+        selfhosted_subtitle: "Pull our ready-to-run Docker containers in 1 command and paste your license key to unlock maximum performance.",
+        selfhosted_step1_h: "1. 1-Command Install",
+        selfhosted_step1_p: "Deploy our prebuilt containerized stack in seconds using `curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/install.sh | bash` (Minimum requirements: 16 GB RAM, 6 vCPU).",
         selfhosted_step2_h: "2. Insert License Key",
         selfhosted_step2_p: "Paste your Swipies license key in the web panel to activate GPU acceleration and remove ingestion limits.",
         selfhosted_step3_h: "3. Complete Autonomy",
@@ -2350,9 +2348,9 @@ docker compose up -d --build</code></pre>
         how3_p: "Ваша команда и клиенты получают корпоративный AI — полностью приватный, полностью контролируемый. Данные остаются у вас.",
         selfhosted_num: "04 — Установка (Self-Hosted)",
         selfhosted_title: "Запускайте Swipies AI на собственном оборудовании",
-        selfhosted_subtitle: "Загрузите наши Docker-контейнеры, настройте окружение и вставьте лицензионный ключ, чтобы разблокировать максимальную производительность.",
-        selfhosted_step1_h: "1. Загрузите и запустите",
-        selfhosted_step1_p: "Разверните стек в контейнерах за считанные минуты с помощью Docker Compose или Helm-чартов Kubernetes.",
+        selfhosted_subtitle: "Запустите наши готовые Docker-контейнеры одной командой и вставьте лицензионный ключ для активации.",
+        selfhosted_step1_h: "1. Установка в 1 команду",
+        selfhosted_step1_p: "Разверните готовый стек за считанные секунды с помощью автоматического инсталлятора (Минимальные требования: 16 ГБ ОЗУ, 6 vCPU).",
         selfhosted_step2_h: "2. Введите лицензионный ключ",
         selfhosted_step2_p: "Вставьте ваш лицензионный ключ в веб-панель управления, чтобы активировать ускорение GPU и снять лимиты.",
         selfhosted_step3_h: "3. Полная автономия",
@@ -2493,9 +2491,9 @@ docker compose up -d --build</code></pre>
         how3_p: "Jamoangiz korporativ AI'dan foydalanishni boshlaydi — to'liq maxfiy, to'liq nazorat ostida.",
         selfhosted_num: "04 — O'rnatish (Self-Hosted)",
         selfhosted_title: "Swipies AI-ni o'z uskunangizda ishga tushiring",
-        selfhosted_subtitle: "Docker konteynerlarimizni yuklab oling, muhitni sozlang va maksimal unumdorlikni faollashtirish uchun litsenziya kalitini kiriting.",
-        selfhosted_step1_h: "1. Yuklab oling va ishga tushiring",
-        selfhosted_step1_p: "Docker Compose yoki Kubernetes Helm-chartlari yordamida stekni bir necha daqiqada joylashtiring.",
+        selfhosted_subtitle: "Tayyor Docker konteynerlarimizni 1 ta buyruq bilan ishga tushiring va faollashtirish uchun litsenziya kalitini kiriting.",
+        selfhosted_step1_h: "1. 1 ta buyruq bilan o'rnatish",
+        selfhosted_step1_p: "Avtomatik o'rnatuvchi yordamida 1 ta buyruq bilan tayyor konteynerli stekni bir necha soniyada joylashtiring (Minimal talablar: 16 GB RAM, 6 vCPU).",
         selfhosted_step2_h: "2. Litsenziya kalitini kiriting",
         selfhosted_step2_p: "GPU tezlashuvini faollashtirish va cheklovlarni olib tashlash uchun Swipies litsenziya kalitini kiriting.",
         selfhosted_step3_h: "3. To'liq avtonomiya",
