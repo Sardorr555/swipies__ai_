@@ -1,0 +1,45 @@
+include:
+  - ./docker-compose-base.yml
+
+services:
+  ragflow-cpu:
+    container_name: swipies-cpu
+    depends_on:
+      mysql:
+        condition: service_healthy
+    profiles:
+      - cpu
+    image: ghcr.io/sardorr555/swipies-backend:licence_v
+    command:
+      - --enable-adminserver
+      - --init-model-provider-tables
+    ports:
+      - 0.0.0.0:${SVR_HTTP_PORT:-9380}:9380
+      - 0.0.0.0:${ADMIN_SVR_HTTP_PORT:-9381}:9381
+      - 0.0.0.0:5678:5678
+      - 0.0.0.0:5679:5679
+      - 0.0.0.0:${SVR_MCP_PORT:-9382}:9382
+    volumes:
+      - ./ragflow-logs:/ragflow/logs
+      - ./service_conf.yaml.template:/ragflow/conf/service_conf.yaml.template
+    env_file: .env
+    networks:
+      - ragflow
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    container_name: swipies-frontend
+    image: ghcr.io/sardorr555/swipies-frontend:licence_v
+    environment:
+      - RAGFLOW_BACKEND=${RAGFLOW_BACKEND:-http://swipies-cpu:9380}
+      - RAGFLOW_ADMIN_BACKEND=${RAGFLOW_ADMIN_BACKEND:-http://swipies-cpu:9381}
+      - NGINX_ENVSUBST_FILTER=RAGFLOW_BACKEND|RAGFLOW_ADMIN_BACKEND
+    ports:
+      - "0.0.0.0:80:80"
+    networks:
+      - ragflow
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

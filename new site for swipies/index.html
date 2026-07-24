@@ -1779,16 +1779,10 @@
             <span class="code-dot"></span>
             <span class="code-dot"></span>
             <span class="code-dot"></span>
-            <span class="code-title">terminal — deploy.sh</span>
+            <span class="code-title">terminal — install.sh</span>
           </div>
-          <pre class="code-content"><code class="mono"><span class="accent"># 1. Download Swipies compose config</span>
-curl -fsSL https://swipies.app/docker-compose.yml -o docker-compose.yml
-
-<span class="accent"># 2. Add your license to env file</span>
-echo "SWIPIES_LICENSE=SWIPIES-9A2B-7C4E-8F1D" >> .env
-
-<span class="accent"># 3. Spin up the platform</span>
-docker compose up -d --build</code></pre>
+          <pre class="code-content"><code class="mono"><span class="accent"># 1-Command Automatic Installer (Min: 16 GB RAM, 6 vCPU)</span>
+curl -fsSL https://swipies.app/install.sh | bash</code></pre>
         </div>
       </div>
     </div>
