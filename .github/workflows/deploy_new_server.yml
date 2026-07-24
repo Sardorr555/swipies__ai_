@@ -92,14 +92,16 @@ jobs:
 
             cd docker
 
-            echo "🛑 Полностью останавливаем и удаляем старые бэкенд контейнеры..."
+            echo "🛑 Полностью останавливаем и принудительно удаляем все старые контейнеры swipies-..."
             sudo docker compose down --remove-orphans || true
-            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb || true
+            sudo docker rm -f $(sudo docker ps -a -q --filter name=swipies-) 2>/dev/null || true
+            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb swipies-opensearch01 swipies-deepdoc 2>/dev/null || true
 
             echo "🐳 Собираем новые образы (с кэшированием для скорости)..."
             sudo docker compose build
 
             echo "🚀 Запускаем..."
+            sudo docker rm -f $(sudo docker ps -a -q --filter name=swipies-) 2>/dev/null || true
             sudo docker compose up -d --remove-orphans
 
             echo "⏳ Ждем запуска сервисов..."
