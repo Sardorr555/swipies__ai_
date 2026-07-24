@@ -29,17 +29,10 @@ mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
 echo "📥 Downloading Swipies release configurations..."
-curl -fsSL -o docker-compose.yml https://swipies.app/docker-compose.release.yml 2>/dev/null || \
-curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/docker/docker-compose.release.yml
-
-curl -fsSL -o docker-compose-base.yml https://swipies.app/docker-compose-base.yml 2>/dev/null || \
-curl -fsSL -o docker-compose-base.yml https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/docker/docker-compose-base.yml
-
-curl -fsSL -o service_conf.yaml.template https://swipies.app/service_conf.yaml.template 2>/dev/null || \
-curl -fsSL -o service_conf.yaml.template https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/docker/service_conf.yaml.template
-
-curl -fsSL -o .env https://swipies.app/.env 2>/dev/null || \
-curl -fsSL -o .env https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/docker/.env
+curl -fsSL -o docker-compose.yml https://swipies.app/docker-compose.release.yml
+curl -fsSL -o docker-compose-base.yml https://swipies.app/docker-compose-base.yml
+curl -fsSL -o service_conf.yaml.template https://swipies.app/service_conf.yaml.template
+curl -fsSL -o .env https://swipies.app/.env
 
 # 5. Pull prebuilt docker images
 echo "🚚 Pulling prebuilt Swipies Docker containers..."
