@@ -27,6 +27,7 @@ import { useEffect, useMemo } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { DynamicVariableForm } from './dynamic-variable';
+import { SensitiveDataFormField } from './sensitive-data-form-field';
 
 interface ChatPromptEngineProps {
   prefix?: string;
@@ -133,6 +134,7 @@ export function ChatPromptEngine({ prefix = '' }: ChatPromptEngineProps) {
         <TavilyFormField
           name={prefixName(prefix, 'prompt_config.tavily_api_key')}
         ></TavilyFormField>
+        <SensitiveDataFormField prefix={prefix} />
         <MetadataFilter></MetadataFilter>
         <FormField
           control={form.control}

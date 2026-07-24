@@ -39,6 +39,7 @@ from api.utils.reference_metadata_utils import (
     enrich_chunks_with_document_metadata,
     resolve_reference_metadata_preferences,
 )
+from api.utils.sensitive_data_utils import anonymize_messages, deanonymize_text
 from api.db.joint_services.tenant_model_service import get_tenant_default_model_by_type, get_model_config_from_provider_instance, get_model_type_by_name
 from common.time_utils import current_timestamp, datetime_format
 from common.text_utils import normalize_arabic_digits
@@ -292,6 +293,12 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
     image_attachments = []
     image_files = []
 
+    sensitive_config = (dialog.prompt_config or {}).get("sensitive_data_replacement") or {}
+    sensitive_enabled = bool(sensitive_config.get("enabled"))
+    sensitive_rules = sensitive_config.get("rules") or []
+    if sensitive_enabled and sensitive_rules:
+        messages = anonymize_messages(messages, sensitive_rules)
+
     if dialog.llm_id:
         llm_types = get_model_type_by_name(dialog.tenant_id, dialog.llm_id)
         if "chat" in llm_types:
@@ -325,17 +332,30 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
             stream_iter = chat_mdl.async_chat_streamly_delta(prompt_config.get("system", ""), msg, dialog.llm_setting)
         else:
             stream_iter = chat_mdl.async_chat_streamly_delta(prompt_config.get("system", ""), msg, dialog.llm_setting, images=image_files)
+        last_state = None
         async for kind, value, state in _stream_with_think_delta(stream_iter):
+            last_state = state
             if kind == "marker":
                 flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
                 yield {"answer": "", "reference": {}, "audio_binary": None, "prompt": "", "created_at": time.time(), "final": False, **flags}
                 continue
+            if sensitive_enabled and sensitive_rules and value:
+                value = deanonymize_text(value, sensitive_rules)
             yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "prompt": "", "created_at": time.time(), "final": False}
+
+        full_answer = last_state.full_text if last_state else ""
+        if full_answer:
+            full_answer = _extract_visible_answer(full_answer)
+            if sensitive_enabled and sensitive_rules:
+                full_answer = deanonymize_text(full_answer, sensitive_rules)
+            yield {"answer": full_answer, "reference": {}, "audio_binary": None, "prompt": "", "created_at": time.time(), "final": True}
     else:
         if model_config["model_type"] == "chat":
             answer = await chat_mdl.async_chat(prompt_config.get("system", ""), msg, dialog.llm_setting)
         else:
             answer = await chat_mdl.async_chat(prompt_config.get("system", ""), msg, dialog.llm_setting, images=image_files)
+        if sensitive_enabled and sensitive_rules and answer:
+            answer = deanonymize_text(answer, sensitive_rules)
         user_content = msg[-1].get("content", "[content not available]")
         logging.debug("User: {}|Assistant: {}".format(user_content, answer))
         yield {"answer": answer, "reference": {}, "audio_binary": tts(tts_mdl, answer), "prompt": "", "created_at": time.time()}
@@ -547,6 +567,13 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     assert messages[-1]["role"] == "user", "The last content of this conversation is not from user."
     session_id = kwargs.get("session_id")
     use_web_search = _should_use_web_search(dialog.prompt_config, kwargs.get("internet"))
+
+    sensitive_config = (dialog.prompt_config or {}).get("sensitive_data_replacement") or {}
+    sensitive_enabled = bool(sensitive_config.get("enabled"))
+    sensitive_rules = sensitive_config.get("rules") or []
+    if sensitive_enabled and sensitive_rules:
+        messages = anonymize_messages(messages, sensitive_rules)
+
     logging.debug("web_search kb=%s tavily=%s internet=%r enabled=%s", bool(dialog.kb_ids), bool(dialog.prompt_config.get("tavily_api_key")), kwargs.get("internet"), use_web_search)
     if not dialog.kb_ids and not use_web_search:
         async for ans in async_chat_solo(dialog, messages, stream, session_id=session_id):
@@ -879,7 +906,10 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
             )
             langfuse_generation.end()
 
-        return {"answer": think + answer, "reference": refs, "prompt": re.sub(r"\n", "  \n", prompt), "created_at": time.time()}
+        final_answer = think + answer
+        if sensitive_enabled and sensitive_rules and final_answer:
+            final_answer = deanonymize_text(final_answer, sensitive_rules)
+        return {"answer": final_answer, "reference": refs, "prompt": re.sub(r"\n", "  \n", prompt), "created_at": time.time()}
 
     if langfuse_tracer:
         try:
@@ -912,13 +942,16 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
                 flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
                 yield {"answer": "", "reference": {}, "audio_binary": None, "final": False, **flags}
                 continue
+            if sensitive_enabled and sensitive_rules and value:
+                value = deanonymize_text(value, sensitive_rules)
             yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "final": False}
         full_answer = last_state.full_text if last_state else ""
         if full_answer:
             final = await decorate_answer(_extract_visible_answer(thought + full_answer))
             final["final"] = True
             final["audio_binary"] = None
-            final["answer"] = ""
+            if not (sensitive_enabled and sensitive_rules):
+                final["answer"] = ""
             yield final
     else:
         if llm_model_config["model_type"] == "chat":
