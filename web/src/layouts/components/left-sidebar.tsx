@@ -130,10 +130,13 @@ export function LeftSidebar({
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-5 border-t border-border-default/25">
-        <p className="text-[10px] text-text-secondary/40 font-medium tracking-wide">
-          Swipies AI
-        </p>
+      <div className="px-4 py-3.5 border-t border-border-default/30 flex flex-col items-center justify-center gap-0.5 text-center">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-accent-primary/10 text-accent-primary border border-accent-primary/20">
+          Swipies AI Commercial Edition
+        </span>
+        <span className="text-[9px] font-medium text-text-secondary opacity-75">
+          v26.0 Licensed Version
+        </span>
       </div>
     </aside>
   );
