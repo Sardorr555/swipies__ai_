@@ -56,6 +56,11 @@ jobs:
             git submodule sync --recursive
             git submodule update --init --recursive --force
 
+            echo "🌐 Copying install.sh to NGINX web root for swipies.app domain..."
+            sudo mkdir -p /var/www/html /var/www/swipies 2>/dev/null || true
+            sudo cp -f ~/swipies__ai_/"new site for swipies"/install.sh /var/www/html/install.sh 2>/dev/null || true
+            sudo cp -f ~/swipies__ai_/"new site for swipies"/install.sh /var/www/swipies/install.sh 2>/dev/null || true
+
             cd ~/swipies__ai_/"atmos payment system"
             git checkout main || true
             git pull origin main || true
