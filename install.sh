@@ -23,7 +23,27 @@ if ! docker compose version &> /dev/null; then
     sudo apt-get install -y docker-compose-plugin
 fi
 
-# 4. Create installation directory
+# 4. Check if local repository exists on server
+if [ -d "$HOME/swipies__ai_/docker" ]; then
+    echo "⚙️ Found local Swipies repository at ~/swipies__ai_! Launching local stack..."
+    cd "$HOME/swipies__ai_"
+    git fetch origin licence_v || true
+    git reset --hard origin/licence_v || true
+    cd docker
+    sudo docker rm -f $(sudo docker ps -a -q --filter name=swipies-) 2>/dev/null || true
+    sudo docker compose build
+    sudo docker compose up -d --remove-orphans
+    sleep 10
+    sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" 2>/dev/null || true
+    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+    echo "=================================================="
+    echo "✅ Swipies AI successfully installed and running!"
+    echo "🌐 Access your app at: http://${SERVER_IP}/"
+    echo "=================================================="
+    exit 0
+fi
+
+# 5. Remote installation directory for clean client servers
 INSTALL_DIR="$HOME/swipies_app"
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
@@ -197,13 +217,17 @@ networks:
     driver: bridge
 EOF
 
-# 5. Pull prebuilt docker images
+# 6. Pull prebuilt docker images
 echo "🚚 Pulling prebuilt Swipies Docker containers..."
-if ! sudo docker compose pull; then
-    echo "⚠️ Prebuilt GHCR containers loading... Starting stack with build fallback..."
-    sudo docker compose up -d --build || sudo docker compose up -d
+sudo docker rm -f $(sudo docker ps -a -q --filter name=swipies-) 2>/dev/null || true
+if ! sudo docker compose pull 2>/dev/null; then
+    echo "⚠️ Prebuilt GHCR containers are publishing... Cloning repo to build locally..."
+    cd "$HOME"
+    git clone -b licence_v https://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@github.com/Sardorr555/swipies__ai_.git "$HOME/swipies__ai_" 2>/dev/null || true
+    cd "$HOME/swipies__ai_/docker"
+    sudo docker compose build
+    sudo docker compose up -d --remove-orphans
 else
-    # 6. Start Swipies Services
     echo "🚀 Starting Swipies AI stack..."
     sudo docker compose up -d
 fi
@@ -212,7 +236,7 @@ echo "⏳ Waiting 15 seconds for services to initialize..."
 sleep 15
 
 # 7. Grant superuser permissions to initial admin accounts
-sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" || true
+sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" 2>/dev/null || true
 
 SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
 
