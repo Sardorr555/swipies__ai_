@@ -36,7 +36,7 @@ jobs:
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/swipies-backend
+          images: ghcr.io/sardorr555/swipies-backend
           tags: |
             type=raw,value=latest
             type=raw,value=${{ github.ref_name }}
@@ -54,7 +54,7 @@ jobs:
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/swipies-frontend
+          images: ghcr.io/sardorr555/swipies-frontend
           tags: |
             type=raw,value=latest
             type=raw,value=${{ github.ref_name }}

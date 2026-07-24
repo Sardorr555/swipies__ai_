@@ -199,11 +199,14 @@ EOF
 
 # 5. Pull prebuilt docker images
 echo "🚚 Pulling prebuilt Swipies Docker containers..."
-sudo docker compose pull || true
-
-# 6. Start Swipies Services
-echo "🚀 Starting Swipies AI stack..."
-sudo docker compose up -d
+if ! sudo docker compose pull; then
+    echo "⚠️ Prebuilt GHCR containers loading... Starting stack with build fallback..."
+    sudo docker compose up -d --build || sudo docker compose up -d
+else
+    # 6. Start Swipies Services
+    echo "🚀 Starting Swipies AI stack..."
+    sudo docker compose up -d
+fi
 
 echo "⏳ Waiting 15 seconds for services to initialize..."
 sleep 15
