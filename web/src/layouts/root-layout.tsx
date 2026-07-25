@@ -1,13 +1,24 @@
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import { Header } from './components/header';
 import { LeftSidebar } from './components/left-sidebar';
-import { LicenseActivationModal } from '@/components/license-activation-modal';
 
 export function RootLayoutContainer({ children }: React.PropsWithChildren) {
+  const { pathname } = useLocation();
+
+  const isDetailWorkspace =
+    pathname.startsWith('/dataset/') ||
+    pathname === '/dataset' ||
+    pathname.startsWith('/chat/') ||
+    pathname === '/chat' ||
+    pathname.startsWith('/agent/') ||
+    pathname === '/agent';
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg-base">
       {/* Left Sidebar on desktop */}
-      <LeftSidebar className="hidden md:flex shrink-0" />
+      {!isDetailWorkspace && (
+        <LeftSidebar className="hidden md:flex shrink-0" />
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
@@ -17,8 +28,6 @@ export function RootLayoutContainer({ children }: React.PropsWithChildren) {
           {children}
         </main>
       </div>
-      
-      <LicenseActivationModal />
     </div>
   );
 }
