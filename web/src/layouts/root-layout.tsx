@@ -6,7 +6,8 @@ export function RootLayoutContainer({ children }: React.PropsWithChildren) {
   const { pathname } = useLocation();
 
   const isDetailWorkspace =
-    pathname.startsWith('/dataset') ||
+    pathname.startsWith('/dataset/') ||
+    pathname === '/dataset' ||
     pathname.startsWith('/chat/') ||
     pathname === '/chat' ||
     pathname.startsWith('/agent/') ||
