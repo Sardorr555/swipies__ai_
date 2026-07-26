@@ -98,7 +98,7 @@ const AdminNavigationLayout = () => {
     mutationFn: async () => {
       await logout();
       authorizationUtil.removeAll();
-      navigate(Routes.Admin);
+      navigate('/admin/login', { replace: true });
       setCurrentUserInfo({
         userInfo: null,
         source: null,
