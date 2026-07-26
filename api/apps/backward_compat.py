@@ -84,6 +84,26 @@ async def deprecated_system_healthz():
     return jsonify(result), (200 if all_ok else 500)
 
 
+# =============================================================================
+# OAuth Compatibility Routes
+# =============================================================================
+
+@legacy_v1_manager.route("/user/oauth/callback/<channel>", methods=["GET"])
+@legacy_v1_manager.route("/user/oauth/<channel>/callback", methods=["GET"])
+@legacy_v1_manager.route("/user/auth/oauth/<channel>/callback", methods=["GET"])
+async def deprecated_user_oauth_callback(channel):
+    from api.apps.restful_apis.user_api import oauth_callback
+    return await oauth_callback(channel)
+
+
+@legacy_v1_manager.route("/user/oauth/<channel>", methods=["GET"])
+@legacy_v1_manager.route("/user/oauth/login/<channel>", methods=["GET"])
+@legacy_v1_manager.route("/user/auth/login/<channel>", methods=["GET"])
+async def deprecated_user_oauth_login(channel):
+    from api.apps.restful_apis.user_api import oauth_login
+    return await oauth_login(channel)
+
+
 @legacy_v1_manager.route("/licenses/verify", methods=["POST"])
 async def verify_license():
     """
