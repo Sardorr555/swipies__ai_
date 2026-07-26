@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Coins,
   Gift,
+  KeyRound,
   LucideLoader2,
   Mail,
   Save,
@@ -44,6 +45,13 @@ export default function AdminPricingSettings() {
     plusUzs: '199000',
     proUsd: '40',
     proUzs: '400000',
+  });
+
+  const [oauthValues, setOauthValues] = useState({
+    googleClientId: '',
+    googleClientSecret: '',
+    githubClientId: '',
+    githubClientSecret: '',
   });
 
   const [planLimitValues, setPlanLimitValues] = useState({
@@ -151,6 +159,13 @@ export default function AdminPricingSettings() {
         enterpriseTeam: varsMap.get('plan.enterprise.team_limit') || '-1',
       });
 
+      setOauthValues({
+        googleClientId: varsMap.get('oauth.google.client_id') || '',
+        googleClientSecret: varsMap.get('oauth.google.client_secret') || '',
+        githubClientId: varsMap.get('oauth.github.client_id') || '',
+        githubClientSecret: varsMap.get('oauth.github.client_secret') || '',
+      });
+
       setReferralValues({
         enabled: varsMap.get('referral.enabled') !== 'false',
         storageGb: varsMap.get('referral.storage_gb') || '1.0',
@@ -171,6 +186,32 @@ export default function AdminPricingSettings() {
       queryClient.invalidateQueries({ queryKey: ['admin/getVariables'] });
     },
   });
+
+  const handleSaveOauth = async () => {
+    try {
+      await Promise.all([
+        saveVariableMutation.mutateAsync({
+          name: 'oauth.google.client_id',
+          value: oauthValues.googleClientId,
+        }),
+        saveVariableMutation.mutateAsync({
+          name: 'oauth.google.client_secret',
+          value: oauthValues.googleClientSecret,
+        }),
+        saveVariableMutation.mutateAsync({
+          name: 'oauth.github.client_id',
+          value: oauthValues.githubClientId,
+        }),
+        saveVariableMutation.mutateAsync({
+          name: 'oauth.github.client_secret',
+          value: oauthValues.githubClientSecret,
+        }),
+      ]);
+      message.success('OAuth credentials for Google and GitHub updated successfully!');
+    } catch (e: any) {
+      message.error(`Failed to update OAuth settings: ${e.message}`);
+    }
+  };
 
   const handleSavePlanLimits = async () => {
     try {
@@ -351,6 +392,13 @@ export default function AdminPricingSettings() {
               >
                 <Sliders className="size-4" />
                 Plan Tier Limits
+              </TabsTrigger>
+              <TabsTrigger
+                value="oauth"
+                className="flex items-center gap-2 text-text-secondary border-0.5 border-border-button data-[state=active]:bg-bg-card px-4 py-2 rounded-md"
+              >
+                <KeyRound className="size-4" />
+                OAuth Login
               </TabsTrigger>
               <TabsTrigger
                 value="smtp"
@@ -755,6 +803,128 @@ export default function AdminPricingSettings() {
                     <Save className="size-4" />
                   )}
                   Save Plan Tier Limits
+                </Button>
+              </div>
+            </TabsContent>
+
+            {/* OAuth Social Login Tab Content */}
+            <TabsContent value="oauth" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Google OAuth Card */}
+                <Card className="border border-border-button dark:bg-bg-card/30">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-text-primary flex items-center gap-2">
+                      Google OAuth Credentials
+                    </CardTitle>
+                    <CardDescription>
+                      Configure Google OAuth 2.0 Client ID and Secret for 1-click Google Login & Registration.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="google-client-id">Google Client ID</Label>
+                      <Input
+                        id="google-client-id"
+                        className="bg-bg-input border-border-button h-10 font-mono text-xs"
+                        placeholder="e.g. XXXXXXXXXX-XXXXXXXXXX.apps.googleusercontent.com"
+                        value={oauthValues.googleClientId}
+                        onChange={(e) =>
+                          setOauthValues({
+                            ...oauthValues,
+                            googleClientId: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="google-client-secret">Google Client Secret</Label>
+                      <Input
+                        id="google-client-secret"
+                        type="password"
+                        className="bg-bg-input border-border-button h-10 font-mono text-xs"
+                        placeholder="GOCSPX-XXXXXXXXXXXXXXXXXXXXXXXX"
+                        value={oauthValues.googleClientSecret}
+                        onChange={(e) =>
+                          setOauthValues({
+                            ...oauthValues,
+                            googleClientSecret: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <p className="text-xs text-text-secondary pt-2">
+                      Authorized Redirect URIs to add in Google Cloud Console:<br />
+                      <code className="bg-bg-input px-1.5 py-0.5 rounded text-accent-primary select-all">
+                        http://{window.location.host}/v1/user/oauth/callback/google
+                      </code>
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* GitHub OAuth Card */}
+                <Card className="border border-border-button dark:bg-bg-card/30">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-text-primary flex items-center gap-2">
+                      GitHub OAuth Credentials
+                    </CardTitle>
+                    <CardDescription>
+                      Configure GitHub OAuth App Client ID and Secret for GitHub Login & Registration.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="github-client-id">GitHub Client ID</Label>
+                      <Input
+                        id="github-client-id"
+                        className="bg-bg-input border-border-button h-10 font-mono text-xs"
+                        placeholder="e.g. Ov23liXXXXXXXXXX"
+                        value={oauthValues.githubClientId}
+                        onChange={(e) =>
+                          setOauthValues({
+                            ...oauthValues,
+                            githubClientId: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="github-client-secret">GitHub Client Secret</Label>
+                      <Input
+                        id="github-client-secret"
+                        type="password"
+                        className="bg-bg-input border-border-button h-10 font-mono text-xs"
+                        placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                        value={oauthValues.githubClientSecret}
+                        onChange={(e) =>
+                          setOauthValues({
+                            ...oauthValues,
+                            githubClientSecret: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <p className="text-xs text-text-secondary pt-2">
+                      Authorization Callback URL to set in GitHub Developer Settings:<br />
+                      <code className="bg-bg-input px-1.5 py-0.5 rounded text-accent-primary select-all">
+                        http://{window.location.host}/v1/user/oauth/callback/github
+                      </code>
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button
+                  className="flex items-center gap-2 h-10 px-6"
+                  disabled={saveVariableMutation.isPending}
+                  onClick={handleSaveOauth}
+                >
+                  {saveVariableMutation.isPending ? (
+                    <LucideLoader2 className="animate-spin size-4" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  Save OAuth Credentials
                 </Button>
               </div>
             </TabsContent>

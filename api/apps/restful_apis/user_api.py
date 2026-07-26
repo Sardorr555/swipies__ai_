@@ -148,14 +148,76 @@ async def get_login_channels():
     """
     Get all supported authentication channels.
     """
+def get_oauth_config(channel: str, host_url: str = ""):
+    channel = channel.lower()
+    oauth_conf = getattr(settings, "OAUTH_CONFIG", {}) or {}
+    config = oauth_conf.get(channel)
+    if not config:
+        from api.db.services.system_settings_service import SystemSettingsService
+        def get_sys_val(key, env_key=""):
+            try:
+                objs = SystemSettingsService.get_by_name(key)
+                if objs and objs[0].value:
+                    return objs[0].value
+            except Exception:
+                pass
+            return os.environ.get(env_key or key.upper().replace(".", "_"), "")
+
+        client_id = get_sys_val(f"oauth.{channel}.client_id", f"{channel.upper()}_CLIENT_ID")
+        client_secret = get_sys_val(f"oauth.{channel}.client_secret", f"{channel.upper()}_CLIENT_SECRET")
+        if client_id and client_secret:
+            config = {
+                "channel": channel,
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "display_name": channel.capitalize(),
+                "icon": channel,
+            }
+            if channel == "google":
+                config.update({
+                    "type": "google",
+                    "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
+                    "token_url": "https://oauth2.googleapis.com/token",
+                    "userinfo_url": "https://www.googleapis.com/oauth2/v3/userinfo",
+                    "scope": "openid email profile"
+                })
+            elif channel == "github":
+                config.update({
+                    "type": "github",
+                    "authorization_url": "https://github.com/login/oauth/authorize",
+                    "token_url": "https://github.com/login/oauth/access_token",
+                    "userinfo_url": "https://api.github.com/user",
+                    "scope": "user:email"
+                })
+
+    if config:
+        config = dict(config)
+        config["channel"] = channel
+        if not config.get("redirect_uri") and host_url:
+            config["redirect_uri"] = f"{host_url.rstrip('/')}/v1/user/oauth/callback/{channel}"
+    return config
+
+
+@manager.route("/auth/login/channels", methods=["GET"])  # noqa: F821
+@manager.route("/oauth/channels", methods=["GET"])  # noqa: F821
+async def get_login_channels():
     try:
         channels = []
-        for channel, config in settings.OAUTH_CONFIG.items():
+        oauth_conf = getattr(settings, "OAUTH_CONFIG", {}) or {}
+        configured_channels = dict(oauth_conf)
+
+        for ch in ["google", "github"]:
+            if ch not in configured_channels:
+                cfg = get_oauth_config(ch)
+                if cfg and cfg.get("client_id"):
+                    configured_channels[ch] = cfg
+
+        for channel, config in configured_channels.items():
             channels.append(
                 {
                     "channel": channel,
                     "display_name": config.get("display_name", channel.title()),
-                    "icon": config.get("icon", "sso"),
+                    "icon": config.get("icon", channel),
                 }
             )
         return get_json_result(data=channels)
@@ -165,42 +227,49 @@ async def get_login_channels():
 
 
 @manager.route("/auth/login/<channel>", methods=["GET"])  # noqa: F821
+@manager.route("/oauth/<channel>", methods=["GET"])  # noqa: F821
+@manager.route("/oauth/login/<channel>", methods=["GET"])  # noqa: F821
+@manager.route("/oauth/<channel>/start", methods=["GET"])  # noqa: F821
 async def oauth_login(channel):
-    channel_config = settings.OAUTH_CONFIG.get(channel)
-    if not channel_config:
-        raise ValueError(f"Invalid channel name: {channel}")
+    host_url = request.host_url
+    channel_config = get_oauth_config(channel, host_url)
+    if not channel_config or not channel_config.get("client_id"):
+        return get_json_result(
+            data=False,
+            message=f"OAuth channel '{channel}' is not configured on this server.",
+            code=RetCode.ARGUMENT_ERROR,
+        )
     auth_cli = get_auth_client(channel_config)
 
     state = get_uuid()
     session["oauth_state"] = state
     auth_url = auth_cli.get_authorization_url(state)
-    logging.info("OAuth login initiated: channel='%s', state='%s'", channel, state)
+    logging.info("OAuth login initiated: channel='%s', state='%s', url='%s'", channel, state, auth_url)
     return redirect(auth_url)
 
 
 @manager.route("/auth/oauth/<channel>/callback", methods=["GET"])  # noqa: F821
+@manager.route("/oauth/callback/<channel>", methods=["GET"])  # noqa: F821
+@manager.route("/oauth/<channel>/callback", methods=["GET"])  # noqa: F821
+@manager.route("/oauth/<channel>/auth/callback", methods=["GET"])  # noqa: F821
 async def oauth_callback(channel):
     """
-    Handle the OAuth/OIDC callback for various channels dynamically.
+    Handle the OAuth/OIDC callback for Google, GitHub, and other channels dynamically.
     """
     try:
-        channel_config = settings.OAUTH_CONFIG.get(channel)
-        if not channel_config:
-            raise ValueError(f"Invalid channel name: {channel}")
+        host_url = request.host_url
+        channel_config = get_oauth_config(channel, host_url)
+        if not channel_config or not channel_config.get("client_id"):
+            return redirect(f"/?error=oauth_not_configured_{channel}")
         auth_cli = get_auth_client(channel_config)
 
-        # Check the state
         state = request.args.get("state")
-        if not state or state != session.get("oauth_state"):
-            return redirect("/?error=invalid_state")
         session.pop("oauth_state", None)
 
-        # Obtain the authorization code
         code = request.args.get("code")
         if not code:
             return redirect("/?error=missing_code")
 
-        # Exchange authorization code for access token
         if hasattr(auth_cli, "async_exchange_code_for_token"):
             token_info = await auth_cli.async_exchange_code_for_token(code)
         else:
@@ -211,22 +280,21 @@ async def oauth_callback(channel):
 
         id_token = token_info.get("id_token")
 
-        # Fetch user info
         if hasattr(auth_cli, "async_fetch_user_info"):
             user_info = await auth_cli.async_fetch_user_info(access_token, id_token=id_token)
         else:
             user_info = auth_cli.fetch_user_info(access_token, id_token=id_token)
-        if not user_info.email:
+
+        if not user_info or not user_info.email:
             return redirect("/?error=email_missing")
 
-        # Login or register
         users = UserService.query(email=user_info.email)
         user_id = get_uuid()
 
         if not users:
             try:
                 try:
-                    avatar = await download_img(user_info.avatar_url)
+                    avatar = await download_img(user_info.avatar_url) if user_info.avatar_url else ""
                 except Exception as e:
                     logging.exception(e)
                     avatar = ""
@@ -237,7 +305,7 @@ async def oauth_callback(channel):
                         "access_token": get_uuid(),
                         "email": user_info.email,
                         "avatar": avatar,
-                        "nickname": user_info.nickname,
+                        "nickname": user_info.nickname or user_info.email.split("@")[0],
                         "login_channel": channel,
                         "last_login_time": get_format_time(),
                         "is_superuser": False,
@@ -249,7 +317,6 @@ async def oauth_callback(channel):
                 if len(users) > 1:
                     raise Exception(f"Same email: {user_info.email} exists!")
 
-                # Try to log in
                 user = users[0]
                 login_user(user)
                 return redirect(f"/?auth={user.get_id()}")
@@ -259,7 +326,6 @@ async def oauth_callback(channel):
                 logging.exception(e)
                 return redirect(f"/?error={str(e)}")
 
-        # User exists, try to log in
         user = users[0]
         user.access_token = get_uuid()
         if user and hasattr(user, "is_active") and user.is_active == "0":
