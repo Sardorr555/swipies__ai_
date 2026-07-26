@@ -17,24 +17,36 @@
 from .oauth import OAuthClient
 from .oidc import OIDCClient
 from .github import GithubOAuthClient
+from .google import GoogleOAuthClient
 
 
 CLIENT_TYPES = {
     "oauth2": OAuthClient,
     "oidc": OIDCClient,
-    "github": GithubOAuthClient
+    "github": GithubOAuthClient,
+    "google": GoogleOAuthClient,
 }
 
 
-def get_auth_client(config)->OAuthClient:
+def get_auth_client(config) -> OAuthClient:
     channel_type = str(config.get("type", "")).lower()
+    channel_name = str(config.get("channel", "")).lower()
     if channel_type == "":
-        if config.get("issuer"):
+        if "google" in channel_name:
+            channel_type = "google"
+        elif "github" in channel_name:
+            channel_type = "github"
+        elif config.get("issuer"):
             channel_type = "oidc"
         else:
             channel_type = "oauth2"
     client_class = CLIENT_TYPES.get(channel_type)
     if not client_class:
-        raise ValueError(f"Unsupported type: {channel_type}")
+        if "google" in channel_name or "google" in channel_type:
+            client_class = GoogleOAuthClient
+        elif "github" in channel_name or "github" in channel_type:
+            client_class = GithubOAuthClient
+        else:
+            client_class = OAuthClient
 
     return client_class(config)
