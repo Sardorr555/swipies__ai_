@@ -415,13 +415,17 @@ const routeConfigOptions = [
     Component: () => import('@/pages/admin/layouts/root-layout'),
     children: [
       {
-        path: Routes.Admin,
+        path: '/admin/login',
         Component: () => import('@/pages/admin/login'),
       },
       {
         path: Routes.Admin,
         Component: () => import('@/pages/admin/layouts/authorized-layout'),
         children: [
+          {
+            path: Routes.Admin,
+            element: <Navigate to={Routes.AdminServices} replace />,
+          },
           {
             path: `${Routes.AdminUserManagement}/:id`,
             Component: () => import('@/pages/admin/user-detail'),

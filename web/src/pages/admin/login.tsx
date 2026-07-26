@@ -78,7 +78,7 @@ function AdminLogin() {
           }),
         });
 
-        navigate('/admin/services');
+        navigate(Routes.AdminServices, { replace: true });
       }
     },
     onError: (error) => {
@@ -91,7 +91,7 @@ function AdminLogin() {
 
   useEffect(() => {
     if (isLogin) {
-      navigate(Routes.AdminServices);
+      navigate(Routes.AdminServices, { replace: true });
     }
   }, [isLogin, navigate]);
 
