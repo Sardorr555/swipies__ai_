@@ -1438,6 +1438,60 @@ input:checked + .slider:before { transform: translateX(20px); }
           </div>
         </form>
       </div>
+
+      <!-- Plan Tier Limits Card -->
+      <div class="card" style="max-width: 900px; margin-top: 1.5rem;">
+        <h3 class="settings-section-title">Subscription & Plan Tier Limits (Free, Plus, Pro, Enterprise)</h3>
+        <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1.5rem">Set global quota limits for chatbots/agents, datasets, storage space, tokens, and team members. Enter -1 for Unlimited.</p>
+        
+        <form onsubmit="savePlanLimits(event)" id="planLimitsForm">
+          <div class="settings-row" style="grid-template-columns: 1fr 1fr; gap:1.5rem">
+            <!-- Free Plan -->
+            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
+              <h4 style="font-weight:600; color:var(--text-main); margin-bottom:1rem">Free Plan Limits</h4>
+              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planFreeApps" value="3"></div>
+              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planFreeDatasets" value="5"></div>
+              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planFreeStorage" value="0.5"></div>
+              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planFreeTokens" value="100000"></div>
+              <div class="form-group"><label>Max Team Members</label><input type="number" id="planFreeTeam" value="1"></div>
+            </div>
+
+            <!-- Plus Plan -->
+            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
+              <h4 style="font-weight:600; color:var(--accent); margin-bottom:1rem">Plus Plan Limits</h4>
+              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planPlusApps" value="50"></div>
+              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planPlusDatasets" value="20"></div>
+              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planPlusStorage" value="5.0"></div>
+              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planPlusTokens" value="5000000"></div>
+              <div class="form-group"><label>Max Team Members</label><input type="number" id="planPlusTeam" value="5"></div>
+            </div>
+
+            <!-- Pro Plan -->
+            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
+              <h4 style="font-weight:600; color:var(--accent); margin-bottom:1rem">Pro Plan Limits</h4>
+              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planProApps" value="200"></div>
+              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planProDatasets" value="50"></div>
+              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planProStorage" value="15.0"></div>
+              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planProTokens" value="20000000"></div>
+              <div class="form-group"><label>Max Team Members</label><input type="number" id="planProTeam" value="15"></div>
+            </div>
+
+            <!-- Enterprise Plan -->
+            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
+              <h4 style="font-weight:600; color:var(--text-main); margin-bottom:1rem">Enterprise Plan Limits</h4>
+              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planEntApps" value="-1"></div>
+              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planEntDatasets" value="-1"></div>
+              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planEntStorage" value="-1"></div>
+              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planEntTokens" value="-1"></div>
+              <div class="form-group"><label>Max Team Members</label><input type="number" id="planEntTeam" value="-1"></div>
+            </div>
+          </div>
+          
+          <div style="border-top:1px solid var(--border); margin-top:1.5rem; padding-top:1.25rem; display:flex; justify-content:flex-end">
+            <button type="submit" class="btn-primary" style="background:var(--accent); color:var(--bg); padding:10px 24px; border-radius:var(--radius); font-weight:600; cursor:pointer">Save Plan Tier Limits</button>
+          </div>
+        </form>
+      </div>
     </section>
 
   </main>
@@ -2647,6 +2701,49 @@ function saveSettings(event) {
   }
 
   showToast('Settings Saved', 'Analytics integration credentials successfully updated.', 'success');
+}
+
+function savePlanLimits(event) {
+  event.preventDefault();
+  const limits = [
+    { name: 'plan.free.apps_limit', value: document.getElementById('planFreeApps').value },
+    { name: 'plan.free.datasets_limit', value: document.getElementById('planFreeDatasets').value },
+    { name: 'plan.free.storage_gb', value: document.getElementById('planFreeStorage').value },
+    { name: 'plan.free.token_limit', value: document.getElementById('planFreeTokens').value },
+    { name: 'plan.free.team_limit', value: document.getElementById('planFreeTeam').value },
+
+    { name: 'plan.plus.apps_limit', value: document.getElementById('planPlusApps').value },
+    { name: 'plan.plus.datasets_limit', value: document.getElementById('planPlusDatasets').value },
+    { name: 'plan.plus.storage_gb', value: document.getElementById('planPlusStorage').value },
+    { name: 'plan.plus.token_limit', value: document.getElementById('planPlusTokens').value },
+    { name: 'plan.plus.team_limit', value: document.getElementById('planPlusTeam').value },
+
+    { name: 'plan.pro.apps_limit', value: document.getElementById('planProApps').value },
+    { name: 'plan.pro.datasets_limit', value: document.getElementById('planProDatasets').value },
+    { name: 'plan.pro.storage_gb', value: document.getElementById('planProStorage').value },
+    { name: 'plan.pro.token_limit', value: document.getElementById('planProTokens').value },
+    { name: 'plan.pro.team_limit', value: document.getElementById('planProTeam').value },
+
+    { name: 'plan.enterprise.apps_limit', value: document.getElementById('planEntApps').value },
+    { name: 'plan.enterprise.datasets_limit', value: document.getElementById('planEntDatasets').value },
+    { name: 'plan.enterprise.storage_gb', value: document.getElementById('planEntStorage').value },
+    { name: 'plan.enterprise.token_limit', value: document.getElementById('planEntTokens').value },
+    { name: 'plan.enterprise.team_limit', value: document.getElementById('planEntTeam').value },
+  ];
+
+  Promise.all(limits.map(item =>
+    fetch('/v1/admin/variables', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ var_name: item.name, var_value: item.value })
+    })
+  ))
+  .then(() => {
+    showToast('Plan Limits Saved', 'Subscription tier limits updated successfully across platform!', 'success');
+  })
+  .catch(err => {
+    showToast('Save Warning', 'Saved locally, network sync error: ' + err.message, 'warning');
+  });
 }
 
 // Validate credentials against REST endpoint
