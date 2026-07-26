@@ -1493,6 +1493,133 @@ class TenantModelGroupMapping(DataBaseModel):
         primary_key = CompositeKey("group_id", "provider_id", "instance_id", "model_id")
 
 
+class KnowledgeEntity(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=255, null=False, index=True)
+    entity_type = CharField(max_length=64, null=False, index=True, help_text="Person|Project|Tech|Doc|Org|Customer|Decision")
+    description = TextField(null=True)
+    canonical_id = CharField(max_length=32, null=True, index=True)
+    attributes = JSONField(null=True, default=dict)
+    confidence_score = FloatField(default=1.0)
+
+    class Meta:
+        db_table = "knowledge_entity"
+
+
+class EntityAlias(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    alias_name = CharField(max_length=255, null=False, index=True)
+    entity_id = CharField(max_length=32, null=False, index=True)
+    source_type = CharField(max_length=64, null=True)
+
+    class Meta:
+        db_table = "entity_alias"
+
+
+class KnowledgeRelation(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    src_entity_id = CharField(max_length=32, null=False, index=True)
+    predicate = CharField(max_length=64, null=False, index=True, help_text="OWNS|USES|CREATED|DISCUSSED|FIXES|EXPERT_IN")
+    dst_entity_id = CharField(max_length=32, null=False, index=True)
+    weight = FloatField(default=1.0)
+    confidence_score = FloatField(default=1.0)
+    conversation_id = CharField(max_length=32, null=True, index=True)
+    document_id = CharField(max_length=32, null=True, index=True)
+    source_snippet = TextField(null=True)
+
+    class Meta:
+        db_table = "knowledge_relation"
+
+
+class ConversationMetadata(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    conversation_id = CharField(max_length=32, null=False, unique=True, index=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    department = CharField(max_length=128, null=True)
+    project_id = CharField(max_length=32, null=True, index=True)
+    topics = JSONField(null=True, default=list)
+    tags = JSONField(null=True, default=list)
+    summary = TextField(null=True)
+    decisions_json = JSONField(null=True, default=list)
+    action_items_json = JSONField(null=True, default=list)
+    unresolved_questions = JSONField(null=True, default=list)
+    referenced_doc_ids = JSONField(null=True, default=list)
+    models_used = JSONField(null=True, default=list)
+    agents_involved = JSONField(null=True, default=list)
+    language = CharField(max_length=16, null=True, default="en")
+    duration_seconds = IntegerField(default=0)
+
+    class Meta:
+        db_table = "conversation_metadata"
+
+
+class ExpertiseProfile(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    domain_topic = CharField(max_length=128, null=False, index=True)
+    confidence_score = FloatField(default=0.0)
+    depth_level = CharField(max_length=32, default="Intermediate")
+    contribution_count = IntegerField(default=1)
+    evidence_summary = TextField(null=True)
+    last_active_at = BigIntegerField(null=False)
+
+    class Meta:
+        db_table = "expertise_profile"
+
+
+class SummaryRegistry(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    summary_type = CharField(max_length=32, null=False, index=True, help_text="Daily|Weekly|Monthly|Project|Customer|Department")
+    target_id = CharField(max_length=64, null=False, index=True)
+    title = CharField(max_length=255, null=False)
+    content = TextField(null=False)
+    key_decisions = JSONField(null=True, default=list)
+    key_risks = JSONField(null=True, default=list)
+    trending_topics = JSONField(null=True, default=list)
+    period_start = BigIntegerField(null=False)
+    period_end = BigIntegerField(null=False)
+
+    class Meta:
+        db_table = "summary_registry"
+
+
+class EILAuditLog(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    operator_id = CharField(max_length=32, null=False, index=True)
+    action = CharField(max_length=64, null=False, index=True)
+    resource_type = CharField(max_length=64, null=False)
+    resource_id = CharField(max_length=64, null=True)
+    details = JSONField(null=True, default=dict)
+    ip_address = CharField(max_length=45, null=True)
+
+    class Meta:
+        db_table = "eil_audit_log"
+
+
+class UserOnboarding(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    tenant_id = CharField(max_length=32, null=True, index=True)
+    purpose = CharField(max_length=255, null=True, help_text="Why registered / primary use case")
+    intended_use = TextField(null=True, help_text="Detailed description of planned use")
+    company_name = CharField(max_length=255, null=True, help_text="Current or past company")
+    company_size = CharField(max_length=64, null=True, help_text="Team or company size")
+    industry = CharField(max_length=128, null=True, help_text="Industry sector")
+    role = CharField(max_length=128, null=True, help_text="Job title or role")
+    platform_goals = TextField(null=True, help_text="Key problems platform should solve")
+    completed = BooleanField(default=True, index=True)
+
+    class Meta:
+        db_table = "user_onboarding"
+
+
 def alter_db_add_column(migrator, table_name, column_name, column_type):
     try:
         migrate(migrator.add_column(table_name, column_name, column_type))

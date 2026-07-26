@@ -483,3 +483,64 @@ class TenantLimitService:
 
         return True, None
 
+
+class UserOnboardingService(CommonService):
+    """Service for handling new user onboarding surveys."""
+
+    from api.db.db_models import UserOnboarding
+    model = UserOnboarding
+
+    @classmethod
+    @DB.connection_context()
+    def submit_onboarding(cls, user_id: str, tenant_id: str | None, data_dict: dict) -> tuple[bool, str | None, dict | None]:
+        """Submit or update onboarding responses for a newly registered user."""
+        try:
+            records = cls.query(user_id=user_id)
+            if records:
+                onboarding = records[0]
+                for key, val in data_dict.items():
+                    if hasattr(onboarding, key):
+                        setattr(onboarding, key, val)
+                onboarding.completed = True
+                onboarding.save()
+                return True, "Onboarding survey updated successfully.", onboarding.to_dict()
+            else:
+                onboarding_id = get_uuid()
+                new_record = cls.model.create(
+                    id=onboarding_id,
+                    user_id=user_id,
+                    tenant_id=tenant_id,
+                    purpose=data_dict.get("purpose", ""),
+                    intended_use=data_dict.get("intended_use", ""),
+                    company_name=data_dict.get("company_name", ""),
+                    company_size=data_dict.get("company_size", ""),
+                    industry=data_dict.get("industry", ""),
+                    role=data_dict.get("role", ""),
+                    platform_goals=data_dict.get("platform_goals", ""),
+                    completed=True,
+                )
+                return True, "Onboarding survey submitted successfully.", new_record.to_dict()
+        except Exception as e:
+            logging.error(f"[UserOnboardingService] Failed to submit onboarding for user {user_id}: {e}")
+            return False, str(e), None
+
+    @classmethod
+    @DB.connection_context()
+    def get_user_onboarding(cls, user_id: str) -> dict | None:
+        """Get onboarding survey for user."""
+        try:
+            records = cls.query(user_id=user_id)
+            if records:
+                return records[0].to_dict()
+        except Exception as e:
+            logging.error(f"[UserOnboardingService] Error querying onboarding: {e}")
+        return None
+
+    @classmethod
+    @DB.connection_context()
+    def is_user_onboarded(cls, user_id: str) -> bool:
+        """Check if user has completed the onboarding questionnaire."""
+        onboarding = cls.get_user_onboarding(user_id)
+        return bool(onboarding and onboarding.get("completed"))
+
+

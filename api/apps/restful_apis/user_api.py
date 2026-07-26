@@ -29,7 +29,7 @@ from api.apps.auth import get_auth_client
 from api.db import FileType, UserTenantRole
 from api.db.db_models import Lead
 from api.db.services.file_service import FileService
-from api.db.services.user_service import TenantService, UserService, UserTenantService
+from api.db.services.user_service import TenantService, UserService, UserTenantService, UserOnboardingService
 from api.db.services.lead_service import LeadService
 from common.time_utils import current_timestamp, datetime_format, get_format_time
 from common.misc_utils import download_img, get_uuid
@@ -497,8 +497,9 @@ async def user_profile():
             email:
               type: string
               description: User email.
-    """
-    return get_json_result(data=current_user.to_safe_dict(for_self=True))
+    user_data = current_user.to_safe_dict(for_self=True)
+    user_data["is_onboarded"] = UserOnboardingService.is_user_onboarded(current_user.id)
+    return get_json_result(data=user_data)
 
 
 @manager.route("/users/me/referrals", methods=["GET"])  # noqa: F821
@@ -1231,6 +1232,80 @@ async def admin_yandex_analytics_query():
             message=str(e),
             code=RetCode.EXCEPTION_ERROR
         )
+
+
+@manager.route("/user/onboarding", methods=["POST"])  # noqa: F821
+@login_required
+async def submit_user_onboarding():
+    """
+    Submit onboarding survey responses for newly registered user.
+    ---
+    tags:
+      - User
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            purpose:
+              type: string
+              description: Primary purpose/reason for registering.
+            intended_use:
+              type: string
+              description: Detailed planned usage description.
+            company_name:
+              type: string
+              description: Current or past company name.
+            company_size:
+              type: string
+              description: Size of company or team.
+            industry:
+              type: string
+              description: Industry domain.
+            role:
+              type: string
+              description: Job title or role.
+            platform_goals:
+              type: string
+              description: Platform goals and problems to solve.
+    responses:
+      200:
+        description: Survey submitted successfully.
+    """
+    req = await get_request_json() or {}
+    tenant_id = getattr(current_user, "tenant_id", None) or current_user.id
+    success, msg, data = UserOnboardingService.submit_onboarding(
+        user_id=current_user.id,
+        tenant_id=tenant_id,
+        data_dict=req
+    )
+    if not success:
+        return get_json_result(data=False, message=msg, code=RetCode.OPERATING_ERROR)
+    return get_json_result(data=data, message=msg)
+
+
+@manager.route("/user/onboarding", methods=["GET"])  # noqa: F821
+@login_required
+async def get_user_onboarding():
+    """
+    Get onboarding survey status and answers for current user.
+    ---
+    tags:
+      - User
+    security:
+      - ApiKeyAuth: []
+    responses:
+      200:
+        description: Survey details and status returned.
+    """
+    data = UserOnboardingService.get_user_onboarding(current_user.id)
+    completed = UserOnboardingService.is_user_onboarded(current_user.id)
+    return get_json_result(data={"completed": completed, "survey": data})
+
 
 
 

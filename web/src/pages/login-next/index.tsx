@@ -551,7 +551,13 @@ const Login = () => {
           referred_by_id: ref,
         });
         if (code === 0) {
-          setTitle('login');
+          // Auto-login newly registered user and navigate into application
+          await login({
+            email: `${params.email}`.trim(),
+            password: rsaPassWord,
+          });
+          const redirectTo = searchParams.get('redirect') || '/';
+          navigate(redirectTo);
         }
       }
     } catch {
