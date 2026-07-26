@@ -7,6 +7,8 @@ from api.apps import login_required, current_user
 from api.db.services.intelligence_service import (
     KnowledgeEntityService,
     KnowledgeRelationService,
+    EnterpriseSearchService,
+    ExecutiveDigestService,
     ExpertiseService,
     SummaryService,
 )
@@ -18,6 +20,18 @@ try:
     manager
 except NameError:
     manager = Blueprint("intelligence", __name__)
+
+
+@manager.route("/graph/full", methods=["GET"])
+@login_required
+async def get_full_graph():
+    """Retrieve full force-directed knowledge graph for tenant."""
+    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    try:
+        graph_data = KnowledgeRelationService.get_full_graph(tenant_id)
+        return get_json_result(data=graph_data)
+    except Exception as e:
+        return server_error_response(e)
 
 
 @manager.route("/graph/query", methods=["POST"])
@@ -35,6 +49,33 @@ async def query_knowledge_graph():
     try:
         graph_data = KnowledgeRelationService.get_graph_neighborhood(tenant_id, entity_id, max_depth=depth)
         return get_json_result(data=graph_data)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/search", methods=["POST"])
+@login_required
+async def search_enterprise():
+    """Hybrid AI Natural Language Search ('Google for Enterprise')."""
+    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    req = await request.get_json() or {}
+    query_text = req.get("query", "")
+
+    try:
+        search_results = EnterpriseSearchService.search(tenant_id, query_text)
+        return get_json_result(data=search_results)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/dashboard/executive", methods=["GET"])
+@login_required
+async def get_executive_dashboard():
+    """Retrieve Executive Intelligence Digest stats."""
+    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    try:
+        digest_data = ExecutiveDigestService.get_executive_digest(tenant_id)
+        return get_json_result(data=digest_data)
     except Exception as e:
         return server_error_response(e)
 

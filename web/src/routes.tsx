@@ -46,8 +46,8 @@ export enum Routes {
   Model = '/model',
   Prompt = '/prompt',
   DataSource = '/data-source',
-  DataSourceDetailPage = '/data-source-detail-page',
   ChatChannel = '/chat-channel',
+  Intelligence = '/intelligence',
   ProfileMcp = `${ProfileSetting}${Mcp}`,
   ProfileTeam = `${ProfileSetting}${Team}`,
   ProfilePlan = `${ProfileSetting}${Plan}`,
@@ -350,6 +350,10 @@ const routeConfigOptions = [
           {
             path: `${Routes.UserSetting}${Routes.License}`,
             Component: () => import('@/pages/user-setting/license'),
+          },
+          {
+            path: `${Routes.UserSetting}${Routes.Intelligence}`,
+            Component: () => import('@/pages/user-setting/intelligence'),
           },
 
         ],
