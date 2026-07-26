@@ -415,60 +415,60 @@ const routeConfigOptions = [
     Component: () => import('@/pages/admin/layouts/root-layout'),
     children: [
       {
-        path: '/admin/login',
+        path: 'login',
         Component: () => import('@/pages/admin/login'),
       },
       {
-        path: Routes.Admin,
+        path: '',
         Component: () => import('@/pages/admin/layouts/authorized-layout'),
         children: [
           {
-            path: Routes.Admin,
+            index: true,
             element: <Navigate to={Routes.AdminServices} replace />,
           },
           {
-            path: `${Routes.AdminUserManagement}/:id`,
+            path: 'users/:id',
             Component: () => import('@/pages/admin/user-detail'),
           },
           {
             Component: () => import('@/pages/admin/layouts/navigation-layout'),
             children: [
               {
-                path: Routes.AdminServices,
+                path: 'services',
                 Component: () => import('@/pages/admin/service-status'),
               },
               {
-                path: Routes.AdminUserManagement,
+                path: 'users',
                 Component: () => import('@/pages/admin/users'),
               },
               {
-                path: Routes.AdminSandboxSettings,
+                path: 'sandbox-settings',
                 Component: () => import('@/pages/admin/sandbox-settings'),
               },
               {
-                path: Routes.AdminPricingSettings,
+                path: 'pricing-settings',
                 Component: () => import('@/pages/admin/pricing-settings'),
               },
               {
-                path: Routes.AdminReferrals,
+                path: 'referrals',
                 Component: () => import('@/pages/admin/referrals'),
               },
               {
-                path: Routes.AdminLicenses,
+                path: 'licenses',
                 Component: () => import('@/pages/admin/licenses'),
               },
               ...(IS_ENTERPRISE
                 ? [
                     {
-                      path: Routes.AdminWhitelist,
+                      path: 'whitelist',
                       Component: () => import('@/pages/admin/whitelist'),
                     },
                     {
-                      path: Routes.AdminRoles,
+                      path: 'roles',
                       Component: () => import('@/pages/admin/roles'),
                     },
                     {
-                      path: Routes.AdminMonitoring,
+                      path: 'monitoring',
                       Component: () => import('@/pages/admin/monitoring'),
                     },
                   ]
