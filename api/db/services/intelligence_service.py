@@ -21,15 +21,24 @@ class KnowledgeEntityService(CommonService):
     model = KnowledgeEntity
 
     @classmethod
-    def get_dashboard_aggregations(cls, tenant_id: str) -> Dict[str, Any]:
-        """Retrieves aggregated knowledge stats for enterprise dashboard."""
+    def get_dashboard_aggregations(cls, tenant_id: str = None) -> Dict[str, Any]:
+        """Retrieves aggregated knowledge stats across all users/tenants or a specific tenant."""
         try:
-            total_entities = cls.model.select().where(cls.model.tenant_id == tenant_id).count()
-            total_relations = KnowledgeRelation.select().where(KnowledgeRelation.tenant_id == tenant_id).count()
-            total_conversations = ConversationMetadata.select().where(ConversationMetadata.tenant_id == tenant_id).count()
+            query_entity = cls.model.select()
+            query_relation = KnowledgeRelation.select()
+            query_conv = ConversationMetadata.select()
 
-            # Top topics
-            convs = ConversationMetadata.select().where(ConversationMetadata.tenant_id == tenant_id).limit(100)
+            if tenant_id:
+                query_entity = query_entity.where(cls.model.tenant_id == tenant_id)
+                query_relation = query_relation.where(KnowledgeRelation.tenant_id == tenant_id)
+                query_conv = query_conv.where(ConversationMetadata.tenant_id == tenant_id)
+
+            total_entities = query_entity.count()
+            total_relations = query_relation.count()
+            total_conversations = query_conv.count()
+
+            # Top topics across all conversations
+            convs = query_conv.limit(200)
             topic_counts = {}
             for c in convs:
                 for t in (c.topics or []):
@@ -57,14 +66,18 @@ class KnowledgeRelationService(CommonService):
     model = KnowledgeRelation
 
     @classmethod
-    def get_full_graph(cls, tenant_id: str, limit: int = 150) -> Dict[str, List[Dict[str, Any]]]:
-        """Retrieves all entities and relations in tenant's knowledge graph."""
+    def get_full_graph(cls, tenant_id: str = None, limit: int = 200) -> Dict[str, List[Dict[str, Any]]]:
+        """Retrieves all entities and relations in knowledge graph across all platform users."""
         nodes_dict = {}
         edges = []
 
         try:
-            # Retrieve relations
-            rels = cls.model.select().where(cls.model.tenant_id == tenant_id).limit(limit)
+            # Query relations across all users or tenant
+            query_rels = cls.model.select()
+            if tenant_id:
+                query_rels = query_rels.where(cls.model.tenant_id == tenant_id)
+            rels = query_rels.limit(limit)
+
             for r in rels:
                 edges.append({
                     "id": r.id,
@@ -85,9 +98,12 @@ class KnowledgeRelationService(CommonService):
                                 "description": ent[0].description or "",
                             }
 
-            # If graph is empty, populate demo nodes for visualization
+            # If graph has no relation records yet, display all entities created across platform
             if not nodes_dict:
-                demo_entities = KnowledgeEntity.select().where(KnowledgeEntity.tenant_id == tenant_id).limit(30)
+                query_ent = KnowledgeEntity.select()
+                if tenant_id:
+                    query_ent = query_ent.where(KnowledgeEntity.tenant_id == tenant_id)
+                demo_entities = query_ent.limit(50)
                 for ent in demo_entities:
                     nodes_dict[ent.id] = {
                         "id": ent.id,
@@ -111,7 +127,9 @@ class KnowledgeRelationService(CommonService):
         edges = []
 
         try:
-            s_rels = cls.model.select().where((cls.model.tenant_id == tenant_id) & (cls.model.src_entity_id == entity_id))
+            s_rels = cls.model.select().where(cls.model.src_entity_id == entity_id)
+            if tenant_id:
+                s_rels = s_rels.where(cls.model.tenant_id == tenant_id)
             for r in s_rels:
                 edges.append({
                     "id": r.id,
@@ -130,7 +148,9 @@ class KnowledgeRelationService(CommonService):
                                 "type": ent[0].entity_type,
                             }
 
-            d_rels = cls.model.select().where((cls.model.tenant_id == tenant_id) & (cls.model.dst_entity_id == entity_id))
+            d_rels = cls.model.select().where(cls.model.dst_entity_id == entity_id)
+            if tenant_id:
+                d_rels = d_rels.where(cls.model.tenant_id == tenant_id)
             for r in d_rels:
                 edges.append({
                     "id": r.id,
@@ -162,20 +182,25 @@ class EnterpriseSearchService:
     """Hybrid AI Natural Language Search Service ('Google for Enterprise')."""
 
     @classmethod
-    def search(cls, tenant_id: str, query_text: str) -> Dict[str, Any]:
-        """Hybrid search combining Graph, Vector, Experts, and Extracted Decisions."""
+    def search(cls, tenant_id: str = None, query_text: str = "") -> Dict[str, Any]:
+        """Hybrid search combining Graph, Vector, Experts, and Extracted Decisions across all platform users."""
         query_text_lower = query_text.lower()
 
-        # 1. Experts matching query
+        # 1. Experts matching query across all users
         experts_list = []
         try:
-            experts = ExpertiseProfile.select().where(ExpertiseProfile.tenant_id == tenant_id).limit(10)
+            query_exp = ExpertiseProfile.select()
+            if tenant_id:
+                query_exp = query_exp.where(ExpertiseProfile.tenant_id == tenant_id)
+            experts = query_exp.limit(20)
+
             for exp in experts:
                 user_record = User.query(id=exp.user_id)
                 user_name = user_record[0].nickname if user_record else exp.user_id
+                user_email = user_record[0].email if user_record else ""
                 experts_list.append({
                     "user_id": exp.user_id,
-                    "name": user_name,
+                    "name": f"{user_name} ({user_email})" if user_email else user_name,
                     "domain_topic": exp.domain_topic,
                     "confidence_score": exp.confidence_score,
                     "depth_level": exp.depth_level,
@@ -184,23 +209,29 @@ class EnterpriseSearchService:
         except Exception as e:
             logging.error(f"[EnterpriseSearchService] Experts search failed: {e}")
 
-        # 2. Extracted decisions
+        # 2. Extracted decisions across all platform chats
         decisions_list = []
         try:
-            convs = ConversationMetadata.select().where(ConversationMetadata.tenant_id == tenant_id).limit(50)
+            query_conv = ConversationMetadata.select()
+            if tenant_id:
+                query_conv = query_conv.where(ConversationMetadata.tenant_id == tenant_id)
+            convs = query_conv.limit(100)
+
             for c in convs:
+                user_rec = User.query(id=c.user_id)
+                user_name = user_rec[0].nickname if user_rec else c.user_id
                 for dec in (c.decisions_json or []):
                     decisions_list.append({
                         "decision": dec.get("decision", ""),
-                        "owner": dec.get("owner", "Team"),
+                        "owner": dec.get("owner", user_name),
+                        "user_id": c.user_id,
                         "confidence": dec.get("confidence", 0.9),
                         "conversation_id": c.conversation_id,
                     })
         except Exception as e:
             logging.error(f"[EnterpriseSearchService] Decisions search failed: {e}")
 
-        # Synthesize answer
-        ai_synthesis = f"По вашему запросу '{query_text}' найдено {len(decisions_list)} ключевых архитектурных решений и {len(experts_list)} профильных экспертов. Основная тематика затрагивает инфраструктурные компоненты и стек сервисов организации."
+        ai_synthesis = f"По запросу '{query_text}' проанализированы взаимодействия всех пользователей платформы. Найдено {len(decisions_list)} принятых решений/задач и {len(experts_list)} профильных экспертов."
 
         return {
             "query": query_text,
@@ -208,28 +239,32 @@ class EnterpriseSearchService:
             "experts": experts_list,
             "decisions": decisions_list,
             "source_snippets": [
-                {"title": "Архитектурное обсуждение #102", "snippet": "Приняли решение использовать Peewee ORM и Redis Streams."},
-                {"title": "Интеграция с Neo4j #105", "snippet": "Успешно настроен адаптер графовых связей для поиска сообществ."},
+                {"title": "Глобальный поиск по платформе", "snippet": "Проанализированы сообщения всех пользователей и диалогов."},
             ]
         }
 
 
 class ExecutiveDigestService:
-    """Executive Dashboard & Digest Analytics Service."""
+    """Executive Dashboard & Digest Analytics Service for Platform Admins."""
 
     @classmethod
-    def get_executive_digest(cls, tenant_id: str) -> Dict[str, Any]:
-        """Compiles executive summary, decisions, risks, trends, and onboarding surveys."""
-        # 1. Decisions Made
+    def get_executive_digest(cls, tenant_id: str = None) -> Dict[str, Any]:
+        """Compiles executive summary, decisions, risks, trends, and onboarding surveys across ALL users on the platform."""
         decisions = []
         risks = []
         try:
-            convs = ConversationMetadata.select().where(ConversationMetadata.tenant_id == tenant_id).limit(100)
+            query_conv = ConversationMetadata.select()
+            if tenant_id:
+                query_conv = query_conv.where(ConversationMetadata.tenant_id == tenant_id)
+            convs = query_conv.limit(200)
+
             for c in convs:
+                user_rec = User.query(id=c.user_id)
+                user_name = user_rec[0].nickname if user_rec else c.user_id
                 for d in (c.decisions_json or []):
                     decisions.append({
                         "decision": d.get("decision", ""),
-                        "owner": d.get("owner", "Unassigned"),
+                        "owner": d.get("owner", user_name),
                         "conversation_id": c.conversation_id,
                     })
                 for r in (c.unresolved_questions or []):
@@ -241,22 +276,26 @@ class ExecutiveDigestService:
         except Exception as e:
             logging.error(f"[ExecutiveDigestService] Digest extraction failed: {e}")
 
-        # 2. Trending Technologies
+        # Trending Topics across all platform users
         topic_counts = {}
         try:
-            convs = ConversationMetadata.select().where(ConversationMetadata.tenant_id == tenant_id).limit(100)
+            query_conv = ConversationMetadata.select()
+            if tenant_id:
+                query_conv = query_conv.where(ConversationMetadata.tenant_id == tenant_id)
+            convs = query_conv.limit(200)
+
             for c in convs:
                 for t in (c.topics or []):
                     topic_counts[t] = topic_counts.get(t, 0) + 1
         except Exception as e:
             logging.error(f"[ExecutiveDigestService] Topics failed: {e}")
 
-        sorted_trends = sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:6]
+        sorted_trends = sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:10]
 
-        # 3. Onboarding Survey Responses
+        # All Onboarding Survey Responses across the platform
         onboardings = []
         try:
-            records = UserOnboarding.select().limit(50)
+            records = UserOnboarding.select().order_by(UserOnboarding.create_time.desc()).limit(100)
             for o in records:
                 user_rec = User.query(id=o.user_id)
                 user_name = user_rec[0].nickname if user_rec else o.user_id
@@ -280,9 +319,9 @@ class ExecutiveDigestService:
 
         return {
             "decisions_count": len(decisions),
-            "decisions": decisions[:10],
+            "decisions": decisions[:20],
             "risks_count": len(risks),
-            "risks": risks[:10],
+            "risks": risks[:20],
             "trending_topics": [{"topic": k, "count": v} for k, v in sorted_trends],
             "onboarding_surveys": onboardings,
         }
@@ -292,14 +331,16 @@ class ExpertiseService(CommonService):
     model = ExpertiseProfile
 
     @classmethod
-    def find_experts_by_topic(cls, tenant_id: str, topic: str, min_confidence: float = 0.5) -> List[Dict[str, Any]]:
-        """Finds expert users in the specified domain topic."""
+    def find_experts_by_topic(cls, tenant_id: str = None, topic: str = "", min_confidence: float = 0.5) -> List[Dict[str, Any]]:
+        """Finds expert users across the platform in the specified domain topic."""
         try:
-            profiles = cls.model.select().where(
-                (cls.model.tenant_id == tenant_id) &
+            query_exp = cls.model.select().where(
                 (cls.model.domain_topic == topic) &
                 (cls.model.confidence_score >= min_confidence)
-            ).order_by(cls.model.confidence_score.desc())
+            )
+            if tenant_id:
+                query_exp = query_exp.where(cls.model.tenant_id == tenant_id)
+            profiles = query_exp.order_by(cls.model.confidence_score.desc())
 
             return [
                 {

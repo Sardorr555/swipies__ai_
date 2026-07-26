@@ -25,8 +25,9 @@ except NameError:
 @manager.route("/graph/full", methods=["GET"])
 @login_required
 async def get_full_graph():
-    """Retrieve full force-directed knowledge graph for tenant."""
-    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    """Retrieve full force-directed knowledge graph across all platform users."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
     try:
         graph_data = KnowledgeRelationService.get_full_graph(tenant_id)
         return get_json_result(data=graph_data)
@@ -38,7 +39,8 @@ async def get_full_graph():
 @login_required
 async def query_knowledge_graph():
     """Query connected nodes and edges in the knowledge graph for a given entity."""
-    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
     req = await request.get_json() or {}
     entity_id = req.get("entity_id")
     depth = req.get("depth", 2)
@@ -56,8 +58,9 @@ async def query_knowledge_graph():
 @manager.route("/search", methods=["POST"])
 @login_required
 async def search_enterprise():
-    """Hybrid AI Natural Language Search ('Google for Enterprise')."""
-    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    """Hybrid AI Natural Language Search across all platform chats ('Google for Enterprise')."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
     req = await request.get_json() or {}
     query_text = req.get("query", "")
 
@@ -71,8 +74,9 @@ async def search_enterprise():
 @manager.route("/dashboard/executive", methods=["GET"])
 @login_required
 async def get_executive_dashboard():
-    """Retrieve Executive Intelligence Digest stats."""
-    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    """Retrieve Executive Intelligence Digest stats for all platform users."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
     try:
         digest_data = ExecutiveDigestService.get_executive_digest(tenant_id)
         return get_json_result(data=digest_data)
@@ -84,7 +88,8 @@ async def get_executive_dashboard():
 @login_required
 async def search_experts():
     """Search organization expertise based on topic and minimum confidence score."""
-    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
     topic = request.args.get("topic", "")
     min_confidence = float(request.args.get("min_confidence", 0.5))
 
@@ -99,7 +104,8 @@ async def search_experts():
 @login_required
 async def get_dashboard_stats():
     """Retrieve enterprise intelligence dashboard statistics."""
-    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
     try:
         stats = KnowledgeEntityService.get_dashboard_aggregations(tenant_id)
         return get_json_result(data=stats)
@@ -111,10 +117,13 @@ async def get_dashboard_stats():
 @login_required
 async def list_summaries():
     """Retrieve list of generated enterprise summaries."""
-    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
     summary_type = request.args.get("summary_type")
     try:
-        kwargs = {"tenant_id": tenant_id}
+        kwargs = {}
+        if tenant_id:
+            kwargs["tenant_id"] = tenant_id
         if summary_type:
             kwargs["summary_type"] = summary_type
         summaries = SummaryService.query(**kwargs)
