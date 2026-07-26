@@ -143,11 +143,6 @@ async def login():
         )
 
 
-@manager.route("/auth/login/channels", methods=["GET"])  # noqa: F821
-async def get_login_channels():
-    """
-    Get all supported authentication channels.
-    """
 def get_oauth_config(channel: str, host_url: str = ""):
     channel = channel.lower()
     oauth_conf = getattr(settings, "OAUTH_CONFIG", {}) or {}
