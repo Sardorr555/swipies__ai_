@@ -45,7 +45,7 @@ class SystemSettingsService(CommonService):
 
     @classmethod
     @DB.connection_context()
-    def get_all(cls):
+    def get_all(cls, cols=None, reverse=None, order_by=None, **kwargs):
         objs = cls.model.select().order_by(cls.model.name.asc())
         return list(objs)
 

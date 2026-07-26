@@ -709,6 +709,9 @@ async def update_system_variable():
         return get_data_error_result(message="var_name is required.")
 
     from api.db.services.system_settings_service import SystemSettingsService
+    from common.time_utils import current_timestamp, datetime_format
+    from datetime import datetime
+
     objs = list(SystemSettingsService.get_by_name(var_name))
     if objs:
         SystemSettingsService.update_by_name(var_name, {"value": var_value})
@@ -717,7 +720,11 @@ async def update_system_variable():
             name=var_name,
             value=var_value,
             source="variable",
-            data_type="string"
+            data_type="string",
+            create_time=current_timestamp(),
+            create_date=datetime_format(datetime.now()),
+            update_time=current_timestamp(),
+            update_date=datetime_format(datetime.now())
         )
     return get_json_result(data=True)
 
