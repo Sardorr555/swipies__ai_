@@ -3,7 +3,7 @@
 #
 import logging
 from quart import Blueprint, request
-from api.apps import login_required
+from api.apps import login_required, current_user
 from api.db.services.intelligence_service import (
     KnowledgeEntityService,
     KnowledgeRelationService,
@@ -22,8 +22,9 @@ except NameError:
 
 @manager.route("/graph/query", methods=["POST"])
 @login_required
-async def query_knowledge_graph(tenant_id):
+async def query_knowledge_graph():
     """Query connected nodes and edges in the knowledge graph for a given entity."""
+    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
     req = await request.get_json() or {}
     entity_id = req.get("entity_id")
     depth = req.get("depth", 2)
@@ -40,8 +41,9 @@ async def query_knowledge_graph(tenant_id):
 
 @manager.route("/experts/search", methods=["GET"])
 @login_required
-async def search_experts(tenant_id):
+async def search_experts():
     """Search organization expertise based on topic and minimum confidence score."""
+    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
     topic = request.args.get("topic", "")
     min_confidence = float(request.args.get("min_confidence", 0.5))
 
@@ -54,8 +56,9 @@ async def search_experts(tenant_id):
 
 @manager.route("/dashboard/stats", methods=["GET"])
 @login_required
-async def get_dashboard_stats(tenant_id):
+async def get_dashboard_stats():
     """Retrieve enterprise intelligence dashboard statistics."""
+    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
     try:
         stats = KnowledgeEntityService.get_dashboard_aggregations(tenant_id)
         return get_json_result(data=stats)
@@ -65,8 +68,9 @@ async def get_dashboard_stats(tenant_id):
 
 @manager.route("/summaries/list", methods=["GET"])
 @login_required
-async def list_summaries(tenant_id):
+async def list_summaries():
     """Retrieve list of generated enterprise summaries."""
+    tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "")
     summary_type = request.args.get("summary_type")
     try:
         kwargs = {"tenant_id": tenant_id}

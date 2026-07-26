@@ -497,8 +497,13 @@ async def user_profile():
             email:
               type: string
               description: User email.
+    """
     user_data = current_user.to_safe_dict(for_self=True)
-    user_data["is_onboarded"] = UserOnboardingService.is_user_onboarded(current_user.id)
+    try:
+        user_id = getattr(current_user, "id", None)
+        user_data["is_onboarded"] = UserOnboardingService.is_user_onboarded(user_id) if user_id else True
+    except Exception:
+        user_data["is_onboarded"] = True
     return get_json_result(data=user_data)
 
 
