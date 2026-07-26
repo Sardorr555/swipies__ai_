@@ -677,3 +677,48 @@ async def activate_license():
     })
 
 
+@manager.route("/admin/variables", methods=["GET"])  # noqa: F821
+@login_required
+async def get_system_variables():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+    from api.db.services.system_settings_service import SystemSettingsService
+    objs = SystemSettingsService.get_all()
+    res = [item.to_dict() for item in objs]
+    return get_json_result(data=res)
+
+
+@manager.route("/admin/variables", methods=["PUT"])  # noqa: F821
+@login_required
+async def update_system_variable():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+    from api.utils.api_utils import get_request_json, get_data_error_result
+    req = await get_request_json()
+    var_name = req.get("var_name")
+    var_value = str(req.get("var_value", ""))
+    if not var_name:
+        return get_data_error_result(message="var_name is required.")
+
+    from api.db.services.system_settings_service import SystemSettingsService
+    objs = list(SystemSettingsService.get_by_name(var_name))
+    if objs:
+        SystemSettingsService.update_by_name(var_name, {"value": var_value})
+    else:
+        SystemSettingsService.save(
+            name=var_name,
+            value=var_value,
+            source="variable",
+            data_type="string"
+        )
+    return get_json_result(data=True)
+
+

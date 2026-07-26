@@ -45,6 +45,12 @@ class SystemSettingsService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def get_all(cls):
+        objs = cls.model.select().order_by(cls.model.name.asc())
+        return list(objs)
+
+    @classmethod
+    @DB.connection_context()
     def get_record_count(cls):
         count = cls.model.select().count()
         return count

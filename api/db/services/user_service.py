@@ -334,37 +334,32 @@ class UserTenantService(CommonService):
 
 class TenantLimitService:
     @classmethod
-    def is_referral_enabled(cls) -> bool:
+    def get_setting_val(cls, name: str, default: float) -> float:
         try:
             from api.db.services.system_settings_service import SystemSettingsService
-            objs = SystemSettingsService.get_by_name("referral.enabled")
-            if objs:
-                return objs[0].value == "true"
+            objs = SystemSettingsService.get_by_name(name)
+            if objs and objs[0].value is not None:
+                val = objs[0].value
+                if val == "true":
+                    return 1.0
+                elif val == "false":
+                    return 0.0
+                return float(val)
         except Exception:
             pass
-        return True
+        return default
+
+    @classmethod
+    def is_referral_enabled(cls) -> bool:
+        return cls.get_setting_val("referral.enabled", 1.0) == 1.0
 
     @classmethod
     def get_referral_storage_gb(cls) -> float:
-        try:
-            from api.db.services.system_settings_service import SystemSettingsService
-            objs = SystemSettingsService.get_by_name("referral.storage_gb")
-            if objs:
-                return float(objs[0].value)
-        except Exception:
-            pass
-        return 1.0
+        return cls.get_setting_val("referral.storage_gb", 1.0)
 
     @classmethod
     def get_referral_agents_limit(cls) -> int:
-        try:
-            from api.db.services.system_settings_service import SystemSettingsService
-            objs = SystemSettingsService.get_by_name("referral.agents_limit")
-            if objs:
-                return int(objs[0].value)
-        except Exception:
-            pass
-        return 5
+        return int(cls.get_setting_val("referral.agents_limit", 5))
 
     @classmethod
     @DB.connection_context()
@@ -374,12 +369,11 @@ class TenantLimitService:
             return True, None
 
         plan = (tenant.plan_type or "free").lower()
-        if plan in ("pro", "enterprise"):
-            return True, None
+        default_limits = {"free": 3, "plus": 50, "pro": 200, "enterprise": -1}
+        limit = int(cls.get_setting_val(f"plan.{plan}.apps_limit", default_limits.get(plan, 3)))
 
-        limit = 3
-        if plan == "plus":
-            limit = 50
+        if limit < 0:
+            return True, None
 
         # Referral bonus: +agents per referral
         if cls.is_referral_enabled():
@@ -399,7 +393,33 @@ class TenantLimitService:
 
         total_apps = chat_count + agent_count
         if total_apps >= limit:
-            return False, f"You have reached the maximum limit of {limit} apps (including referral bonuses). Please upgrade to a higher plan to create more."
+            return False, f"You have reached the maximum limit of {limit} apps for your {plan.capitalize()} plan. Please upgrade to a higher plan to create more."
+
+        return True, None
+
+    @classmethod
+    @DB.connection_context()
+    def check_datasets_limit(cls, tenant_id: str) -> tuple[bool, str | None]:
+        ok, tenant = TenantService.get_by_id(tenant_id)
+        if not ok:
+            return True, None
+
+        plan = (tenant.plan_type or "free").lower()
+        default_limits = {"free": 5, "plus": 20, "pro": 50, "enterprise": -1}
+        limit = int(cls.get_setting_val(f"plan.{plan}.datasets_limit", default_limits.get(plan, 5)))
+
+        if limit < 0:
+            return True, None
+
+        from api.db.db_models import Knowledgebase
+
+        kb_count = Knowledgebase.select().where(
+            Knowledgebase.tenant_id == tenant_id,
+            Knowledgebase.status == StatusEnum.VALID.value
+        ).count()
+
+        if kb_count >= limit:
+            return False, f"You have reached the maximum limit of {limit} datasets for your {plan.capitalize()} plan. Please upgrade to a higher plan to create more."
 
         return True, None
 
@@ -411,14 +431,11 @@ class TenantLimitService:
             return True, None
 
         plan = (tenant.plan_type or "free").lower()
-        if plan == "enterprise":
-            return True, None
+        default_limits = {"free": 0.5, "plus": 5.0, "pro": 15.0, "enterprise": -1}
+        limit_gb = cls.get_setting_val(f"plan.{plan}.storage_gb", default_limits.get(plan, 0.5))
 
-        limit_gb = 0.5
-        if plan == "plus":
-            limit_gb = 5.0
-        elif plan == "pro":
-            limit_gb = 15.0
+        if limit_gb < 0:
+            return True, None
 
         # Referral bonus: +GB per referral
         if cls.is_referral_enabled():
@@ -436,7 +453,7 @@ class TenantLimitService:
         ).scalar() or 0
 
         if current_bytes + new_file_size > limit_bytes:
-            return False, f"You have reached the maximum storage limit of {limit_gb} GB (including referral bonuses). Please upgrade to a higher plan or delete some files."
+            return False, f"You have reached the maximum storage limit of {limit_gb} GB for your {plan.capitalize()} plan. Please upgrade to a higher plan or delete some files."
 
         return True, None
 
@@ -448,14 +465,11 @@ class TenantLimitService:
             return True, None
 
         plan = (tenant.plan_type or "free").lower()
-        if plan == "enterprise":
-            return True, None
+        default_limits = {"free": 1, "plus": 5, "pro": 15, "enterprise": -1}
+        limit = int(cls.get_setting_val(f"plan.{plan}.team_limit", default_limits.get(plan, 1)))
 
-        limit = 1
-        if plan == "plus":
-            limit = 5
-        elif plan == "pro":
-            limit = 15
+        if limit < 0:
+            return True, None
 
         from api.db.db_models import UserTenant
 

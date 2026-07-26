@@ -7,6 +7,7 @@ import {
   Save,
   Settings,
   ShieldCheck,
+  Sliders,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -43,6 +44,32 @@ export default function AdminPricingSettings() {
     plusUzs: '199000',
     proUsd: '40',
     proUzs: '400000',
+  });
+
+  const [planLimitValues, setPlanLimitValues] = useState({
+    freeApps: '3',
+    freeDatasets: '5',
+    freeStorageGb: '0.5',
+    freeTokens: '100000',
+    freeTeam: '1',
+
+    plusApps: '50',
+    plusDatasets: '20',
+    plusStorageGb: '5.0',
+    plusTokens: '5000000',
+    plusTeam: '5',
+
+    proApps: '200',
+    proDatasets: '50',
+    proStorageGb: '15.0',
+    proTokens: '20000000',
+    proTeam: '15',
+
+    enterpriseApps: '-1',
+    enterpriseDatasets: '-1',
+    enterpriseStorageGb: '-1',
+    enterpriseTokens: '-1',
+    enterpriseTeam: '-1',
   });
 
   const [smtpValues, setSmtpValues] = useState({
@@ -98,6 +125,32 @@ export default function AdminPricingSettings() {
         defaultRole: varsMap.get('default_role') || '',
       });
 
+      setPlanLimitValues({
+        freeApps: varsMap.get('plan.free.apps_limit') || '3',
+        freeDatasets: varsMap.get('plan.free.datasets_limit') || '5',
+        freeStorageGb: varsMap.get('plan.free.storage_gb') || '0.5',
+        freeTokens: varsMap.get('plan.free.token_limit') || '100000',
+        freeTeam: varsMap.get('plan.free.team_limit') || '1',
+
+        plusApps: varsMap.get('plan.plus.apps_limit') || '50',
+        plusDatasets: varsMap.get('plan.plus.datasets_limit') || '20',
+        plusStorageGb: varsMap.get('plan.plus.storage_gb') || '5.0',
+        plusTokens: varsMap.get('plan.plus.token_limit') || '5000000',
+        plusTeam: varsMap.get('plan.plus.team_limit') || '5',
+
+        proApps: varsMap.get('plan.pro.apps_limit') || '200',
+        proDatasets: varsMap.get('plan.pro.datasets_limit') || '50',
+        proStorageGb: varsMap.get('plan.pro.storage_gb') || '15.0',
+        proTokens: varsMap.get('plan.pro.token_limit') || '20000000',
+        proTeam: varsMap.get('plan.pro.team_limit') || '15',
+
+        enterpriseApps: varsMap.get('plan.enterprise.apps_limit') || '-1',
+        enterpriseDatasets: varsMap.get('plan.enterprise.datasets_limit') || '-1',
+        enterpriseStorageGb: varsMap.get('plan.enterprise.storage_gb') || '-1',
+        enterpriseTokens: varsMap.get('plan.enterprise.token_limit') || '-1',
+        enterpriseTeam: varsMap.get('plan.enterprise.team_limit') || '-1',
+      });
+
       setReferralValues({
         enabled: varsMap.get('referral.enabled') !== 'false',
         storageGb: varsMap.get('referral.storage_gb') || '1.0',
@@ -118,6 +171,39 @@ export default function AdminPricingSettings() {
       queryClient.invalidateQueries({ queryKey: ['admin/getVariables'] });
     },
   });
+
+  const handleSavePlanLimits = async () => {
+    try {
+      await Promise.all([
+        saveVariableMutation.mutateAsync({ name: 'plan.free.apps_limit', value: planLimitValues.freeApps }),
+        saveVariableMutation.mutateAsync({ name: 'plan.free.datasets_limit', value: planLimitValues.freeDatasets }),
+        saveVariableMutation.mutateAsync({ name: 'plan.free.storage_gb', value: planLimitValues.freeStorageGb }),
+        saveVariableMutation.mutateAsync({ name: 'plan.free.token_limit', value: planLimitValues.freeTokens }),
+        saveVariableMutation.mutateAsync({ name: 'plan.free.team_limit', value: planLimitValues.freeTeam }),
+
+        saveVariableMutation.mutateAsync({ name: 'plan.plus.apps_limit', value: planLimitValues.plusApps }),
+        saveVariableMutation.mutateAsync({ name: 'plan.plus.datasets_limit', value: planLimitValues.plusDatasets }),
+        saveVariableMutation.mutateAsync({ name: 'plan.plus.storage_gb', value: planLimitValues.plusStorageGb }),
+        saveVariableMutation.mutateAsync({ name: 'plan.plus.token_limit', value: planLimitValues.plusTokens }),
+        saveVariableMutation.mutateAsync({ name: 'plan.plus.team_limit', value: planLimitValues.plusTeam }),
+
+        saveVariableMutation.mutateAsync({ name: 'plan.pro.apps_limit', value: planLimitValues.proApps }),
+        saveVariableMutation.mutateAsync({ name: 'plan.pro.datasets_limit', value: planLimitValues.proDatasets }),
+        saveVariableMutation.mutateAsync({ name: 'plan.pro.storage_gb', value: planLimitValues.proStorageGb }),
+        saveVariableMutation.mutateAsync({ name: 'plan.pro.token_limit', value: planLimitValues.proTokens }),
+        saveVariableMutation.mutateAsync({ name: 'plan.pro.team_limit', value: planLimitValues.proTeam }),
+
+        saveVariableMutation.mutateAsync({ name: 'plan.enterprise.apps_limit', value: planLimitValues.enterpriseApps }),
+        saveVariableMutation.mutateAsync({ name: 'plan.enterprise.datasets_limit', value: planLimitValues.enterpriseDatasets }),
+        saveVariableMutation.mutateAsync({ name: 'plan.enterprise.storage_gb', value: planLimitValues.enterpriseStorageGb }),
+        saveVariableMutation.mutateAsync({ name: 'plan.enterprise.token_limit', value: planLimitValues.enterpriseTokens }),
+        saveVariableMutation.mutateAsync({ name: 'plan.enterprise.team_limit', value: planLimitValues.enterpriseTeam }),
+      ]);
+      message.success('Subscription plan limits updated successfully!');
+    } catch (e: any) {
+      message.error(`Failed to update plan limits: ${e.message}`);
+    }
+  };
 
   const handleSaveReferral = async () => {
     try {
@@ -260,6 +346,13 @@ export default function AdminPricingSettings() {
                 Pricing Plans
               </TabsTrigger>
               <TabsTrigger
+                value="limits"
+                className="flex items-center gap-2 text-text-secondary border-0.5 border-border-button data-[state=active]:bg-bg-card px-4 py-2 rounded-md"
+              >
+                <Sliders className="size-4" />
+                Plan Tier Limits
+              </TabsTrigger>
+              <TabsTrigger
                 value="smtp"
                 className="flex items-center gap-2 text-text-secondary border-0.5 border-border-button data-[state=active]:bg-bg-card px-4 py-2 rounded-md"
               >
@@ -382,6 +475,286 @@ export default function AdminPricingSettings() {
                     <Save className="size-4" />
                   )}
                   Save Pricing Plans
+                </Button>
+              </div>
+            </TabsContent>
+
+            {/* Plan Tier Limits Tab Content */}
+            <TabsContent value="limits" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Free Plan */}
+                <Card className="border border-border-button dark:bg-bg-card/30">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-text-primary">
+                      Free Plan Limits
+                    </CardTitle>
+                    <CardDescription>
+                      Resource limits for free tier tenants. (-1 for Unlimited)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="free-apps">Max Apps (Chatbots + Agents)</Label>
+                      <Input
+                        id="free-apps"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.freeApps}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, freeApps: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="free-datasets">Max Datasets (Knowledge Bases)</Label>
+                      <Input
+                        id="free-datasets"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.freeDatasets}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, freeDatasets: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="free-storage">Storage Limit (GB)</Label>
+                      <Input
+                        id="free-storage"
+                        type="number"
+                        step="0.1"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.freeStorageGb}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, freeStorageGb: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="free-tokens">Monthly Token Limit</Label>
+                      <Input
+                        id="free-tokens"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.freeTokens}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, freeTokens: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="free-team">Max Team Members</Label>
+                      <Input
+                        id="free-team"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.freeTeam}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, freeTeam: e.target.value })}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Plus Plan */}
+                <Card className="border border-border-button dark:bg-bg-card/30">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-accent-primary">
+                      Plus Plan Limits
+                    </CardTitle>
+                    <CardDescription>
+                      Resource limits for Plus tier subscribers. (-1 for Unlimited)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="plus-apps">Max Apps (Chatbots + Agents)</Label>
+                      <Input
+                        id="plus-apps"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.plusApps}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, plusApps: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="plus-datasets">Max Datasets (Knowledge Bases)</Label>
+                      <Input
+                        id="plus-datasets"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.plusDatasets}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, plusDatasets: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="plus-storage">Storage Limit (GB)</Label>
+                      <Input
+                        id="plus-storage"
+                        type="number"
+                        step="0.1"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.plusStorageGb}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, plusStorageGb: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="plus-tokens">Monthly Token Limit</Label>
+                      <Input
+                        id="plus-tokens"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.plusTokens}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, plusTokens: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="plus-team">Max Team Members</Label>
+                      <Input
+                        id="plus-team"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.plusTeam}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, plusTeam: e.target.value })}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Pro Plan */}
+                <Card className="border border-border-button dark:bg-bg-card/30">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-accent-primary">
+                      Pro Plan Limits
+                    </CardTitle>
+                    <CardDescription>
+                      Resource limits for Pro tier subscribers. (-1 for Unlimited)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="pro-apps">Max Apps (Chatbots + Agents)</Label>
+                      <Input
+                        id="pro-apps"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.proApps}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, proApps: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pro-datasets">Max Datasets (Knowledge Bases)</Label>
+                      <Input
+                        id="pro-datasets"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.proDatasets}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, proDatasets: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pro-storage">Storage Limit (GB)</Label>
+                      <Input
+                        id="pro-storage"
+                        type="number"
+                        step="0.1"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.proStorageGb}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, proStorageGb: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pro-tokens">Monthly Token Limit</Label>
+                      <Input
+                        id="pro-tokens"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.proTokens}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, proTokens: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pro-team">Max Team Members</Label>
+                      <Input
+                        id="pro-team"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.proTeam}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, proTeam: e.target.value })}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Enterprise Plan */}
+                <Card className="border border-border-button dark:bg-bg-card/30">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold text-text-primary">
+                      Enterprise Plan Limits
+                    </CardTitle>
+                    <CardDescription>
+                      Resource limits for Enterprise tier subscribers. (-1 for Unlimited)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ent-apps">Max Apps (Chatbots + Agents)</Label>
+                      <Input
+                        id="ent-apps"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.enterpriseApps}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, enterpriseApps: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ent-datasets">Max Datasets (Knowledge Bases)</Label>
+                      <Input
+                        id="ent-datasets"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.enterpriseDatasets}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, enterpriseDatasets: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ent-storage">Storage Limit (GB)</Label>
+                      <Input
+                        id="ent-storage"
+                        type="number"
+                        step="0.1"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.enterpriseStorageGb}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, enterpriseStorageGb: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ent-tokens">Monthly Token Limit</Label>
+                      <Input
+                        id="ent-tokens"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.enterpriseTokens}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, enterpriseTokens: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ent-team">Max Team Members</Label>
+                      <Input
+                        id="ent-team"
+                        type="number"
+                        className="bg-bg-input border-border-button h-10"
+                        value={planLimitValues.enterpriseTeam}
+                        onChange={(e) => setPlanLimitValues({ ...planLimitValues, enterpriseTeam: e.target.value })}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button
+                  className="flex items-center gap-2 h-10 px-6"
+                  disabled={saveVariableMutation.isPending}
+                  onClick={handleSavePlanLimits}
+                >
+                  {saveVariableMutation.isPending ? (
+                    <LucideLoader2 className="animate-spin size-4" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  Save Plan Tier Limits
                 </Button>
               </div>
             </TabsContent>

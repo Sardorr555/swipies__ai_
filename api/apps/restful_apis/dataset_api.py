@@ -146,6 +146,10 @@ async def create(tenant_id: str = None):
     try:
         if not tenant_id:
             tenant_id = current_user.id
+        from api.db.services.user_service import TenantLimitService
+        allowed, limit_msg = TenantLimitService.check_datasets_limit(tenant_id)
+        if not allowed:
+            return get_error_data_result(message=limit_msg)
         success, result = await dataset_api_service.create_dataset(tenant_id, req)
         if success:
             return get_result(data=result)
