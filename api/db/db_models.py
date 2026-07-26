@@ -685,8 +685,9 @@ def init_database_tables(alter_fields=[]):
                     obj.create_table(safe=True)
                     logging.debug(f"create table success: {obj.__name__}")
                 except Exception as e:
-                    logging.exception(e)
-                    create_failed_list.append(obj.__name__)
+                    logging.warning(f"create table warning for {obj.__name__}: {e}")
+                    if not obj.table_exists():
+                        create_failed_list.append(obj.__name__)
             else:
                 logging.debug(f"table {obj.__name__} already exists, skip creation.")
 
@@ -1536,7 +1537,7 @@ class KnowledgeRelation(DataBaseModel):
 
 class ConversationMetadata(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
-    conversation_id = CharField(max_length=32, null=False, unique=True, index=True)
+    conversation_id = CharField(max_length=32, null=False, unique=True)
     tenant_id = CharField(max_length=32, null=False, index=True)
     user_id = CharField(max_length=32, null=False, index=True)
     department = CharField(max_length=128, null=True)

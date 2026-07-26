@@ -13,7 +13,11 @@ from api.db.services.intelligence_service import (
 from api.utils.api_utils import get_json_result, server_error_response
 from common.constants import RetCode
 
-manager = Blueprint("intelligence", __name__)
+# manager is injected dynamically by api.apps.register_page() before this module is exec'd.
+try:
+    manager
+except NameError:
+    manager = Blueprint("intelligence", __name__)
 
 
 @manager.route("/graph/query", methods=["POST"])
