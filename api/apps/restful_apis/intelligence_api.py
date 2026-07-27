@@ -9,6 +9,7 @@ from api.db.services.intelligence_service import (
     KnowledgeRelationService,
     EnterpriseSearchService,
     ExecutiveDigestService,
+    ProactiveIntelligenceService,
     ExpertiseService,
     SummaryService,
 )
@@ -80,6 +81,60 @@ async def get_executive_dashboard():
         return server_error_response(e)
 
 
+@manager.route("/intelligence/analytics/sentiment", methods=["GET"])  # noqa: F821
+@login_required
+async def get_sentiment_analytics():
+    """Retrieve Sentiment & Frustration Index metrics."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
+    try:
+        sentiment_data = ProactiveIntelligenceService.get_sentiment_analytics(tenant_id)
+        return get_json_result(data=sentiment_data)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/intelligence/analytics/roi", methods=["GET"])  # noqa: F821
+@login_required
+async def get_roi_analytics():
+    """Retrieve ROI & Hours Saved metrics and Single Point of Failure (SPOF) risks."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
+    try:
+        roi_data = ProactiveIntelligenceService.get_roi_analytics(tenant_id)
+        return get_json_result(data=roi_data)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/intelligence/timeline", methods=["GET"])  # noqa: F821
+@login_required
+async def get_decision_timeline():
+    """Retrieve chronological decision evolution timeline."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
+    try:
+        timeline_data = ProactiveIntelligenceService.get_decision_timeline(tenant_id)
+        return get_json_result(data=timeline_data)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/intelligence/faq/generate", methods=["POST"])  # noqa: F821
+@login_required
+async def generate_faq_article():
+    """Generate 1-click Knowledge Base FAQ article from recurring topics."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
+    req = await request.get_json() or {}
+    topic = req.get("topic", "")
+    try:
+        faq_data = ProactiveIntelligenceService.generate_faq_article(tenant_id, topic)
+        return get_json_result(data=faq_data)
+    except Exception as e:
+        return server_error_response(e)
+
+
 @manager.route("/intelligence/experts/search", methods=["GET"])  # noqa: F821
 @login_required
 async def search_experts():
@@ -105,24 +160,5 @@ async def get_dashboard_stats():
     try:
         stats = KnowledgeEntityService.get_dashboard_aggregations(tenant_id)
         return get_json_result(data=stats)
-    except Exception as e:
-        return server_error_response(e)
-
-
-@manager.route("/intelligence/summaries/list", methods=["GET"])  # noqa: F821
-@login_required
-async def list_summaries():
-    """Retrieve list of generated enterprise summaries."""
-    is_global = request.args.get("global", "true").lower() == "true"
-    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
-    summary_type = request.args.get("summary_type")
-    try:
-        kwargs = {}
-        if tenant_id:
-            kwargs["tenant_id"] = tenant_id
-        if summary_type:
-            kwargs["summary_type"] = summary_type
-        summaries = SummaryService.query(**kwargs)
-        return get_json_result(data=[s.to_dict() for s in summaries])
     except Exception as e:
         return server_error_response(e)
