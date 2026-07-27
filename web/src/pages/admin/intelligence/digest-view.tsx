@@ -7,7 +7,11 @@ import {
   LucideTrendingUp,
   LucideUsers,
   LucideRefreshCw,
+  LucideDownload,
+  LucideFileSpreadsheet,
+  LucidePrinter,
 } from 'lucide-react';
+import message from '@/components/ui/message';
 
 interface ExecutiveDigestData {
   decisions_count: number;
@@ -68,6 +72,19 @@ export function IntelligenceDigestView() {
     fetchDigest();
   }, []);
 
+  const handleExportExcel = async () => {
+    try {
+      window.open('/api/v1/intelligence/export/excel?global=true', '_blank');
+      message.success('Экспорт анкет онбординга в Excel/CSV успешно запущен!');
+    } catch {
+      message.error('Ошибка выгрузки файла');
+    }
+  };
+
+  const handlePrintPdf = () => {
+    window.print();
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full max-w-6xl mx-auto space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -77,15 +94,39 @@ export function IntelligenceDigestView() {
             Сводный анализ всех решений, рисков, трендов и анкет онбординга всех пользователей
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={fetchDigest}
-          disabled={loading}
-          className="gap-2"
-        >
-          <LucideRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Обновить данные
-        </Button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportExcel}
+            className="gap-1.5 text-xs text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20"
+          >
+            <LucideFileSpreadsheet className="w-4 h-4" />
+            Скачать Excel Анкет
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handlePrintPdf}
+            className="gap-1.5 text-xs"
+          >
+            <LucidePrinter className="w-4 h-4" />
+            Печать / PDF Отчет
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={fetchDigest}
+            disabled={loading}
+            className="gap-1.5 text-xs"
+          >
+            <LucideRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Обновить
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -165,9 +206,21 @@ export function IntelligenceDigestView() {
 
       {/* Onboarding Surveys Table for Admin */}
       <div className="bg-background rounded-2xl p-6 border border-border space-y-4">
-        <div className="flex items-center gap-2 text-primary font-bold text-lg">
-          <LucideUsers className="w-6 h-6" />
-          👤 Таблица Онбординг-Анкет Всех Пользователей Платформы
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-primary font-bold text-lg">
+            <LucideUsers className="w-6 h-6" />
+            👤 Таблица Онбординг-Анкет Всех Пользователей Платформы
+          </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportExcel}
+            className="gap-1.5 text-xs text-emerald-400 border-emerald-500/30"
+          >
+            <LucideFileSpreadsheet className="w-3.5 h-3.5" />
+            Выгрузить в Excel
+          </Button>
         </div>
 
         {digest?.onboarding_surveys && digest.onboarding_surveys.length > 0 ? (

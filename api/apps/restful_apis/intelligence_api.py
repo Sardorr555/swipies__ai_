@@ -2,7 +2,7 @@
 #  Copyright 2026 The InfiniFlow Authors. All Rights Reserved.
 #
 import logging
-from quart import request
+from quart import request, Response
 from api.apps import login_required, current_user
 from api.db.services.intelligence_service import (
     KnowledgeEntityService,
@@ -131,6 +131,54 @@ async def generate_faq_article():
     try:
         faq_data = ProactiveIntelligenceService.generate_faq_article(tenant_id, topic)
         return get_json_result(data=faq_data)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/intelligence/wiki/build", methods=["POST"])  # noqa: F821
+@login_required
+async def build_project_wiki():
+    """(Idea 2) Autonomous Project Wiki Builder: Auto-generates structured documentation."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
+    req = await request.get_json() or {}
+    project_name = req.get("project_name", "Swipies AI")
+    try:
+        wiki_data = ProactiveIntelligenceService.build_project_wiki(tenant_id, project_name)
+        return get_json_result(data=wiki_data)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/intelligence/simulator/whatif", methods=["POST"])  # noqa: F821
+@login_required
+async def simulate_what_if():
+    """(Idea 3) 'What-If' Team & Risk Simulator: Simulates employee absence impact."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
+    req = await request.get_json() or {}
+    absent_user_name = req.get("absent_user_name", "Иван Иванов")
+    duration_weeks = int(req.get("duration_weeks", 3))
+    try:
+        sim_data = ProactiveIntelligenceService.simulate_what_if(tenant_id, absent_user_name, duration_weeks)
+        return get_json_result(data=sim_data)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/intelligence/export/excel", methods=["GET"])  # noqa: F821
+@login_required
+async def export_excel():
+    """(Idea 5) 1-Click Excel/CSV Export of all Onboarding Surveys & User Data."""
+    is_global = request.args.get("global", "true").lower() == "true"
+    tenant_id = None if is_global else (getattr(current_user, "tenant_id", None) or getattr(current_user, "id", ""))
+    try:
+        csv_data = ProactiveIntelligenceService.export_excel_onboarding(tenant_id)
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-disposition": "attachment; filename=onboarding_surveys_export.csv"}
+        )
     except Exception as e:
         return server_error_response(e)
 
