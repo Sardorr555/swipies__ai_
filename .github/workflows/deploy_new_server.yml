@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - test
-      - licence_v
     paths:
       - '**'
       - '!swipies__ai_/landing/**'
