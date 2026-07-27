@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import {
   LucideCoins,
   LucideClock,
-  LucideSmile,
   LucideFrown,
   LucideAlertTriangle,
   LucideFilePlus,
@@ -45,30 +44,8 @@ export function IntelligenceRoiView() {
       if (resSent?.data?.code === 0) setSentiment(resSent.data.data);
       if (resRoi?.data?.code === 0) setRoi(resRoi.data.data);
     } catch {
-      setSentiment({
-        frustration_index: 0.12,
-        positive_percentage: 78.5,
-        neutral_percentage: 15.5,
-        frustrated_percentage: 6.0,
-        top_friction_points: [
-          { issue: 'Сложность вызова REST API без ключа', count: 14 },
-          { issue: 'Ошибка загрузки больших PDF документов', count: 8 },
-        ],
-        feature_requests: [
-          { request: 'Интеграция с Telegram и WhatsApp ботами', count: 28 },
-          { request: 'Экспорт всех таблиц в Excel в 1 клик', count: 19 },
-        ],
-      });
-      setRoi({
-        total_hours_saved: 485.5,
-        estimated_cost_saved_usd: 16992.5,
-        questions_resolved_automatically: 647,
-        knowledge_reuse_rate: '84.2%',
-        spof_risks: [
-          { domain: 'HNSW Vector Indexing', expert_name: 'Иван Иванов', risk_level: 'High', recommendation: 'Назначить дублера для передачи знаний' },
-          { domain: 'Neo4j Graph Adapter', expert_name: 'Петр Сидоров', risk_level: 'Medium', recommendation: 'Провести внутренний семинар' },
-        ],
-      });
+      setSentiment(null);
+      setRoi(null);
     } finally {
       setLoading(false);
     }
@@ -84,10 +61,10 @@ export function IntelligenceRoiView() {
         topic,
       });
       if (res?.data?.code === 0) {
-        message.success(`Статья FAQ "${res.data.data.title}" успешно сгенерирована и сохранена!`);
+        message.success(`Статья FAQ "${res.data.data.title}" успешно сгенерирована!`);
       }
     } catch {
-      message.success(`Статья FAQ по теме "${topic}" сгенерирована в 1 клик!`);
+      message.error('Не удалось сгенерировать FAQ.');
     }
   };
 
@@ -141,7 +118,7 @@ export function IntelligenceRoiView() {
             <span>Индекс Фрустрации</span>
             <LucideFrown className="w-5 h-5" />
           </div>
-          <div className="text-3xl font-extrabold">{sentiment ? `${Math.round(sentiment.frustration_index * 100)}%` : '0%'}</div>
+          <div className="text-3xl font-extrabold">{sentiment ? `${Math.round((sentiment.frustration_index || 0) * 100)}%` : '0%'}</div>
           <div className="text-xs text-muted-foreground">Уровень затруднений пользования</div>
         </div>
       </div>
@@ -202,7 +179,7 @@ export function IntelligenceRoiView() {
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground">Запросы на новый функционал анализируются.</p>
+              <p className="text-xs text-muted-foreground">Запросы анализируются из сообщений пользователей.</p>
             )}
           </div>
         </div>

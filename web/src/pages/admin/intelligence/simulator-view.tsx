@@ -8,8 +8,8 @@ import {
   LucideUserX,
   LucideSparkles,
   LucideUserCheck,
-  LucideSliders,
 } from 'lucide-react';
+import message from '@/components/ui/message';
 
 interface SimulationData {
   absent_user: string;
@@ -23,14 +23,17 @@ interface SimulationData {
 }
 
 export function IntelligenceSimulatorView() {
-  const [userName, setUserName] = useState('Иван Иванов');
+  const [userName, setUserName] = useState('');
   const [weeks, setWeeks] = useState(3);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SimulationData | null>(null);
 
   const handleSimulate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!userName.trim()) return;
+    if (!userName.trim()) {
+      message.warning('Пожалуйста, введите имя сотрудника');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -42,22 +45,8 @@ export function IntelligenceSimulatorView() {
         setResult(res.data.data);
       }
     } catch {
-      setResult({
-        absent_user: userName.trim(),
-        duration_weeks: weeks,
-        risk_impact_score: Math.min(95, weeks * 25),
-        risk_level: weeks > 2 ? 'High' : 'Medium',
-        development_slowdown_percentage: Math.min(95, weeks * 25),
-        affected_modules: [
-          { module: 'HNSW Vector Search Engine', dependency_score: 0.85 },
-          { module: 'Neo4j Knowledge Graph Adapter', dependency_score: 0.75 },
-        ],
-        recommended_backup_experts: [
-          { name: 'Петр Сидоров', match_confidence: 0.82, recommendation: 'Провести 2-часовой сеанс передачи знаний' },
-          { name: 'Алексей Смирнов', match_confidence: 0.70, recommendation: 'Передать документацию по HNSW' },
-        ],
-        ai_summary: `При отсутствии ${userName.trim()} в течение ${weeks} нед. разработка ключевых графовых модулей может замедлиться на ${Math.min(95, weeks * 25)}%. Рекомендуется передать контекст Петру Сидорову.`,
-      });
+      setResult(null);
+      message.error('Ошибка симуляции рисков');
     } finally {
       setLoading(false);
     }
@@ -74,7 +63,7 @@ export function IntelligenceSimulatorView() {
           <div>
             <h3 className="font-bold text-xl">"What-If" ИИ-Симулятор Команды и Рисков</h3>
             <p className="text-xs text-muted-foreground">
-              Прогнозирование последствий отпуска или ухода сотрудников на основе графа знаний и зависимостей
+              Прогнозирование последствий отпуска или ухода сотрудников на основе графа знаний и зависимостей из базы данных
             </p>
           </div>
         </div>
@@ -85,7 +74,7 @@ export function IntelligenceSimulatorView() {
             <Input
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              placeholder="Имя сотрудника..."
+              placeholder="Введите имя сотрудника..."
               className="h-11 text-sm rounded-xl"
             />
           </div>
@@ -136,14 +125,18 @@ export function IntelligenceSimulatorView() {
                 Затрагиваемые Модули Проекта
               </h4>
               <div className="space-y-2">
-                {result.affected_modules.map((m, i) => (
-                  <div key={i} className="p-3.5 rounded-xl border border-border bg-background/50 flex items-center justify-between text-xs">
-                    <span className="font-bold">{m.module}</span>
-                    <span className="text-amber-400 font-mono font-bold">
-                      Зависимость: {Math.round(m.dependency_score * 100)}%
-                    </span>
-                  </div>
-                ))}
+                {result.affected_modules && result.affected_modules.length > 0 ? (
+                  result.affected_modules.map((m, i) => (
+                    <div key={i} className="p-3.5 rounded-xl border border-border bg-background/50 flex items-center justify-between text-xs">
+                      <span className="font-bold">{m.module}</span>
+                      <span className="text-amber-400 font-mono font-bold">
+                        Зависимость: {Math.round(m.dependency_score * 100)}%
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Модули с критичной зависимостью от данного сотрудника не найдены.</p>
+                )}
               </div>
             </div>
 
@@ -154,17 +147,21 @@ export function IntelligenceSimulatorView() {
                 Рекомендуемые Специалисты на Замену
               </h4>
               <div className="space-y-2">
-                {result.recommended_backup_experts.map((exp, i) => (
-                  <div key={i} className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-foreground">{exp.name}</span>
-                      <span className="text-emerald-400 font-mono font-bold">
-                        Совпадение: {Math.round(exp.match_confidence * 100)}%
-                      </span>
+                {result.recommended_backup_experts && result.recommended_backup_experts.length > 0 ? (
+                  result.recommended_backup_experts.map((exp, i) => (
+                    <div key={i} className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground">{exp.name}</span>
+                        <span className="text-emerald-400 font-mono font-bold">
+                          Совпадение: {Math.round(exp.match_confidence * 100)}%
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground text-[11px]">💡 {exp.recommendation}</p>
                     </div>
-                    <p className="text-muted-foreground text-[11px]">💡 {exp.recommendation}</p>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Другие профильные эксперты по данной теме пока не зафиксированы.</p>
+                )}
               </div>
             </div>
           </div>

@@ -8,7 +8,6 @@ import {
   LucideCopy,
   LucideDownload,
   LucideCheck,
-  LucideFileText,
 } from 'lucide-react';
 import message from '@/components/ui/message';
 
@@ -39,13 +38,8 @@ export function IntelligenceWikiBuilderView() {
         setWiki(res.data.data);
       }
     } catch {
-      setWiki({
-        project_name: projectName.trim(),
-        title: `Вики-Спецификация Проекта: ${projectName.trim()}`,
-        wiki_markdown: `# 📚 Авто-Вики Проекта: ${projectName.trim()}\n\n> *Автоматически сформировано ИИ-модулем Enterprise Intelligence на основе общения участников.*`,
-        generated_at: Date.now(),
-        extracted_sections_count: 4,
-      });
+      setWiki(null);
+      message.error('Не удалось сформировать вики по указанному проекту.');
     } finally {
       setLoading(false);
     }
@@ -108,7 +102,7 @@ export function IntelligenceWikiBuilderView() {
             <div>
               <h4 className="font-bold text-lg text-primary">{wiki.title}</h4>
               <p className="text-xs text-muted-foreground">
-                Извлечено {wiki.extracted_sections_count} раздела • Сгенерировано ИИ
+                Извлечено {wiki.extracted_sections_count} раздела • Сгенерировано из базы данных
               </p>
             </div>
 

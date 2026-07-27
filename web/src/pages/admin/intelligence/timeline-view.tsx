@@ -3,10 +3,7 @@ import request from '@/utils/request';
 import { Button } from '@/components/ui/button';
 import {
   LucideClock,
-  LucideCalendar,
-  LucideCheckCircle2,
   LucideUser,
-  LucideGitCommit,
   LucideRefreshCw,
 } from 'lucide-react';
 
@@ -29,35 +26,10 @@ export function IntelligenceTimelineView() {
     try {
       const res = await request.get('/api/v1/intelligence/timeline?global=true');
       if (res && res.data && res.data.code === 0) {
-        setTimeline(res.data.data);
+        setTimeline(res.data.data || []);
       }
     } catch {
-      setTimeline([
-        {
-          id: 't1',
-          date: Date.now() - 3600000 * 2,
-          decision: 'Переход на асинхронную шину событий Redis Streams',
-          owner: 'Иван Иванов',
-          category: 'Architecture',
-          conversation_id: 'conv_101',
-        },
-        {
-          id: 't2',
-          date: Date.now() - 3600000 * 24,
-          decision: 'Внедрен модуль анонимизации PII для предотвращения утечек данных',
-          owner: 'Петр Сидоров',
-          category: 'Security',
-          conversation_id: 'conv_102',
-        },
-        {
-          id: 't3',
-          date: Date.now() - 3600000 * 72,
-          decision: 'Подключение Neo4j адаптера для динамических графовых связей',
-          owner: 'Иван Иванов',
-          category: 'Graph Engine',
-          conversation_id: 'conv_103',
-        },
-      ]);
+      setTimeline([]);
     } finally {
       setLoading(false);
     }
@@ -138,7 +110,7 @@ export function IntelligenceTimelineView() {
             </div>
           ))
         ) : (
-          <p className="text-xs text-muted-foreground">Решения в вы выбранной категории не найдены.</p>
+          <p className="text-xs text-muted-foreground">Решения отобразятся по мере обработки сообщений пользователей.</p>
         )}
       </div>
     </div>

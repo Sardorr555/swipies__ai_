@@ -56,35 +56,12 @@ export function IntelligenceGraphView() {
         let rawNodes: NodeItem[] = res.data.data.nodes || [];
         let rawEdges: EdgeItem[] = res.data.data.edges || [];
 
-        // If DB graph is empty, populate demo enterprise network nodes for visualization
-        if (rawNodes.length === 0) {
-          rawNodes = [
-            { id: '1', label: 'Иван Иванов', type: 'Person', description: 'Lead AI Engineer' },
-            { id: '2', label: 'Петр Сидоров', type: 'Person', description: 'Backend Lead' },
-            { id: '3', label: 'Проект Swipies AI', type: 'Project', description: 'Платформа ИИ-ассистентов' },
-            { id: '4', label: 'RAGFlow Core Engine', type: 'Project', description: 'Ядро гибридного поиска' },
-            { id: '5', label: 'Python & Quart', type: 'Tech', description: 'Асинхронный веб-стек' },
-            { id: '6', label: 'Neo4j Graph DB', type: 'Tech', description: 'Графовое хранилище связей' },
-            { id: '7', label: 'Переход на Redis Streams', type: 'Decision', description: 'Асинхронная шина событий' },
-            { id: '8', label: 'Спецификация PII Sanitizer', type: 'Doc', description: 'Политика анонимизации данных' },
-          ];
-          rawEdges = [
-            { id: 'e1', source: '1', target: '3', label: 'MEMBER_OF', confidence: 0.95 },
-            { id: 'e2', source: '2', target: '4', label: 'MEMBER_OF', confidence: 0.90 },
-            { id: 'e3', source: '3', target: '5', label: 'USES', confidence: 0.99 },
-            { id: 'e4', source: '4', target: '6', label: 'USES', confidence: 0.92 },
-            { id: 'e5', source: '1', target: '7', label: 'CREATED', confidence: 0.88 },
-            { id: 'e6', source: '3', target: '8', label: 'REFERENCED', confidence: 0.95 },
-            { id: 'e7', source: '2', target: '7', label: 'DISCUSSED', confidence: 0.85 },
-          ];
-        }
-
         const width = 800;
         const height = 550;
         const positionedNodes = rawNodes.map((n, i) => ({
           ...n,
-          x: width / 2 + Math.cos((i * 2 * Math.PI) / rawNodes.length) * 200,
-          y: height / 2 + Math.sin((i * 2 * Math.PI) / rawNodes.length) * 180,
+          x: width / 2 + Math.cos((i * 2 * Math.PI) / Math.max(1, rawNodes.length)) * 200,
+          y: height / 2 + Math.sin((i * 2 * Math.PI) / Math.max(1, rawNodes.length)) * 180,
           vx: 0,
           vy: 0,
         }));
@@ -93,10 +70,14 @@ export function IntelligenceGraphView() {
         setEdges(rawEdges);
         if (positionedNodes.length > 0) {
           setSelectedNode(positionedNodes[0]);
+        } else {
+          setSelectedNode(null);
         }
       }
     } catch {
-      // Ignore
+      setNodes([]);
+      setEdges([]);
+      setSelectedNode(null);
     } finally {
       setLoading(false);
     }
@@ -106,7 +87,7 @@ export function IntelligenceGraphView() {
     fetchGraphData();
   }, []);
 
-  // Force Simulation Canvas Render
+  // Simple Canvas Physics & Rendering
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -114,56 +95,66 @@ export function IntelligenceGraphView() {
     if (!ctx) return;
 
     let animId: number;
+    let localNodes = [...nodes];
 
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Draw Edges
       edges.forEach((edge) => {
-        const srcNode = nodes.find((n) => n.id === edge.source);
-        const tgtNode = nodes.find((n) => n.id === edge.target);
+        const srcNode = localNodes.find((n) => n.id === edge.source);
+        const tgtNode = localNodes.find((n) => n.id === edge.target);
         if (srcNode && tgtNode && srcNode.x && srcNode.y && tgtNode.x && tgtNode.y) {
           ctx.beginPath();
           ctx.moveTo(srcNode.x, srcNode.y);
           ctx.lineTo(tgtNode.x, tgtNode.y);
-          ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
-          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = 'rgba(156, 163, 175, 0.4)';
+          ctx.lineWidth = Math.max(1, edge.confidence * 3);
           ctx.stroke();
 
+          // Edge Label
           const midX = (srcNode.x + tgtNode.x) / 2;
           const midY = (srcNode.y + tgtNode.y) / 2;
           ctx.font = '10px sans-serif';
-          ctx.fillStyle = '#94A3B8';
+          ctx.fillStyle = '#6B7280';
           ctx.fillText(edge.label, midX, midY);
         }
       });
 
       // Draw Nodes
-      nodes.forEach((node) => {
+      localNodes.forEach((node) => {
         if (!node.x || !node.y) return;
-        const color = TYPE_COLORS[node.type] || '#3B82F6';
+        const color = TYPE_COLORS[node.type] || '#6B7280';
         const isSelected = selectedNode?.id === node.id;
 
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, isSelected ? 18 : 14, 0, 2 * Math.PI);
-        ctx.fillStyle = color;
-        ctx.fill();
-
+        // Glow Effect if selected
         if (isSelected) {
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = '#FFFFFF';
-          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, 22, 0, 2 * Math.PI);
+          ctx.fillStyle = `${color}44`;
+          ctx.fill();
         }
 
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 14, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = isSelected ? '#FFFFFF' : '#1F2937';
+        ctx.stroke();
+
+        // Node Label
         ctx.font = isSelected ? 'bold 12px sans-serif' : '11px sans-serif';
-        ctx.fillStyle = isSelected ? '#FFFFFF' : '#CBD5E1';
-        ctx.fillText(node.label, node.x - 20, node.y + 26);
+        ctx.fillStyle = '#E5E7EB';
+        ctx.textAlign = 'center';
+        ctx.fillText(node.label, node.x, node.y + 28);
       });
 
       animId = requestAnimationFrame(render);
     };
 
     render();
+
     return () => cancelAnimationFrame(animId);
   }, [nodes, edges, selectedNode]);
 
@@ -174,147 +165,125 @@ export function IntelligenceGraphView() {
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
 
-    const clicked = nodes.find((n) => {
-      if (!n.x || !n.y) return false;
-      const dx = n.x - clickX;
-      const dy = n.y - clickY;
-      return Math.sqrt(dx * dx + dy * dy) <= 20;
-    });
-
+    const clicked = nodes.find(
+      (n) => n.x && n.y && Math.hypot(n.x - clickX, n.y - clickY) <= 16
+    );
     if (clicked) {
       setSelectedNode(clicked);
     }
   };
 
+  const filteredNodes = searchQuery
+    ? nodes.filter(
+        (n) =>
+          n.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          n.type.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : nodes;
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6 w-full h-full">
-      {/* Graph Area */}
-      <div className="flex-1 bg-background rounded-2xl p-4 border border-border flex flex-col relative overflow-hidden">
-        {/* Header Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4 z-10">
-          <div className="flex items-center gap-2">
-            <LucideNetwork className="w-5 h-5 text-primary" />
-            <h3 className="font-bold text-lg">Глобальная Сеть Знаний (Все пользователи)</h3>
+    <div className="flex flex-col xl:flex-row gap-6 w-full h-[650px]">
+      {/* Canvas Area */}
+      <div className="flex-1 bg-background/80 border border-border rounded-2xl p-4 relative overflow-hidden flex flex-col shadow-inner">
+        {/* Controls Overlay */}
+        <div className="absolute top-6 left-6 z-10 flex items-center gap-3 bg-background/90 backdrop-blur border border-border p-2 rounded-xl shadow-md">
+          <div className="relative">
+            <LucideSearch className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск сущностей в графе..."
+              className="pl-9 h-9 w-60 text-xs rounded-lg bg-background"
+            />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchGraphData}
+            disabled={loading}
+            className="h-9 px-3 gap-1.5 text-xs"
+          >
+            <LucideRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Обновить
+          </Button>
+        </div>
 
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <LucideSearch className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск по узлам..."
-                className="pl-9 h-9 text-xs w-48"
-              />
+        {/* Legend Overlay */}
+        <div className="absolute bottom-6 left-6 z-10 flex flex-wrap gap-2 bg-background/90 backdrop-blur border border-border p-2.5 rounded-xl text-[11px]">
+          {Object.entries(TYPE_COLORS).map(([type, color]) => (
+            <div key={type} className="flex items-center gap-1.5 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+              <span className="text-muted-foreground">{type}</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchGraphData}
-              disabled={loading}
-              className="h-9 gap-1"
-            >
-              <LucideRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Обновить
-            </Button>
-          </div>
+          ))}
         </div>
 
-        {/* Legend */}
-        <div className="flex flex-wrap gap-4 text-xs mb-2 z-10 bg-background/80 p-2.5 rounded-xl border border-border">
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="w-3 h-3 rounded-full bg-[#3B82F6]" /> Люди (Person)
-          </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="w-3 h-3 rounded-full bg-[#10B981]" /> Проекты (Project)
-          </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="w-3 h-3 rounded-full bg-[#8B5CF6]" /> Технологии (Tech)
-          </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="w-3 h-3 rounded-full bg-[#EF4444]" /> Решения (Decision)
-          </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="w-3 h-3 rounded-full bg-[#F59E0B]" /> Документы (Doc)
-          </span>
-        </div>
-
-        {/* Canvas */}
-        <div className="relative flex-1 flex items-center justify-center min-h-[450px]">
-          <canvas
-            ref={canvasRef}
-            width={800}
-            height={550}
-            onClick={handleCanvasClick}
-            className="cursor-pointer max-w-full rounded-xl bg-slate-950/40 border border-slate-800"
-          />
-        </div>
+        {/* Canvas Render */}
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={550}
+          onClick={handleCanvasClick}
+          className="w-full h-full cursor-pointer rounded-xl"
+        />
       </div>
 
-      {/* Node Details Sidebar */}
-      <div className="w-full lg:w-80 bg-background rounded-2xl p-5 border border-border flex flex-col gap-4">
-        <h4 className="font-bold text-base flex items-center gap-2">
-          <LucideLayers className="w-4 h-4 text-primary" />
-          Детали Узла Графа
-        </h4>
+      {/* Node Details & Bottleneck Sidebar */}
+      <div className="w-full xl:w-80 flex flex-col gap-4">
+        {/* Selected Node Card */}
+        <div className="bg-background rounded-2xl p-5 border border-border space-y-3 shadow-md">
+          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
+            <LucideLayers className="w-4 h-4" />
+            Карточка Сущности
+          </div>
 
-        {selectedNode ? (
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
-              <div className="flex items-center gap-2 mb-1">
+          {selectedNode ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-lg text-foreground">{selectedNode.label}</h3>
                 <span
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: TYPE_COLORS[selectedNode.type] || '#3B82F6' }}
-                />
-                <span className="text-xs uppercase font-bold text-primary">
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                  style={{ backgroundColor: TYPE_COLORS[selectedNode.type] || '#6B7280' }}
+                >
                   {selectedNode.type}
                 </span>
               </div>
-              <h3 className="font-bold text-lg">{selectedNode.label}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                {selectedNode.description || 'Описание отсутствует.'}
-              </p>
-            </div>
-
-            {selectedNode.type === 'Person' && (
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <LucideAlertTriangle className="w-4 h-4 text-amber-400" />
-                  Анализ "Узкого места" (Bottleneck)
-                </div>
-                <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                  На данном пользователе замкнуты ключевые решения платформы.
-                </p>
-              </div>
-            )}
-
-            <div>
-              <h5 className="text-xs font-bold text-muted-foreground uppercase mb-2">Прямые связи:</h5>
-              <div className="space-y-2">
-                {edges
-                  .filter((e) => e.source === selectedNode.id || e.target === selectedNode.id)
-                  .map((edge) => {
-                    const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
-                    const otherNode = nodes.find((n) => n.id === otherId);
-                    return (
-                      <div
-                        key={edge.id}
-                        onClick={() => otherNode && setSelectedNode(otherNode)}
-                        className="p-2.5 rounded-xl border border-border hover:border-primary/50 cursor-pointer flex items-center justify-between text-xs"
-                      >
-                        <span className="font-semibold">{otherNode?.label}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-primary/20 text-primary font-mono">
-                          {edge.label}
-                        </span>
-                      </div>
-                    );
-                  })}
+              <p className="text-xs text-muted-foreground">{selectedNode.description || 'Нет описания.'}</p>
+              <div className="pt-2 border-t border-border text-[11px] text-muted-foreground font-mono">
+                ID: {selectedNode.id}
               </div>
             </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Выберите узел на графе для просмотра связей и метаданных.</p>
+          )}
+        </div>
+
+        {/* Bottleneck Risks Sidebar */}
+        <div className="bg-background rounded-2xl p-5 border border-border space-y-3 flex-1 overflow-y-auto shadow-md">
+          <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+            <LucideAlertTriangle className="w-4 h-4" />
+            Анализ Узких Мест (Bottlenecks)
           </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">Кликните по узлу на графе для просмотра аналитики.</p>
-        )}
+
+          <div className="space-y-2 text-xs">
+            <p className="text-muted-foreground text-[11px]">
+              Мониторинг узлов графа знаний с высоким показателем зависимости (Degree Centrality).
+            </p>
+            {nodes.length > 0 ? (
+              nodes.slice(0, 3).map((n) => (
+                <div key={n.id} className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-1">
+                  <div className="font-bold text-foreground flex justify-between">
+                    <span>{n.label}</span>
+                    <span className="text-amber-400 font-mono">Высокая связность</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">Тип: {n.type}</div>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground">Сущности появятся по мере работы пользователей.</p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

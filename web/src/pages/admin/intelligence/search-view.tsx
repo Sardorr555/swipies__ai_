@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   LucideSearch,
-  LucideSparkles,
-  LucideUserCheck,
-  LucideFileCheck,
   LucideBrain,
+  LucideUserCheck,
+  LucideCheckCircle2,
+  LucideSparkles,
 } from 'lucide-react';
 
 interface ExpertItem {
@@ -22,11 +22,12 @@ interface ExpertItem {
 interface DecisionItem {
   decision: string;
   owner: string;
+  user_id: string;
   confidence: number;
   conversation_id: string;
 }
 
-interface SearchResponse {
+interface SearchResults {
   query: string;
   ai_synthesis: string;
   experts: ExpertItem[];
@@ -37,7 +38,7 @@ interface SearchResponse {
 export function IntelligenceSearchView() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<SearchResponse | null>(null);
+  const [results, setResults] = useState<SearchResults | null>(null);
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -52,53 +53,24 @@ export function IntelligenceSearchView() {
         setResults(res.data.data);
       }
     } catch {
-      setResults({
-        query: query.trim(),
-        ai_synthesis: `По запросу "${query}" ИИ проанализировал переписки и чаты всех пользователей платформы.`,
-        experts: [
-          {
-            user_id: 'usr_101',
-            name: 'Иван Иванов (ivan@example.com)',
-            domain_topic: 'SQL Optimization & Indexing',
-            confidence_score: 0.92,
-            depth_level: 'Expert',
-            evidence: 'Опубликовал 14 проверенных решений по оптимизации запросов и HNSW.',
-          },
-        ],
-        decisions: [
-          {
-            decision: 'Принято решение перевести индексы PostgreSQL на pgvector.',
-            owner: 'Иван Иванов',
-            confidence: 0.95,
-            conversation_id: 'conv_881',
-          },
-        ],
-        source_snippets: [
-          { title: 'Диалог по оптимизации базы данных', snippet: 'Обсудили узкие места при выполнении тяжелых JOIN запросов.' },
-        ],
-      });
+      setResults(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const SAMPLE_QUERIES = [
-    'Кто эксперт по оптимизации SQL и какие решения принимали?',
-    'Какие последние решения были приняты пользователями?',
-    'Кто владеет контекстом по анонимизации PII и защите данных?',
-  ];
-
   return (
     <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto">
+      {/* Search Header */}
       <div className="bg-background rounded-2xl p-6 border border-border shadow-lg space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
             <LucideBrain className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-bold text-xl">Google for Enterprise (Глобальный ИИ Поиск)</h3>
+            <h3 className="font-bold text-xl">"Google for Enterprise" Интеллектуальный Поиск</h3>
             <p className="text-xs text-muted-foreground">
-              Поиск по чатам, решениям, задачам и экспертам ВСЕХ пользователей платформы
+              Единый гибридный ИИ-поиск по принятым решениям, знаниям и профильным экспертам организации
             </p>
           </div>
         </div>
@@ -109,96 +81,81 @@ export function IntelligenceSearchView() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Задайте любой вопрос по всей платформе..."
-              className="pl-11 h-12 text-sm rounded-xl"
+              placeholder="Спросите ИИ (например: Кто отвечает за HNSW индексы или какие решения принимались по API)..."
+              className="pl-11 h-12 text-sm rounded-xl bg-background"
             />
           </div>
-          <Button
-            type="submit"
-            disabled={loading}
-            className="h-12 px-6 font-medium"
-          >
-            {loading ? 'Анализ...' : 'Искать'}
+          <Button type="submit" disabled={loading} className="h-12 px-6 font-medium gap-2">
+            <LucideSparkles className="w-4 h-4" />
+            {loading ? 'Идет синтез...' : 'Искать'}
           </Button>
         </form>
-
-        <div className="flex flex-wrap items-center gap-2 pt-2">
-          <span className="text-xs text-muted-foreground">Примеры:</span>
-          {SAMPLE_QUERIES.map((sq) => (
-            <button
-              key={sq}
-              type="button"
-              onClick={() => {
-                setQuery(sq);
-              }}
-              className="text-xs px-3 py-1 rounded-lg border border-border hover:border-primary text-muted-foreground transition-colors"
-            >
-              {sq}
-            </button>
-          ))}
-        </div>
       </div>
 
+      {/* Results Container */}
       {results && (
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-primary/15 via-background to-background rounded-2xl p-6 border border-primary/30 shadow-md space-y-3">
+          {/* AI Synthesis Box */}
+          <div className="bg-gradient-to-br from-primary/10 via-background to-background rounded-2xl p-6 border border-primary/30 shadow-md space-y-2">
             <div className="flex items-center gap-2 text-primary font-bold text-sm">
-              <LucideSparkles className="w-5 h-5" />
-              Ответ ИИ на основе Всей Памяти Платформы
+              <LucideSparkles className="w-4 h-4" />
+              ИИ-Синтез Ответа
             </div>
-            <p className="text-sm leading-relaxed">{results.ai_synthesis}</p>
+            <p className="text-sm leading-relaxed font-medium">{results.ai_synthesis}</p>
           </div>
 
-          {results.experts.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="font-bold text-base flex items-center gap-2">
-                <LucideUserCheck className="w-5 h-5 text-blue-400" />
-                Найденные Эксперты на Платформе
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Found Decisions */}
+            <div className="bg-background rounded-2xl p-5 border border-border space-y-3">
+              <h4 className="font-bold text-base flex items-center gap-2 text-emerald-400">
+                <LucideCheckCircle2 className="w-5 h-5" />
+                Принятые Решения и Задачи ({results.decisions.length})
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {results.experts.map((exp, i) => (
-                  <div
-                    key={i}
-                    className="bg-background p-4 rounded-xl border border-border space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-base">{exp.name}</span>
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20">
-                        {Math.round(exp.confidence_score * 100)}% Уверенность
-                      </span>
-                    </div>
-                    <div className="text-xs font-semibold text-primary">{exp.domain_topic} ({exp.depth_level})</div>
-                    <p className="text-xs text-muted-foreground">{exp.evidence}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {results.decisions.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="font-bold text-base flex items-center gap-2">
-                <LucideFileCheck className="w-5 h-5 text-emerald-400" />
-                Принятые Архитектурные Решения
-              </h4>
               <div className="space-y-2">
-                {results.decisions.map((dec, i) => (
-                  <div
-                    key={i}
-                    className="bg-background p-4 rounded-xl border border-border flex items-center justify-between text-xs"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-bold text-sm">{dec.decision}</div>
-                      <div className="text-muted-foreground">Ответственный: <span className="font-medium">{dec.owner}</span></div>
+                {results.decisions.length > 0 ? (
+                  results.decisions.map((dec, i) => (
+                    <div key={i} className="p-3.5 rounded-xl border border-border bg-background/50 space-y-1 text-xs">
+                      <div className="font-bold text-foreground">{dec.decision}</div>
+                      <div className="flex items-center justify-between text-muted-foreground pt-1">
+                        <span>Автор: <strong className="text-foreground">{dec.owner}</strong></span>
+                        <span className="font-mono text-emerald-400">Диалог #{dec.conversation_id}</span>
+                      </div>
                     </div>
-                    <span className="text-[11px] text-emerald-400 font-mono px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20">
-                      Подтверждено ИИ
-                    </span>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Решений по данному запросу не найдено.</p>
+                )}
               </div>
             </div>
-          )}
+
+            {/* Found Experts */}
+            <div className="bg-background rounded-2xl p-5 border border-border space-y-3">
+              <h4 className="font-bold text-base flex items-center gap-2 text-primary">
+                <LucideUserCheck className="w-5 h-5" />
+                Профильные Эксперты Организации ({results.experts.length})
+              </h4>
+
+              <div className="space-y-2">
+                {results.experts.length > 0 ? (
+                  results.experts.map((exp, i) => (
+                    <div key={i} className="p-3.5 rounded-xl border border-primary/20 bg-primary/5 space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground">{exp.name}</span>
+                        <span className="text-primary font-mono font-bold">
+                          Уровень: {exp.depth_level}
+                        </span>
+                      </div>
+                      <div className="text-muted-foreground text-[11px] font-semibold">Тема: {exp.domain_topic}</div>
+                      <p className="text-muted-foreground text-[11px] italic">{exp.evidence}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Эксперты по данной теме не выявлены.</p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
