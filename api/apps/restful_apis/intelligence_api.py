@@ -2,7 +2,7 @@
 #  Copyright 2026 The InfiniFlow Authors. All Rights Reserved.
 #
 import logging
-from quart import Blueprint, request
+from quart import request
 from api.apps import login_required, current_user
 from api.db.services.intelligence_service import (
     KnowledgeEntityService,
@@ -16,13 +16,9 @@ from api.utils.api_utils import get_json_result, server_error_response
 from common.constants import RetCode
 
 # manager is injected dynamically by api.apps.register_page() before this module is exec'd.
-try:
-    manager
-except NameError:
-    manager = Blueprint("intelligence", __name__)
 
 
-@manager.route("/graph/full", methods=["GET"])
+@manager.route("/intelligence/graph/full", methods=["GET"])  # noqa: F821
 @login_required
 async def get_full_graph():
     """Retrieve full force-directed knowledge graph across all platform users."""
@@ -35,7 +31,7 @@ async def get_full_graph():
         return server_error_response(e)
 
 
-@manager.route("/graph/query", methods=["POST"])
+@manager.route("/intelligence/graph/query", methods=["POST"])  # noqa: F821
 @login_required
 async def query_knowledge_graph():
     """Query connected nodes and edges in the knowledge graph for a given entity."""
@@ -55,7 +51,7 @@ async def query_knowledge_graph():
         return server_error_response(e)
 
 
-@manager.route("/search", methods=["POST"])
+@manager.route("/intelligence/search", methods=["POST"])  # noqa: F821
 @login_required
 async def search_enterprise():
     """Hybrid AI Natural Language Search across all platform chats ('Google for Enterprise')."""
@@ -71,7 +67,7 @@ async def search_enterprise():
         return server_error_response(e)
 
 
-@manager.route("/dashboard/executive", methods=["GET"])
+@manager.route("/intelligence/dashboard/executive", methods=["GET"])  # noqa: F821
 @login_required
 async def get_executive_dashboard():
     """Retrieve Executive Intelligence Digest stats for all platform users."""
@@ -84,7 +80,7 @@ async def get_executive_dashboard():
         return server_error_response(e)
 
 
-@manager.route("/experts/search", methods=["GET"])
+@manager.route("/intelligence/experts/search", methods=["GET"])  # noqa: F821
 @login_required
 async def search_experts():
     """Search organization expertise based on topic and minimum confidence score."""
@@ -100,7 +96,7 @@ async def search_experts():
         return server_error_response(e)
 
 
-@manager.route("/dashboard/stats", methods=["GET"])
+@manager.route("/intelligence/dashboard/stats", methods=["GET"])  # noqa: F821
 @login_required
 async def get_dashboard_stats():
     """Retrieve enterprise intelligence dashboard statistics."""
@@ -113,7 +109,7 @@ async def get_dashboard_stats():
         return server_error_response(e)
 
 
-@manager.route("/summaries/list", methods=["GET"])
+@manager.route("/intelligence/summaries/list", methods=["GET"])  # noqa: F821
 @login_required
 async def list_summaries():
     """Retrieve list of generated enterprise summaries."""

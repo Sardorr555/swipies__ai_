@@ -80,6 +80,7 @@ export enum Routes {
   AdminRoles = `${Admin}/roles`,
   AdminMonitoring = `${Admin}/monitoring`,
   AdminLicenses = `${Admin}/licenses`,
+  AdminIntelligence = `${Admin}/intelligence`,
   Pricing = '/pricing',
   PrivacyPolicy = '/privacy-policy',
   License = '/license',
@@ -351,10 +352,6 @@ const routeConfigOptions = [
             path: `${Routes.UserSetting}${Routes.License}`,
             Component: () => import('@/pages/user-setting/license'),
           },
-          {
-            path: `${Routes.UserSetting}${Routes.Intelligence}`,
-            Component: () => import('@/pages/user-setting/intelligence'),
-          },
 
         ],
       },
@@ -460,6 +457,10 @@ const routeConfigOptions = [
               {
                 path: 'licenses',
                 Component: () => import('@/pages/admin/licenses'),
+              },
+              {
+                path: 'intelligence',
+                Component: () => import('@/pages/admin/intelligence'),
               },
               ...(IS_ENTERPRISE
                 ? [

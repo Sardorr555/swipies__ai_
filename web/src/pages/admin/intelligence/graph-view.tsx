@@ -4,13 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   LucideNetwork,
-  LucideUser,
-  LucideFolder,
-  LucideCpu,
-  LucideFileText,
   LucideAlertTriangle,
   LucideSearch,
-  LucideSparkles,
   LucideLayers,
   LucideRefreshCw,
 } from 'lucide-react';
@@ -56,7 +51,7 @@ export function IntelligenceGraphView() {
   const fetchGraphData = async () => {
     setLoading(true);
     try {
-      const res = await request.get('/api/v1/intelligence/graph/full');
+      const res = await request.get('/api/v1/intelligence/graph/full?global=true');
       if (res && res.data && res.data.code === 0) {
         let rawNodes: NodeItem[] = res.data.data.nodes || [];
         let rawEdges: EdgeItem[] = res.data.data.edges || [];
@@ -84,7 +79,6 @@ export function IntelligenceGraphView() {
           ];
         }
 
-        // Initialize positions
         const width = 800;
         const height = 550;
         const positionedNodes = rawNodes.map((n, i) => ({
@@ -112,7 +106,7 @@ export function IntelligenceGraphView() {
     fetchGraphData();
   }, []);
 
-  // Simple Force Simulation Canvas Render
+  // Force Simulation Canvas Render
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -136,7 +130,6 @@ export function IntelligenceGraphView() {
           ctx.lineWidth = 1.5;
           ctx.stroke();
 
-          // Label
           const midX = (srcNode.x + tgtNode.x) / 2;
           const midY = (srcNode.y + tgtNode.y) / 2;
           ctx.font = '10px sans-serif';
@@ -162,7 +155,6 @@ export function IntelligenceGraphView() {
           ctx.stroke();
         }
 
-        // Title Label
         ctx.font = isSelected ? 'bold 12px sans-serif' : '11px sans-serif';
         ctx.fillStyle = isSelected ? '#FFFFFF' : '#CBD5E1';
         ctx.fillText(node.label, node.x - 20, node.y + 26);
@@ -194,24 +186,20 @@ export function IntelligenceGraphView() {
     }
   };
 
-  const filteredNodes = nodes.filter((n) =>
-    n.label.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
   return (
     <div className="flex flex-col lg:flex-row gap-6 w-full h-full">
       {/* Graph Area */}
-      <div className="flex-1 bg-bg-component rounded-2xl p-4 border border-border-button flex flex-col relative overflow-hidden">
+      <div className="flex-1 bg-background rounded-2xl p-4 border border-border flex flex-col relative overflow-hidden">
         {/* Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4 z-10">
           <div className="flex items-center gap-2">
-            <LucideNetwork className="w-5 h-5 text-accent-primary" />
-            <h3 className="font-bold text-lg text-text-primary">Интерактивный Граф Связей</h3>
+            <LucideNetwork className="w-5 h-5 text-primary" />
+            <h3 className="font-bold text-lg">Глобальная Сеть Знаний (Все пользователи)</h3>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative">
-              <LucideSearch className="w-4 h-4 absolute left-3 top-3 text-text-disabled" />
+              <LucideSearch className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -233,7 +221,7 @@ export function IntelligenceGraphView() {
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-4 text-xs mb-2 z-10 bg-bg-component/80 p-2.5 rounded-xl border border-border-button">
+        <div className="flex flex-wrap gap-4 text-xs mb-2 z-10 bg-background/80 p-2.5 rounded-xl border border-border">
           <span className="flex items-center gap-1.5 font-medium">
             <span className="w-3 h-3 rounded-full bg-[#3B82F6]" /> Люди (Person)
           </span>
@@ -264,31 +252,30 @@ export function IntelligenceGraphView() {
       </div>
 
       {/* Node Details Sidebar */}
-      <div className="w-full lg:w-80 bg-bg-component rounded-2xl p-5 border border-border-button flex flex-col gap-4">
-        <h4 className="font-bold text-base text-text-primary flex items-center gap-2">
-          <LucideLayers className="w-4 h-4 text-accent-primary" />
+      <div className="w-full lg:w-80 bg-background rounded-2xl p-5 border border-border flex flex-col gap-4">
+        <h4 className="font-bold text-base flex items-center gap-2">
+          <LucideLayers className="w-4 h-4 text-primary" />
           Детали Узла Графа
         </h4>
 
         {selectedNode ? (
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-accent-primary/10 border border-accent-primary/20">
+            <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
               <div className="flex items-center gap-2 mb-1">
                 <span
                   className="w-3 h-3 rounded-full"
                   style={{ backgroundColor: TYPE_COLORS[selectedNode.type] || '#3B82F6' }}
                 />
-                <span className="text-xs uppercase font-bold text-accent-primary">
+                <span className="text-xs uppercase font-bold text-primary">
                   {selectedNode.type}
                 </span>
               </div>
-              <h3 className="font-bold text-lg text-text-primary">{selectedNode.label}</h3>
-              <p className="text-xs text-text-disabled mt-1">
+              <h3 className="font-bold text-lg">{selectedNode.label}</h3>
+              <p className="text-xs text-muted-foreground mt-1">
                 {selectedNode.description || 'Описание отсутствует.'}
               </p>
             </div>
 
-            {/* Bottleneck Warning analysis if Person */}
             {selectedNode.type === 'Person' && (
               <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1">
                 <div className="flex items-center gap-1.5 font-bold">
@@ -296,14 +283,13 @@ export function IntelligenceGraphView() {
                   Анализ "Узкого места" (Bottleneck)
                 </div>
                 <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                  На данном сотруднике замкнуты ключевые решения по архитектуре RAG. При уходе потребуется передача 3 уникальных контекстов.
+                  На данном пользователе замкнуты ключевые решения платформы.
                 </p>
               </div>
             )}
 
-            {/* Connected Relationships */}
             <div>
-              <h5 className="text-xs font-bold text-text-disabled uppercase mb-2">Прямые связи:</h5>
+              <h5 className="text-xs font-bold text-muted-foreground uppercase mb-2">Прямые связи:</h5>
               <div className="space-y-2">
                 {edges
                   .filter((e) => e.source === selectedNode.id || e.target === selectedNode.id)
@@ -314,10 +300,10 @@ export function IntelligenceGraphView() {
                       <div
                         key={edge.id}
                         onClick={() => otherNode && setSelectedNode(otherNode)}
-                        className="p-2.5 rounded-xl border border-border-button hover:border-accent-primary/50 cursor-pointer bg-bg-component flex items-center justify-between text-xs"
+                        className="p-2.5 rounded-xl border border-border hover:border-primary/50 cursor-pointer flex items-center justify-between text-xs"
                       >
-                        <span className="font-semibold text-text-primary">{otherNode?.label}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-accent-primary/20 text-accent-primary font-mono">
+                        <span className="font-semibold">{otherNode?.label}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-primary/20 text-primary font-mono">
                           {edge.label}
                         </span>
                       </div>
@@ -327,7 +313,7 @@ export function IntelligenceGraphView() {
             </div>
           </div>
         ) : (
-          <p className="text-xs text-text-disabled">Кликните по узлу на графе для просмотра аналитики.</p>
+          <p className="text-xs text-muted-foreground">Кликните по узлу на графе для просмотра аналитики.</p>
         )}
       </div>
     </div>

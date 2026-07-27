@@ -31,11 +31,6 @@ import { useHandleMenuClick } from './hooks';
 const menuItems = (t: TFunction) => {
   const items = [
     {
-      icon: <LucideBrain className="size-[1em] text-accent-primary" />,
-      label: 'Enterprise Intelligence',
-      key: Routes.Intelligence,
-    },
-    {
       icon: <LucideServer className="size-[1em]" />,
       label: t('setting.dataSources'),
       key: Routes.DataSource,

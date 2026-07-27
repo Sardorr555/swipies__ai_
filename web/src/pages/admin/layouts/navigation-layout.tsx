@@ -13,6 +13,7 @@ import {
   LucideUserCog,
   LucideUserStar,
   LucideZap,
+  LucideBrain,
   Key,
 } from 'lucide-react';
 
@@ -68,6 +69,11 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminLicenses,
         name: 'Licenses',
         icon: <Key className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminIntelligence,
+        name: 'Enterprise Intelligence',
+        icon: <LucideBrain className="size-[1em] text-primary" />,
       },
 
       ...(IS_ENTERPRISE

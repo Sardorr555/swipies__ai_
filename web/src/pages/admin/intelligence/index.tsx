@@ -4,29 +4,29 @@ import { IntelligenceSearchView } from './search-view';
 import { IntelligenceDigestView } from './digest-view';
 import { LucideNetwork, LucideBrain, LucideBarChart3 } from 'lucide-react';
 
-export default function UserSettingIntelligence() {
+export default function AdminIntelligence() {
   const [activeTab, setActiveTab] = useState<'graph' | 'search' | 'digest'>('graph');
 
   return (
-    <div className="flex flex-col gap-6 size-full p-6 bg-bg-component/40 rounded-2xl overflow-y-auto">
+    <div className="flex flex-col gap-6 size-full p-6 bg-background/40 rounded-2xl overflow-y-auto">
       {/* Top Header and Tab Navigation */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-border-button">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <h2 className="text-2xl font-bold text-text-primary">Enterprise Intelligence Center</h2>
-          <p className="text-xs text-text-disabled mt-1">
-            Единая панель управления знаниями, графом связей и аналитикой компании
+          <h2 className="text-2xl font-bold">Enterprise Intelligence Center (Панель Администратора)</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Глобальная панель анализа знаний, графа связей и данных пользователей всей платформы
           </p>
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex items-center gap-2 bg-bg-component p-1.5 rounded-xl border border-border-button">
+        <div className="flex items-center gap-2 bg-background p-1.5 rounded-xl border border-border">
           <button
             type="button"
             onClick={() => setActiveTab('graph')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'graph'
-                ? 'bg-accent-primary text-white shadow-md'
-                : 'text-text-disabled hover:text-text-primary'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <LucideNetwork className="w-4 h-4" />
@@ -38,8 +38,8 @@ export default function UserSettingIntelligence() {
             onClick={() => setActiveTab('search')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'search'
-                ? 'bg-accent-primary text-white shadow-md'
-                : 'text-text-disabled hover:text-text-primary'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <LucideBrain className="w-4 h-4" />
@@ -51,8 +51,8 @@ export default function UserSettingIntelligence() {
             onClick={() => setActiveTab('digest')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'digest'
-                ? 'bg-accent-primary text-white shadow-md'
-                : 'text-text-disabled hover:text-text-primary'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <LucideBarChart3 className="w-4 h-4" />
