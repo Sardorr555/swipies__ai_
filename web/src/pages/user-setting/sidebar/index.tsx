@@ -20,7 +20,6 @@ import {
   LucideUnplug,
   LucideUser,
   LucideUsers,
-  LucideBrain,
   CreditCard,
   Key,
 } from 'lucide-react';
