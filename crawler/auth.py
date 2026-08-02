@@ -4,7 +4,7 @@ class AuthHandler:
     def __init__(self, auth_config: dict = None):
         self.auth_config = auth_config or {}
 
-    def get_headers((self) -> dict:
+    def get_headers(self) -> dict:
         headers = {}
         auth_type = self.auth_config.get("type", "none")
 
