@@ -3,7 +3,7 @@ name: Deploy Swipies Main App
 on:
   push:
     branches:
-      - swipies_26
+      - test
     paths-ignore:
       - 'atmos payment system/**'
       - 'landing_swipies/**'

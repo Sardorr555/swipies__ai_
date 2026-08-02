@@ -1,0 +1,100 @@
+import asyncio
+import logging
+from quart import request
+from api.apps import login_required, current_user
+from api.utils.api_utils import get_error_data_result, get_json_result, get_result
+from crawler.preview import WebsitePreviewAnalyzer
+from crawler.pipeline import WebsiteImportPipeline, get_job_pipeline, ACTIVE_JOBS
+
+logger = logging.getLogger(__name__)
+
+# manager is injected dynamically by api.apps.register_page() before this module is exec'd.
+
+@manager.route("/datasets/import/website/preview", methods=["POST"])  # noqa: F821
+@login_required
+async def preview_website_import():
+    """
+    Analyze website preview before import.
+    """
+    try:
+        req = await request.get_json() or {}
+        start_url = req.get("url")
+        if not start_url:
+            return get_error_data_result(message="Missing required parameter: url")
+
+        crawl_mode = req.get("crawl_mode", "website")
+        max_pages = req.get("max_pages", 50)
+        auth_config = req.get("auth")
+
+        analyzer = WebsitePreviewAnalyzer()
+        result = await analyzer.analyze(start_url, crawl_mode=crawl_mode, max_pages=max_pages, auth_config=auth_config)
+        return get_json_result(data=result)
+    except Exception as e:
+        logger.exception(e)
+        return get_error_data_result(message=f"Preview analysis failed: {str(e)}")
+
+
+@manager.route("/datasets/import/website", methods=["POST"])  # noqa: F821
+@login_required
+async def start_website_import():
+    """
+    Start a new website import job.
+    """
+    try:
+        req = await request.get_json() or {}
+        kb_id = req.get("kb_id") or req.get("dataset_id")
+        if not kb_id:
+            return get_error_data_result(message="Missing required parameter: kb_id / dataset_id")
+
+        url = req.get("url")
+        urls = req.get("urls", [])
+        if not url and not urls:
+            return get_error_data_result(message="Missing required parameter: url or urls")
+
+        tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "system")
+
+        pipeline = WebsiteImportPipeline(tenant_id=tenant_id, kb_id=kb_id, job_config=req)
+        # Run pipeline in background task
+        asyncio.create_task(pipeline.run())
+
+        return get_json_result(data={"job_id": pipeline.job_id, "status": "running"})
+    except Exception as e:
+        logger.exception(e)
+        return get_error_data_result(message=f"Failed to start import job: {str(e)}")
+
+
+@manager.route("/datasets/import/<job_id>", methods=["GET"])  # noqa: F821
+@login_required
+async def get_website_import_status(job_id: str):
+    """
+    Get live progress and logs for a website import job.
+    """
+    pipeline = get_job_pipeline(job_id)
+    if not pipeline:
+        return get_error_data_result(message="Import job not found")
+    
+    return get_json_result(data=pipeline.tracker.to_dict())
+
+
+@manager.route("/datasets/import/<job_id>", methods=["DELETE"])  # noqa: F821
+@login_required
+async def cancel_website_import(job_id: str):
+    """
+    Cancel an active website import job.
+    """
+    pipeline = get_job_pipeline(job_id)
+    if not pipeline:
+        return get_error_data_result(message="Import job not found")
+    
+    pipeline.cancel()
+    return get_json_result(data={"job_id": job_id, "status": "cancelled"})
+
+
+@manager.route("/datasets/import/history", methods=["GET"])  # noqa: F821
+@login_required
+async def get_website_import_history():
+    """
+    Get history of website import jobs.
+    """
+    history = [p.tracker.to_dict() for p in ACTIVE_JOBS.values()]
+    return get_json_result(data=history)

@@ -190,6 +190,10 @@ export default {
     `${restAPIv1}/datasets/${datasetId}/documents`,
   webCrawl: (datasetId: string) =>
     `${restAPIv1}/datasets/${datasetId}/documents?type=web`,
+  websiteImportPreview: `${restAPIv1}/datasets/import/website/preview`,
+  websiteImportStart: `${restAPIv1}/datasets/import/website`,
+  websiteImportStatus: (jobId: string) => `${restAPIv1}/datasets/import/${jobId}`,
+  websiteImportCancel: (jobId: string) => `${restAPIv1}/datasets/import/${jobId}`,
   documentInfoUpload: `${restAPIv1}/documents/upload`,
   setMeta: `${webAPI}/document/set_meta`,
   getDatasetFilter: (datasetId: string) =>

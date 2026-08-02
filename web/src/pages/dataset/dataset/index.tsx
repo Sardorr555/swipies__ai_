@@ -30,13 +30,16 @@ import { useKnowledgeBaseContext } from '../contexts/knowledge-base-context';
 import { DatasetTable } from './dataset-table';
 import Generate from './generate-button/generate';
 import { ReparseDialog } from './reparse-dialog';
+import { WebsiteImportModal } from './website-import-modal';
 import { useBulkOperateDataset } from './use-bulk-operate-dataset';
 import { useCreateEmptyDocument } from './use-create-empty-document';
 import { useSelectDatasetFilters } from './use-select-filters';
 import { useHandleUploadDocument } from './use-upload-document';
+import { useState } from 'react';
 
 export default function Dataset() {
   const { t } = useTranslation();
+  const [websiteModalVisible, setWebsiteModalVisible] = useState(false);
   const {
     documentUploadVisible,
     hideDocumentUploadModal,
@@ -208,6 +211,9 @@ export default function Dataset() {
               <DropdownMenuItem onClick={showDocumentUploadModal}>
                 {t('fileManager.uploadFile')}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setWebsiteModalVisible(true)}>
+                Website Importer
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={showCreateModal}>
                 {t('knowledgeDetails.emptyFiles')}
@@ -298,6 +304,14 @@ export default function Dataset() {
             hideModal={hideReparseDialogModal}
           ></ReparseDialog>
         )}
+        <WebsiteImportModal
+          visible={websiteModalVisible}
+          datasetId={knowledgeBase?.id || ''}
+          onClose={() => setWebsiteModalVisible(false)}
+          onSuccess={() => {
+            setWebsiteModalVisible(false);
+          }}
+        />
       </CardContent>
     </Card>
   );
