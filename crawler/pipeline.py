@@ -76,7 +76,7 @@ class WebsiteImportPipeline:
                     "process_begin_at": DocumentService.date_now(),
                 }
                 
-                DocumentService.insert(doc)
+                DocumentService.insert(**doc)
                 self.tracker.chunks_created += 1
                 self.tracker.log(f"Created Document record for {doc_name}")
 

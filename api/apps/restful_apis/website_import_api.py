@@ -63,6 +63,16 @@ async def start_website_import():
         return get_error_data_result(message=f"Failed to start import job: {str(e)}")
 
 
+@manager.route("/datasets/import/history", methods=["GET"])  # noqa: F821
+@login_required
+async def get_website_import_history():
+    """
+    Get history of website import jobs.
+    """
+    history = [p.tracker.to_dict() for p in ACTIVE_JOBS.values()]
+    return get_json_result(data=history)
+
+
 @manager.route("/datasets/import/<job_id>", methods=["GET"])  # noqa: F821
 @login_required
 async def get_website_import_status(job_id: str):
@@ -88,13 +98,3 @@ async def cancel_website_import(job_id: str):
     
     pipeline.cancel()
     return get_json_result(data={"job_id": job_id, "status": "cancelled"})
-
-
-@manager.route("/datasets/import/history", methods=["GET"])  # noqa: F821
-@login_required
-async def get_website_import_history():
-    """
-    Get history of website import jobs.
-    """
-    history = [p.tracker.to_dict() for p in ACTIVE_JOBS.values()]
-    return get_json_result(data=history)
