@@ -72,6 +72,8 @@ jobs:
 
             echo "🛑 Stopping old containers..."
             sudo docker compose down --remove-orphans || true
+            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-deepdoc swipies-gpu 2>/dev/null || true
+            sudo docker network rm docker_ragflow 2>/dev/null || true
 
             echo "🐳 Building new Docker images..."
             sudo docker compose build
