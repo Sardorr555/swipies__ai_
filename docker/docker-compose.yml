@@ -178,7 +178,6 @@ services:
       - NGINX_ENVSUBST_FILTER=RAGFLOW_BACKEND|RAGFLOW_ADMIN_BACKEND
     ports:
       - "0.0.0.0:${SVR_WEB_HTTP_PORT}:80"
-      - "0.0.0.0:80:80"
     networks:
       - ragflow
     restart: unless-stopped
