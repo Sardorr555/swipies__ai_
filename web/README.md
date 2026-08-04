@@ -1,45 +1,21 @@
-## Install front-end dependencies
+# Web Frontend
 
-   ```bash
-   npm install
-   ```
+## Install Dependencies
 
-## Launch front-end
+```bash
+npm install
+```
 
-   ```bash
-   npm run dev
-   ```
+## Run Development Server
 
-   _The following output confirms a successful launch of the system:_
+```bash
+npm run dev
+```
 
-   ![](https://github.com/user-attachments/assets/0daf462c-a24d-4496-a66f-92533534e187)
+App runs at `http://localhost:8000` (or `http://localhost:9222`).
 
-## Login to RAGFlow web UI
+## Build
 
-   Open your browser and navigate to:
-
-   ```bash
-   http://localhost:9222 or http://[YOUR_MACHINE_IP]:9222
-   ```
-
-   _Replace `[YOUR_MACHINE_IP]` with your actual machine IP address (e.g., `http://192.168.1.49:9222`)._
-
-
-## Login to RAGFlow web admin UI
-
-   Open your browser and navigate to:
-
-   ```bash
-   http://localhost:9222/admin or http://[YOUR_MACHINE_IP]:9222/admin
-   ```
-
-   _Replace `[YOUR_MACHINE_IP]` with your actual machine IP address (e.g., `http://192.168.1.49:9222/admin`)._
-
-
-## Shutdown front-end
-
-   Ctrl + C or
-
-   ```bash
-   kill -f "umi dev"
-   ```
+```bash
+npm run build
+```
