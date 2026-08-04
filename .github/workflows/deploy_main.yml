@@ -3,6 +3,7 @@ name: Deploy Swipies Main App
 on:
   push:
     branches:
+      - test
       - swipies_26
     paths-ignore:
       - 'atmos payment system/**'
@@ -49,8 +50,8 @@ jobs:
             cd ~/swipies__ai_
 
             echo "📥 Updating main repository..."
-            git fetch origin swipies_26
-            git reset --hard origin/swipies_26
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
 
             echo "📥 Syncing submodules..."
             git submodule sync --recursive
