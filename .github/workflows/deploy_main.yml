@@ -56,11 +56,6 @@ jobs:
             git submodule sync --recursive
             git submodule update --init --recursive --force
 
-            echo "🌐 Copying install.sh to NGINX web root for swipies.app domain..."
-            sudo mkdir -p /var/www/html /var/www/swipies 2>/dev/null || true
-            sudo cp -f ~/swipies__ai_/"new site for swipies"/install.sh /var/www/html/install.sh 2>/dev/null || true
-            sudo cp -f ~/swipies__ai_/"new site for swipies"/install.sh /var/www/swipies/install.sh 2>/dev/null || true
-
             cd ~/swipies__ai_/"atmos payment system"
             git checkout main || true
             git pull origin main || true
@@ -77,6 +72,8 @@ jobs:
 
             echo "🛑 Stopping old containers..."
             sudo docker compose down --remove-orphans || true
+            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-deepdoc swipies-gpu 2>/dev/null || true
+            sudo docker network rm docker_ragflow 2>/dev/null || true
 
             echo "🐳 Building new Docker images..."
             sudo docker compose build
@@ -84,8 +81,15 @@ jobs:
             echo "🚀 Starting Docker stack..."
             sudo docker compose up -d --remove-orphans
 
-            echo "⏳ Waiting for services to initialize..."
-            sleep 15
+            echo "⏳ Waiting for RAGFlow Python API server to be ready..."
+            for i in {1..40}; do
+              if sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/api/v1/system/version >/dev/null 2>&1 || sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/v1/system/version >/dev/null 2>&1; then
+                echo "✅ RAGFlow Python API server is UP and responding!"
+                break
+              fi
+              echo "Waiting for Python API server (attempt $i/40)..."
+              sleep 3
+            done
 
             echo "📊 Docker Container Status:"
             sudo docker compose ps
