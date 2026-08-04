@@ -3,10 +3,26 @@ import logging
 from quart import request
 from api.apps import login_required, current_user
 from api.utils.api_utils import get_error_data_result, get_json_result, get_result
-from crawler.preview import WebsitePreviewAnalyzer
-from crawler.pipeline import WebsiteImportPipeline, get_job_pipeline, ACTIVE_JOBS
+import sys
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Ensure repository root is in sys.path so 'crawler' module can be found
+root_dir = str(Path(__file__).resolve().parent.parent.parent.parent)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
+try:
+    from crawler.preview import WebsitePreviewAnalyzer
+    from crawler.pipeline import WebsiteImportPipeline, get_job_pipeline, ACTIVE_JOBS
+except Exception as _crawler_import_err:
+    logger.warning(f"Could not import crawler module: {_crawler_import_err}")
+    WebsitePreviewAnalyzer = None
+    WebsiteImportPipeline = None
+    def get_job_pipeline(job_id):
+        return None
+    ACTIVE_JOBS = {}
 
 # manager is injected dynamically by api.apps.register_page() before this module is exec'd.
 
