@@ -81,8 +81,15 @@ jobs:
             echo "🚀 Starting Docker stack..."
             sudo docker compose up -d --remove-orphans
 
-            echo "⏳ Waiting for services to initialize..."
-            sleep 15
+            echo "⏳ Waiting for RAGFlow Python API server to be ready..."
+            for i in {1..40}; do
+              if sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/api/v1/system/version >/dev/null 2>&1 || sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/v1/system/version >/dev/null 2>&1; then
+                echo "✅ RAGFlow Python API server is UP and responding!"
+                break
+              fi
+              echo "Waiting for Python API server (attempt $i/40)..."
+              sleep 3
+            done
 
             echo "📊 Docker Container Status:"
             sudo docker compose ps
