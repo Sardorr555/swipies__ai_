@@ -265,6 +265,7 @@ COPY pyproject.toml uv.lock ./
 COPY mcp mcp
 COPY common common
 COPY memory memory
+COPY crawler crawler
 COPY bin bin
 COPY tools/scripts tools/scripts
 COPY generate_license.py ./

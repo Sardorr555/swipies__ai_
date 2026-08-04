@@ -69,6 +69,7 @@ services:
       - ../api:/ragflow/api
       - ../admin:/ragflow/admin
       - ../common:/ragflow/common
+      - ../crawler:/ragflow/crawler
     env_file: .env
     networks:
       - ragflow
@@ -125,6 +126,7 @@ services:
       - ../api:/ragflow/api
       - ../admin:/ragflow/admin
       - ../common:/ragflow/common
+      - ../crawler:/ragflow/crawler
     env_file: .env
     networks:
       - ragflow
