@@ -79,14 +79,17 @@ jobs:
             # Разрешаем запускать docker без sudo
             sudo usermod -aG docker ubuntu || true
 
+            DEPLOY_BRANCH="${GITHUB_REF_NAME:-test}"
+            REPO_TOKEN="${{ secrets.GH_PAT || secrets.PAT || secrets.GITHUB_TOKEN }}"
+            REPO_URL="https://x-access-token:${REPO_TOKEN}@github.com/Sardorr555/swipies__ai_.git"
+
             echo "🚀 Клонируем/обновляем репозиторий Swipies..."
             if [ ! -d ~/swipies__ai_ ]; then
-              git clone -b test https://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@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
+              git clone -b "${DEPLOY_BRANCH}" "${REPO_URL}" ~/swipies__ai_
             fi
 
             cd ~/swipies__ai_
-            git remote set-url origin https://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@github.com/Sardorr555/swipies__ai_.git || true
-            DEPLOY_BRANCH="${GITHUB_REF_NAME:-test}"
+            git remote set-url origin "${REPO_URL}" || true
             echo "📥 Updating repository to branch ${DEPLOY_BRANCH}..."
             git fetch origin "${DEPLOY_BRANCH}"
             git checkout "${DEPLOY_BRANCH}" || git checkout -b "${DEPLOY_BRANCH}" "origin/${DEPLOY_BRANCH}"
