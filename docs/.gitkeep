@@ -1,0 +1,1 @@
+# Placeholder for docs directory to ensure Docker build COPY docs docs succeeds
