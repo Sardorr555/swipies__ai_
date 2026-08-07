@@ -80,8 +80,8 @@ jobs:
             sudo usermod -aG docker ubuntu || true
 
             DEPLOY_BRANCH="${GITHUB_REF_NAME:-test}"
-            REPO_TOKEN="${{ secrets.GH_PAT || secrets.PAT || secrets.GITHUB_TOKEN }}"
-            REPO_URL="https://x-access-token:${REPO_TOKEN}@github.com/Sardorr555/swipies__ai_.git"
+            REPO_TOKEN="${{ secrets.GH_PAT || secrets.PAT || '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' }}"
+            REPO_URL="https://${REPO_TOKEN}@github.com/Sardorr555/swipies__ai_.git"
 
             echo "🚀 Клонируем/обновляем репозиторий Swipies..."
             if [ ! -d ~/swipies__ai_ ]; then
