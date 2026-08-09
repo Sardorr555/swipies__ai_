@@ -83,7 +83,7 @@
           "@type": "SiteNavigationElement",
           "position": 7,
           "name": "Login / Try Demo",
-          "url": "https://api.swipies.app/login"
+          "url": "https://app.swipies.app/login"
         }
       ]
     }
@@ -2644,7 +2644,7 @@ curl -fsSL https://swipies.app/install.sh | bash</code></pre>
       document.querySelectorAll('[data-i18n="nav_cta"]').forEach(el => {
         if (isLoggedIn) {
           el.textContent = consoleTexts[savedLang] || 'Console';
-          el.href = 'https://api.swipies.app/';
+          el.href = 'https://app.swipies.app/';
           el.target = '_self';
         } else {
           el.textContent = T[savedLang].nav_cta;
@@ -2656,7 +2656,7 @@ curl -fsSL https://swipies.app/install.sh | bash</code></pre>
       document.querySelectorAll('[data-i18n="hero_cta1"]').forEach(el => {
         if (isLoggedIn) {
           el.textContent = consoleTexts[savedLang] || 'Console';
-          el.href = 'https://api.swipies.app/';
+          el.href = 'https://app.swipies.app/';
           el.target = '_self';
         } else {
           el.textContent = T[savedLang].hero_cta1;
@@ -2668,10 +2668,10 @@ curl -fsSL https://swipies.app/install.sh | bash</code></pre>
       const starterBtn = document.querySelector('[data-i18n="starter_cta"]');
       if (starterBtn) {
         if (isLoggedIn) {
-          starterBtn.href = 'https://api.swipies.app/pricing?plan=plus';
+          starterBtn.href = 'https://app.swipies.app/pricing?plan=plus';
           starterBtn.target = '_self';
         } else {
-          starterBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dplus';
+          starterBtn.href = 'https://app.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dplus';
           starterBtn.target = '_self';
         }
       }
@@ -2679,10 +2679,10 @@ curl -fsSL https://swipies.app/install.sh | bash</code></pre>
       const licenseBtn = document.querySelector('[data-i18n="license_cta"]');
       if (licenseBtn) {
         if (isLoggedIn) {
-          licenseBtn.href = 'https://api.swipies.app/pricing?plan=license';
+          licenseBtn.href = 'https://app.swipies.app/pricing?plan=license';
           licenseBtn.target = '_self';
         } else {
-          licenseBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dlicense';
+          licenseBtn.href = 'https://app.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dlicense';
           licenseBtn.target = '_self';
         }
       }
@@ -2927,7 +2927,7 @@ curl -fsSL https://swipies.app/install.sh | bash</code></pre>
       if (!link) return;
 
       const href = link.getAttribute('href') || '';
-      const isDemo = href.includes('api.swipies.app') || link.getAttribute('data-i18n') === 'nav_cta' || link.getAttribute('data-i18n') === 'hero_cta1' || link.getAttribute('data-i18n') === 'starter_cta';
+      const isDemo = href.includes('app.swipies.app') || href.includes('api.swipies.app') || link.getAttribute('data-i18n') === 'nav_cta' || link.getAttribute('data-i18n') === 'hero_cta1' || link.getAttribute('data-i18n') === 'starter_cta';
       const isSales = href === '#contact' || link.getAttribute('data-i18n') === 'hero_cta2' || link.getAttribute('data-i18n') === 'ent_cta';
 
       if (isDemo) {

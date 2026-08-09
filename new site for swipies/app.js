@@ -107,7 +107,7 @@ document.getElementById('app-sections').innerHTML = `
 <li>${icons.check}<span data-i18n="starter_f3">Standard support</span></li>
 <li>${icons.check}<span data-i18n="starter_f4">Managed infrastructure</span></li>
 </ul>
-<a href="https://api.swipies.app/login" target="_blank" class="btn-secondary" style="display:inline-block;text-align:center" data-i18n="starter_cta">Start Building</a>
+<a href="https://app.swipies.app/login" target="_blank" class="btn-secondary" style="display:inline-block;text-align:center" data-i18n="starter_cta">Start Building</a>
 </div>
 <div class="price-card">
 <div class="price-name" data-i18n="license">Self-Hosted License</div>
@@ -121,7 +121,7 @@ document.getElementById('app-sections').innerHTML = `
 <li>${icons.check}<span data-i18n="license_f5">Offline / Air-gapped mode</span></li>
 <li>${icons.check}<span data-i18n="license_f6">Regular updates</span></li>
 </ul>
-<a href="https://api.swipies.app/login" target="_blank" class="btn-primary" style="display:inline-block;text-align:center" data-i18n="license_cta">Purchase Key</a>
+<a href="https://app.swipies.app/login" target="_blank" class="btn-primary" style="display:inline-block;text-align:center" data-i18n="license_cta">Purchase Key</a>
 </div>
 <div class="price-card featured">
 <div class="price-name" data-i18n="enterprise">Enterprise</div>
@@ -191,7 +191,7 @@ document.getElementById('app-sections').innerHTML = `
 <div class="container">
 <h2 data-i18n="fcta_h">Ready to Bring AI Inside Your Infrastructure?</h2>
 <p data-i18n="fcta_p">Deploy enterprise-grade AI on your servers. Your data stays yours.</p>
-<a href="https://api.swipies.app/login" target="_blank" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
+<a href="https://app.swipies.app/login" target="_blank" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
 </div>
 </div>
 
@@ -261,7 +261,7 @@ function updateAuthStatus() {
   document.querySelectorAll('[data-i18n="nav_cta"]').forEach(el => {
     if (isLoggedIn) {
       el.textContent = consoleTexts[savedLang] || 'Console';
-      el.href = 'https://api.swipies.app/';
+      el.href = 'https://app.swipies.app/';
       el.target = '_self';
     } else {
       el.textContent = T[savedLang].nav_cta;
@@ -273,7 +273,7 @@ function updateAuthStatus() {
   document.querySelectorAll('[data-i18n="hero_cta1"]').forEach(el => {
     if (isLoggedIn) {
       el.textContent = consoleTexts[savedLang] || 'Console';
-      el.href = 'https://api.swipies.app/';
+      el.href = 'https://app.swipies.app/';
       el.target = '_self';
     } else {
       el.textContent = T[savedLang].hero_cta1;
@@ -285,10 +285,10 @@ function updateAuthStatus() {
   const starterBtn = document.querySelector('[data-i18n="starter_cta"]');
   if (starterBtn) {
     if (isLoggedIn) {
-      starterBtn.href = 'https://api.swipies.app/pricing?plan=plus';
+      starterBtn.href = 'https://app.swipies.app/pricing?plan=plus';
       starterBtn.target = '_self';
     } else {
-      starterBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dplus';
+      starterBtn.href = 'https://app.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dplus';
       starterBtn.target = '_self';
     }
   }
@@ -296,10 +296,10 @@ function updateAuthStatus() {
   const licenseBtn = document.querySelector('[data-i18n="license_cta"]');
   if (licenseBtn) {
     if (isLoggedIn) {
-      licenseBtn.href = 'https://api.swipies.app/pricing?plan=license';
+      licenseBtn.href = 'https://app.swipies.app/pricing?plan=license';
       licenseBtn.target = '_self';
     } else {
-      licenseBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dlicense';
+      licenseBtn.href = 'https://app.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dlicense';
       licenseBtn.target = '_self';
     }
   }
@@ -344,7 +344,7 @@ mobileMenu.innerHTML = navLinks.innerHTML;
 
 // Add Try Demo CTA button to mobile menu bottom
 const mobileCta = document.createElement('a');
-mobileCta.href = 'https://api.swipies.app/login';
+mobileCta.href = 'https://app.swipies.app/login';
 mobileCta.target = '_blank';
 mobileCta.className = 'btn-primary';
 mobileCta.style.textAlign = 'center';
