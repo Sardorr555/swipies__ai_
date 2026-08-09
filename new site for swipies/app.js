@@ -404,19 +404,47 @@ window.handleSubmit = function(event) {
   if (!isValid) return false;
   
   const submitBtn = event.target.querySelector('button[type="submit"]');
-  
   submitBtn.disabled = true;
-  submitBtn.style.background = 'var(--green)';
-  submitBtn.style.color = '#fff';
-  submitBtn.textContent = currentLang === 'en' ? 'Success! Message Sent' : currentLang === 'ru' ? 'Успешно отправлено!' : 'Muvaffaqiyatli yuborildi!';
+  submitBtn.style.background = 'var(--border2)';
+  submitBtn.textContent = 'Sending...';
   
-  setTimeout(() => {
-    document.getElementById('contactForm').reset();
-    submitBtn.disabled = false;
-    submitBtn.style.background = 'var(--accent)';
-    submitBtn.style.color = 'var(--bg)';
-    setLanguage(currentLang);
-  }, 3000);
+  fetch('/api/leads', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      company: company.value.trim(),
+      name: name.value.trim(),
+      email: email.value.trim(),
+      phone: phone.value.trim(),
+      message: msg.value.trim()
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    submitBtn.style.background = 'var(--green)';
+    submitBtn.style.color = '#fff';
+    submitBtn.textContent = currentLang === 'en' ? 'Success! Message Sent' : currentLang === 'ru' ? 'Успешно отправлено!' : 'Muvaffaqiyatli yuborildi!';
+    
+    setTimeout(() => {
+      document.getElementById('contactForm').reset();
+      submitBtn.disabled = false;
+      submitBtn.style.background = 'var(--accent)';
+      submitBtn.style.color = 'var(--bg)';
+      setLanguage(currentLang);
+    }, 3000);
+  })
+  .catch(err => {
+    console.error('Submission error:', err);
+    submitBtn.style.background = 'var(--red)';
+    submitBtn.textContent = 'Error. Try again';
+    setTimeout(() => {
+      submitBtn.disabled = false;
+      submitBtn.style.background = 'var(--accent)';
+      submitBtn.textContent = T[currentLang].form_submit || 'Send Message';
+    }, 3000);
+  });
   
   return false;
 };
@@ -454,6 +482,67 @@ window.addEventListener('scroll', () => {
   }
 });
 
+/* ===== COOKIE CONSENT & VISITOR TRACKING ===== */
+function getVisitorId() {
+  let vId = localStorage.getItem('swipies_visitor_id');
+  if (!vId) {
+    vId = 'v_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+    localStorage.setItem('swipies_visitor_id', vId);
+  }
+  return vId;
+}
+
+function trackVisitor(consentStatus) {
+  try {
+    const payload = {
+      visitor_id: getVisitorId(),
+      screen_res: window.screen ? `${window.screen.width}x${window.screen.height}` : '',
+      language: navigator.language || navigator.userLanguage || 'en',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+      page_url: window.location.href,
+      referrer: document.referrer || 'Direct',
+      cookie_consent: consentStatus || 'accepted',
+      user_agent: navigator.userAgent
+    };
+
+    fetch('/api/visitors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(err => console.error('[Telemetry] Visitor tracking error:', err));
+  } catch (err) {
+    console.error('[Telemetry] Error preparing visitor data:', err);
+  }
+}
+
+window.handleCookieConsent = function(choice) {
+  localStorage.setItem('swipies_cookie_consent', choice);
+  const banner = document.getElementById('cookieBanner');
+  if (banner) {
+    banner.classList.remove('show');
+    setTimeout(() => { banner.style.display = 'none'; }, 350);
+  }
+  trackVisitor(choice);
+};
+
+function initCookieBanner() {
+  const consent = localStorage.getItem('swipies_cookie_consent');
+  const banner = document.getElementById('cookieBanner');
+
+  if (!consent) {
+    // New visitor: show cookie banner after short delay
+    setTimeout(() => {
+      if (banner) {
+        banner.style.display = 'block';
+        setTimeout(() => banner.classList.add('show'), 50);
+      }
+    }, 1000);
+  } else {
+    // Returning visitor with existing decision: automatically log visit
+    trackVisitor(consent);
+  }
+}
+
 /* ===== INITIALIZE ===== */
 document.addEventListener('DOMContentLoaded', () => {
   const savedLang = localStorage.getItem('swipies_lang') || 'en';
@@ -463,4 +552,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const hero = document.getElementById('hero');
     if (hero) hero.classList.add('visible');
   }, 100);
+
+  initCookieBanner();
 });
+
+

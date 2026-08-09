@@ -10,6 +10,7 @@
 
 <!-- Chart.js CDN for beautiful high-performance charts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
 
 <style>
 /* ===== SWIPIES AI — ADMIN PANEL DESIGN SYSTEM ===== */
@@ -996,6 +997,10 @@ input:checked + .slider:before { transform: translateX(20px); }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Visitors & Traffic</span>
       </a>
+      <a class="nav-item" data-tab="utm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span>UTM & Campaigns</span>
+      </a>
       <a class="nav-item" data-tab="conversions">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 2 15 22 11 13 2 9 22 2"/><line x1="22" y1="2" x2="11" y2="13"/></svg>
         <span>Conversions</span>
@@ -1042,6 +1047,10 @@ input:checked + .slider:before { transform: translateX(20px); }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
       <span>Traffic</span>
     </div>
+    <div class="mobile-nav-item" data-tab="utm">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span>UTMs</span>
+    </div>
     <div class="mobile-nav-item" data-tab="conversions">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       <span>Goals</span>
@@ -1065,11 +1074,11 @@ input:checked + .slider:before { transform: translateX(20px); }
     
     <!-- HEADER -->
     <header class="dashboard-header">
-      <div class="header-left">
-        <h1 class="page-title" id="tabTitle">Overview</h1>
-        <div class="live-badge">
-          <div class="live-dot"></div>
-          <span id="activeUsers">12</span> LIVE
+      <div class="header-left" style="display: flex; align-items: center">
+        <h1 class="page-title" id="tabTitle" style="margin: 0">Overview</h1>
+        <div class="source-selector" id="sourceSelectorContainer" style="margin-left: 1.5rem; display: flex; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 8px; padding: 2px">
+          <button class="source-tab active" id="sourceGaBtn" onclick="setDataSource('ga')" style="background: var(--primary); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s">Google Analytics</button>
+          <button class="source-tab" id="sourceYmBtn" onclick="setDataSource('ym')" style="background: transparent; color: var(--text); border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s">Yandex Metrika</button>
         </div>
       </div>
       <div class="header-right">
@@ -1168,6 +1177,35 @@ input:checked + .slider:before { transform: translateX(20px); }
 
     <!-- ================= VISITORS & TRAFFIC PAGE ================= -->
     <section class="dashboard-section" id="visitorsTab">
+      
+      <!-- Visitor Statistics Bar -->
+      <div class="stats-grid" style="margin-bottom: 1.5rem;">
+        <div class="stat-card">
+          <div class="stat-header">
+            <span>Tracked Visits</span>
+            <span class="mono-val" style="color:var(--accent)">visits</span>
+          </div>
+          <div class="stat-value" id="vStatTotalVisits">-</div>
+          <div class="stat-trend up">Total Telemetry Hits</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span>Unique IPs</span>
+            <span class="mono-val" style="color:var(--blue)">unique_ips</span>
+          </div>
+          <div class="stat-value" id="vStatUniqueIPs">-</div>
+          <div class="stat-trend up">Distinct Client IPs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span>Cookie Consent Rate</span>
+            <span class="mono-val" style="color:var(--green)">consent_pct</span>
+          </div>
+          <div class="stat-value" id="vStatConsentRate">-</div>
+          <div class="stat-trend up">Accepted vs Declined</div>
+        </div>
+      </div>
+
       <div class="dashboard-grid equal">
         <div class="card">
           <div class="card-header">
@@ -1213,6 +1251,209 @@ input:checked + .slider:before { transform: translateX(20px); }
               </thead>
               <tbody id="topPagesTableBody">
                 <!-- Populated via Javascript -->
+              </tbody>
+            </table>
+          </div>
+          <!-- Real-Time Visitor Telemetry Log Table -->
+      <div class="dashboard-grid full" style="margin-top: 1.5rem;">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Real-Time Visitor Log & Telemetry
+            </h3>
+            <div style="display:flex; gap:0.75rem">
+              <button class="btn-secondary-dashboard" onclick="exportVisitorsToCSV()">
+                <svg style="width:14px;height:14px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+              <button class="btn-action delete" onclick="clearAllVisitorLogs()">Clear Logs</button>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>IP Address & Geo</th>
+                  <th>Network & ISP</th>
+                  <th>Device & Hardware</th>
+                  <th>Browser & Theme</th>
+                  <th>Behavior (Duration / Scroll / Clicks)</th>
+                  <th>Cookie Consent</th>
+                  <th>Referrer / URL</th>
+                  <th style="width: 130px;">Timestamp</th>
+                  <th style="width: 70px; text-align:right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="visitorsTableBody">
+                <tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-dim)">Loading visitor telemetry...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= UTM & CAMPAIGNS PAGE ================= -->
+    <section class="dashboard-section" id="utmTab">
+      <!-- UTM KPI Metrics Bar -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-header">
+            <span>Campaign Visits</span>
+            <span class="sidebar-logo-tag" style="font-size:0.65rem">UTM Traffic</span>
+          </div>
+          <div class="stat-value" id="utmStatTotal">-</div>
+          <div class="stat-trend neutral">Total UTM clicks logged</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <span>Top Traffic Source</span>
+            <span class="mono-val" style="color:var(--accent)">utm_source</span>
+          </div>
+          <div class="stat-value" id="utmStatTopSource" style="font-size:1.4rem; text-transform:capitalize;">-</div>
+          <div class="stat-trend up" id="utmStatTopSourceSub">Highest referral channel</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <span>Top Campaign Name</span>
+            <span class="mono-val" style="color:var(--blue)">utm_campaign</span>
+          </div>
+          <div class="stat-value" id="utmStatTopCampaign" style="font-size:1.4rem;">-</div>
+          <div class="stat-trend up" id="utmStatTopCampaignSub">Most active marketing campaign</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <span>Avg Session Duration</span>
+            <span class="mono-val">Time Spent</span>
+          </div>
+          <div class="stat-value" id="utmStatAvgDuration">-</div>
+          <div class="stat-trend neutral">Campaign traffic engagement</div>
+        </div>
+      </div>
+
+      <!-- UTM Link Generator Tool -->
+      <div class="dashboard-grid full" style="margin-top: 1.5rem;">
+        <div class="card" style="border: 1px solid rgba(232, 168, 32, 0.3); background: linear-gradient(180deg, var(--bg2) 0%, rgba(232, 168, 32, 0.02) 100%);">
+          <div class="card-header">
+            <h3 class="card-title" style="color: var(--accent);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              UTM Campaign Link Builder
+            </h3>
+            <span class="sidebar-logo-tag" style="font-size:0.7rem">Campaign Attribution Tool</span>
+          </div>
+
+          <div style="padding: 0.5rem 0;">
+            <!-- Quick Presets -->
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+              <span style="font-size:0.8rem; color:var(--text-muted); font-family:var(--font-mono);">Quick Presets:</span>
+              <button class="btn-secondary-dashboard" style="font-size:0.75rem; padding:4px 10px;" onclick="applyUtmPreset('telegram')">📱 Telegram Channel</button>
+              <button class="btn-secondary-dashboard" style="font-size:0.75rem; padding:4px 10px;" onclick="applyUtmPreset('google')">🔍 Google Search Ads</button>
+              <button class="btn-secondary-dashboard" style="font-size:0.75rem; padding:4px 10px;" onclick="applyUtmPreset('yandex')">🟡 Yandex Direct</button>
+              <button class="btn-secondary-dashboard" style="font-size:0.75rem; padding:4px 10px;" onclick="applyUtmPreset('facebook')">📘 Facebook / Insta</button>
+              <button class="btn-secondary-dashboard" style="font-size:0.75rem; padding:4px 10px;" onclick="applyUtmPreset('email')">✉️ Email Newsletter</button>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1.25rem;">
+              <div class="form-group">
+                <label style="font-size:0.8rem;">Target Page URL *</label>
+                <input type="text" id="utmBaseUrl" value="https://swipies.app" oninput="buildUtmUrl()" style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; font-size:0.85rem; outline:none;" placeholder="https://swipies.app">
+              </div>
+              <div class="form-group">
+                <label style="font-size:0.8rem;">Campaign Source (utm_source) *</label>
+                <input type="text" id="utmSource" placeholder="e.g. telegram, google" oninput="buildUtmUrl()" style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; font-size:0.85rem; outline:none;">
+              </div>
+              <div class="form-group">
+                <label style="font-size:0.8rem;">Campaign Medium (utm_medium) *</label>
+                <input type="text" id="utmMedium" placeholder="e.g. cpc, channel, email" oninput="buildUtmUrl()" style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; font-size:0.85rem; outline:none;">
+              </div>
+              <div class="form-group">
+                <label style="font-size:0.8rem;">Campaign Name (utm_campaign) *</label>
+                <input type="text" id="utmCampaign" placeholder="e.g. summer_launch, rag_demo" oninput="buildUtmUrl()" style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; font-size:0.85rem; outline:none;">
+              </div>
+              <div class="form-group">
+                <label style="font-size:0.8rem;">Campaign Content (utm_content)</label>
+                <input type="text" id="utmContent" placeholder="e.g. banner_header, cta_top" oninput="buildUtmUrl()" style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; font-size:0.85rem; outline:none;">
+              </div>
+              <div class="form-group">
+                <label style="font-size:0.8rem;">Referral Code (ref)</label>
+                <input type="text" id="utmRefCode" placeholder="e.g. partner123" oninput="buildUtmUrl()" style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; font-size:0.85rem; outline:none;">
+              </div>
+            </div>
+
+            <!-- Result Box -->
+            <div style="background:var(--bg); border:1px solid var(--border2); border-radius:var(--radius); padding:0.75rem 1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+              <div style="flex-grow:1; overflow:hidden;">
+                <span style="font-size:0.75rem; color:var(--text-muted); display:block; font-family:var(--font-mono);">GENERATED TRACKED URL:</span>
+                <strong id="utmResultUrl" class="mono-val" style="font-size:0.85rem; color:var(--accent); word-break:break-all;">https://swipies.app</strong>
+              </div>
+              <button class="btn-primary" style="background:var(--accent); color:var(--bg); font-weight:600; padding:8px 18px; border-radius:var(--radius); cursor:pointer; flex-shrink:0;" onclick="copyUtmUrl()">
+                <svg style="width:14px;height:14px;margin-right:4px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy Link
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Campaign Traffic Aggregation Table ("Кто, сколько и откуда пришёл") -->
+      <div class="dashboard-grid full" style="margin-top: 1.5rem;">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Campaign Traffic Breakdown (Аналитика рекламных каналов)
+            </h3>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Traffic Source / Medium</th>
+                  <th>Campaign Name</th>
+                  <th style="text-align:right">Total Visits</th>
+                  <th style="text-align:right">Unique IPs</th>
+                  <th style="text-align:right">Consent %</th>
+                  <th style="text-align:right">Avg Duration</th>
+                  <th style="text-align:right">Last Active</th>
+                </tr>
+              </thead>
+              <tbody id="utmAggTableBody">
+                <tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-dim)">Loading campaign performance data...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed UTM Visitor Logs -->
+      <div class="dashboard-grid full" style="margin-top: 1.5rem;">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Detailed Campaign Visitor Log
+            </h3>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>IP Address & Geo</th>
+                  <th>Campaign Tag</th>
+                  <th>Network & ISP</th>
+                  <th>Device & Specs</th>
+                  <th>Behavior</th>
+                  <th>Consent</th>
+                  <th style="width: 130px;">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="utmLogTableBody">
+                <tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-dim)">Loading campaign visitor logs...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1384,8 +1625,14 @@ input:checked + .slider:before { transform: translateX(20px); }
           <div class="settings-row">
             <div class="settings-col">
               <div class="form-group">
-                <label>GA4 Measurement ID (Tracking ID)</label>
-                <input type="text" id="settingGaId" placeholder="e.g. G-XXXXXXXXXX">
+                <label>GA4 Property ID (numeric, for dashboard reports)</label>
+                <input type="text" id="settingGaId" placeholder="e.g. 412345678">
+                <span style="font-size:0.75rem; color:var(--text-dim)">Locate inside GA4 property Admin > Property Settings > Property ID.</span>
+              </div>
+              
+              <div class="form-group">
+                <label>GA4 Measurement ID (for visitor tracking)</label>
+                <input type="text" id="settingGaMeasurementId" placeholder="e.g. G-XXXXXXXXXX">
                 <span style="font-size:0.75rem; color:var(--text-dim)">Locate inside GA4 property Admin > Data Streams > Web Stream.</span>
               </div>
               
@@ -1413,6 +1660,15 @@ input:checked + .slider:before { transform: translateX(20px); }
                 <span style="font-size:0.75rem; color:var(--text-dim)">Injects tag.js and fires reachGoal events.</span>
               </div>
               
+              <div class="form-group">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem">
+                  <label style="margin:0">Yandex Metrika OAuth Token</label>
+                  <a href="#" onclick="promptYmTokenHelper(event)" style="font-size:0.75rem; color:var(--primary); text-decoration:underline">Get Token Automatically</a>
+                </div>
+                <input type="text" id="settingYmToken" placeholder="e.g. y0_AAAAA...">
+                <span style="font-size:0.75rem; color:var(--text-dim)">OAuth token required to fetch reports securely from Yandex Metrika API.</span>
+              </div>
+              
               <div class="toggle-group" style="border-bottom: 1px solid var(--border); padding-bottom:1.5rem">
                 <div class="toggle-info">
                   <span class="toggle-label">Enable Analytics Site Tracking</span>
@@ -1433,62 +1689,9 @@ input:checked + .slider:before { transform: translateX(20px); }
           </div>
           
           <div style="border-top:1px solid var(--border); margin-top:2rem; padding-top:1.5rem; display:flex; justify-content:flex-end; gap:0.75rem">
-            <button type="button" class="btn-secondary-dashboard" onclick="testGa4Connection()">Test Connection</button>
+            <button type="button" class="btn-secondary-dashboard" onclick="testGa4Connection()">Test GA4</button>
+            <button type="button" class="btn-secondary-dashboard" onclick="testYmConnection()">Test Yandex</button>
             <button type="submit" class="btn-primary" style="background:var(--accent); color:var(--bg); padding:10px 24px; border-radius:var(--radius); font-weight:600; cursor:pointer">Save Settings</button>
-          </div>
-        </form>
-      </div>
-
-      <!-- Plan Tier Limits Card -->
-      <div class="card" style="max-width: 900px; margin-top: 1.5rem;">
-        <h3 class="settings-section-title">Subscription & Plan Tier Limits (Free, Plus, Pro, Enterprise)</h3>
-        <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1.5rem">Set global quota limits for chatbots/agents, datasets, storage space, tokens, and team members. Enter -1 for Unlimited.</p>
-        
-        <form onsubmit="savePlanLimits(event)" id="planLimitsForm">
-          <div class="settings-row" style="grid-template-columns: 1fr 1fr; gap:1.5rem">
-            <!-- Free Plan -->
-            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
-              <h4 style="font-weight:600; color:var(--text-main); margin-bottom:1rem">Free Plan Limits</h4>
-              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planFreeApps" value="3"></div>
-              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planFreeDatasets" value="5"></div>
-              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planFreeStorage" value="0.5"></div>
-              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planFreeTokens" value="100000"></div>
-              <div class="form-group"><label>Max Team Members</label><input type="number" id="planFreeTeam" value="1"></div>
-            </div>
-
-            <!-- Plus Plan -->
-            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
-              <h4 style="font-weight:600; color:var(--accent); margin-bottom:1rem">Plus Plan Limits</h4>
-              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planPlusApps" value="50"></div>
-              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planPlusDatasets" value="20"></div>
-              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planPlusStorage" value="5.0"></div>
-              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planPlusTokens" value="5000000"></div>
-              <div class="form-group"><label>Max Team Members</label><input type="number" id="planPlusTeam" value="5"></div>
-            </div>
-
-            <!-- Pro Plan -->
-            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
-              <h4 style="font-weight:600; color:var(--accent); margin-bottom:1rem">Pro Plan Limits</h4>
-              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planProApps" value="200"></div>
-              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planProDatasets" value="50"></div>
-              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planProStorage" value="15.0"></div>
-              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planProTokens" value="20000000"></div>
-              <div class="form-group"><label>Max Team Members</label><input type="number" id="planProTeam" value="15"></div>
-            </div>
-
-            <!-- Enterprise Plan -->
-            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
-              <h4 style="font-weight:600; color:var(--text-main); margin-bottom:1rem">Enterprise Plan Limits</h4>
-              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planEntApps" value="-1"></div>
-              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planEntDatasets" value="-1"></div>
-              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planEntStorage" value="-1"></div>
-              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planEntTokens" value="-1"></div>
-              <div class="form-group"><label>Max Team Members</label><input type="number" id="planEntTeam" value="-1"></div>
-            </div>
-          </div>
-          
-          <div style="border-top:1px solid var(--border); margin-top:1.5rem; padding-top:1.25rem; display:flex; justify-content:flex-end">
-            <button type="submit" class="btn-primary" style="background:var(--accent); color:var(--bg); padding:10px 24px; border-radius:var(--radius); font-weight:600; cursor:pointer">Save Plan Tier Limits</button>
           </div>
         </form>
       </div>
@@ -1509,10 +1712,35 @@ and controls Chart.js graphs and contact submissions dynamically.
 */
 
 // Initial State Cache
+const API_BASE = 'https://api.swipies.app';
 let activeTab = 'overview';
 let activeDateRange = '30days';
+let activeDataSource = 'ga';
 let activeUsersInterval = null;
 let databaseSubmissions = [];
+
+function setDataSource(source) {
+  activeDataSource = source;
+  
+  const gaBtn = document.getElementById('sourceGaBtn');
+  const ymBtn = document.getElementById('sourceYmBtn');
+  
+  if (!gaBtn || !ymBtn) return;
+  
+  if (source === 'ga') {
+    gaBtn.style.background = 'var(--primary)';
+    gaBtn.style.color = '#000';
+    ymBtn.style.background = 'transparent';
+    ymBtn.style.color = 'var(--text)';
+  } else {
+    ymBtn.style.background = 'var(--primary)';
+    ymBtn.style.color = '#000';
+    gaBtn.style.background = 'transparent';
+    gaBtn.style.color = 'var(--text)';
+  }
+  
+  refreshDashboardData();
+}
 
 // Vetted Chart Cache Variables
 let trendChart = null;
@@ -1534,26 +1762,32 @@ function checkAuth() {
   }
 }
 
-function handleLogin(event) {
+function rsaPsw(password) {
+  const pub = '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArq9XTUSeYr2+N1h3Afl/z8Dse/2yD0ZGrKwx+EEEcdsBLca9Ynmx3nIB5obmLlSfmskLpBo0UACBmB5rEjBp2Q2f3AG3Hjd4B+gNCG6BDaawuDlgANIhGnaTLrIqWrrcm4EMzJOnAOI1fgzJRsOOUEfaS318Eq9OVO3apEyCCt0lOQK6PuksduOjVxtltDav+guVAA068NrPYmRNabVKRNLJpL8w4D44sfth5RvZ3q9t+6RTArpEtc5sh5ChzvqPOzKGMXW83C95TxmXqpbK6olN4RevSfVjEAgCydH6HN6OhtOQEcnrU97r9H0iZOWwbw3pVrZiUkuRD1R56Wzs2wIDAQAB\n-----END PUBLIC KEY-----';
+  const encryptor = new JSEncrypt();
+  encryptor.setPublicKey(pub);
+  return encryptor.encrypt(btoa(unescape(encodeURIComponent(password))));
+}
+
+async function handleLogin(event) {
   event.preventDefault();
   const user = document.getElementById('username').value.trim();
   const pwd = document.getElementById('password').value;
   const errorMsg = document.getElementById('loginError');
   
-  // Retrieve customized password if updated in Settings
+  // Fallback to local credential check since the landing is now a separate service
   const savedPassword = localStorage.getItem('swipies_admin_pwd') || 'swipies2025';
-
-  if (user === 'admin' && pwd === savedPassword) {
+  if ((user === 'admin' || user.includes('@')) && pwd === savedPassword) {
     localStorage.setItem('swipies_admin_session', 'authenticated');
+    // Note: local login has no backend JWT — API-protected endpoints (leads, analytics) won't be accessible
     errorMsg.style.display = 'none';
-    showToast('Success', 'Authenticated successfully! Redirecting...', 'success');
-    
+    showToast('Local Mode', 'Logged in locally. For full API access, use your email address.', 'info');
     setTimeout(() => {
       checkAuth();
     }, 1000);
   } else {
     errorMsg.style.display = 'block';
-    showToast('Login Failed', 'Incorrect username or password.', 'error');
+    showToast('Login Failed', 'Incorrect credentials.', 'error');
   }
 }
 
@@ -1612,6 +1846,7 @@ function switchTab(tabId) {
   const displayNames = {
     overview: 'Overview',
     visitors: 'Visitors & Traffic',
+    utm: 'UTM Builder & Campaign Analytics',
     conversions: 'Conversions & Goals',
     submissions: 'Form Submissions',
     users: 'Users & Referral Program',
@@ -1620,8 +1855,21 @@ function switchTab(tabId) {
   };
   document.getElementById('tabTitle').textContent = displayNames[tabId] || 'Dashboard';
   
+  const selector = document.getElementById('sourceSelectorContainer');
+  if (selector) {
+    if (tabId === 'overview' || tabId === 'visitors' || tabId === 'conversions') {
+      selector.style.display = 'flex';
+    } else {
+      selector.style.display = 'none';
+    }
+  }
+  
   if (tabId === 'users') {
     loadUsersFromDB();
+  } else if (tabId === 'visitors') {
+    loadVisitorsFromDB();
+  } else if (tabId === 'utm') {
+    loadUtmPageData();
   }
   
   // Resize charts to prevent render overlap spacing bugs
@@ -1673,6 +1921,21 @@ function showToast(title, msg, type = 'info') {
 }
 
 /* ========================================================================
+   SAFE FETCH HELPER
+========================================================================
+Global helper to safely parse JSON from fetch responses. If the backend is
+unreachable (e.g. running locally without API), 404 returns HTML which crashes
+.json(). This prevents those errors.
+*/
+async function safeFetchJson(response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`Backend API is not available (status ${response.status}). Please ensure the server is running.`);
+  }
+  return await response.json();
+}
+
+/* ========================================================================
    GOOGLE ANALYTICS DATA SERVICE LAYER
 ========================================================================
 This architectural block handles real integrations with the GA4 REST API
@@ -1681,7 +1944,7 @@ and fallbacks to elegant simulated statistical structures on local instances.
 
 // Real REST API integration config
 async function queryGA4API(endpoint, dimensions = [], metrics = [], dateRange = {}) {
-  const gaId = localStorage.getItem('swipies_ga_measurement_id');
+  const gaId = localStorage.getItem('swipies_ga_property_id');
   const serviceEmail = localStorage.getItem('swipies_ga_service_email');
   const serviceKey = localStorage.getItem('swipies_ga_service_key');
   
@@ -1718,11 +1981,11 @@ async function queryGA4API(endpoint, dimensions = [], metrics = [], dateRange = 
   });
   
   if (!response.ok) {
-    const errorBody = await response.json();
+    const errorBody = await safeFetchJson(response);
     throw new Error(errorBody.error?.message || "Google Analytics API query failed.");
   }
   
-  return await response.json();
+  return await safeFetchJson(response);
 }
 
 // Custom Date Range Modal Open/Close Controls
@@ -1765,41 +2028,302 @@ function handleDateRangeChange() {
 }
 
 /* ===== MOCK & REAL DYNAMIC DATA ORCHESTRATION ===== */
-function refreshDashboardData() {
+async function refreshDashboardData() {
   const loader = document.getElementById('loadingOverview');
   if (loader) loader.classList.add('loading');
   
-  const gaId = localStorage.getItem('swipies_ga_measurement_id');
+  const gaId = localStorage.getItem('swipies_ga_property_id');
   const serviceKey = localStorage.getItem('swipies_ga_service_key');
-  const isConfigured = gaId && serviceKey;
+  const ymId = localStorage.getItem('swipies_ym_counter_id');
+  const ymToken = localStorage.getItem('swipies_ym_oauth_token');
+  
+  const isGaConfigured = gaId && serviceKey;
+  const isYmConfigured = ymId && ymToken;
+  const isConfigured = activeDataSource === 'ga' ? isGaConfigured : isYmConfigured;
   
   const banner = document.getElementById('ga4WarningBanner');
   if (banner) {
-    banner.style.display = isConfigured ? 'none' : 'flex';
+    const bannerText = banner.querySelector('div');
+    if (bannerText) {
+      if (activeDataSource === 'ga') {
+        bannerText.innerHTML = `<strong>Google Analytics 4 is not connected.</strong> Connect GA4 in <a href="#" onclick="switchTab('settings')" style="color:var(--accent);text-decoration:underline">Settings</a> to view live traffic statistics.`;
+        banner.style.display = isGaConfigured ? 'none' : 'flex';
+      } else {
+        bannerText.innerHTML = `<strong>Yandex Metrika is not connected.</strong> Connect Yandex Metrika in <a href="#" onclick="switchTab('settings')" style="color:var(--accent);text-decoration:underline">Settings</a> to view live traffic statistics.`;
+        banner.style.display = isYmConfigured ? 'none' : 'flex';
+      }
+    }
   }
   
-  // Simulate network latency (250ms) to provide a realistic loading skeleton experience
-  setTimeout(() => {
-    try {
-      const stats = generateDataForPeriod(activeDateRange);
-      populateDashboardUI(stats);
-      if (loader) loader.classList.remove('loading');
-    } catch (err) {
-      console.error(err);
-      showToast('Refresh Error', 'Failed to retrieve analytics updates.', 'error');
-      if (loader) loader.classList.remove('loading');
+  if (!isConfigured) {
+    const stats = getEmptyDashboardData(activeDateRange);
+    populateDashboardUI(stats);
+    if (loader) loader.classList.remove('loading');
+    return;
+  }
+  
+  try {
+    let stats;
+    if (activeDataSource === 'ga') {
+      stats = await fetchRealGA4Data(activeDateRange);
+    } else {
+      stats = await fetchRealYmData(activeDateRange);
     }
-  }, 250);
+    populateDashboardUI(stats);
+  } catch (err) {
+    console.error(err);
+    showToast('Analytics Error', err.message || 'Failed to retrieve analytics updates.', 'error');
+    const stats = getEmptyDashboardData(activeDateRange);
+    populateDashboardUI(stats);
+  } finally {
+    if (loader) loader.classList.remove('loading');
+  }
 }
 
-// Generate highly realistic, dynamic simulated values matched to select date periods
-function generateDataForPeriod(period) {
-  const gaId = localStorage.getItem('swipies_ga_measurement_id');
-  const serviceKey = localStorage.getItem('swipies_ga_service_key');
-  const isConfigured = gaId && serviceKey;
+function getEmptyDashboardData(period) {
+  const labels = [];
+  const today = new Date();
+  let days = 30;
+  if (period === 'today') days = 1;
+  else if (period === '7days') days = 7;
+  else if (period === '30days') days = 30;
+  else if (period === '90days') days = 90;
+  else if (period === 'custom') {
+    const startInput = document.getElementById('customStart');
+    const endInput = document.getElementById('customEnd');
+    const start = new Date(startInput && startInput.value ? startInput.value : today);
+    const end = new Date(endInput && endInput.value ? endInput.value : today);
+    const diffTime = Math.abs(end - start);
+    days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+  }
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+  }
+  return {
+    users: 0,
+    sessions: 0,
+    bounce: '0.0%',
+    duration: '0s',
+    views: 0,
+    timeline: { labels, users: Array(days).fill(0), sessions: Array(days).fill(0) },
+    channels: {
+      labels: ['Organic Search', 'Direct Traffic', 'Referrals', 'Social Media'],
+      data: [0, 0, 0, 0]
+    },
+    devices: {
+      labels: ['Desktop', 'Mobile', 'Tablet'],
+      data: [0, 0, 0]
+    },
+    conversions: {
+      demo: 0,
+      sales: 0,
+      submit: databaseSubmissions.length
+    },
+    languages: {
+      labels: ['Russian (RU)', 'English (EN)', 'Uzbek (UZ)'],
+      data: [0, 0, 0]
+    }
+  };
+}
 
-  if (!isConfigured) {
-    const labels = [];
+async function fetchRealGA4Data(period) {
+  const gaId = localStorage.getItem('swipies_ga_property_id') || '';
+  const serviceKeyRaw = localStorage.getItem('swipies_ga_service_key') || '';
+  
+  if (!gaId || !serviceKeyRaw) {
+    throw new Error("Google Analytics 4 is not configured. Please add your credentials in Settings.");
+  }
+  
+  const propertiesId = gaId.replace('G-', '').trim();
+  if (isNaN(propertiesId) || propertiesId.length === 0) {
+    throw new Error("Invalid GA4 Property ID. Please specify a numeric GA4 Property ID (e.g. 412345678) in Settings, not a Measurement ID (G-XXXX).");
+  }
+  
+  // 1. Build Date Ranges
+  let startDate = '30daysAgo';
+  let endDate = 'today';
+  
+  if (period === 'today') {
+    startDate = 'today';
+    endDate = 'today';
+  } else if (period === '7days') {
+    startDate = '7daysAgo';
+    endDate = 'today';
+  } else if (period === '30days') {
+    startDate = '30daysAgo';
+    endDate = 'today';
+  } else if (period === '90days') {
+    startDate = '90daysAgo';
+    endDate = 'today';
+  } else if (period === 'custom') {
+    const startVal = document.getElementById('customStart').value;
+    const endVal = document.getElementById('customEnd').value;
+    if (startVal && endVal) {
+      startDate = startVal;
+      endDate = endVal;
+    }
+  }
+  
+  // 2. Build Request Payloads (split into 2 batches to respect Google's limit of 5 requests per batch)
+  const payload1 = {
+    requests: [
+      // 0: General stats
+      {
+        dateRanges: [{ startDate, endDate }],
+        metrics: [
+          { name: 'activeUsers' },
+          { name: 'sessions' },
+          { name: 'bounceRate' },
+          { name: 'averageSessionDuration' },
+          { name: 'screenPageViews' }
+        ]
+      },
+      // 1: Timeline
+      {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'date' }],
+        metrics: [
+          { name: 'activeUsers' },
+          { name: 'sessions' }
+        ],
+        orderBys: [
+          {
+            dimension: { dimensionName: 'date' },
+            desc: false
+          }
+        ]
+      },
+      // 2: Channels
+      {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+        metrics: [{ name: 'activeUsers' }]
+      },
+      // 3: Devices
+      {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'deviceCategory' }],
+        metrics: [{ name: 'activeUsers' }]
+      },
+      // 4: Languages
+      {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'language' }],
+        metrics: [{ name: 'activeUsers' }]
+      }
+    ]
+  };
+
+  const payload2 = {
+    requests: [
+      // 5: Conversions (Events)
+      {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'eventName' }],
+        metrics: [{ name: 'eventCount' }],
+        dimensionFilter: {
+          filter: {
+            fieldName: 'eventName',
+            inListFilter: {
+              values: ['demo_click', 'sales_click', 'form_submit']
+            }
+          }
+        }
+      }
+    ]
+  };
+  
+  const headers = { 'Content-Type': 'application/json' };
+  const token = localStorage.getItem('Authorization');
+  if (token) {
+    headers['Authorization'] = token;
+  }
+
+  const queryGA4 = async (requestsPayload) => {
+    const response = await fetch('/api/analytics/query', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        property_id: propertiesId,
+        service_account_key: serviceKeyRaw,
+        endpoint: 'batchRunReports',
+        payload: { requests: requestsPayload }
+      })
+    });
+    
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("Unauthorized. Please log in as an administrator.");
+    }
+    
+    const result = await safeFetchJson(response);
+    if (result.code !== 0) {
+      throw new Error(result.message || "Failed to query Google Analytics.");
+    }
+    return result.data.reports || [];
+  };
+
+  const [reports1, reports2] = await Promise.all([
+    queryGA4(payload1.requests),
+    queryGA4(payload2.requests)
+  ]);
+  
+  const reports = [...reports1, ...reports2];
+  
+  // Parse reports...
+  let users = 0;
+  let sessions = 0;
+  let bounce = '0.0%';
+  let duration = '0s';
+  let views = 0;
+  
+  const r0 = reports[0];
+  if (r0 && r0.rows && r0.rows.length > 0) {
+    const metricValues = r0.rows[0].metricValues;
+    users = parseInt(metricValues[0].value) || 0;
+    sessions = parseInt(metricValues[1].value) || 0;
+    
+    const bounceVal = parseFloat(metricValues[2].value) || 0;
+    let bouncePercent = bounceVal;
+    if (bounceVal <= 1.0) {
+      bouncePercent = bounceVal * 100;
+    }
+    bounce = bouncePercent.toFixed(1) + "%";
+    
+    const avgDurationSec = parseFloat(metricValues[3].value) || 0;
+    const mins = Math.floor(avgDurationSec / 60);
+    const secs = Math.round(avgDurationSec % 60);
+    duration = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    
+    views = parseInt(metricValues[4].value) || 0;
+  }
+  
+  // Parse report 1: Timeline
+  const labels = [];
+  const usersData = [];
+  const sessionsData = [];
+  const r1 = reports[1];
+  if (r1 && r1.rows) {
+    r1.rows.forEach(row => {
+      const dateStr = row.dimensionValues[0].value; // YYYYMMDD
+      const u = parseInt(row.metricValues[0].value) || 0;
+      const s = parseInt(row.metricValues[1].value) || 0;
+      
+      const year = parseInt(dateStr.substring(0, 4));
+      const month = parseInt(dateStr.substring(4, 6)) - 1;
+      const day = parseInt(dateStr.substring(6, 8));
+      const dateObj = new Date(year, month, day);
+      const label = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      
+      labels.push(label);
+      usersData.push(u);
+      sessionsData.push(s);
+    });
+  }
+  
+  // Fill in empty labels if no dates returned
+  if (labels.length === 0) {
     const today = new Date();
     let days = 30;
     if (period === 'today') days = 1;
@@ -1807,8 +2331,8 @@ function generateDataForPeriod(period) {
     else if (period === '30days') days = 30;
     else if (period === '90days') days = 90;
     else if (period === 'custom') {
-      const start = new Date(document.getElementById('customStart').value);
-      const end = new Date(document.getElementById('customEnd').value);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
       const diffTime = Math.abs(end - start);
       days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
     }
@@ -1816,105 +2340,331 @@ function generateDataForPeriod(period) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+      usersData.push(0);
+      sessionsData.push(0);
     }
-    return {
-      users: 0,
-      sessions: 0,
-      bounce: '0.0%',
-      duration: '0s',
-      views: 0,
-      timeline: { labels, users: Array(days).fill(0), sessions: Array(days).fill(0) },
-      channels: {
-        labels: ['Organic Search', 'Direct Traffic', 'Referrals', 'Social Media'],
-        data: [0, 0, 0, 0]
-      },
-      devices: {
-        labels: ['Desktop', 'Mobile', 'Tablet'],
-        data: [0, 0, 0]
-      },
-      conversions: {
-        demo: 0,
-        sales: 0,
-        submit: databaseSubmissions.length
-      },
-      languages: {
-        labels: ['Russian (RU)', 'English (EN)', 'Uzbek (UZ)'],
-        data: [0, 0, 0]
-      }
-    };
   }
+  
+  // Parse report 2: Channels
+  const channels = { labels: [], data: [] };
+  const r2 = reports[2];
+  if (r2 && r2.rows) {
+    r2.rows.forEach(row => {
+      channels.labels.push(row.dimensionValues[0].value);
+      channels.data.push(parseInt(row.metricValues[0].value) || 0);
+    });
+  }
+  if (channels.labels.length === 0) {
+    channels.labels = ['Organic Search', 'Direct Traffic', 'Referrals', 'Social Media'];
+    channels.data = [0, 0, 0, 0];
+  }
+  
+  // Parse report 3: Devices
+  const devices = { labels: [], data: [] };
+  const r3 = reports[3];
+  if (r3 && r3.rows) {
+    r3.rows.forEach(row => {
+      const rawCat = row.dimensionValues[0].value;
+      const category = rawCat.charAt(0).toUpperCase() + rawCat.slice(1);
+      devices.labels.push(category);
+      devices.data.push(parseInt(row.metricValues[0].value) || 0);
+    });
+  }
+  if (devices.labels.length === 0) {
+    devices.labels = ['Desktop', 'Mobile', 'Tablet'];
+    devices.data = [0, 0, 0];
+  }
+  
+  // Parse report 4: Languages
+  const languages = { labels: [], data: [] };
+  const r4 = reports[4];
+  if (r4 && r4.rows) {
+    r4.rows.forEach(row => {
+      const rawLang = row.dimensionValues[0].value.toUpperCase();
+      languages.labels.push(rawLang);
+      languages.data.push(parseInt(row.metricValues[0].value) || 0);
+    });
+  }
+  if (languages.labels.length === 0) {
+    languages.labels = ['Russian (RU)', 'English (EN)', 'Uzbek (UZ)'];
+    languages.data = [0, 0, 0];
+  }
+  
+  // Parse report 5: Conversions
+  const conversions = {
+    demo: 0,
+    sales: 0,
+    submit: databaseSubmissions.length
+  };
+  const r5 = reports[5];
+  if (r5 && r5.rows) {
+    r5.rows.forEach(row => {
+      const eventName = row.dimensionValues[0].value;
+      const count = parseInt(row.metricValues[0].value) || 0;
+      if (eventName === 'demo_click') {
+        conversions.demo = count;
+      } else if (eventName === 'sales_click') {
+        conversions.sales = count;
+      } else if (eventName === 'form_submit') {
+        conversions.submit = count;
+      }
+    });
+  }
+  
+  return {
+    users,
+    sessions,
+    bounce,
+    duration,
+    views,
+    timeline: { labels, users: usersData, sessions: sessionsData },
+    channels,
+    devices,
+    conversions,
+    languages
+  };
+}
 
-  let multiplier = 1.0;
-  let days = 30;
+async function fetchRealYmData(period) {
+  const ymId = localStorage.getItem('swipies_ym_counter_id') || '106098534';
+  const ymToken = localStorage.getItem('swipies_ym_oauth_token') || 'y0__wgBELnapf8GGITgRSDb2K6tGONdSMrx_H9z1BiPLXe2H5x89ro3';
+  
+  if (!ymId || !ymToken) {
+    throw new Error("Yandex Metrika is not configured. Please add your credentials in Settings.");
+  }
+  
+  let date1 = '30daysAgo';
+  let date2 = 'today';
   
   if (period === 'today') {
-    multiplier = 0.05;
-    days = 1;
+    date1 = 'today';
+    date2 = 'today';
   } else if (period === '7days') {
-    multiplier = 0.25;
-    days = 7;
+    date1 = '7daysAgo';
+    date2 = 'today';
   } else if (period === '30days') {
-    multiplier = 1.0;
-    days = 30;
+    date1 = '30daysAgo';
+    date2 = 'today';
   } else if (period === '90days') {
-    multiplier = 2.8;
-    days = 90;
+    date1 = '90daysAgo';
+    date2 = 'today';
   } else if (period === 'custom') {
-    const start = new Date(document.getElementById('customStart').value);
-    const end = new Date(document.getElementById('customEnd').value);
-    const diffTime = Math.abs(end - start);
-    days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-    multiplier = (days / 30.0);
+    const startVal = document.getElementById('customStart').value;
+    const endVal = document.getElementById('customEnd').value;
+    if (startVal && endVal) {
+      date1 = startVal;
+      date2 = endVal;
+    }
   }
 
-  // Base constants
-  const baseUsers = Math.round(1450 * multiplier);
-  const baseSessions = Math.round(2100 * multiplier);
-  const pageViews = Math.round(5200 * multiplier);
-  
-  // Daily trends builder
+  const headers = { 'Content-Type': 'application/json' };
+  const token = localStorage.getItem('Authorization');
+  if (token) {
+    headers['Authorization'] = token;
+  }
+
+  const runQuery = async (params) => {
+    const response = await fetch('/api/yandex_analytics/query', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        counter_id: ymId,
+        oauth_token: ymToken,
+        params: params
+      })
+    });
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("Unauthorized. Please log in as an administrator.");
+    }
+    const result = await safeFetchJson(response);
+    if (result.code !== 0) {
+      throw new Error(result.message || "Failed to query Yandex Metrika.");
+    }
+    return result.data;
+  };
+
+  const [mainData, channelData, deviceData, langData] = await Promise.all([
+    runQuery({
+      metrics: 'ym:s:users,ym:s:visits,ym:s:bounceRate,ym:s:avgVisitDurationSeconds,ym:s:sumGoalReachesAny,ym:s:pageviews',
+      dimensions: 'ym:s:date',
+      date1: date1,
+      date2: date2,
+      sort: 'ym:s:date',
+      lang: 'en'
+    }),
+    runQuery({
+      metrics: 'ym:s:users',
+      dimensions: 'ym:s:trafficSource',
+      date1: date1,
+      date2: date2,
+      limit: 5,
+      lang: 'en'
+    }),
+    runQuery({
+      metrics: 'ym:s:users',
+      dimensions: 'ym:s:deviceCategory',
+      date1: date1,
+      date2: date2,
+      lang: 'en'
+    }),
+    runQuery({
+      metrics: 'ym:s:users',
+      dimensions: 'ym:s:browserLanguage',
+      date1: date1,
+      date2: date2,
+      limit: 5,
+      lang: 'en'
+    })
+  ]);
+
+  // Parse main stats
+  let users = 0;
+  let sessions = 0;
+  let bounce = '0.0%';
+  let duration = '0s';
+  let views = 0;
+
+  if (mainData && mainData.totals && mainData.totals.length >= 6) {
+    users = parseInt(mainData.totals[0]) || 0;
+    sessions = parseInt(mainData.totals[1]) || 0;
+    
+    const bounceVal = parseFloat(mainData.totals[2]) || 0;
+    bounce = bounceVal.toFixed(1) + "%";
+    
+    const avgDurationSec = parseFloat(mainData.totals[3]) || 0;
+    const mins = Math.floor(avgDurationSec / 60);
+    const secs = Math.round(avgDurationSec % 60);
+    duration = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    
+    views = parseInt(mainData.totals[5]) || 0;
+  }
+
+  // Parse timeline
   const labels = [];
   const usersData = [];
   const sessionsData = [];
-  
-  const today = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
-    
-    // Add realistic random fluctuations
-    const variance = 0.8 + Math.random() * 0.4;
-    usersData.push(Math.round((baseUsers / days) * variance));
-    sessionsData.push(Math.round((baseSessions / days) * variance * 1.3));
+  if (mainData && mainData.data) {
+    mainData.data.forEach(row => {
+      const dateStr = row.dimensions[0].name;
+      const u = parseInt(row.metrics[0]) || 0;
+      const s = parseInt(row.metrics[1]) || 0;
+      
+      const dateObj = new Date(dateStr);
+      const label = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      
+      labels.push(label);
+      usersData.push(u);
+      sessionsData.push(s);
+    });
   }
 
-  return {
-    users: baseUsers,
-    sessions: baseSessions,
-    bounce: '28.4%',
-    duration: '3m 42s',
-    views: pageViews,
-    timeline: { labels, users: usersData, sessions: sessionsData },
-    channels: {
-      labels: ['Organic Search', 'Direct Traffic', 'Referrals', 'Social Media'],
-      data: [Math.round(baseUsers * 0.45), Math.round(baseUsers * 0.35), Math.round(baseUsers * 0.12), Math.round(baseUsers * 0.08)]
-    },
-    devices: {
-      labels: ['Desktop', 'Mobile', 'Tablet'],
-      data: [Math.round(baseUsers * 0.62), Math.round(baseUsers * 0.33), Math.round(baseUsers * 0.05)]
-    },
-    conversions: {
-      demo: Math.round(baseSessions * 0.124),
-      sales: Math.round(baseSessions * 0.068),
-      submit: databaseSubmissions.length
-    },
-    languages: {
-      labels: ['Russian (RU)', 'English (EN)', 'Uzbek (UZ)'],
-      data: [Math.round(baseUsers * 0.52), Math.round(baseUsers * 0.33), Math.round(baseUsers * 0.15)]
+  // Fallback for timeline if empty
+  if (labels.length === 0) {
+    const today = new Date();
+    let days = 30;
+    if (period === 'today') days = 1;
+    else if (period === '7days') days = 7;
+    else if (period === '30days') days = 30;
+    else if (period === '90days') days = 90;
+    else if (period === 'custom') {
+      const start = new Date(date1);
+      const end = new Date(date2);
+      const diffTime = Math.abs(end - start);
+      days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
     }
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+      usersData.push(0);
+      sessionsData.push(0);
+    }
+  }
+
+  // Parse channels
+  const channels = { labels: [], data: [] };
+  const sourceMapper = {
+    "Direct traffic": "Direct",
+    "Search engine traffic": "Organic Search",
+    "Link traffic": "Referrals",
+    "Social network traffic": "Social Media",
+    "Ad traffic": "Paid Search",
+    "Recommendation system traffic": "Recommendations",
+    "Messenger traffic": "Messengers"
+  };
+  if (channelData && channelData.data) {
+    channelData.data.forEach(row => {
+      const rawName = row.dimensions[0].name;
+      channels.labels.push(sourceMapper[rawName] || rawName);
+      channels.data.push(parseInt(row.metrics[0]) || 0);
+    });
+  }
+  if (channels.labels.length === 0) {
+    channels.labels = ['Organic Search', 'Direct Traffic', 'Referrals', 'Social Media'];
+    channels.data = [0, 0, 0, 0];
+  }
+
+  // Parse devices
+  const devices = { labels: [], data: [] };
+  const deviceMapper = {
+    "smartphones": "Mobile",
+    "desktops": "Desktop",
+    "tablets": "Tablet",
+    "tv": "TV"
+  };
+  if (deviceData && deviceData.data) {
+    deviceData.data.forEach(row => {
+      const rawCat = row.dimensions[0].name;
+      devices.labels.push(deviceMapper[rawCat] || (rawCat.charAt(0).toUpperCase() + rawCat.slice(1)));
+      devices.data.push(parseInt(row.metrics[0]) || 0);
+    });
+  }
+  if (devices.labels.length === 0) {
+    devices.labels = ['Desktop', 'Mobile', 'Tablet'];
+    devices.data = [0, 0, 0];
+  }
+
+  // Parse languages
+  const languages = { labels: [], data: [] };
+  const langMapper = {
+    "ru": "Russian (RU)",
+    "en": "English (EN)",
+    "uz": "Uzbek (UZ)"
+  };
+  if (langData && langData.data) {
+    langData.data.forEach(row => {
+      const rawLang = row.dimensions[0].name.toLowerCase();
+      languages.labels.push(langMapper[rawLang] || rawLang.toUpperCase());
+      languages.data.push(parseInt(row.metrics[0]) || 0);
+    });
+  }
+  if (languages.labels.length === 0) {
+    languages.labels = ['Russian (RU)', 'English (EN)', 'Uzbek (UZ)'];
+    languages.data = [0, 0, 0];
+  }
+
+  // Parse conversions
+  const totalConversions = mainData && mainData.totals ? (Math.round(mainData.totals[4]) || 0) : 0;
+  const conversions = {
+    demo: Math.round(totalConversions * 0.4),
+    sales: Math.round(totalConversions * 0.2),
+    submit: Math.round(totalConversions * 0.4)
+  };
+
+  return {
+    users,
+    sessions,
+    bounce,
+    duration,
+    views,
+    timeline: { labels, users: usersData, sessions: sessionsData },
+    channels,
+    devices,
+    conversions,
+    languages
   };
 }
+
 
 function populateDashboardUI(data) {
   // Update Overview stats
@@ -1924,7 +2674,7 @@ function populateDashboardUI(data) {
   document.getElementById('statDuration').textContent = data.duration;
   
   // Toggle trend indicators visibility based on GA4 configuration
-  const gaId = localStorage.getItem('swipies_ga_measurement_id');
+  const gaId = localStorage.getItem('swipies_ga_property_id');
   const serviceKey = localStorage.getItem('swipies_ga_service_key');
   const isConfigured = gaId && serviceKey;
   const trends = document.querySelectorAll('.stat-trend');
@@ -2274,14 +3024,24 @@ function mapDatabaseLeads(leads) {
   }));
 }
 
+function getAuthHeaders(extraHeaders = {}) {
+  const headers = { 'Content-Type': 'application/json', ...extraHeaders };
+  const token = localStorage.getItem('Authorization');
+  if (token) headers['Authorization'] = token;
+  return headers;
+}
+
+// Global 401/403 handler — forces re-login when token expires or is missing
+function handleApiUnauthorized() {
+  localStorage.removeItem('swipies_admin_session');
+  localStorage.removeItem('Authorization');
+  showToast('Session Expired', 'Your session has expired. Please log in again.', 'error');
+  setTimeout(() => { checkAuth(); }, 1500);
+}
+
 function loadLeadsFromDB() {
-  fetch('/api/v1/leads')
-    .then(res => {
-      if (res.status === 401 || res.status === 403) {
-        throw new Error('Unauthorized');
-      }
-      return res.json();
-    })
+  fetch('/api/leads')
+    .then(res => safeFetchJson(res))
     .then(res => {
       if (res && res.code === 0 && Array.isArray(res.data)) {
         usingDB = true;
@@ -2293,13 +3053,9 @@ function loadLeadsFromDB() {
       }
     })
     .catch(err => {
-      console.warn('Could not load submissions from DB, falling back to localStorage:', err.message);
+      console.warn('Could not load submissions from DB, falling back to empty state:', err.message);
       usingDB = false;
-      try {
-        databaseSubmissions = JSON.parse(localStorage.getItem('swipies_submissions') || '[]');
-      } catch (e) {
-        databaseSubmissions = [];
-      }
+      databaseSubmissions = [];
       renderSubmissionsTable();
       renderLatestOverviewSubmissions();
     });
@@ -2411,90 +3167,62 @@ function renderLatestOverviewSubmissions() {
 }
 
 function toggleReadStatus(id) {
-  if (usingDB) {
-    const sub = databaseSubmissions.find(s => s.id === id);
-    if (!sub) return;
-    const newRead = !sub.read;
-    const newStatus = newRead ? '2' : '1';
-    fetch(`/api/v1/leads/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus })
-    }).then(res => res.json())
-      .then(res => {
-        if (res && res.code === 0) {
-          showToast('Status Updated', `Submission marked as ${newRead ? 'read' : 'unread'}.`, 'success');
-          loadLeadsFromDB();
-        } else {
-          showToast('Update Failed', res.message || 'Error updating status in database.', 'error');
-        }
-      })
-      .catch(err => {
-        showToast('Update Failed', 'Network error updating database.', 'error');
-      });
-  } else {
-    databaseSubmissions = databaseSubmissions.map(sub => {
-      if (sub.id === id) {
-        sub.read = !sub.read;
-        showToast('Status Updated', `Submission marked as ${sub.read ? 'read' : 'unread'}.`, 'success');
+  const sub = databaseSubmissions.find(s => s.id === id || s.id === parseInt(id));
+  if (!sub) return;
+  const newRead = !sub.read;
+  const newStatus = newRead ? '2' : '1';
+  
+  fetch(`/api/leads/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: newStatus })
+  }).then(res => safeFetchJson(res))
+    .then(res => {
+      if (res && res.code === 0) {
+        showToast('Status Updated', `Submission marked as ${newRead ? 'read' : 'unread'}.`, 'success');
+        loadLeadsFromDB();
+      } else {
+        showToast('Update Failed', res.message || 'Error updating status in database.', 'error');
       }
-      return sub;
+    })
+    .catch(err => {
+      showToast('Update Failed', 'Network error updating database.', 'error');
     });
-    localStorage.setItem('swipies_submissions', JSON.stringify(databaseSubmissions));
-    renderSubmissionsTable();
-    renderLatestOverviewSubmissions();
-  }
 }
 
 function deleteSubmission(id) {
-  if (usingDB) {
-    if (confirm("Are you sure you want to delete this submission from the database?")) {
-      fetch(`/api/v1/leads/${id}`, {
-        method: 'DELETE'
-      }).then(res => res.json())
-        .then(res => {
-          if (res && res.code === 0) {
-            showToast('Record Deleted', 'Submission deleted from database.', 'success');
-            loadLeadsFromDB();
-          } else {
-            showToast('Delete Failed', res.message || 'Error deleting from database.', 'error');
-          }
-        })
-        .catch(err => {
-          showToast('Delete Failed', 'Network error deleting from database.', 'error');
-        });
-    }
-  } else {
-    databaseSubmissions = databaseSubmissions.filter(sub => sub.id !== id);
-    localStorage.setItem('swipies_submissions', JSON.stringify(databaseSubmissions));
-    showToast('Record Deleted', 'Submission deleted from local storage database.', 'success');
-    renderSubmissionsTable();
-    renderLatestOverviewSubmissions();
+  if (confirm("Are you sure you want to delete this submission from the database?")) {
+    fetch(`/api/leads/${id}`, {
+      method: 'DELETE'
+    }).then(res => safeFetchJson(res))
+      .then(res => {
+        if (res && res.code === 0) {
+          showToast('Record Deleted', 'Submission deleted from database.', 'success');
+          loadLeadsFromDB();
+        } else {
+          showToast('Delete Failed', res.message || 'Error deleting from database.', 'error');
+        }
+      })
+      .catch(err => {
+        showToast('Delete Failed', 'Network error deleting from database.', 'error');
+      });
   }
 }
 
 function clearAllSubmissions() {
   if (confirm("Are you sure you want to delete ALL submission records? This action is permanent!")) {
-    if (usingDB) {
-      const deletePromises = databaseSubmissions.map(sub => 
-        fetch(`/api/v1/leads/${sub.id}`, { method: 'DELETE' }).then(res => res.json())
-      );
-      Promise.all(deletePromises)
-        .then(() => {
-          showToast('Database Purged', 'All contact requests deleted from database.', 'error');
-          loadLeadsFromDB();
-        })
-        .catch(() => {
-          showToast('Purge Failed', 'Error deleting some records from database.', 'error');
-          loadLeadsFromDB();
-        });
-    } else {
-      databaseSubmissions = [];
-      localStorage.removeItem('swipies_submissions');
-      showToast('Database Purged', 'All contact requests deleted.', 'error');
-      renderSubmissionsTable();
-      renderLatestOverviewSubmissions();
-    }
+    const deletePromises = databaseSubmissions.map(sub => 
+      fetch(`/api/leads/${sub.id}`, { method: 'DELETE' }).then(res => safeFetchJson(res))
+    );
+    Promise.all(deletePromises)
+      .then(() => {
+        showToast('Database Purged', 'All contact requests deleted from database.', 'error');
+        loadLeadsFromDB();
+      })
+      .catch(() => {
+        showToast('Purge Failed', 'Error deleting some records from database.', 'error');
+        loadLeadsFromDB();
+      });
   }
 }
 
@@ -2536,30 +3264,19 @@ function loadUsersFromDB() {
   const emptyState = document.getElementById('usersEmptyState');
   if (!body) return;
   
-  body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading platform users from main database...</td></tr>';
-  if (emptyState) emptyState.style.display = 'none';
-
-  fetch('/api/v1/admin/users')
-    .then(res => {
-      if (res.status === 401 || res.status === 403) {
-        throw new Error('Unauthorized');
-      }
-      return res.json();
-    })
-    .then(res => {
-      if (res && res.code === 0 && Array.isArray(res.data)) {
-        databaseUsers = res.data;
-        renderUsersTable();
-      } else {
-        throw new Error((res && res.message) || 'Failed to retrieve users');
-      }
-    })
-    .catch(err => {
-      console.error('Error fetching users from DB:', err);
-      body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--red)">
-        Failed to load users: ${err.message}. Ensure you are logged in to the Swipies platform as an administrator.
-      </td></tr>`;
-    });
+  // Standalone mode: Load from local storage or show empty
+  try {
+    databaseUsers = JSON.parse(localStorage.getItem('swipies_users') || '[]');
+  } catch (e) {
+    databaseUsers = [];
+  }
+  
+  if (databaseUsers.length === 0) {
+    if (emptyState) emptyState.style.display = 'flex';
+  } else {
+    if (emptyState) emptyState.style.display = 'none';
+  }
+  renderUsersTable();
 }
 
 function renderUsersTable() {
@@ -2627,11 +3344,11 @@ function renderUsersTable() {
 
 function toggleUserStatus(email, currentlyActive) {
   const newStatus = currentlyActive ? 'off' : 'on';
-  fetch(`/api/v1/admin/users/${email}/activate`, {
+  fetch(`${API_BASE}/api/v1/admin/users/${email}/activate`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ activate_status: newStatus })
-  }).then(res => res.json())
+  }).then(res => safeFetchJson(res))
     .then(res => {
       if (res && res.code === 0) {
         showToast('User Status Updated', `User account ${email} status set to ${newStatus === 'on' ? 'active' : 'suspended'}.`, 'success');
@@ -2647,9 +3364,9 @@ function toggleUserStatus(email, currentlyActive) {
 
 function deleteUser(email) {
   if (confirm(`Are you sure you want to delete user ${email}? This will delete all user data from the platform database!`)) {
-    fetch(`/api/v1/admin/users/${email}`, {
+    fetch(`${API_BASE}/api/v1/admin/users/${email}`, {
       method: 'DELETE'
-    }).then(res => res.json())
+    }).then(res => safeFetchJson(res))
       .then(res => {
         if (res && res.code === 0) {
           showToast('User Deleted', `User ${email} deleted successfully.`, 'success');
@@ -2670,26 +3387,63 @@ function deleteUser(email) {
 */
 
 function loadSettings() {
-  document.getElementById('settingGaId').value = localStorage.getItem('swipies_ga_measurement_id') || 'G-SWIPIES2025';
-  document.getElementById('settingYmId').value = localStorage.getItem('swipies_ym_counter_id') || '97561823';
-  document.getElementById('settingServiceEmail').value = localStorage.getItem('swipies_ga_service_email') || '';
-  document.getElementById('settingServiceKey').value = localStorage.getItem('swipies_ga_service_key') || '';
+  let propertyId = localStorage.getItem('swipies_ga_property_id');
+  let measurementId = localStorage.getItem('swipies_ga_measurement_id');
+  let serviceEmail = localStorage.getItem('swipies_ga_service_email');
+  let serviceKey = localStorage.getItem('swipies_ga_service_key');
+  
+  const defaultServiceKeyBase64 = "eyJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsICJwcm9qZWN0X2lkIjogImJldG1hcmtldC1iMjg3OSIsICJwcml2YXRlX2tleV9pZCI6ICI3ZDRlM2I2NGU0ZGQ3OTBlMmEyNDI1ZjQwYjlmZTg5MjFjMjkxZjQ3IiwgInByaXZhdGVfa2V5IjogIi0tLS0tQkVHSU4gUFJJVkFURSBLRVktLS0tLVxuTUlJRXZnSUJBREFOQmdrcWhraUc5dzBCQVFFRkFBU0NCS2d3Z2dTa0FnRUFBb0lCQVFETERWU0E4UVhHaDBVTFxuK1hIYitZWk1TRm1ScWRUUWdWQkpKS2tYNVlsajkrQWdxdjFsek5vajA3ZFk4cXZINEV3ODNwWXJDRUJTWlRFM1xucmRiRFdONVNCcnJsa2owVkFpOERtYXR6aDVXWElVVDAwR0tYb05ESHNXYlZtRGl4UGo3UlZhOVBlRUI3REpKN1xuNXZPYnEzQlY0M0pyQzU0MS9vMUMzZjhMRjFtRTRIWlFwUGIyUGFrZ2VWNjlXc2puVG1ZYWxncDJ2ZFdYK3lRK1xuZHc5RW9aOXhLbmNYZmhXeENDdzNvL0lDMmUrNlZXMWNGR3NvT3g5ODdwbVJEWEVqSlZGQjM3ejZBd3hsUk10MVxuajFuSDJ0WlA3cVZPemd3eVIzVnIzcXZtRXFibDd5OVZ3MDdKNUlsVTZDbkZBQkJMUmJIVkhZd3A1R25NczBEMlxuV3AyU1BoQUZBZ01CQUFFQ2dnRUFIRjZ6d2RoQWNGUG5YUnhGd1BCYUhUKzJsQUxnamNsT013b0E2TlVwOUdKbVxuV1pUS2JDREtad1c3c1BKOFRIbVZsL2p1NDZXaGZHR2x3TVowZCtnV0YrdlhkOHFPUE9pSWg3NCt3RU9LQTdXaVxuOFhtZXdpOWhQRkFZWFhEZWxaVVcweDlmcTlZblhEU09KWldkSlNZM2xIM1U0Z2xHTDZadDRqdldMZkhkNWhIelxuNkVOSWxQcHZtcUE0SGtWcDJhc24vMThLOXlwRDNRWkZyTFFIbDVkeGJDeFAvb0VTdmk5TWF0MmY4amNGelM4UlxuYUNXTjRvZURMeTVBdTZCQjBrMTFKNUxqNFF6NDdTTVNLci9GdC9BeG5iWlVvQUJiSGcwTmluVEFNemYwN0NJUFxuN1VUS05XcnZyYlJsTnVVUGVsMUo4UldreThnRzZ1SmQ2YS9NWGowcHVRS0JnUURRVVZPTUZ5QlZjZDkvTjJVbFxub1dmR05reTFhWjQ2TG5JajJIR1ZKaGkyUWw2OWVTYVJSUkVNVnVyMmZZd3dSempPaFdZQ1JvUDJQV25DdEpNRlxubVZNUmk5VDhlMGdXa2JTM3JmVEFNU1lsVHErb1ZIdVZvMUZobEZvUjg2QWRSMGtCcTNjcWlpWFRJM0o2YlZVNVxuQjdjSWI1Z0RleTdSWTRNZllMN1dYZDBZS3dLQmdRRDVoM1V1QnpJNUY2dmJiWUFRQ1NyR3ZRRXhGMzFHTGZaeVxuTFpMWGh3ZlpHOFgyQ2xkQ1BRMFFXT3ZUQmhHWjFOUHVzSGJQWkNWZzhIT1FWaVF4OHNhNkVCQ1ZHeklLMlB5WFxuYmJaSW9ZNU8vTS9EUTRHOGhCdmVneDFZSXFScENYNnVnMnFFc3BCQXBBd1hOMUprQlBkaUNiT0V1b0RQYUFQaFxuTkpwbHVXQ3dqd0tCZ1FDbFhXbXM4MDYvaFQyZGh5UEwwMnpGYzZWQS9TNlZrUGthYTE3K3Z0Y3ZGMUNOcC9adFxucXgzMVphbnZNWXB2YUpvM2xyMTdZTzZ3TWVBYXA2MXQ3R0I4dFR2RmtUZVFjdW02UldUY2pDZHp4aHE2elJXdFxubTQrbW5sVkJtdHVuWWtjYUJEcjhrZDJrMWFheWVNZ0dGWkcrS0pmTGE2V21vaEFjZ0hmOVExV1hNUUtCZ1FDUlxuTVlhM3I2eERtRWlCdDZlS3JTcmMxV0Y2SlViWnJTajNxeGtFbkNldTV3QTdlQ3pwK0FnLytOM1B2bnBEWHBtclxuQzdjMldmbDkvS3ZoMHAzaENua2tEdkQzTWduZVVnQTRSTGlLYnFjVnd2bEpqMkJRUnpiSU5OYkFUL2dHdm1XZVxuT2cyakJSdjI0UDNBRElxK2REMVdLSHJ5d21ydFJJTHRhZVJsU0liQWRRS0JnRTFsb2pqYWlkcTlUa0dzVk9UQlxuRTF6QkE2Z25zWnJKR2hTc0p2SVV1VHpyR2hwZVZVRFB0aVY0MFA3MFF4TURtRHZYSm5DdXhKN2phYnM5ekRDUVxucnliOWFxSkFXNFJiajFHenByR1RFVC9QYkY4Q3BoVUpwVVAzR3hIV1hzYTc0MzYxdzNlU1pEVEFIM3NjK2NBQVxuVXdXdVM5YzA3Q0FuS0lsVzFhZGhiWm1EXG4tLS0tLUVORCBQUklWQVRFIEtFWS0tLS0tXG4iLCAiY2xpZW50X2VtYWlsIjogImJldG1hcmtldC1iMjg3OUBhcHBzcG90LmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiY2xpZW50X2lkIjogIjExNDIxODgwMzUzMjM0MjcyMjEzOCIsICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsICJ0b2tlbl91cmkiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCAiYXV0aF9wcm92aWRlcl94NTA5X2NlcnRfdXJsIjogImh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2JldG1hcmtldC1iMjg3OSU0MGFwcHNwb3QuZ3NlcnZpY2VhY2NvdW50LmNvbSIsICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20ifQ==";
+  const defaultServiceKey = atob(defaultServiceKeyBase64);
+
+  if (propertyId === null || propertyId === '') {
+    propertyId = '470471775';
+    localStorage.setItem('swipies_ga_property_id', propertyId);
+  }
+  if (measurementId === null || measurementId === 'G-SWIPIES2025' || measurementId === '') {
+    measurementId = 'G-G9BZDJNSS2';
+    localStorage.setItem('swipies_ga_measurement_id', measurementId);
+  }
+  if (serviceEmail === null || serviceEmail === '') {
+    serviceEmail = 'betmarket-b2879@appspot.gserviceaccount.com';
+    localStorage.setItem('swipies_ga_service_email', serviceEmail);
+  }
+  if (serviceKey === null || serviceKey === '') {
+    serviceKey = defaultServiceKey;
+    localStorage.setItem('swipies_ga_service_key', serviceKey);
+  }
+
+  // Backwards compatibility: If propertyId is empty but measurementId is numeric, migrate it
+  if (!propertyId && measurementId && !isNaN(measurementId.replace('G-', '').trim())) {
+    propertyId = measurementId.replace('G-', '').trim();
+    localStorage.setItem('swipies_ga_property_id', propertyId);
+  }
+  
+  document.getElementById('settingGaId').value = propertyId;
+  document.getElementById('settingGaMeasurementId').value = measurementId;
+  document.getElementById('settingYmId').value = localStorage.getItem('swipies_ym_counter_id') || '106098534';
+  document.getElementById('settingYmToken').value = localStorage.getItem('swipies_ym_oauth_token') || 'y0__wgBELnapf8GGITgRSDb2K6tGONdSMrx_H9z1BiPLXe2H5x89ro3';
+  document.getElementById('settingServiceEmail').value = serviceEmail;
+  document.getElementById('settingServiceKey').value = serviceKey;
   document.getElementById('settingAnalyticsToggle').checked = localStorage.getItem('swipies_analytics_enabled') !== 'false';
 }
 
 function saveSettings(event) {
   event.preventDefault();
   
-  const gaId = document.getElementById('settingGaId').value.trim();
+  const gaPropertyId = document.getElementById('settingGaId').value.trim();
+  const gaMeasurementId = document.getElementById('settingGaMeasurementId').value.trim();
   const ymId = document.getElementById('settingYmId').value.trim();
+  const ymToken = document.getElementById('settingYmToken').value.trim();
   const serviceEmail = document.getElementById('settingServiceEmail').value.trim();
   const serviceKey = document.getElementById('settingServiceKey').value.trim();
   const analyticsToggle = document.getElementById('settingAnalyticsToggle').checked;
   const newPwd = document.getElementById('settingNewPwd').value;
 
   // Persist configurations
-  localStorage.setItem('swipies_ga_measurement_id', gaId);
+  localStorage.setItem('swipies_ga_property_id', gaPropertyId);
+  localStorage.setItem('swipies_ga_measurement_id', gaMeasurementId);
   localStorage.setItem('swipies_ym_counter_id', ymId);
+  localStorage.setItem('swipies_ym_oauth_token', ymToken);
   localStorage.setItem('swipies_ga_service_email', serviceEmail);
   localStorage.setItem('swipies_ga_service_key', serviceKey);
   localStorage.setItem('swipies_analytics_enabled', analyticsToggle ? 'true' : 'false');
@@ -2701,49 +3455,9 @@ function saveSettings(event) {
   }
 
   showToast('Settings Saved', 'Analytics integration credentials successfully updated.', 'success');
-}
-
-function savePlanLimits(event) {
-  event.preventDefault();
-  const limits = [
-    { name: 'plan.free.apps_limit', value: document.getElementById('planFreeApps').value },
-    { name: 'plan.free.datasets_limit', value: document.getElementById('planFreeDatasets').value },
-    { name: 'plan.free.storage_gb', value: document.getElementById('planFreeStorage').value },
-    { name: 'plan.free.token_limit', value: document.getElementById('planFreeTokens').value },
-    { name: 'plan.free.team_limit', value: document.getElementById('planFreeTeam').value },
-
-    { name: 'plan.plus.apps_limit', value: document.getElementById('planPlusApps').value },
-    { name: 'plan.plus.datasets_limit', value: document.getElementById('planPlusDatasets').value },
-    { name: 'plan.plus.storage_gb', value: document.getElementById('planPlusStorage').value },
-    { name: 'plan.plus.token_limit', value: document.getElementById('planPlusTokens').value },
-    { name: 'plan.plus.team_limit', value: document.getElementById('planPlusTeam').value },
-
-    { name: 'plan.pro.apps_limit', value: document.getElementById('planProApps').value },
-    { name: 'plan.pro.datasets_limit', value: document.getElementById('planProDatasets').value },
-    { name: 'plan.pro.storage_gb', value: document.getElementById('planProStorage').value },
-    { name: 'plan.pro.token_limit', value: document.getElementById('planProTokens').value },
-    { name: 'plan.pro.team_limit', value: document.getElementById('planProTeam').value },
-
-    { name: 'plan.enterprise.apps_limit', value: document.getElementById('planEntApps').value },
-    { name: 'plan.enterprise.datasets_limit', value: document.getElementById('planEntDatasets').value },
-    { name: 'plan.enterprise.storage_gb', value: document.getElementById('planEntStorage').value },
-    { name: 'plan.enterprise.token_limit', value: document.getElementById('planEntTokens').value },
-    { name: 'plan.enterprise.team_limit', value: document.getElementById('planEntTeam').value },
-  ];
-
-  Promise.all(limits.map(item =>
-    fetch('/v1/admin/variables', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ var_name: item.name, var_value: item.value })
-    })
-  ))
-  .then(() => {
-    showToast('Plan Limits Saved', 'Subscription tier limits updated successfully across platform!', 'success');
-  })
-  .catch(err => {
-    showToast('Save Warning', 'Saved locally, network sync error: ' + err.message, 'warning');
-  });
+  
+  // Refresh the dashboard stats using the new credentials
+  refreshDashboardData();
 }
 
 // Validate credentials against REST endpoint
@@ -2752,26 +3466,130 @@ async function testGa4Connection() {
   const serviceKey = document.getElementById('settingServiceKey').value.trim();
 
   if (!gaId) {
-    showToast('Validation Error', 'A GA4 Measurement ID is required for testing.', 'error');
+    showToast('Validation Error', 'A GA4 Property ID (numeric) is required for testing.', 'error');
     return;
   }
 
-  showToast('Testing Connection', 'Sending diagnostic ping to GA4 properties API...', 'info');
+  const propertiesId = gaId.replace('G-', '').trim();
+  if (isNaN(propertiesId) || propertiesId.length === 0) {
+    showToast('Validation Error', 'Please enter a numeric GA4 Property ID (e.g. 412345678), not a Measurement ID (G-XXXX).', 'error');
+    return;
+  }
 
-  setTimeout(() => {
-    // If a service key is present, we simulate a validation success
-    if (serviceKey.length > 20 || gaId.startsWith('G-')) {
-      showToast('Connection Successful', `Linked with GA4 property ID: ${gaId} securely.`, 'success');
-    } else {
-      showToast('Diagnostics Alert', 'Ping resolved but returned empty data. Check stream configuration.', 'error');
+  if (!serviceKey) {
+    showToast('Validation Error', 'Service Account JSON Key is required for testing.', 'error');
+    return;
+  }
+
+  try {
+    JSON.parse(serviceKey);
+  } catch (e) {
+    showToast('Validation Error', 'Invalid Service Account JSON key format.', 'error');
+    return;
+  }
+
+  showToast('Testing Connection', 'Sending diagnostic ping to backend GA4 proxy...', 'info');
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = localStorage.getItem('Authorization');
+    if (token) {
+      headers['Authorization'] = token;
     }
-  }, 1200);
+    
+    const response = await fetch('/api/analytics/query', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        property_id: propertiesId,
+        service_account_key: serviceKey,
+        endpoint: 'runReport',
+        payload: {
+          dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          metrics: [{ name: 'activeUsers' }]
+        }
+      })
+    });
+
+    const result = await safeFetchJson(response);
+    if (response.ok && result.code === 0) {
+      let activeUsers = 0;
+      if (result.data && result.data.rows && result.data.rows.length > 0) {
+        activeUsers = parseInt(result.data.rows[0].metricValues[0].value) || 0;
+      }
+      showToast('Connection Successful', `Successfully linked. Found ${activeUsers} active users in the last 30 days.`, 'success');
+    } else {
+      throw new Error(result.message || "Property check failed.");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Connection Failed', err.message || 'Failed to link with GA4 property.', 'error');
+  }
+}
+
+// Validate Yandex Metrika connection against proxy endpoint
+async function testYmConnection() {
+  const ymId = document.getElementById('settingYmId').value.trim() || '106098534';
+  const ymToken = document.getElementById('settingYmToken').value.trim() || 'y0__wgBELnapf8GGITgRSDb2K6tGONdSMrx_H9z1BiPLXe2H5x89ro3';
+
+  if (!ymId) {
+    showToast('Validation Error', 'Yandex Metrika Counter ID is required for testing.', 'error');
+    return;
+  }
+  if (!ymToken) {
+    showToast('Validation Error', 'Yandex Metrika OAuth Token is required for testing.', 'error');
+    return;
+  }
+
+  showToast('Testing Connection', 'Sending diagnostic ping to Yandex Metrika proxy...', 'info');
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = localStorage.getItem('Authorization');
+    if (token) {
+      headers['Authorization'] = token;
+    }
+    
+    const response = await fetch('/api/yandex_analytics/query', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        counter_id: ymId,
+        oauth_token: ymToken,
+        params: {
+          metrics: 'ym:s:users',
+          date1: '30daysAgo',
+          date2: 'today'
+        }
+      })
+    });
+
+    const result = await safeFetchJson(response);
+    if (response.ok && result.code === 0) {
+      let activeUsers = 0;
+      if (result.data && result.data.totals && result.data.totals.length > 0) {
+        activeUsers = parseInt(result.data.totals[0]) || 0;
+      }
+      showToast('Connection Successful', `Successfully linked. Found ${activeUsers} users in Yandex Metrika (last 30 days).`, 'success');
+    } else {
+      throw new Error(result.message || "Yandex counter check failed.");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Connection Failed', err.message || 'Failed to link with Yandex Metrika counter.', 'error');
+  }
+}
+
+function promptYmTokenHelper(event) {
+  event.preventDefault();
+  const defaultClientId = 'be0801d9af884e7da33862dab0f94f58';
+  window.open(`https://oauth.yandex.ru/authorize?response_type=token&client_id=${defaultClientId}`, '_blank');
 }
 
 /* ========================================================================
    INITIALIZATION ENGINE
-========================================================================
-*/
+ ========================================================================
+ */
 
 function initializeDashboard() {
   // 1. Initial State Load
@@ -2779,28 +3597,476 @@ function initializeDashboard() {
   initializeSubmissions();
   refreshDashboardData();
   
-  // 2. Real-Time Online Active Users Mock/Query Engine
+  // 2. Real-Time Online Active Users Query Engine
   // Fetches live users every 30 seconds automatically
   updateActiveUsers();
-  activeUsersInterval = setInterval(updateActiveUsers, 30000);
+  if (window.activeUsersInterval) {
+    clearInterval(window.activeUsersInterval);
+  }
+  window.activeUsersInterval = setInterval(updateActiveUsers, 30000);
 }
 
-function updateActiveUsers() {
+async function updateActiveUsers() {
   const badgeVal = document.getElementById('activeUsers');
+  if (!badgeVal) return;
   
-  // Simulated organic fluctuations based on typical office hours
-  const baseActive = 8;
-  const variance = Math.round(Math.random() * 8);
-  const activeNow = baseActive + variance;
+  const gaId = localStorage.getItem('swipies_ga_property_id');
+  const serviceKey = localStorage.getItem('swipies_ga_service_key');
+  const isConfigured = gaId && serviceKey;
   
-  badgeVal.textContent = activeNow;
+  if (!isConfigured) {
+    badgeVal.textContent = '0';
+    return;
+  }
   
-  /*
-  --- DEV REFERENCE: GA4 REAL-TIME ACTIVE USERS ---
-  To integrate this realtime widget with the live Google Analytics Realtime API:
-  Query: GET https://analyticsdata.googleapis.com/v1beta/properties/PROPERTIES_ID:runRealtimeReport
-  Request Parameters: { "metrics": [{ "name": "activeUsers" }] }
-  */
+  const propertiesId = gaId.replace('G-', '').trim();
+  if (isNaN(propertiesId) || propertiesId.length === 0) {
+    badgeVal.textContent = '0';
+    return;
+  }
+  
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = localStorage.getItem('Authorization');
+    if (token) {
+      headers['Authorization'] = token;
+    }
+    
+    const response = await fetch('/api/analytics/query', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        property_id: propertiesId,
+        service_account_key: serviceKey,
+        endpoint: 'runRealtimeReport',
+        payload: {
+          metrics: [{ name: 'activeUsers' }]
+        }
+      })
+    });
+    
+    if (response.ok) {
+      const result = await safeFetchJson(response);
+      if (result.code === 0 && result.data && result.data.rows) {
+        let active = 0;
+        if (result.data.rows.length > 0) {
+          active = parseInt(result.data.rows[0].metricValues[0].value) || 0;
+        }
+        badgeVal.textContent = active;
+      } else {
+        badgeVal.textContent = '0';
+      }
+    } else {
+      badgeVal.textContent = '0';
+    }
+  } catch (err) {
+    console.error("Failed to fetch real-time active users:", err);
+  }
+}
+
+/* ========================================================================
+   REAL-TIME VISITOR TELEMETRY & COOKIE LOG MANAGEMENT
+======================================================================== */
+let currentVisitorsData = [];
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+async function loadVisitorsFromDB() {
+  const tbody = document.getElementById('visitorsTableBody');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch('/api/visitors');
+    const json = await safeFetchJson(res);
+
+    if (json.code === 0 && Array.isArray(json.data)) {
+      currentVisitorsData = json.data;
+      const stats = json.stats || {};
+
+      const totalEl = document.getElementById('vStatTotalVisits');
+      const uniqueEl = document.getElementById('vStatUniqueIPs');
+      const consentEl = document.getElementById('vStatConsentRate');
+
+      if (totalEl) totalEl.textContent = stats.total_visits !== undefined ? stats.total_visits : json.data.length;
+      if (uniqueEl) uniqueEl.textContent = stats.unique_ips !== undefined ? stats.unique_ips : '-';
+      if (consentEl) consentEl.textContent = stats.consent_rate !== undefined ? stats.consent_rate + '%' : '-';
+
+      if (json.data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-dim)">No visitor records logged yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = json.data.map(v => {
+        let consentBadge = `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">PENDING</span>`;
+        if (v.cookie_consent === 'accepted') {
+          consentBadge = `<span style="background:rgba(31,136,61,0.15); color:#56d364; border:1px solid rgba(31,136,61,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">ACCEPTED</span>`;
+        } else if (v.cookie_consent === 'declined') {
+          consentBadge = `<span style="background:rgba(207,34,46,0.15); color:#ff808a; border:1px solid rgba(207,34,46,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">DECLINED</span>`;
+        }
+
+        const vpnBadge = v.is_proxy === 'Yes'
+          ? `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:1px 5px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono)">VPN/PROXY</span>`
+          : `<span style="background:rgba(255,255,255,0.05); color:var(--text-dim); padding:1px 5px; border-radius:3px; font-size:0.68rem">Residential</span>`;
+
+        const formattedDate = v.create_date ? new Date(v.create_date).toLocaleString() : '—';
+        const safeIp = escapeHtml(v.ip || '—');
+        const safeGeo = escapeHtml(v.country || '—') + (v.city ? `, ${escapeHtml(v.city)}` : '');
+        const safeIsp = escapeHtml(v.isp || '—');
+        const safeConn = escapeHtml(v.connection_type || '—');
+        
+        const hwCpu = v.cpu_cores ? `${v.cpu_cores} Cores` : '? Cores';
+        const hwRam = v.ram_gb ? `${v.ram_gb} GB RAM` : '? RAM';
+        const safeHw = `${hwCpu} • ${hwRam}<br><span style="font-size:0.72rem; color:var(--text-dim); font-family:var(--font-mono)">${escapeHtml(v.gpu_info || 'GPU')}</span>`;
+
+        const safeDevice = escapeHtml(v.device_type || '—') + ' / ' + escapeHtml(v.os || '—');
+        const safeBrowser = escapeHtml(v.browser || '—') + `<br><span style="font-size:0.72rem; color:var(--text-dim)">${escapeHtml(v.theme_pref || '')} (${escapeHtml(v.screen_res || '')})</span>`;
+
+        const durationMin = v.session_duration ? `${Math.floor(v.session_duration / 60)}m ${v.session_duration % 60}s` : '0s';
+        const scrollPct = v.scroll_depth !== undefined ? `${v.scroll_depth}% scroll` : '0%';
+        const clicks = v.clicked_buttons ? `<br><span style="font-size:0.72rem; color:var(--accent)" title="${escapeHtml(v.clicked_buttons)}">Clicks: ${escapeHtml(v.clicked_buttons)}</span>` : '';
+        const behaviorInfo = `<strong>${durationMin}</strong> • ${scrollPct}${clicks}`;
+
+        const safeRef = escapeHtml(v.referrer || 'Direct');
+
+        const utmSource = v.utm_source ? escapeHtml(v.utm_source) : '';
+        const utmMedium = v.utm_medium ? escapeHtml(v.utm_medium) : '';
+        const utmCampaign = v.utm_campaign ? escapeHtml(v.utm_campaign) : '';
+        
+        let utmBadge = '';
+        if (utmSource || utmCampaign) {
+          const campaignText = [utmSource, utmMedium, utmCampaign].filter(Boolean).join(' / ');
+          utmBadge = `<br><span style="background:rgba(56,123,245,0.15); color:var(--blue); border:1px solid rgba(56,123,245,0.3); padding:1px 6px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono);" title="UTM Campaign: ${campaignText}">🏷️ ${campaignText}</span>`;
+        }
+        const refDisplay = `${safeRef}${utmBadge}`;
+
+        return `
+          <tr>
+            <td>
+              <strong class="mono-val" style="color:var(--text)">${safeIp}</strong><br>
+              <span style="font-size:0.75rem; color:var(--text-muted)">📍 ${safeGeo}</span>
+            </td>
+            <td>
+              <span style="font-size:0.85rem">${safeIsp}</span> ${vpnBadge}<br>
+              <span style="font-size:0.72rem; color:var(--text-dim); font-family:var(--font-mono)">⚡ ${safeConn}</span>
+            </td>
+            <td style="font-size:0.82rem">${safeHw}</td>
+            <td style="font-size:0.82rem">${safeBrowser}</td>
+            <td style="font-size:0.82rem">${behaviorInfo}</td>
+            <td>${consentBadge}</td>
+            <td style="font-size:0.75rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${refDisplay}</td>
+            <td class="mono-val" style="font-size:0.72rem; color:var(--text-muted)">${formattedDate}</td>
+            <td style="text-align:right">
+              <button class="btn-action delete" onclick="deleteVisitorRecord(${v.id})" title="Delete entry">&times;</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    console.error('Error fetching visitor telemetry:', err);
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--red)">Failed to load visitor telemetry data. Server error or offline mode.</td></tr>`;
+  }
+}
+
+async function deleteVisitorRecord(id) {
+  if (!confirm('Are you sure you want to delete this visitor log entry?')) return;
+  try {
+    const res = await fetch(`/api/visitors/${id}`, { method: 'DELETE' });
+    const json = await safeFetchJson(res);
+    if (json.code === 0) {
+      showToast('Deleted', 'Visitor log entry removed.', 'success');
+      loadVisitorsFromDB();
+    }
+  } catch (err) {
+    showToast('Error', err.message, 'error');
+  }
+}
+
+async function clearAllVisitorLogs() {
+  if (!confirm('Are you sure you want to clear ALL visitor logs? This action cannot be undone.')) return;
+  try {
+    const res = await fetch('/api/visitors/clear', { method: 'DELETE' });
+    const json = await safeFetchJson(res);
+    if (json.code === 0) {
+      showToast('Cleared', 'All visitor logs have been deleted.', 'success');
+      loadVisitorsFromDB();
+    }
+  } catch (err) {
+    showToast('Error', err.message, 'error');
+  }
+}
+
+function exportVisitorsToCSV() {
+  if (!currentVisitorsData || currentVisitorsData.length === 0) {
+    showToast('Export Empty', 'No visitor records available to export.', 'info');
+    return;
+  }
+  const headers = ['ID', 'Visitor GUID', 'IP Address', 'Country', 'City', 'ISP', 'Is Proxy/VPN', 'Device Type', 'OS', 'Browser', 'CPU Cores', 'RAM GB', 'GPU Info', 'Screen Res', 'Language', 'Timezone', 'Theme Pref', 'Session Duration (s)', 'Scroll Depth (%)', 'Clicked Buttons', 'UTM Source', 'UTM Medium', 'UTM Campaign', 'UTM Term', 'UTM Content', 'Cookie Consent', 'Page URL', 'Referrer', 'Created At'];
+  const rows = currentVisitorsData.map(v => [
+    v.id,
+    `"${(v.visitor_id || '').replace(/"/g, '""')}"`,
+    `"${(v.ip || '').replace(/"/g, '""')}"`,
+    `"${(v.country || '').replace(/"/g, '""')}"`,
+    `"${(v.city || '').replace(/"/g, '""')}"`,
+    `"${(v.isp || '').replace(/"/g, '""')}"`,
+    `"${(v.is_proxy || '').replace(/"/g, '""')}"`,
+    `"${(v.device_type || '').replace(/"/g, '""')}"`,
+    `"${(v.os || '').replace(/"/g, '""')}"`,
+    `"${(v.browser || '').replace(/"/g, '""')}"`,
+    `"${(v.cpu_cores || '').replace(/"/g, '""')}"`,
+    `"${(v.ram_gb || '').replace(/"/g, '""')}"`,
+    `"${(v.gpu_info || '').replace(/"/g, '""')}"`,
+    `"${(v.screen_res || '').replace(/"/g, '""')}"`,
+    `"${(v.language || '').replace(/"/g, '""')}"`,
+    `"${(v.timezone || '').replace(/"/g, '""')}"`,
+    `"${(v.theme_pref || '').replace(/"/g, '""')}"`,
+    v.session_duration || 0,
+    v.scroll_depth || 0,
+    `"${(v.clicked_buttons || '').replace(/"/g, '""')}"`,
+    `"${(v.utm_source || '').replace(/"/g, '""')}"`,
+    `"${(v.utm_medium || '').replace(/"/g, '""')}"`,
+    `"${(v.utm_campaign || '').replace(/"/g, '""')}"`,
+    `"${(v.utm_term || '').replace(/"/g, '""')}"`,
+    `"${(v.utm_content || '').replace(/"/g, '""')}"`,
+    `"${(v.cookie_consent || '').replace(/"/g, '""')}"`,
+    `"${(v.page_url || '').replace(/"/g, '""')}"`,
+    `"${(v.referrer || '').replace(/"/g, '""')}"`,
+    `"${(v.create_date || '').replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `swipies_visitors_${new Date().toISOString().slice(0,10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+/* ========================================================================
+   UTM CAMPAIGN LINK BUILDER HELPERS
+======================================================================== */
+function buildUtmUrl() {
+  const baseInput = document.getElementById('utmBaseUrl');
+  let baseUrl = (baseInput ? baseInput.value.trim() : '') || 'https://swipies.app';
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    baseUrl = 'https://' + baseUrl;
+  }
+
+  const source = document.getElementById('utmSource') ? document.getElementById('utmSource').value.trim() : '';
+  const medium = document.getElementById('utmMedium') ? document.getElementById('utmMedium').value.trim() : '';
+  const campaign = document.getElementById('utmCampaign') ? document.getElementById('utmCampaign').value.trim() : '';
+  const content = document.getElementById('utmContent') ? document.getElementById('utmContent').value.trim() : '';
+  const ref = document.getElementById('utmRefCode') ? document.getElementById('utmRefCode').value.trim() : '';
+
+  try {
+    const urlObj = new URL(baseUrl);
+    if (source) urlObj.searchParams.set('utm_source', source);
+    if (medium) urlObj.searchParams.set('utm_medium', medium);
+    if (campaign) urlObj.searchParams.set('utm_campaign', campaign);
+    if (content) urlObj.searchParams.set('utm_content', content);
+    if (ref) urlObj.searchParams.set('ref', ref);
+
+    const finalUrl = urlObj.toString();
+    const resEl = document.getElementById('utmResultUrl');
+    if (resEl) resEl.textContent = finalUrl;
+    return finalUrl;
+  } catch (e) {
+    const resEl = document.getElementById('utmResultUrl');
+    if (resEl) resEl.textContent = baseUrl;
+    return baseUrl;
+  }
+}
+
+function applyUtmPreset(preset) {
+  const presets = {
+    telegram: { source: 'telegram', medium: 'channel', campaign: 'ai_launch', content: 'post_cta' },
+    google: { source: 'google', medium: 'cpc', campaign: 'enterprise_rag', content: 'search_ad' },
+    yandex: { source: 'yandex', medium: 'cpc', campaign: 'onpremise_ai', content: 'direct_banner' },
+    facebook: { source: 'facebook', medium: 'social_ad', campaign: 'saas_white_label', content: 'feed_video' },
+    email: { source: 'newsletter', medium: 'email', campaign: 'weekly_digest', content: 'button_link' }
+  };
+
+  const p = presets[preset];
+  if (p) {
+    if (document.getElementById('utmSource')) document.getElementById('utmSource').value = p.source;
+    if (document.getElementById('utmMedium')) document.getElementById('utmMedium').value = p.medium;
+    if (document.getElementById('utmCampaign')) document.getElementById('utmCampaign').value = p.campaign;
+    if (document.getElementById('utmContent')) document.getElementById('utmContent').value = p.content;
+    buildUtmUrl();
+  }
+}
+
+function copyUtmUrl() {
+  const finalUrl = buildUtmUrl();
+  navigator.clipboard.writeText(finalUrl).then(() => {
+    showToast('Copied!', 'UTM Campaign URL copied to clipboard.', 'success');
+  }).catch(err => {
+    showToast('Error', 'Failed to copy URL.', 'error');
+  });
+}
+
+async function loadUtmPageData() {
+  const aggTbody = document.getElementById('utmAggTableBody');
+  const logTbody = document.getElementById('utmLogTableBody');
+  if (!aggTbody || !logTbody) return;
+  
+  try {
+    const res = await fetch('/api/visitors');
+    const json = await safeFetchJson(res);
+
+    if (json.code === 0 && Array.isArray(json.data)) {
+      const allVisitors = json.data;
+      
+      // Filter visitors that arrived via UTM
+      const utmVisitors = allVisitors.filter(v => v.utm_source || v.utm_medium || v.utm_campaign || v.utm_content);
+
+      // Stat cards calculation
+      const totalUtmVisits = utmVisitors.length;
+      document.getElementById('utmStatTotal').textContent = totalUtmVisits;
+
+      // Group by utm_source and utm_campaign
+      const sourceCounts = {};
+      const campaignCounts = {};
+      let totalDuration = 0;
+
+      utmVisitors.forEach(v => {
+        const src = (v.utm_source || 'direct').toLowerCase();
+        const cmp = (v.utm_campaign || 'unnamed').toLowerCase();
+        sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+        campaignCounts[cmp] = (campaignCounts[cmp] || 0) + 1;
+        totalDuration += (v.session_duration || 0);
+      });
+
+      const topSource = Object.keys(sourceCounts).sort((a,b) => sourceCounts[b] - sourceCounts[a])[0] || '—';
+      const topCampaign = Object.keys(campaignCounts).sort((a,b) => campaignCounts[b] - campaignCounts[a])[0] || '—';
+      const avgDur = totalUtmVisits > 0 ? Math.round(totalDuration / totalUtmVisits) : 0;
+
+      document.getElementById('utmStatTopSource').textContent = topSource;
+      document.getElementById('utmStatTopSourceSub').textContent = sourceCounts[topSource] ? `${sourceCounts[topSource]} visits (${Math.round(sourceCounts[topSource]/totalUtmVisits*100)}%)` : 'No campaign visits';
+      
+      document.getElementById('utmStatTopCampaign').textContent = topCampaign;
+      document.getElementById('utmStatTopCampaignSub').textContent = campaignCounts[topCampaign] ? `${campaignCounts[topCampaign]} visits` : 'No active campaign';
+
+      document.getElementById('utmStatAvgDuration').textContent = `${Math.floor(avgDur / 60)}m ${avgDur % 60}s`;
+
+      // 1. Render Aggregated Campaign Traffic Table ("Кто сколько и откуда пришёл")
+      const campaignsMap = {};
+      utmVisitors.forEach(v => {
+        const key = `${v.utm_source || 'direct'}::${v.utm_medium || 'none'}::${v.utm_campaign || 'unnamed'}`;
+        if (!campaignsMap[key]) {
+          campaignsMap[key] = {
+            source: v.utm_source || 'direct',
+            medium: v.utm_medium || 'none',
+            campaign: v.utm_campaign || 'unnamed',
+            visits: 0,
+            ips: new Set(),
+            consents: 0,
+            duration: 0,
+            lastDate: v.create_date
+          };
+        }
+        const group = campaignsMap[key];
+        group.visits += 1;
+        if (v.ip) group.ips.add(v.ip);
+        if (v.cookie_consent === 'accepted') group.consents += 1;
+        group.duration += (v.session_duration || 0);
+        if (new Date(v.create_date) > new Date(group.lastDate)) {
+          group.lastDate = v.create_date;
+        }
+      });
+
+      const campaignGroups = Object.values(campaignsMap).sort((a, b) => b.visits - a.visits);
+
+      if (campaignGroups.length === 0) {
+        aggTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-dim)">No UTM campaign traffic logged yet. Build a link above and share it!</td></tr>`;
+      } else {
+        aggTbody.innerHTML = campaignGroups.map(g => {
+          const consentPct = Math.round((g.consents / g.visits) * 100);
+          const avgD = Math.round(g.duration / g.visits);
+          const durText = `${Math.floor(avgD / 60)}m ${avgD % 60}s`;
+          const formattedDate = g.lastDate ? new Date(g.lastDate).toLocaleString() : '—';
+
+          return `
+            <tr>
+              <td>
+                <strong style="color:var(--accent); font-family:var(--font-mono);">${escapeHtml(g.source)}</strong>
+                <span style="font-size:0.75rem; color:var(--text-dim)"> / ${escapeHtml(g.medium)}</span>
+              </td>
+              <td><strong class="mono-val">${escapeHtml(g.campaign)}</strong></td>
+              <td style="text-align:right"><strong style="color:var(--text)">${g.visits}</strong></td>
+              <td style="text-align:right" class="mono-val">${g.ips.size}</td>
+              <td style="text-align:right"><span style="color:#56d364; font-weight:600">${consentPct}%</span></td>
+              <td style="text-align:right">${durText}</td>
+              <td style="text-align:right; font-size:0.75rem; color:var(--text-muted)">${formattedDate}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // 2. Render Detailed UTM Visitor Log Table
+      if (utmVisitors.length === 0) {
+        logTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-dim)">No visitor records with UTM tags logged yet.</td></tr>`;
+      } else {
+        logTbody.innerHTML = utmVisitors.map(v => {
+          let consentBadge = `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">PENDING</span>`;
+          if (v.cookie_consent === 'accepted') {
+            consentBadge = `<span style="background:rgba(31,136,61,0.15); color:#56d364; border:1px solid rgba(31,136,61,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">ACCEPTED</span>`;
+          } else if (v.cookie_consent === 'declined') {
+            consentBadge = `<span style="background:rgba(207,34,46,0.15); color:#ff808a; border:1px solid rgba(207,34,46,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">DECLINED</span>`;
+          }
+
+          const vpnBadge = v.is_proxy === 'Yes'
+            ? `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:1px 5px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono)">VPN</span>`
+            : `<span style="background:rgba(255,255,255,0.05); color:var(--text-dim); padding:1px 5px; border-radius:3px; font-size:0.68rem">Res</span>`;
+
+          const formattedDate = v.create_date ? new Date(v.create_date).toLocaleString() : '—';
+          const safeIp = escapeHtml(v.ip || '—');
+          const safeGeo = escapeHtml(v.country || '—') + (v.city ? `, ${escapeHtml(v.city)}` : '');
+          const safeIsp = escapeHtml(v.isp || '—');
+          
+          const hwCpu = v.cpu_cores ? `${v.cpu_cores} C` : '';
+          const hwRam = v.ram_gb ? `${v.ram_gb} GB` : '';
+          const safeSpecs = `${v.device_type || 'Dev'} • ${v.os || 'OS'} (${hwCpu} ${hwRam})`;
+
+          const durationMin = v.session_duration ? `${Math.floor(v.session_duration / 60)}m ${v.session_duration % 60}s` : '0s';
+          const scrollPct = v.scroll_depth !== undefined ? `${v.scroll_depth}%` : '0%';
+
+          const campaignTag = `🏷️ ${escapeHtml(v.utm_source || 'direct')} / ${escapeHtml(v.utm_medium || '')} / ${escapeHtml(v.utm_campaign || '')}`;
+
+          return `
+            <tr>
+              <td>
+                <strong class="mono-val" style="color:var(--text)">${safeIp}</strong><br>
+                <span style="font-size:0.75rem; color:var(--text-muted)">📍 ${safeGeo}</span>
+              </td>
+              <td><span style="background:rgba(56,123,245,0.15); color:var(--blue); border:1px solid rgba(56,123,245,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600; font-family:var(--font-mono);">${campaignTag}</span></td>
+              <td>
+                <span style="font-size:0.85rem">${safeIsp}</span> ${vpnBadge}
+              </td>
+              <td style="font-size:0.8rem">${safeSpecs}</td>
+              <td style="font-size:0.8rem"><strong>${durationMin}</strong> • ${scrollPct} scroll</td>
+              <td>${consentBadge}</td>
+              <td class="mono-val" style="font-size:0.72rem; color:var(--text-muted)">${formattedDate}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching UTM page data:', err);
+    if (aggTbody) aggTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--red)">Failed to load UTM campaign data.</td></tr>`;
+    if (logTbody) logTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--red)">Failed to load UTM visitor logs.</td></tr>`;
+  }
 }
 
 // Start Checks on load

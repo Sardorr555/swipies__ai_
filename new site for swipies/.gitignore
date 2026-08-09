@@ -1,0 +1,27 @@
+# Google Credentials
+betmarket-b2879-7d4e3b64e4dd.json
+*.json.key
+*.key
+
+# Local certificates and testing files
+cert.der
+test_lic.py
+test_license_db.py
+git_helper.py
+
+# Runtime & database files
+database.sqlite
+deploy_log.txt
+deploy_step_log.txt
+__pycache__/
+graphify-out/
+fetch_logs.py
+get_deploy_logs.py
+list_zip.py
+parse_logs.py
+read_deploy_log.py
+
+# diagnostic check and wait scripts
+check_*.py
+wait_*.py
+
