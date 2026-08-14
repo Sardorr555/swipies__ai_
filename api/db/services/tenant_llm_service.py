@@ -152,6 +152,13 @@ class TenantLLMService(CommonService):
         else:
             assert False, "LLM type error"
 
+        from api.db.services.ai_policy_service import AIPolicyManager
+
+        # Validate AI Policy and token limits for tenant
+        allowed, policy_msg, status_code = AIPolicyManager.check_model_access(tenant_id, mdlnm, llm_type)
+        if not allowed:
+            raise LookupError(policy_msg)
+
         model_config = cls.get_api_key(tenant_id, mdlnm, llm_type)
         mdlnm, fid = TenantLLMService.split_model_name_and_factory(mdlnm)
         if not model_config:  # for some cases seems fid mismatch
@@ -268,6 +275,17 @@ class TenantLLMService(CommonService):
                 cls.model.update(used_tokens=cls.model.used_tokens + used_tokens)
                 .where(cls.model.tenant_id == tenant_id, cls.model.llm_name == llm_name, cls.model.llm_factory == llm_factory if llm_factory else True)
                 .execute()
+            )
+            from api.db.services.ai_policy_service import AIPolicyManager
+
+            AIPolicyManager.record_token_usage(
+                tenant_id=tenant_id,
+                user_id=tenant_id,
+                model_id=mdlnm or llm_name or "unknown",
+                model_type=llm_type,
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=used_tokens,
             )
         except Exception:
             logging.exception("TenantLLMService.increase_usage got exception,Failed to update used_tokens for tenant_id=%s, llm_name=%s", tenant_id, llm_name)

@@ -14,6 +14,7 @@ import {
   LucideUserStar,
   LucideZap,
   Key,
+  Bot,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,11 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminPricingSettings,
         name: 'Pricing & Subscriptions',
         icon: <Coins className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminAIManagement,
+        name: 'AI Models & Policies',
+        icon: <Bot className="size-[1em]" />,
       },
       {
         path: Routes.AdminReferrals,

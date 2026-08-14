@@ -77,6 +77,12 @@ def factories():
 async def set_api_key():
     req = await get_request_json()
     from rag.llm import ChatModel, EmbeddingModel, RerankModel
+    from api.db.services.ai_policy_service import AIPolicyManager
+
+    if not getattr(current_user, "is_superuser", False):
+        can_add, reason = AIPolicyManager.can_add_custom_model(current_user.id)
+        if not can_add:
+            return get_data_error_result(message=reason)
 
     # test if api key works
     chat_passed, embd_passed, rerank_passed = False, False, False
@@ -185,6 +191,13 @@ async def add_llm():
     factory = req["llm_factory"]
     llm_name = req.get("llm_name")
     timeout_seconds = int(os.environ.get("LLM_TIMEOUT_SECONDS", 10))
+
+    from api.db.services.ai_policy_service import AIPolicyManager
+
+    if not getattr(current_user, "is_superuser", False):
+        can_add, reason = AIPolicyManager.can_add_custom_model(current_user.id)
+        if not can_add:
+            return get_data_error_result(message=reason)
 
     if factory not in [f.name for f in get_allowed_llm_factories()]:
         return get_data_error_result(message=f"LLM factory {factory} is not allowed")

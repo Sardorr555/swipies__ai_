@@ -149,7 +149,8 @@ def init_web_data():
     add_graph_templates()
     init_message_id_sequence()
     init_memory_size_cache()
-    fix_missing_tokenized_memory()
+    from api.db.services.ai_policy_service import AIPolicyManager
+    AIPolicyManager.init_default_data()
     logging.info("init web data success:{}".format(time.time() - start_time))
 
 def init_table():

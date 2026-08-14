@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import Spotlight from '@/components/spotlight';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -17,11 +18,13 @@ import {
   Check,
   Sparkles,
   Key,
+  Bot,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import { Routes } from '@/routes';
+import { getUserAiUsage, UserAIUsageSummary } from '@/services/ai-management-service';
 
 const pricingTranslations: Record<string, any> = {
   en: {
@@ -232,6 +235,17 @@ const SubscriptionPage = () => {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const { data: tenantInfo, loading } = useFetchTenantInfo();
+  const [aiUsage, setAiUsage] = useState<UserAIUsageSummary | null>(null);
+
+  useEffect(() => {
+    getUserAiUsage()
+      .then((res) => {
+        if (res && res.data) {
+          setAiUsage(res.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const lang = pricingTranslations[i18n.language] ? i18n.language : 'en';
   const tLocal = pricingTranslations[lang];
@@ -370,6 +384,71 @@ const SubscriptionPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Live AI Token Quota & Progress Card */}
+            {aiUsage && (
+              <Card className="border border-border-default bg-bg-component/30 backdrop-blur-md p-6 rounded-2xl shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border-default/50 pb-3">
+                  <div>
+                    <h4 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                      <Bot className="text-accent-primary" size={20} />
+                      AI Monthly Token Consumption ({aiUsage.period})
+                    </h4>
+                    <p className="text-xs text-text-secondary">
+                      Monthly token quota governed by {aiUsage.plan.name} policy. Resets monthly.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-semibold text-text-secondary">Tokens Used</span>
+                    <div className="text-xl font-extrabold text-accent-primary">
+                      {aiUsage.total_used.toLocaleString()} / {aiUsage.monthly_limit.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-text-secondary">Quota Progress</span>
+                    <span className={aiUsage.percentage >= 90 ? 'text-rose-500 font-bold' : 'text-accent-primary font-bold'}>
+                      {aiUsage.percentage}% Used
+                    </span>
+                  </div>
+                  <div className="w-full h-3 bg-bg-card rounded-full overflow-hidden border border-border-default/60">
+                    <div
+                      className={`h-full transition-all duration-500 rounded-full ${
+                        aiUsage.percentage >= 90
+                          ? 'bg-gradient-to-r from-amber-500 to-rose-500'
+                          : 'bg-gradient-to-r from-emerald-500 to-accent-primary'
+                      }`}
+                      style={{ width: `${Math.min(aiUsage.percentage, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Model Breakdown */}
+                {aiUsage.breakdown && aiUsage.breakdown.length > 0 && (
+                  <div className="pt-2">
+                    <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                      Usage Breakdown by Model
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-2">
+                      {aiUsage.breakdown.map((item, idx) => (
+                        <div key={idx} className="p-2.5 rounded-xl border border-border-default/60 bg-bg-card/40 flex items-center justify-between text-xs">
+                          <div>
+                            <div className="font-semibold text-text-primary">{item.model_id}</div>
+                            <div className="text-[10px] text-text-secondary">{item.model_type}</div>
+                          </div>
+                          <span className="font-mono font-bold text-accent-primary">
+                            {item.tokens_used.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
 
             {/* Plan Features / Resource Limits Title */}
             <div className="space-y-4">

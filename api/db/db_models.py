@@ -1493,6 +1493,80 @@ class TenantModelGroupMapping(DataBaseModel):
         primary_key = CompositeKey("group_id", "provider_id", "instance_id", "model_id")
 
 
+class SubscriptionPlan(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    name = CharField(max_length=100, null=False, index=True)
+    monthly_token_limit = BigIntegerField(default=1000000, help_text="Monthly token limit")
+    limit_mode = CharField(max_length=32, default="shared", help_text="shared or per_model")
+    max_storage_gb = FloatField(default=5.0)
+    max_datasets = IntegerField(default=5)
+    max_agents = IntegerField(default=5)
+    allow_custom_providers = BooleanField(default=False)
+    allow_custom_models = BooleanField(default=False)
+    allow_custom_endpoints = BooleanField(default=False)
+    allow_private_servers = BooleanField(default=False)
+    default_llm_id = CharField(max_length=128, null=True)
+    default_embd_id = CharField(max_length=128, null=True)
+    status = CharField(max_length=1, default="1", index=True)
+
+    class Meta:
+        db_table = "subscription_plan"
+
+
+class AIModel(DataBaseModel):
+    id = CharField(max_length=128, primary_key=True)
+    provider = CharField(max_length=128, null=False, index=True)
+    model_name = CharField(max_length=128, null=False, index=True)
+    model_type = CharField(max_length=32, null=False, index=True)
+    base_url = CharField(max_length=255, null=True)
+    api_key = TextField(null=True)
+    enabled = BooleanField(default=True, index=True)
+    is_global = BooleanField(default=True, index=True)
+    is_custom = BooleanField(default=False, index=True)
+
+    class Meta:
+        db_table = "ai_model"
+
+
+class SubscriptionAIPolicy(DataBaseModel):
+    id = CharField(max_length=128, primary_key=True)
+    plan_id = CharField(max_length=32, null=False, index=True)
+    model_id = CharField(max_length=128, null=False, index=True)
+    model_token_limit = BigIntegerField(default=0, help_text="0 means unlimited up to plan total limit")
+    is_default_llm = BooleanField(default=False)
+    is_default_embd = BooleanField(default=False)
+    enabled = BooleanField(default=True, index=True)
+
+    class Meta:
+        db_table = "subscription_ai_policy"
+
+
+class UserTokenLimit(DataBaseModel):
+    user_id = CharField(max_length=32, primary_key=True)
+    monthly_token_limit = BigIntegerField(default=0, help_text="0 means fallback to plan limit")
+    enabled = BooleanField(default=True)
+
+    class Meta:
+        db_table = "user_token_limit"
+
+
+class TokenUsageLog(DataBaseModel):
+    id = CharField(max_length=64, primary_key=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    subscription_id = CharField(max_length=32, null=True, index=True)
+    model_id = CharField(max_length=128, null=False, index=True)
+    model_type = CharField(max_length=32, null=False, index=True)
+    input_tokens = IntegerField(default=0)
+    output_tokens = IntegerField(default=0)
+    total_tokens = IntegerField(default=0)
+    billing_period = CharField(max_length=7, null=False, index=True)
+
+    class Meta:
+        db_table = "token_usage_log"
+
+
+
 def alter_db_add_column(migrator, table_name, column_name, column_type):
     try:
         migrate(migrator.add_column(table_name, column_name, column_type))
