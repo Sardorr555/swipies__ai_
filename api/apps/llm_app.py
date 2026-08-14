@@ -512,6 +512,31 @@ def my_llms():
                         "is_tools": _resolve_my_llm_is_tools(o_dict),
                     }
                 )
+
+            # Fallback to Admin-registered global AIModels if user has no custom override
+            try:
+                from api.db.services.ai_policy_service import AIModelService
+                global_models = AIModelService.query(enabled=True)
+                existing_models = {(o.llm_factory, o.llm_name) for o in objs}
+                factories_dict = {f.name: f.tags for f in factories}
+                for gm in global_models:
+                    if (gm.provider, gm.model_name) not in existing_models and gm.api_key:
+                        if gm.provider not in res:
+                            res[gm.provider] = {"tags": factories_dict.get(gm.provider), "llm": []}
+                        res[gm.provider]["llm"].append(
+                            {
+                                "id": gm.id,
+                                "type": gm.model_type,
+                                "name": gm.model_name,
+                                "used_token": 0,
+                                "api_base": gm.base_url or "",
+                                "max_tokens": 8192,
+                                "status": "1",
+                                "is_tools": True,
+                            }
+                        )
+            except Exception as e:
+                logging.warning(f"my_llms include_details global fallback exception: {e}")
         else:
             res = {}
             for o in TenantLLMService.get_my_llms(current_user.id):
@@ -537,6 +562,18 @@ async def list_app():
         facts = set([o.to_dict()["llm_factory"] for o in objs if o.api_key and o.status == StatusEnum.VALID.value])
         tenant_llm_mapping = {f"{o.llm_name}@{o.llm_factory}": o for o in objs}
         status = {(o.llm_name + "@" + o.llm_factory) for o in objs if o.status == StatusEnum.VALID.value}
+
+        # Include Admin-registered global AIModels into facts and status
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            global_models = AIModelService.query(enabled=True)
+            for gm in global_models:
+                if gm.api_key:
+                    facts.add(gm.provider)
+                    status.add(f"{gm.model_name}@{gm.provider}")
+        except Exception as e:
+            logging.warning(f"list_app global models fallback exception: {e}")
+
         llms = LLMService.get_all()
         llms = [m.to_dict() for m in llms if m.status == StatusEnum.VALID.value and m.fid not in weighted and (m.fid == "Builtin" or (m.llm_name + "@" + m.fid) in status)]
         for m in llms:
@@ -550,6 +587,16 @@ async def list_app():
             if o.llm_name + "@" + o.llm_factory in llm_set:
                 continue
             llms.append({"id": o.id, "llm_name": o.llm_name, "model_type": o.model_type, "fid": o.llm_factory, "available": True, "status": StatusEnum.VALID.value})
+
+        # Append global models not already present in LLMService
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            global_models = AIModelService.query(enabled=True)
+            for gm in global_models:
+                if gm.api_key and f"{gm.model_name}@{gm.provider}" not in llm_set:
+                    llms.append({"id": gm.id, "llm_name": gm.model_name, "model_type": gm.model_type, "fid": gm.provider, "available": True, "status": StatusEnum.VALID.value})
+        except Exception:
+            pass
 
         res = {}
         for m in llms:

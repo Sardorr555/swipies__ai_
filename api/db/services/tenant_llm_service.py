@@ -94,6 +94,31 @@ class TenantLLMService(CommonService):
             query_kwargs["llm_name"] = mdlnm
             objs = cls.query(**query_kwargs, llm_factory=fid)
         if not objs:
+            # Fallback to global Admin-registered AIModel if tenant has no custom API key
+            try:
+                from api.db.services.ai_policy_service import AIModelService
+                global_models = AIModelService.query(model_name=mdlnm, enabled=True)
+                if not global_models and fid:
+                    global_models = AIModelService.query(provider=fid, model_name=mdlnm, enabled=True)
+                if not global_models:
+                    cid = f"{fid}/{mdlnm}".lower() if fid else mdlnm.lower()
+                    global_models = AIModelService.query(id=cid, enabled=True)
+
+                if global_models and global_models[0].api_key:
+                    gm = global_models[0]
+                    syn_tenant_llm = TenantLLM(
+                        tenant_id=tenant_id,
+                        llm_factory=gm.provider,
+                        model_type=gm.model_type,
+                        llm_name=gm.model_name,
+                        api_key=gm.api_key,
+                        api_base=gm.base_url or "",
+                        max_tokens=8192,
+                        status="1",
+                    )
+                    return syn_tenant_llm
+            except Exception as e:
+                logging.warning(f"TenantLLMService.get_api_key global fallback exception: {e}")
             return None
         return objs[0]
 
@@ -101,9 +126,31 @@ class TenantLLMService(CommonService):
     @DB.connection_context()
     def get_my_llms(cls, tenant_id):
         fields = [cls.model.id, cls.model.llm_factory, LLMFactories.logo, LLMFactories.tags, cls.model.model_type, cls.model.llm_name, cls.model.used_tokens, cls.model.status]
-        objs = cls.model.select(*fields).join(LLMFactories, on=(cls.model.llm_factory == LLMFactories.name)).where(cls.model.tenant_id == tenant_id, ~cls.model.api_key.is_null()).dicts()
+        objs = list(cls.model.select(*fields).join(LLMFactories, on=(cls.model.llm_factory == LLMFactories.name)).where(cls.model.tenant_id == tenant_id, ~cls.model.api_key.is_null()).dicts())
 
-        return list(objs)
+        # Include Admin-registered global AIModels for all tenants
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            global_models = AIModelService.query(enabled=True)
+            factories = {f.name: (f.logo, f.tags) for f in LLMFactoriesService.query(status="1")}
+            existing_keys = {(o["llm_factory"], o["llm_name"]) for o in objs}
+            for gm in global_models:
+                if (gm.provider, gm.model_name) not in existing_keys and gm.api_key:
+                    logo, tags = factories.get(gm.provider, (None, None))
+                    objs.append({
+                        "id": gm.id,
+                        "llm_factory": gm.provider,
+                        "logo": logo,
+                        "tags": tags,
+                        "model_type": gm.model_type,
+                        "llm_name": gm.model_name,
+                        "used_tokens": 0,
+                        "status": "1",
+                    })
+        except Exception as e:
+            logging.warning(f"TenantLLMService.get_my_llms global fallback exception: {e}")
+
+        return objs
 
     @staticmethod
     def split_model_name_and_factory(model_name):
