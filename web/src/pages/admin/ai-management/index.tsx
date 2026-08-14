@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Bot,
   CheckCircle2,
   Cpu,
+  Eye,
+  EyeOff,
   Layers,
   Plus,
   RefreshCw,
@@ -10,6 +12,7 @@ import {
   Shield,
   Trash2,
   UserCheck,
+  X,
   Zap,
 } from 'lucide-react';
 
@@ -17,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import message from '@/components/ui/message';
-import { Modal } from '@/components/ui/modal/modal';
+import * as Dialog from '@radix-ui/react-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -49,11 +52,13 @@ export default function AIManagementPage() {
   
   // Model Modal
   const [isModelModalOpen, setIsModelModalOpen] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [editingModel, setEditingModel] = useState<Partial<AIModelItem>>({
     provider: 'OpenAI',
     model_name: '',
     model_type: 'CHAT',
     base_url: 'https://api.openai.com/v1',
+    api_key: '',
     enabled: true,
     is_global: true,
   });
@@ -598,74 +603,131 @@ export default function AIManagementPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Model Modal */}
-      <Modal open={isModelModalOpen} onOpenChange={setIsModelModalOpen}>
-        <div className="p-6 space-y-4 max-w-lg bg-background rounded-xl border border-border">
-          <h3 className="text-lg font-bold">Register / Edit Global AI Model</h3>
-
-          <div className="space-y-3 text-sm">
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground">Provider</label>
-              <Input
-                value={editingModel.provider || ''}
-                onChange={(e) => setEditingModel({ ...editingModel, provider: e.target.value })}
-                placeholder="e.g. OpenAI, DeepSeek, Google"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground">Model Name</label>
-              <Input
-                value={editingModel.model_name || ''}
-                onChange={(e) => setEditingModel({ ...editingModel, model_name: e.target.value })}
-                placeholder="e.g. gpt-4o, deepseek-chat"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground">Model Type</label>
-              <Select
-                value={editingModel.model_type || 'CHAT'}
-                onValueChange={(val: any) => setEditingModel({ ...editingModel, model_type: val })}
+      {/* Model Modal — using Radix Dialog directly to avoid overlay closing on Select portal click */}
+      <Dialog.Root open={isModelModalOpen} onOpenChange={setIsModelModalOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" />
+          <Dialog.Content
+            className="fixed z-[1001] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-card rounded-2xl border border-border shadow-xl p-6 space-y-5 focus:outline-none"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onInteractOutside={(e) => e.preventDefault()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <Dialog.Title className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Bot className="size-5 text-primary" />
+                {editingModel.id ? 'Edit AI Model' : 'Register Global AI Model'}
+              </Dialog.Title>
+              <button
+                onClick={() => setIsModelModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CHAT">CHAT / LLM</SelectItem>
-                  <SelectItem value="EMBEDDING">EMBEDDING</SelectItem>
-                  <SelectItem value="RERANK">RERANKER</SelectItem>
-                  <SelectItem value="IMAGE2TEXT">VISION / OCR</SelectItem>
-                  <SelectItem value="SPEECH2TEXT">STT (Speech-to-Text)</SelectItem>
-                  <SelectItem value="TTS">TTS (Text-to-Speech)</SelectItem>
-                </SelectContent>
-              </Select>
+                <X className="size-4" />
+              </button>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground">Base URL (Optional)</label>
-              <Input
-                value={editingModel.base_url || ''}
-                onChange={(e) => setEditingModel({ ...editingModel, base_url: e.target.value })}
-                placeholder="https://api.openai.com/v1"
-              />
-            </div>
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs font-medium">Globally Enabled</span>
-              <Switch
-                checked={editingModel.enabled ?? true}
-                onCheckedChange={(val) => setEditingModel({ ...editingModel, enabled: val })}
-              />
-            </div>
-          </div>
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-border">
-            <Button variant="ghost" onClick={() => setIsModelModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveModel}>
-              Save Model
-            </Button>
-          </div>
-        </div>
-      </Modal>
+            {/* Form */}
+            <div className="space-y-3.5 text-sm">
+              {/* Provider */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Provider</label>
+                <Input
+                  value={editingModel.provider || ''}
+                  onChange={(e) => setEditingModel((prev) => ({ ...prev, provider: e.target.value }))}
+                  placeholder="e.g. OpenAI, DeepSeek, Google, Anthropic"
+                />
+              </div>
+
+              {/* Model Name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Model Name</label>
+                <Input
+                  value={editingModel.model_name || ''}
+                  onChange={(e) => setEditingModel((prev) => ({ ...prev, model_name: e.target.value }))}
+                  placeholder="e.g. gpt-4o, deepseek-chat, claude-sonnet"
+                />
+              </div>
+
+              {/* Model Type */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Model Type</label>
+                <Select
+                  value={editingModel.model_type || 'CHAT'}
+                  onValueChange={(val) =>
+                    setEditingModel((prev) => ({ ...prev, model_type: val as AIModelItem['model_type'] }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select model type" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="z-[1100]">
+                    <SelectItem value="CHAT">💬 CHAT / LLM</SelectItem>
+                    <SelectItem value="EMBEDDING">🔢 EMBEDDING</SelectItem>
+                    <SelectItem value="RERANK">📊 RERANKER</SelectItem>
+                    <SelectItem value="IMAGE2TEXT">🖼️ VISION / OCR</SelectItem>
+                    <SelectItem value="SPEECH2TEXT">🎤 STT (Speech-to-Text)</SelectItem>
+                    <SelectItem value="TTS">🔊 TTS (Text-to-Speech)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Base URL */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Base URL <span className="font-normal normal-case">(optional)</span></label>
+                <Input
+                  value={editingModel.base_url || ''}
+                  onChange={(e) => setEditingModel((prev) => ({ ...prev, base_url: e.target.value }))}
+                  placeholder="https://api.openai.com/v1"
+                />
+              </div>
+
+              {/* API Key */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">API Key <span className="font-normal normal-case">(optional, stored encrypted)</span></label>
+                <div className="relative">
+                  <Input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={editingModel.api_key || ''}
+                    onChange={(e) => setEditingModel((prev) => ({ ...prev, api_key: e.target.value }))}
+                    placeholder="sk-..."
+                    className="pr-10 font-mono text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showApiKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Enabled Toggle */}
+              <div className="flex items-center justify-between pt-1 pb-1 border-t border-border/60">
+                <div>
+                  <span className="text-sm font-medium">Globally Enabled</span>
+                  <p className="text-xs text-muted-foreground">When disabled, this model won't be accessible by any plan.</p>
+                </div>
+                <Switch
+                  checked={editingModel.enabled ?? true}
+                  onCheckedChange={(val) => setEditingModel((prev) => ({ ...prev, enabled: val }))}
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="ghost" onClick={() => setIsModelModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveModel} className="gap-2">
+                <Save className="size-4" />
+                Save Model
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
