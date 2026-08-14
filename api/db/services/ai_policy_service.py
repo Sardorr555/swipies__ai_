@@ -246,17 +246,17 @@ class AIPolicyManager:
     def get_user_plan(cls, tenant_id: str) -> dict:
         e, tenant = TenantService.get_by_id(tenant_id)
         if not e or not tenant:
-            plan_type = "plus"
+            plan_type = "free"
         else:
-            plan_type = (tenant.plan_type or "plus").lower()
+            plan_type = (tenant.plan_type or "free").lower()
 
         plans = SubscriptionPlanService.query(id=plan_type)
         if not plans:
-            # Fallback to plus plan
-            plans = SubscriptionPlanService.query(id="plus")
+            # Fallback to free plan
+            plans = SubscriptionPlanService.query(id="free")
             if not plans:
                 cls.init_default_data()
-                plans = SubscriptionPlanService.query(id="plus")
+                plans = SubscriptionPlanService.query(id="free")
 
         if plans:
             return plans[0].to_dict()
@@ -390,10 +390,14 @@ class AIPolicyManager:
     @classmethod
     @DB.connection_context()
     def can_add_custom_model(cls, tenant_id: str) -> tuple[bool, str]:
+        from api.db.services.user_service import UserService
+        user = UserService.query(id=tenant_id)
+        if user and getattr(user[0], "is_superuser", False):
+            return True, "OK"
         plan = cls.get_user_plan(tenant_id)
         plan_id = (plan.get("id") or "").lower()
-        if not plan.get("allow_custom_models", False) and not plan.get("allow_custom_providers", False) and plan_id not in ["pro", "enterprise"]:
-            return False, f"Добавление собственных AI-моделей доступно только для подписки PRO. Пожалуйста, обновите тарифный план до Pro."
+        if plan_id not in ["pro", "enterprise"]:
+            return False, "Добавление собственных AI-моделей доступно только для подписки PRO. Пожалуйста, обновите тарифный план до Pro."
         return True, "OK"
 
     @classmethod

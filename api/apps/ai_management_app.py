@@ -352,7 +352,7 @@ async def user_get_allowed_models():
         res = [p.to_dict() for p in policies]
         is_super = getattr(current_user, "is_superuser", False)
         plan_id = (plan.get("id") or "").lower()
-        can_add = is_super or plan.get("allow_custom_models", False) or plan.get("allow_custom_providers", False) or plan_id in ["pro", "enterprise"]
+        can_add = is_super or (plan_id in ["pro", "enterprise"])
         return get_json_result(data={
             "plan": plan,
             "models": res,

@@ -252,14 +252,12 @@ const ModelProviders = () => {
 
   const handleAddModel = useCallback(
     (llmFactory: string) => {
-      const canAddCustom = allowedModelsRes?.can_add_custom ?? (
-        allowedModelsRes?.is_superuser ||
-        allowedModelsRes?.plan?.allow_custom_models ||
-        allowedModelsRes?.plan?.allow_custom_providers ||
-        ['pro', 'enterprise'].includes((allowedModelsRes?.plan?.id || '').toLowerCase())
-      );
+      const isSuper = !!allowedModelsRes?.is_superuser;
+      const planId = (allowedModelsRes?.plan?.id || '').toLowerCase();
+      const isProOrEnterprise = ['pro', 'enterprise'].includes(planId);
+      const canAddCustom = isSuper || isProOrEnterprise || allowedModelsRes?.can_add_custom === true;
 
-      if (canAddCustom === false) {
+      if (!canAddCustom) {
         setUpgradeModalVisible(true);
         return;
       }
