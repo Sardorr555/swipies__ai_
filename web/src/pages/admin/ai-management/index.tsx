@@ -41,7 +41,7 @@ import {
 } from '@/services/ai-management-service';
 
 export default function AIManagementPage() {
-  const [activeTab, setActiveTab] = useState('plans');
+  const [activeTab, setActiveTab] = useState('models');
   const [loading, setLoading] = useState(false);
 
   // Data states
@@ -209,30 +209,26 @@ export default function AIManagementPage() {
   const handleSavePolicies = async () => {
     try {
       await updateAdminPolicies(selectedPlanId, policies);
-      message.success(`Policies for plan '${selectedPlanId.toUpperCase()}' saved.`);
+      message.success(`Policies for plan ${selectedPlanId.toUpperCase()} updated.`);
       fetchPolicies(selectedPlanId);
     } catch (e: any) {
-      message.error(e.message || 'Failed to save policies.');
+      message.error(e.message || 'Failed to update policies.');
     }
   };
 
-  // User Limit Override Handlers
+  // User Limit Override handlers
   const handleSearchUserLimit = async () => {
-    if (!targetUserId.trim()) {
-      message.error('Please enter a User ID.');
-      return;
-    }
+    if (!targetUserId.trim()) return;
     try {
       setSearchingUser(true);
       const res = await getAdminUserLimit(targetUserId.trim());
-      const data = res?.data || (res as any)?.data?.data;
+      const data = extractArray(res)[0] || (res as any)?.data || res;
       if (data) {
         setUserLimitValue(data.monthly_token_limit || 0);
         setUserLimitEnabled(data.enabled ?? true);
-        message.success('User limit configuration retrieved.');
       }
     } catch (e: any) {
-      message.error(e.message || 'Failed to get user limit.');
+      message.error(e.message || 'User override limit not found.');
     } finally {
       setSearchingUser(false);
     }
@@ -262,7 +258,7 @@ export default function AIManagementPage() {
             AI Models & Subscription Policies
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage database-driven subscription tiers, AI provider models, per-model access rules, and token limits.
+            Manage global AI providers, model credentials, plan access rules, and token quota overrides.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => { fetchPlans(); fetchModels(); }} className="gap-2">
@@ -273,18 +269,14 @@ export default function AIManagementPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-4 max-w-2xl bg-muted/60 p-1 rounded-xl">
-          <TabsTrigger value="plans" className="gap-2">
-            <Zap className="size-4" />
-            Subscription Plans
-          </TabsTrigger>
+        <TabsList className="grid grid-cols-3 max-w-xl bg-muted/60 p-1 rounded-xl">
           <TabsTrigger value="models" className="gap-2">
             <Cpu className="size-4" />
-            Global AI Models
+            AI Models & Providers
           </TabsTrigger>
           <TabsTrigger value="policies" className="gap-2">
             <Shield className="size-4" />
-            Policy Matrix
+            Subscription AI Policies
           </TabsTrigger>
           <TabsTrigger value="user-overrides" className="gap-2">
             <UserCheck className="size-4" />
@@ -292,130 +284,7 @@ export default function AIManagementPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: SUBSCRIPTION PLANS */}
-        <TabsContent value="plans" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {plans.map((plan) => (
-              <Card key={plan.id} className="relative border-border/80 shadow-sm hover:shadow-md transition-all">
-                <CardHeader className="border-b border-border/40 bg-muted/20 pb-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl font-bold capitalize flex items-center gap-2">
-                      <span className="p-2 rounded-lg bg-primary/10 text-primary">
-                        {plan.id === 'pro' ? <Zap className="size-5" /> : plan.id === 'plus' ? <Layers className="size-5" /> : <Bot className="size-5" />}
-                      </span>
-                      {plan.name} Plan
-                    </CardTitle>
-                    <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-primary/10 text-primary font-semibold">
-                      ID: {plan.id}
-                    </span>
-                  </div>
-                  <CardDescription className="text-xs mt-1">
-                    Configure limits and features for {plan.name} subscribers.
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="p-5 space-y-4 text-sm">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground">Monthly Token Limit</label>
-                    <Input
-                      type="number"
-                      value={plan.monthly_token_limit}
-                      onChange={(e) => handlePlanChange(plan.id, 'monthly_token_limit', Number(e.target.value))}
-                      className="font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground">Limit Mode</label>
-                    <Select
-                      value={plan.limit_mode}
-                      onValueChange={(val) => handlePlanChange(plan.id, 'limit_mode', val)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="shared">Shared (Total Token Pool)</SelectItem>
-                        <SelectItem value="per_model">Per-Model Limits Supported</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    <div>
-                      <label className="text-[11px] font-semibold text-muted-foreground">Storage (GB)</label>
-                      <Input
-                        type="number"
-                        value={plan.max_storage_gb}
-                        onChange={(e) => handlePlanChange(plan.id, 'max_storage_gb', Number(e.target.value))}
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-muted-foreground">Max Datasets</label>
-                      <Input
-                        type="number"
-                        value={plan.max_datasets}
-                        onChange={(e) => handlePlanChange(plan.id, 'max_datasets', Number(e.target.value))}
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-muted-foreground">Max Agents</label>
-                      <Input
-                        type="number"
-                        value={plan.max_agents}
-                        onChange={(e) => handlePlanChange(plan.id, 'max_agents', Number(e.target.value))}
-                        className="text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 space-y-2.5 border-t border-border/60">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs">Allow Custom Models</span>
-                      <Switch
-                        checked={plan.allow_custom_models}
-                        onCheckedChange={(checked) => handlePlanChange(plan.id, 'allow_custom_models', checked)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs">Allow Custom Providers</span>
-                      <Switch
-                        checked={plan.allow_custom_providers}
-                        onCheckedChange={(checked) => handlePlanChange(plan.id, 'allow_custom_providers', checked)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs">Allow Custom Endpoints</span>
-                      <Switch
-                        checked={plan.allow_custom_endpoints}
-                        onCheckedChange={(checked) => handlePlanChange(plan.id, 'allow_custom_endpoints', checked)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs">Private Server Connections</span>
-                      <Switch
-                        checked={plan.allow_private_servers}
-                        onCheckedChange={(checked) => handlePlanChange(plan.id, 'allow_private_servers', checked)}
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={() => handleSavePlan(plan)}
-                    className="w-full mt-4 gap-2"
-                  >
-                    <Save className="size-4" />
-                    Save {plan.name} Plan
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* TAB 2: GLOBAL AI MODELS */}
+        {/* TAB 1: GLOBAL AI MODELS */}
         <TabsContent value="models" className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -509,7 +378,7 @@ export default function AIManagementPage() {
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold">Select Subscription Plan:</span>
               <div className="flex gap-2">
-                {['free', 'plus', 'pro'].map((pid) => (
+                {['free', 'plus', 'pro', 'enterprise'].map((pid) => (
                   <Button
                     key={pid}
                     variant={selectedPlanId === pid ? 'default' : 'outline'}
