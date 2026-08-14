@@ -25,12 +25,14 @@ from api.db.services.ai_policy_service import (
     SubscriptionPlanService,
     UserTokenLimitService,
 )
+from api.db.services.llm_service import LLMService
+from api.db.services.tenant_llm_service import TenantLLMService, LLMFactoriesService
 from api.utils.api_utils import (
     get_data_error_result,
     get_json_result,
     get_request_json,
 )
-from common.constants import RetCode
+from common.constants import RetCode, StatusEnum
 
 
 def require_superuser():
@@ -49,6 +51,8 @@ def require_superuser():
 
 
 @manager.route("/admin/ai/plans", methods=["GET"])  # noqa: F821
+@manager.route("/v1/admin/ai/plans", methods=["GET"])  # noqa: F821
+@manager.route("/api/v1/admin/ai/plans", methods=["GET"])  # noqa: F821
 @login_required
 async def admin_get_plans():
     auth_err = require_superuser()
@@ -61,6 +65,8 @@ async def admin_get_plans():
 
 
 @manager.route("/admin/ai/plans/<plan_id>", methods=["PUT"])  # noqa: F821
+@manager.route("/v1/admin/ai/plans/<plan_id>", methods=["PUT"])  # noqa: F821
+@manager.route("/api/v1/admin/ai/plans/<plan_id>", methods=["PUT"])  # noqa: F821
 @login_required
 async def admin_update_plan(plan_id):
     auth_err = require_superuser()
@@ -107,6 +113,8 @@ async def admin_update_plan(plan_id):
 
 
 @manager.route("/admin/ai/models", methods=["GET"])  # noqa: F821
+@manager.route("/v1/admin/ai/models", methods=["GET"])  # noqa: F821
+@manager.route("/api/v1/admin/ai/models", methods=["GET"])  # noqa: F821
 @login_required
 async def admin_get_models():
     auth_err = require_superuser()
@@ -119,6 +127,8 @@ async def admin_get_models():
 
 
 @manager.route("/admin/ai/models", methods=["POST"])  # noqa: F821
+@manager.route("/v1/admin/ai/models", methods=["POST"])  # noqa: F821
+@manager.route("/api/v1/admin/ai/models", methods=["POST"])  # noqa: F821
 @login_required
 async def admin_save_model():
     auth_err = require_superuser()
@@ -130,6 +140,9 @@ async def admin_save_model():
     provider = req.get("provider")
     model_name = req.get("model_name")
     model_type = req.get("model_type", "CHAT")
+    api_key = req.get("api_key", "")
+    base_url = req.get("base_url", "")
+    enabled = req.get("enabled", True)
 
     if not provider or not model_name:
         return get_data_error_result(message="provider and model_name are required.")
@@ -142,9 +155,9 @@ async def admin_save_model():
         "provider": provider,
         "model_name": model_name,
         "model_type": model_type.upper(),
-        "base_url": req.get("base_url", ""),
-        "api_key": req.get("api_key", ""),
-        "enabled": req.get("enabled", True),
+        "base_url": base_url,
+        "api_key": api_key,
+        "enabled": enabled,
         "is_global": req.get("is_global", True),
         "is_custom": req.get("is_custom", False),
     }
@@ -154,10 +167,60 @@ async def admin_save_model():
     else:
         AIModelService.save(**model_data)
 
+    # Synchronize model definition into RAGFlow core LLM table so dataset/chat/agent services recognize it
+    try:
+        existing_llm = LLMService.query(llm_name=model_name, fid=provider)
+        status_val = StatusEnum.VALID.value if enabled else StatusEnum.INVALID.value
+        if not existing_llm:
+            LLMService.save(
+                llm_name=model_name,
+                model_type=model_type.upper(),
+                fid=provider,
+                max_tokens=8192,
+                status=status_val,
+                is_tools=True,
+            )
+        else:
+            LLMService.filter_update(
+                [LLMService.model.llm_name == model_name, LLMService.model.fid == provider],
+                {"status": status_val},
+            )
+
+        # Synchronize credentials into TenantLLM for current tenant so it can immediately be invoked by RAGFlow
+        if api_key or base_url:
+            updated = TenantLLMService.filter_update(
+                [
+                    TenantLLMService.model.tenant_id == current_user.id,
+                    TenantLLMService.model.llm_factory == provider,
+                    TenantLLMService.model.llm_name == model_name,
+                ],
+                {
+                    "api_key": api_key,
+                    "api_base": base_url,
+                    "model_type": model_type.upper(),
+                    "status": status_val,
+                },
+            )
+            if not updated:
+                TenantLLMService.save(
+                    tenant_id=current_user.id,
+                    llm_factory=provider,
+                    llm_name=model_name,
+                    model_type=model_type.upper(),
+                    api_key=api_key,
+                    api_base=base_url,
+                    max_tokens=8192,
+                    status=status_val,
+                )
+    except Exception as e:
+        logging.warning(f"Failed to sync AIModel to RAGFlow LLM core: {e}")
+
     return get_json_result(data=model_data)
 
 
 @manager.route("/admin/ai/models/<path:model_id>", methods=["DELETE"])  # noqa: F821
+@manager.route("/v1/admin/ai/models/<path:model_id>", methods=["DELETE"])  # noqa: F821
+@manager.route("/api/v1/admin/ai/models/<path:model_id>", methods=["DELETE"])  # noqa: F821
 @login_required
 async def admin_delete_model(model_id):
     auth_err = require_superuser()
@@ -174,6 +237,8 @@ async def admin_delete_model(model_id):
 
 
 @manager.route("/admin/ai/policies", methods=["GET"])  # noqa: F821
+@manager.route("/v1/admin/ai/policies", methods=["GET"])  # noqa: F821
+@manager.route("/api/v1/admin/ai/policies", methods=["GET"])  # noqa: F821
 @login_required
 async def admin_get_policies():
     auth_err = require_superuser()
@@ -191,6 +256,8 @@ async def admin_get_policies():
 
 
 @manager.route("/admin/ai/policies", methods=["PUT"])  # noqa: F821
+@manager.route("/v1/admin/ai/policies", methods=["PUT"])  # noqa: F821
+@manager.route("/api/v1/admin/ai/policies", methods=["PUT"])  # noqa: F821
 @login_required
 async def admin_update_policies():
     auth_err = require_superuser()
@@ -233,6 +300,8 @@ async def admin_update_policies():
 
 
 @manager.route("/admin/ai/user-limits/<user_id>", methods=["GET"])  # noqa: F821
+@manager.route("/v1/admin/ai/user-limits/<user_id>", methods=["GET"])  # noqa: F821
+@manager.route("/api/v1/admin/ai/user-limits/<user_id>", methods=["GET"])  # noqa: F821
 @login_required
 async def admin_get_user_limit(user_id):
     auth_err = require_superuser()
@@ -245,6 +314,8 @@ async def admin_get_user_limit(user_id):
 
 
 @manager.route("/admin/ai/user-limits", methods=["PUT"])  # noqa: F821
+@manager.route("/v1/admin/ai/user-limits", methods=["PUT"])  # noqa: F821
+@manager.route("/api/v1/admin/ai/user-limits", methods=["PUT"])  # noqa: F821
 @login_required
 async def admin_set_user_limit():
     auth_err = require_superuser()
@@ -276,6 +347,8 @@ async def admin_set_user_limit():
 
 
 @manager.route("/user/ai/usage", methods=["GET"])  # noqa: F821
+@manager.route("/v1/user/ai/usage", methods=["GET"])  # noqa: F821
+@manager.route("/api/v1/user/ai/usage", methods=["GET"])  # noqa: F821
 @login_required
 async def user_get_ai_usage():
     try:
@@ -288,6 +361,8 @@ async def user_get_ai_usage():
 
 
 @manager.route("/user/ai/allowed-models", methods=["GET"])  # noqa: F821
+@manager.route("/v1/user/ai/allowed-models", methods=["GET"])  # noqa: F821
+@manager.route("/api/v1/user/ai/allowed-models", methods=["GET"])  # noqa: F821
 @login_required
 async def user_get_allowed_models():
     try:
