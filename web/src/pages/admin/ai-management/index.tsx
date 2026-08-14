@@ -252,7 +252,8 @@ export default function AIManagementPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="h-full w-full overflow-y-auto overflow-x-hidden p-6 flex-1 min-h-0 space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6 pb-16">
       {/* Page Title Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
@@ -759,5 +760,6 @@ export default function AIManagementPage() {
         </Dialog.Portal>
       </Dialog.Root>
     </div>
-  );
+  </div>
+);
 }
