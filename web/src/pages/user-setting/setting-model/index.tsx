@@ -252,12 +252,10 @@ const ModelProviders = () => {
 
   const handleAddModel = useCallback(
     (llmFactory: string) => {
-      const isSuper = !!allowedModelsRes?.is_superuser;
       const planId = (allowedModelsRes?.plan?.id || '').toLowerCase();
       const isProOrEnterprise = ['pro', 'enterprise'].includes(planId);
-      const canAddCustom = isSuper || isProOrEnterprise || allowedModelsRes?.can_add_custom === true;
 
-      if (!canAddCustom) {
+      if (!isProOrEnterprise) {
         setUpgradeModalVisible(true);
         return;
       }
@@ -286,12 +284,10 @@ const ModelProviders = () => {
       instance: IProviderInstance,
       models: IInstanceModel[],
     ) => {
-      const isSuper = !!allowedModelsRes?.is_superuser;
       const planId = (allowedModelsRes?.plan?.id || '').toLowerCase();
       const isProOrEnterprise = ['pro', 'enterprise'].includes(planId);
-      const canAddCustom = isSuper || isProOrEnterprise || allowedModelsRes?.can_add_custom === true;
 
-      if (!canAddCustom) {
+      if (!isProOrEnterprise) {
         setUpgradeModalVisible(true);
         return;
       }

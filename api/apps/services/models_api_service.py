@@ -276,7 +276,8 @@ def list_tenant_default_models(tenant_id: str):
 
     For each model type (chat, embedding, rerank, asr, vision, tts, ocr),
     reads the composite model ID string from the Tenant record and resolves
-    it into provider/instance/name components.
+    it into provider/instance/name components. Auto-assigns global Admin models
+    if tenant default is unconfigured.
 
     :param tenant_id: tenant ID
     :return: (success, result_or_error_message)
@@ -290,7 +291,21 @@ def list_tenant_default_models(tenant_id: str):
     for model_type, field_name in MODEL_TYPE_TO_FIELD.items():
         default_model = getattr(tenant, field_name, None)
         if not default_model:
+            # Fallback to Admin-registered global models if default is unconfigured
+            try:
+                from api.db.services.ai_policy_service import AIModelService
+                global_models = AIModelService.query(enabled=True)
+                for gm in global_models:
+                    if normalize_model_type(gm.model_type) == model_type:
+                        default_model = f"{gm.model_name}@default@{gm.provider}"
+                        TenantService.update_by_id(tenant_id, {field_name: default_model})
+                        break
+            except Exception:
+                pass
+
+        if not default_model:
             continue
+
         model_info = _get_model_info(tenant_id, default_model, model_type)
         if model_info:
             models.append(model_info)
