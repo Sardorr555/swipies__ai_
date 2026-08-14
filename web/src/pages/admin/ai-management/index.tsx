@@ -3,6 +3,7 @@ import {
   Bot,
   CheckCircle2,
   Cpu,
+  ExternalLink,
   Eye,
   EyeOff,
   Layers,
@@ -15,6 +16,50 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+
+const PROVIDER_PRESETS = [
+  {
+    name: 'OpenAI',
+    providerKey: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKeyUrl: 'https://platform.openai.com/api-keys',
+    suggestedModel: 'gpt-4o',
+    type: 'CHAT' as const,
+  },
+  {
+    name: 'Claude / Anthropic',
+    providerKey: 'Anthropic',
+    baseUrl: 'https://api.anthropic.com',
+    apiKeyUrl: 'https://console.anthropic.com/settings/keys',
+    suggestedModel: 'claude-3-5-sonnet-20241022',
+    type: 'CHAT' as const,
+  },
+  {
+    name: 'DeepSeek',
+    providerKey: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com',
+    apiKeyUrl: 'https://platform.deepseek.com/api_keys',
+    suggestedModel: 'deepseek-chat',
+    type: 'CHAT' as const,
+  },
+  {
+    name: 'Google Gemini',
+    providerKey: 'Google',
+    baseUrl: 'https://generativelanguage.googleapis.com',
+    apiKeyUrl: 'https://aistudio.google.com/app/apikey',
+    suggestedModel: 'gemini-1.5-pro',
+    type: 'CHAT' as const,
+  },
+];
+
+const getProviderApiKeyUrl = (provider: string): string | null => {
+  const p = (provider || '').toLowerCase();
+  if (p.includes('openai')) return 'https://platform.openai.com/api-keys';
+  if (p.includes('anthropic') || p.includes('claude')) return 'https://console.anthropic.com/settings/keys';
+  if (p.includes('deepseek')) return 'https://platform.deepseek.com/api_keys';
+  if (p.includes('google') || p.includes('gemini')) return 'https://aistudio.google.com/app/apikey';
+  return null;
+};
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -327,7 +372,22 @@ export default function AIManagementPage() {
                 ) : (
                   models.map((m) => (
                     <tr key={m.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="p-3.5 font-medium">{m.provider}</td>
+                      <td className="p-3.5 font-medium">
+                        <div className="flex items-center gap-1.5">
+                          <span>{m.provider}</span>
+                          {getProviderApiKeyUrl(m.provider) && (
+                            <a
+                              href={getProviderApiKeyUrl(m.provider)!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Get ${m.provider} API Key`}
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                            >
+                              <ExternalLink className="size-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-3.5 font-mono text-xs text-primary">{m.id}</td>
                       <td className="p-3.5 font-mono text-xs">{m.model_name}</td>
                       <td className="p-3.5">
@@ -528,6 +588,33 @@ export default function AIManagementPage() {
 
             {/* Form */}
             <div className="space-y-3.5 text-sm">
+              {/* Quick Presets */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Provider Presets</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PROVIDER_PRESETS.map((preset) => (
+                    <Button
+                      key={preset.name}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7 px-2.5"
+                      onClick={() => {
+                        setEditingModel((prev) => ({
+                          ...prev,
+                          provider: preset.providerKey,
+                          base_url: preset.baseUrl,
+                          model_name: prev.model_name || preset.suggestedModel,
+                          model_type: prev.model_type || preset.type,
+                        }));
+                      }}
+                    >
+                      {preset.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
               {/* Provider */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Provider</label>
@@ -600,6 +687,25 @@ export default function AIManagementPage() {
                     {showApiKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
+                {/* API Key Link Helper */}
+                {(() => {
+                  const linkUrl = getProviderApiKeyUrl(editingModel.provider || '');
+                  if (!linkUrl) return null;
+                  return (
+                    <div className="text-xs text-primary flex items-center gap-1 pt-1">
+                      <ExternalLink className="size-3 flex-shrink-0" />
+                      <span>Get Official API Key:</span>
+                      <a
+                        href={linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline font-mono hover:text-primary/80 truncate"
+                      >
+                        {linkUrl}
+                      </a>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Enabled Toggle */}
