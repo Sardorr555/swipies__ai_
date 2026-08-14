@@ -391,8 +391,9 @@ class AIPolicyManager:
     @DB.connection_context()
     def can_add_custom_model(cls, tenant_id: str) -> tuple[bool, str]:
         plan = cls.get_user_plan(tenant_id)
-        if not plan.get("allow_custom_models", False) and not plan.get("allow_custom_providers", False):
-            return False, f"Custom model providers are not included in your {plan['name']} plan. Please upgrade to PRO to configure custom providers."
+        plan_id = (plan.get("id") or "").lower()
+        if not plan.get("allow_custom_models", False) and not plan.get("allow_custom_providers", False) and plan_id not in ["pro", "enterprise"]:
+            return False, f"Добавление собственных AI-моделей доступно только для подписки PRO. Пожалуйста, обновите тарифный план до Pro."
         return True, "OK"
 
     @classmethod

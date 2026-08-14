@@ -17,12 +17,35 @@ import SystemSetting from './components/system-setting';
 import { AvailableModels } from './components/un-add-model';
 import { UsedModel } from './components/used-model';
 import { useSubmitBedrock, useSubmitSoMark, useVerifySettings } from './hooks';
+import { useQuery } from '@tanstack/react-query';
+import { getUserAllowedModels } from '@/services/ai-management-service';
+import { useNavigate } from 'react-router';
+import { Zap, Sparkles, Check } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import BedrockModal from './modal/bedrock-modal';
 import ProviderModal, { IViewModeOkPayload } from './modal/provider-modal';
 import SoMarkModal from './modal/somark-modal';
 import { splitProviderPayload } from './payload-utils';
 
 const ModelProviders = () => {
+  const navigate = useNavigate();
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+
+  const { data: allowedModelsRes } = useQuery({
+    queryKey: ['userAllowedModels'],
+    queryFn: async () => {
+      const res = await getUserAllowedModels();
+      return res.data?.data;
+    },
+  });
   // Retained special modals
   const {
     bedrockAddingLoading,
@@ -229,6 +252,18 @@ const ModelProviders = () => {
 
   const handleAddModel = useCallback(
     (llmFactory: string) => {
+      const canAddCustom = allowedModelsRes?.can_add_custom ?? (
+        allowedModelsRes?.is_superuser ||
+        allowedModelsRes?.plan?.allow_custom_models ||
+        allowedModelsRes?.plan?.allow_custom_providers ||
+        ['pro', 'enterprise'].includes((allowedModelsRes?.plan?.id || '').toLowerCase())
+      );
+
+      if (canAddCustom === false) {
+        setUpgradeModalVisible(true);
+        return;
+      }
+
       if (isLocalLlmFactory(llmFactory)) {
         setCurrentLlmFactory(llmFactory);
         setProviderVisible(true);
@@ -239,7 +274,7 @@ const ModelProviders = () => {
         setProviderVisible(true);
       }
     },
-    [ModalMap],
+    [ModalMap, allowedModelsRes],
   );
 
   // Open the ProviderModal in viewMode (read-only) for an existing
@@ -402,6 +437,68 @@ const ModelProviders = () => {
         loading={somarkLoading}
         onVerify={onSoMarkVerifying}
       ></SoMarkModal>
+
+      {/* Pro Plan Upgrade Dialog */}
+      <Dialog open={upgradeModalVisible} onOpenChange={setUpgradeModalVisible}>
+        <DialogContent className="sm:max-w-md bg-bg-base border border-border-button shadow-2xl rounded-xl p-6">
+          <DialogHeader className="space-y-3 text-left">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-full bg-amber-500/15 text-amber-500">
+                <Zap className="size-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-text-primary">
+                  Требуется подписка PRO
+                </DialogTitle>
+                <DialogDescription className="text-sm text-text-secondary mt-0.5">
+                  Добавление кастомных AI-моделей по API
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="py-3 space-y-4">
+            <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs leading-relaxed text-text-primary">
+              Подключение собственных API-ключей и кастомных провайдеров (OpenAI, DeepSeek, Anthropic и др.) доступно начиная с тарифного плана <strong className="text-amber-500 font-semibold">PRO</strong>.
+            </div>
+
+            <div className="space-y-2 text-xs text-text-secondary pt-1">
+              <div className="flex items-center gap-2">
+                <Check className="size-4 text-emerald-500 font-bold shrink-0" />
+                <span>Подключение любых сторонних API и моделей</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="size-4 text-emerald-500 font-bold shrink-0" />
+                <span>Увеличенные месячные лимиты генерации токенов</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="size-4 text-emerald-500 font-bold shrink-0" />
+                <span>Приоритетная скорость и приватные соединения</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setUpgradeModalVisible(false)}
+              className="w-full sm:w-auto"
+            >
+              Отмена
+            </Button>
+            <Button
+              onClick={() => {
+                setUpgradeModalVisible(false);
+                navigate('/pricing');
+              }}
+              className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-medium gap-2 shadow"
+            >
+              <Zap className="size-4 fill-current" />
+              Перейти на PRO
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

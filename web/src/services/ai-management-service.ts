@@ -111,4 +111,4 @@ export const getUserAiUsage = () =>
   request.get<ResponseData<UserAIUsageSummary>>('/v1/user/ai/usage');
 
 export const getUserAllowedModels = () =>
-  request.get<ResponseData<{ plan: SubscriptionPlanItem; models: SubscriptionAIPolicyItem[] }>>('/v1/user/ai/allowed-models');
+  request.get<ResponseData<{ plan: SubscriptionPlanItem; models: SubscriptionAIPolicyItem[]; is_superuser?: boolean; can_add_custom?: boolean }>>('/v1/user/ai/allowed-models');

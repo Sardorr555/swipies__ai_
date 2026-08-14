@@ -350,7 +350,15 @@ async def user_get_allowed_models():
         plan = AIPolicyManager.get_user_plan(tenant_id)
         policies = SubscriptionAIPolicyService.query(plan_id=plan["id"], enabled=True)
         res = [p.to_dict() for p in policies]
-        return get_json_result(data={"plan": plan, "models": res})
+        is_super = getattr(current_user, "is_superuser", False)
+        plan_id = (plan.get("id") or "").lower()
+        can_add = is_super or plan.get("allow_custom_models", False) or plan.get("allow_custom_providers", False) or plan_id in ["pro", "enterprise"]
+        return get_json_result(data={
+            "plan": plan,
+            "models": res,
+            "is_superuser": is_super,
+            "can_add_custom": can_add,
+        })
     except Exception as e:
         logging.exception(f"user_get_allowed_models error: {e}")
         return get_data_error_result(message=str(e))
