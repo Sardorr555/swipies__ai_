@@ -520,7 +520,7 @@ def my_llms():
                 existing_models = {(o.llm_factory, o.llm_name) for o in objs}
                 factories_dict = {f.name: f.tags for f in factories}
                 for gm in global_models:
-                    if (gm.provider, gm.model_name) not in existing_models and gm.api_key:
+                    if (gm.provider, gm.model_name) not in existing_models:
                         if gm.provider not in res:
                             res[gm.provider] = {"tags": factories_dict.get(gm.provider), "llm": []}
                         res[gm.provider]["llm"].append(
@@ -568,9 +568,8 @@ async def list_app():
             from api.db.services.ai_policy_service import AIModelService
             global_models = AIModelService.query(enabled=True)
             for gm in global_models:
-                if gm.api_key:
-                    facts.add(gm.provider)
-                    status.add(f"{gm.model_name}@{gm.provider}")
+                facts.add(gm.provider)
+                status.add(f"{gm.model_name}@{gm.provider}")
         except Exception as e:
             logging.warning(f"list_app global models fallback exception: {e}")
 
@@ -593,14 +592,14 @@ async def list_app():
             from api.db.services.ai_policy_service import AIModelService
             global_models = AIModelService.query(enabled=True)
             for gm in global_models:
-                if gm.api_key and f"{gm.model_name}@{gm.provider}" not in llm_set:
+                if f"{gm.model_name}@{gm.provider}" not in llm_set:
                     llms.append({"id": gm.id, "llm_name": gm.model_name, "model_type": gm.model_type, "fid": gm.provider, "available": True, "status": StatusEnum.VALID.value})
         except Exception:
             pass
 
         res = {}
         for m in llms:
-            if model_type and m["model_type"].find(model_type) < 0:
+            if model_type and str(m["model_type"]).lower().find(str(model_type).lower()) < 0:
                 continue
             if m["fid"] not in res:
                 res[m["fid"]] = []

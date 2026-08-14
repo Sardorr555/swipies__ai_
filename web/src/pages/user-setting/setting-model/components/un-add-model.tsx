@@ -192,6 +192,10 @@ export const AvailableModels: FC<{
               <Button
                 size="xs"
                 className="px-2 opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddModel(model.name);
+                }}
               >
                 <Plus size={12} />
                 {t('setting.addTheModel')}

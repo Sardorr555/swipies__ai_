@@ -46,6 +46,24 @@ MODEL_TAG_TO_TYPE = {
 }
 
 
+def normalize_model_type(m_type: str) -> str:
+    if not m_type:
+        return "chat"
+    t = str(m_type).lower()
+    mapping = {
+        "chat": "chat",
+        "embedding": "embedding",
+        "rerank": "rerank",
+        "vision": "image2text",
+        "image2text": "image2text",
+        "asr": "speech2text",
+        "speech2text": "speech2text",
+        "tts": "tts",
+        "ocr": "ocr",
+    }
+    return mapping.get(t, t)
+
+
 def _to_int(v, default=500):
     try:
         return int(v)
@@ -118,12 +136,12 @@ def _get_model_info(tenant_id: str, default_model: str, model_type: str):
             from api.db.services.ai_policy_service import AIModelService
             global_models = AIModelService.query(enabled=True)
             for gm in global_models:
-                if gm.provider == provider_name and gm.model_name == model_name and gm.api_key:
+                if gm.provider == provider_name and gm.model_name == model_name:
                     return {
                         "model_provider": provider_name,
                         "model_instance": instance_name or "default",
                         "model_name": model_name,
-                        "model_type": MODEL_TAG_TO_TYPE.get(model_type, model_type),
+                        "model_type": normalize_model_type(gm.model_type or model_type),
                         "enable": True,
                     }
         except Exception:
@@ -215,7 +233,7 @@ def _check_model_available(tenant_id: str, provider_name: str, instance_name: st
             from api.db.services.ai_policy_service import AIModelService
             global_models = AIModelService.query(enabled=True)
             for gm in global_models:
-                if gm.provider == provider_name and gm.model_name == model_name and gm.api_key:
+                if gm.provider == provider_name and gm.model_name == model_name:
                     return True, None
         except Exception:
             pass
@@ -388,7 +406,7 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
                     continue
 
                 added_models.append({
-                    "model_type": model_types,
+                    "model_type": [normalize_model_type(mt) for mt in model_types],
                     "name": llm["llm_name"],
                     "provider_id": factory_instance.provider_id,
                     "provider_name": provider_info_map[factory_instance.provider_id].provider_name if provider_info_map.get(factory_instance.provider_id) else "",
@@ -409,7 +427,7 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
                 continue
 
             added_models.append({
-                "model_type": model_types,
+                "model_type": [normalize_model_type(mt) for mt in model_types],
                 "name": model_name,
                 "provider_id": provider_id,
                 "provider_name": provider_info_map[provider_id].provider_name if provider_info_map.get(provider_id) else "",
@@ -442,9 +460,9 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
         global_models = AIModelService.query(enabled=True)
         existing_model_keys = {(m["provider_name"], m["name"]) for m in added_models}
         for gm in global_models:
-            if gm.api_key and (gm.provider, gm.model_name) not in existing_model_keys:
-                gm_type = MODEL_TAG_TO_TYPE.get(gm.model_type, gm.model_type)
-                if model_type_filter and model_type_filter != gm_type:
+            if (gm.provider, gm.model_name) not in existing_model_keys:
+                gm_type = normalize_model_type(gm.model_type)
+                if model_type_filter and normalize_model_type(model_type_filter) != gm_type:
                     continue
                 added_models.append({
                     "model_type": [gm_type],
