@@ -80,16 +80,21 @@ export default function AIManagementPage() {
     }
   }, [selectedPlanId]);
 
+  const extractArray = (res: any): any[] => {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.data?.data)) return res.data.data;
+    return [];
+  };
+
   const fetchPlans = async () => {
     try {
       setLoading(true);
       const res = await getAdminPlans();
-      const data = res?.data || (res as any)?.data?.data;
-      if (data) {
-        setPlans(Array.isArray(data) ? data : []);
-      }
+      setPlans(extractArray(res));
     } catch (e: any) {
-      message.error(e.message || 'Failed to fetch subscription plans');
+      message.error(e?.message || 'Failed to fetch subscription plans');
     } finally {
       setLoading(false);
     }
@@ -98,24 +103,18 @@ export default function AIManagementPage() {
   const fetchModels = async () => {
     try {
       const res = await getAdminModels();
-      const data = res?.data || (res as any)?.data?.data;
-      if (data) {
-        setModels(Array.isArray(data) ? data : []);
-      }
+      setModels(extractArray(res));
     } catch (e: any) {
-      message.error(e.message || 'Failed to fetch AI models');
+      message.error(e?.message || 'Failed to fetch AI models');
     }
   };
 
   const fetchPolicies = async (planId: string) => {
     try {
       const res = await getAdminPolicies(planId);
-      const data = res?.data || (res as any)?.data?.data;
-      if (data) {
-        setPolicies(Array.isArray(data) ? data : []);
-      }
+      setPolicies(extractArray(res));
     } catch (e: any) {
-      message.error(e.message || 'Failed to fetch policies');
+      message.error(e?.message || 'Failed to fetch policies');
     }
   };
 
@@ -418,11 +417,20 @@ export default function AIManagementPage() {
         {/* TAB 2: GLOBAL AI MODELS */}
         <TabsContent value="models" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">Registered System AI Models</h3>
-            <Button onClick={() => handleOpenModelModal()} className="gap-2">
-              <Plus className="size-4" />
-              Register AI Model
-            </Button>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Registered System AI Models</h3>
+              <p className="text-xs text-muted-foreground">Manage global AI providers, model endpoints, and system API keys.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={fetchModels} className="gap-2">
+                <RefreshCw className="size-3.5" />
+                Refresh
+              </Button>
+              <Button onClick={() => handleOpenModelModal()} className="gap-2">
+                <Plus className="size-4" />
+                Register AI Model
+              </Button>
+            </div>
           </div>
 
           <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
@@ -433,40 +441,62 @@ export default function AIManagementPage() {
                   <th className="p-3.5">Model ID</th>
                   <th className="p-3.5">Model Name</th>
                   <th className="p-3.5">Type</th>
+                  <th className="p-3.5">API Key</th>
+                  <th className="p-3.5">Base URL</th>
                   <th className="p-3.5">Status</th>
                   <th className="p-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {models.map((m) => (
-                  <tr key={m.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-3.5 font-medium">{m.provider}</td>
-                    <td className="p-3.5 font-mono text-xs text-primary">{m.id}</td>
-                    <td className="p-3.5 font-mono text-xs">{m.model_name}</td>
-                    <td className="p-3.5">
-                      <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-secondary text-secondary-foreground">
-                        {m.model_type}
-                      </span>
-                    </td>
-                    <td className="p-3.5">
-                      {m.enabled ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                          <CheckCircle2 className="size-3.5" /> Enabled
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Disabled</span>
-                      )}
-                    </td>
-                    <td className="p-3.5 text-right space-x-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleOpenModelModal(m)}>
-                        Edit
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteModel(m.id)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="size-4" />
-                      </Button>
+                {models.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      No models registered yet. Click "Register AI Model" to add your first AI provider.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  models.map((m) => (
+                    <tr key={m.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="p-3.5 font-medium">{m.provider}</td>
+                      <td className="p-3.5 font-mono text-xs text-primary">{m.id}</td>
+                      <td className="p-3.5 font-mono text-xs">{m.model_name}</td>
+                      <td className="p-3.5">
+                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-secondary text-secondary-foreground">
+                          {m.model_type}
+                        </span>
+                      </td>
+                      <td className="p-3.5 font-mono text-xs">
+                        {m.api_key ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded">
+                            <CheckCircle2 className="size-3" /> Configured
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-[11px]">Not Set</span>
+                        )}
+                      </td>
+                      <td className="p-3.5 font-mono text-xs max-w-[200px] truncate text-muted-foreground">
+                        {m.base_url || '-'}
+                      </td>
+                      <td className="p-3.5">
+                        {m.enabled ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                            <CheckCircle2 className="size-3.5" /> Enabled
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Disabled</span>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-right space-x-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenModelModal(m)}>
+                          Edit
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteModel(m.id)} className="text-destructive hover:text-destructive">
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
