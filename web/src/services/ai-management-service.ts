@@ -68,27 +68,27 @@ export interface UserAIUsageSummary {
 }
 
 export const getAdminPlans = () =>
-  request.get<ResponseData<SubscriptionPlanItem[]>>('/v1/admin/ai/plans');
+  request.get<ResponseData<SubscriptionPlanItem[]>>('/api/v1/admin/ai/plans');
 
 export const updateAdminPlan = (planId: string, data: Partial<SubscriptionPlanItem>) =>
-  request.put<ResponseData<boolean>>(`/v1/admin/ai/plans/${planId}`, { data });
+  request.put<ResponseData<boolean>>(`/api/v1/admin/ai/plans/${planId}`, { data });
 
 export const getAdminModels = () =>
-  request.get<ResponseData<AIModelItem[]>>('/v1/admin/ai/models');
+  request.get<ResponseData<AIModelItem[]>>('/api/v1/admin/ai/models');
 
 export const saveAdminModel = (data: Partial<AIModelItem>) =>
-  request.post<ResponseData<AIModelItem>>('/v1/admin/ai/models', { data });
+  request.post<ResponseData<AIModelItem>>('/api/v1/admin/ai/models', { data });
 
 export const deleteAdminModel = (modelId: string) =>
-  request.delete<ResponseData<boolean>>(`/v1/admin/ai/models/${encodeURIComponent(modelId)}`);
+  request.delete<ResponseData<boolean>>(`/api/v1/admin/ai/models/${encodeURIComponent(modelId)}`);
 
 export const getAdminPolicies = (planId?: string) =>
-  request.get<ResponseData<SubscriptionAIPolicyItem[]>>('/v1/admin/ai/policies', {
+  request.get<ResponseData<SubscriptionAIPolicyItem[]>>('/api/v1/admin/ai/policies', {
     params: { plan_id: planId },
   });
 
 export const updateAdminPolicies = (planId: string, policies: Partial<SubscriptionAIPolicyItem>[]) =>
-  request.put<ResponseData<boolean>>('/v1/admin/ai/policies', {
+  request.put<ResponseData<boolean>>('/api/v1/admin/ai/policies', {
     data: {
       plan_id: planId,
       policies,
@@ -96,10 +96,10 @@ export const updateAdminPolicies = (planId: string, policies: Partial<Subscripti
   });
 
 export const getAdminUserLimit = (userId: string) =>
-  request.get<ResponseData<UserTokenLimitItem>>(`/v1/admin/ai/user-limits/${userId}`);
+  request.get<ResponseData<UserTokenLimitItem>>(`/api/v1/admin/ai/user-limits/${userId}`);
 
 export const setAdminUserLimit = (userId: string, limit: number, enabled: boolean = true) =>
-  request.put<ResponseData<boolean>>('/v1/admin/ai/user-limits', {
+  request.put<ResponseData<boolean>>('/api/v1/admin/ai/user-limits', {
     data: {
       user_id: userId,
       monthly_token_limit: limit,
@@ -108,7 +108,7 @@ export const setAdminUserLimit = (userId: string, limit: number, enabled: boolea
   });
 
 export const getUserAiUsage = () =>
-  request.get<ResponseData<UserAIUsageSummary>>('/v1/user/ai/usage');
+  request.get<ResponseData<UserAIUsageSummary>>('/api/v1/user/ai/usage');
 
 export const getUserAllowedModels = () =>
-  request.get<ResponseData<{ plan: SubscriptionPlanItem; models: SubscriptionAIPolicyItem[] }>>('/v1/user/ai/allowed-models');
+  request.get<ResponseData<{ plan: SubscriptionPlanItem; models: SubscriptionAIPolicyItem[] }>>('/api/v1/user/ai/allowed-models');
