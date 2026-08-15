@@ -229,14 +229,16 @@ async def send_email_html(to_email: str, subject: str, template_key: str, **cont
         msg = MIMEText(body, "plain", "utf-8")
         msg["Subject"] = Header(subject, "utf-8")
 
-        # Base SMTP settings from settings module
-        server = settings.MAIL_SERVER
-        port = settings.MAIL_PORT or 587
-        username = settings.MAIL_USERNAME
-        password = settings.MAIL_PASSWORD
+        # Base SMTP settings from settings module & env vars
+        server = os.environ.get("SMTP_SERVER", settings.MAIL_SERVER)
+        port_env = os.environ.get("SMTP_PORT", "")
+        port = int(port_env) if port_env.isdigit() else (settings.MAIL_PORT or 587)
+        username = os.environ.get("SMTP_USERNAME", settings.MAIL_USERNAME)
+        password = os.environ.get("SMTP_PASSWORD", settings.MAIL_PASSWORD)
         use_ssl = getattr(settings, "MAIL_USE_SSL", False)
         use_tls = getattr(settings, "MAIL_USE_TLS", True)
-        sender = getattr(settings, "MAIL_DEFAULT_SENDER", ())
+        sender_env = os.environ.get("SMTP_SENDER", "")
+        sender = ("Swipies AI", sender_env) if sender_env else getattr(settings, "MAIL_DEFAULT_SENDER", ())
 
         # Try override from SystemSettings DB table if available
         try:
