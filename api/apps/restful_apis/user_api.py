@@ -49,6 +49,7 @@ from rag.utils.redis_conn import REDIS_CONN
 from api.apps import login_required, current_user, login_user, logout_user
 from api.utils.web_utils import (
     send_email_html,
+    dispatch_email_bg,
     OTP_LENGTH,
     OTP_TTL_SECONDS,
     ATTEMPT_LIMIT,
@@ -550,6 +551,7 @@ def rollback_user_registration(user_id):
 
 def user_register(user_id, user):
     user["id"] = user_id
+    user["is_superuser"] = False
     tenant = {
         "id": user_id,
         "name": user["nickname"] + "‘s Kingdom",
@@ -559,12 +561,13 @@ def user_register(user_id, user):
         "parser_ids": settings.PARSERS,
         "img2txt_id": settings.IMAGE2TEXT_MDL,
         "rerank_id": settings.RERANK_MDL,
+        "plan_type": "free",
     }
     usr_tenant = {
         "tenant_id": user_id,
         "user_id": user_id,
         "invited_by": user_id,
-        "role": UserTenantRole.OWNER,
+        "role": UserTenantRole.NORMAL,
     }
     file_id = get_uuid()
     file = {
@@ -704,16 +707,14 @@ async def user_add():
         REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
         REDIS_CONN.delete(k_lock)
 
-        # Dispatch activation email in non-blocking background task
-        asyncio.create_task(
-            send_email_html(
-                to_email=email_address,
-                subject="Activate Your Swipies AI Account",
-                template_key="activation_code",
-                code=code,
-                nickname=nickname,
-                ttl_min=OTP_TTL_SECONDS // 60,
-            )
+        # Dispatch activation email in non-blocking background thread
+        dispatch_email_bg(
+            to_email=email_address,
+            subject="Activate Your Swipies AI Account",
+            template_key="activation_code",
+            code=code,
+            nickname=nickname,
+            ttl_min=OTP_TTL_SECONDS // 60,
         )
 
         return get_json_result(
@@ -845,16 +846,14 @@ async def resend_activation_code():
     REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
     REDIS_CONN.delete(k_lock)
 
-    # Dispatch activation email in non-blocking background task
-    asyncio.create_task(
-        send_email_html(
-            to_email=email,
-            subject="Activate Your Swipies AI Account",
-            template_key="activation_code",
-            code=code,
-            nickname=user.nickname,
-            ttl_min=OTP_TTL_SECONDS // 60,
-        )
+    # Dispatch activation email in non-blocking background thread
+    dispatch_email_bg(
+        to_email=email,
+        subject="Activate Your Swipies AI Account",
+        template_key="activation_code",
+        code=code,
+        nickname=user.nickname,
+        ttl_min=OTP_TTL_SECONDS // 60,
     )
 
     return get_json_result(data=True, code=RetCode.SUCCESS, message="New activation code sent to your email.")

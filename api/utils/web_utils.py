@@ -17,6 +17,10 @@
 import base64
 import json
 import re
+import os
+import logging
+import threading
+import asyncio
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.header import Header
@@ -376,3 +380,21 @@ def hash_code(code: str, salt: bytes) -> str:
 
 def captcha_key(email: str) -> str:
     return f"captcha:{email}"
+
+
+def dispatch_email_bg(to_email: str, subject: str, template_key: str, **context):
+    """Dispatch email in a daemon thread so it runs reliably in WSGI/Flask context."""
+    def _worker():
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(
+                send_email_html(to_email, subject, template_key, **context)
+            )
+            loop.close()
+        except Exception as err:
+            logging.error("Failed to deliver background email to %s: %s", to_email, err)
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+
