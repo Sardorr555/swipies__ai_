@@ -1899,6 +1899,11 @@ def migrate_db():
         DB.execute_sql("ALTER TABLE user ADD COLUMN onboarding_info TEXT;")
     except Exception:
         pass
+    try:
+        admin_email = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io")
+        DB.execute_sql(f"UPDATE user SET is_superuser = 0 WHERE email != '{admin_email}';")
+    except Exception:
+        pass
     alter_db_column_type(migrator, "chat_channel", "status", IntegerField(default=1, index=True))
     alter_db_rename_column(migrator, "chat_channel", "dialog_id", "chat_id")
     # Drop both the explicit "idx_*" name from later migrations AND the
