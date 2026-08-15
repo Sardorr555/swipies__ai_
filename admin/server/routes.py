@@ -35,6 +35,18 @@ from common.log_utils import get_log_levels, set_log_level
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
 
 
+@admin_bp.errorhandler(AdminException)
+def handle_admin_exception(e):
+    code = e.code if isinstance(e.code, int) and 100 <= e.code < 600 else 400
+    return error_response(e.message, code)
+
+
+@admin_bp.errorhandler(Exception)
+def handle_general_exception(e):
+    logging.exception("Admin API exception: %s", e)
+    return error_response(str(e), 500)
+
+
 @admin_bp.route("/ping", methods=["GET"])
 def ping():
     return success_response(message="pong")
@@ -833,7 +845,7 @@ def get_onboarding_stats():
         import json
 
         total_users = User.select().count()
-        onboarded_users = User.select().where(User.is_onboarded == True).count()
+        onboarded_users = User.select().where(User.is_onboarded == 1).count()
 
         reason_counts = {}
         company_counts = {}
