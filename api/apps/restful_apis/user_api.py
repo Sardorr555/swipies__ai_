@@ -591,7 +591,7 @@ def user_register(user_id, user):
         "tenant_id": user_id,
         "user_id": user_id,
         "invited_by": user_id,
-        "role": UserTenantRole.NORMAL,
+        "role": UserTenantRole.OWNER,
     }
     file_id = get_uuid()
     file = {

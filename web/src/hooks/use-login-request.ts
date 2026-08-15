@@ -135,10 +135,10 @@ export const useActivateAccount = () => {
       const { data: res = {}, response } = await userService.activateAccount(params);
       if (res.code === 0) {
         message.success(res.message || 'Account activated successfully!');
-        if (res.data?.access_token) {
+        if (res.data) {
           saveSetting({ language: storage.getLanguage() });
-          const authorization = response?.headers?.get(Authorization);
-          const token = res.data.access_token;
+          const authorization = response?.headers?.get(Authorization) || response?.headers?.get('authorization');
+          const token = res.data.access_token || authorization;
           const userInfo = {
             avatar: res.data.avatar,
             name: res.data.nickname,

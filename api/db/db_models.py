@@ -744,6 +744,7 @@ class User(DataBaseModel, AuthUser):
         result = {k: v for k, v in self.to_dict().items() if k not in self.SENSITIVE_FIELDS}
         if for_self:
             result["email"] = self.email
+            result["access_token"] = self.access_token
         logging.debug("User %s serialized safely, filtered fields: %s", self.id, self.SENSITIVE_FIELDS)
         return result
 
@@ -1902,6 +1903,7 @@ def migrate_db():
     try:
         admin_email = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io")
         DB.execute_sql(f"UPDATE user SET is_superuser = 0 WHERE email != '{admin_email}';")
+        DB.execute_sql("UPDATE user_tenant SET role = 'owner' WHERE tenant_id = user_id AND role = 'normal';")
     except Exception:
         pass
     alter_db_column_type(migrator, "chat_channel", "status", IntegerField(default=1, index=True))
