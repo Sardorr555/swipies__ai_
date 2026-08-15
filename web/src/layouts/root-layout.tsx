@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router';
 import { Header } from './components/header';
 import { LeftSidebar } from './components/left-sidebar';
+import { OnboardingModal } from '@/components/onboarding-modal';
 
 export function RootLayoutContainer({ children }: React.PropsWithChildren) {
   const { pathname } = useLocation();
@@ -15,6 +16,7 @@ export function RootLayoutContainer({ children }: React.PropsWithChildren) {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg-base">
+      <OnboardingModal />
       {/* Left Sidebar on desktop */}
       {!isDetailWorkspace && (
         <LeftSidebar className="hidden md:flex shrink-0" />

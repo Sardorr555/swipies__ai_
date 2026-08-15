@@ -504,6 +504,29 @@ async def user_profile():
     return get_json_result(data=current_user.to_safe_dict(for_self=True))
 
 
+@manager.route("/users/me/onboarding", methods=["POST"])  # noqa: F821
+@login_required
+async def save_onboarding_responses():
+    """
+    Save user onboarding survey choices.
+    """
+    req = await get_request_json()
+    try:
+        update_dict = {
+            "is_onboarded": True,
+            "onboarding_info": json.dumps(req) if isinstance(req, dict) else str(req),
+        }
+        UserService.update_by_id(current_user.id, update_dict)
+        return get_json_result(data=True, message="Onboarding responses saved successfully.")
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(
+            data=False,
+            message=f"Failed to save onboarding survey: {str(e)}",
+            code=RetCode.EXCEPTION_ERROR,
+        )
+
+
 @manager.route("/users/me/referrals", methods=["GET"])  # noqa: F821
 @login_required
 async def get_my_referrals():

@@ -725,6 +725,8 @@ class User(DataBaseModel, AuthUser):
     login_channel = CharField(null=True, help_text="from which user login", index=True)
     status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
     is_superuser = BooleanField(null=True, help_text="is root", default=False, index=True)
+    is_onboarded = BooleanField(null=True, help_text="is onboarding survey completed", default=False, index=True)
+    onboarding_info = TextField(null=True, help_text="onboarding survey responses")
 
     def __str__(self):
         return self.email
