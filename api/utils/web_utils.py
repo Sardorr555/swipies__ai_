@@ -261,6 +261,16 @@ def otp_keys(email: str):
     )
 
 
+def activation_keys(email: str):
+    email = (email or "").strip().lower()
+    return (
+        f"act_code:{email}",
+        f"act_attempts:{email}",
+        f"act_last_sent:{email}",
+        f"act_lock:{email}",
+    )
+
+
 def hash_code(code: str, salt: bytes) -> str:
     import hashlib
     import hmac

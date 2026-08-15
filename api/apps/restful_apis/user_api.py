@@ -54,6 +54,7 @@ from api.utils.web_utils import (
     ATTEMPT_LOCK_SECONDS,
     RESEND_COOLDOWN_SECONDS,
     otp_keys,
+    activation_keys,
     hash_code,
     captcha_key,
 )
@@ -117,11 +118,11 @@ async def login():
     user = UserService.query_user(email, password)
 
     if user and hasattr(user, "is_active") and user.is_active == "0":
-        logging.warning("Login failed: disabled account for user_id=%s", user.id)
+        logging.warning("Login failed: unactivated or disabled account for user_id=%s", user.id)
         return get_json_result(
-            data=False,
+            data={"email": email, "requires_activation": True},
             code=RetCode.FORBIDDEN,
-            message="This account has been disabled, please contact the administrator!",
+            message="Your account is not activated yet. Please enter the 6-digit code sent to your email.",
         )
     elif user:
         user.access_token = get_uuid()
@@ -676,6 +677,8 @@ async def user_add():
         "login_channel": "password",
         "last_login_time": get_format_time(),
         "is_superuser": False,
+        "is_active": "0",
+        "status": "0",
         "referred_by_id": resolved_referrer_id
     }
 
@@ -687,11 +690,35 @@ async def user_add():
         if len(users) > 1:
             raise Exception(f"Same email: {email_address} exists!")
         user = users[0]
-        login_user(user)
-        return await construct_response(
-            data=user.to_safe_dict(for_self=True),
-            auth=user.get_id(),
-            message=f"{nickname}, welcome aboard!",
+
+        # Generate 6-digit numeric activation code
+        code = "".join(secrets.choice(string.digits) for _ in range(6))
+        salt = os.urandom(16)
+        code_hash = hash_code(code, salt)
+
+        k_code, k_attempts, k_last, k_lock = activation_keys(email_address)
+        now = int(time.time())
+        REDIS_CONN.set(k_code, f"{code_hash}:{salt.hex()}", OTP_TTL_SECONDS)
+        REDIS_CONN.set(k_attempts, 0, OTP_TTL_SECONDS)
+        REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
+        REDIS_CONN.delete(k_lock)
+
+        try:
+            await send_email_html(
+                to_email=email_address,
+                subject="Activate Your Swipies AI Account",
+                template_key="activation_code",
+                code=code,
+                nickname=nickname,
+                ttl_min=OTP_TTL_SECONDS // 60,
+            )
+        except Exception as mail_err:
+            logging.error("Failed to send activation email to %s: %s", email_address, mail_err)
+
+        return get_json_result(
+            data={"email": email_address, "requires_activation": True},
+            code=RetCode.SUCCESS,
+            message="Registration successful! An activation code has been sent to your email address.",
         )
     except Exception as e:
         rollback_user_registration(user_id)
@@ -701,6 +728,136 @@ async def user_add():
             message=f"User registration failure, error: {str(e)}",
             code=RetCode.EXCEPTION_ERROR,
         )
+
+
+@manager.route("/auth/activate", methods=["POST"])  # noqa: F821
+async def activate_account():
+    """
+    POST /auth/activate
+    Activate account using email and 6-digit activation code sent via email.
+    """
+    req = await get_request_json()
+    email = (req.get("email") or "").strip().lower()
+    code = (req.get("code") or "").strip()
+
+    if not email or not code:
+        return get_json_result(data=False, code=RetCode.ARGUMENT_ERROR, message="Email and activation code are required")
+
+    users = UserService.query(email=email)
+    if not users:
+        return get_json_result(data=False, code=RetCode.DATA_ERROR, message="Account with this email does not exist")
+
+    user = users[0]
+    if hasattr(user, "is_active") and user.is_active == "1" and getattr(user, "status", "1") == "1":
+        return get_json_result(data=True, code=RetCode.SUCCESS, message="Account is already activated! Please log in.")
+
+    k_code, k_attempts, k_last, k_lock = activation_keys(email)
+    if REDIS_CONN.get(k_lock):
+        return get_json_result(data=False, code=RetCode.NOT_EFFECTIVE, message="Too many failed attempts. Please wait 30 minutes before trying again.")
+
+    stored = REDIS_CONN.get(k_code)
+    if not stored:
+        return get_json_result(data=False, code=RetCode.NOT_EFFECTIVE, message="Activation code has expired or is invalid. Please request a new code.")
+
+    try:
+        stored_hash, salt_hex = str(stored).split(":", 1)
+        salt = bytes.fromhex(salt_hex)
+    except Exception:
+        return get_json_result(data=False, code=RetCode.EXCEPTION_ERROR, message="Activation code verification failed")
+
+    calc = hash_code(code, salt)
+    if calc != stored_hash:
+        try:
+            attempts = int(REDIS_CONN.get(k_attempts) or 0) + 1
+        except Exception:
+            attempts = 1
+        REDIS_CONN.set(k_attempts, attempts, OTP_TTL_SECONDS)
+        if attempts >= ATTEMPT_LIMIT:
+            REDIS_CONN.set(k_lock, int(time.time()), ATTEMPT_LOCK_SECONDS)
+        return get_json_result(data=False, code=RetCode.AUTHENTICATION_ERROR, message="Invalid activation code.")
+
+    # Success: consume activation keys & activate user
+    REDIS_CONN.delete(k_code)
+    REDIS_CONN.delete(k_attempts)
+    REDIS_CONN.delete(k_last)
+    REDIS_CONN.delete(k_lock)
+
+    UserService.update_by_id(user.id, {"is_active": "1", "status": "1"})
+
+    updated_users = UserService.query(email=email)
+    if updated_users:
+        user = updated_users[0]
+
+    user.access_token = get_uuid()
+    login_user(user)
+    user.last_login_time = get_format_time()
+    user.update_time = current_timestamp()
+    user.update_date = datetime_format(datetime.now())
+    user.save()
+
+    logging.info("Account activated successfully for user_id=%s, email=%s", user.id, email)
+    return await construct_response(
+        data=user.to_safe_dict(for_self=True),
+        auth=user.get_id(),
+        message="Account activated successfully! Welcome to Swipies AI.",
+    )
+
+
+@manager.route("/auth/activate/resend", methods=["POST"])  # noqa: F821
+async def resend_activation_code():
+    """
+    POST /auth/activate/resend
+    Resend 6-digit activation code to user's email.
+    """
+    req = await get_request_json()
+    email = (req.get("email") or "").strip().lower()
+
+    if not email:
+        return get_json_result(data=False, code=RetCode.ARGUMENT_ERROR, message="Email is required")
+
+    users = UserService.query(email=email)
+    if not users:
+        return get_json_result(data=False, code=RetCode.DATA_ERROR, message="Account with this email does not exist")
+
+    user = users[0]
+    if hasattr(user, "is_active") and user.is_active == "1" and getattr(user, "status", "1") == "1":
+        return get_json_result(data=True, code=RetCode.SUCCESS, message="Account is already activated!")
+
+    k_code, k_attempts, k_last, k_lock = activation_keys(email)
+    now = int(time.time())
+    last_ts = REDIS_CONN.get(k_last)
+    if last_ts:
+        try:
+            elapsed = now - int(last_ts)
+        except Exception:
+            elapsed = RESEND_COOLDOWN_SECONDS
+        remaining = RESEND_COOLDOWN_SECONDS - elapsed
+        if remaining > 0:
+            return get_json_result(data=False, code=RetCode.NOT_EFFECTIVE, message=f"Please wait {remaining} seconds before resending code.")
+
+    code = "".join(secrets.choice(string.digits) for _ in range(6))
+    salt = os.urandom(16)
+    code_hash = hash_code(code, salt)
+
+    REDIS_CONN.set(k_code, f"{code_hash}:{salt.hex()}", OTP_TTL_SECONDS)
+    REDIS_CONN.set(k_attempts, 0, OTP_TTL_SECONDS)
+    REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
+    REDIS_CONN.delete(k_lock)
+
+    try:
+        await send_email_html(
+            to_email=email,
+            subject="Activate Your Swipies AI Account",
+            template_key="activation_code",
+            code=code,
+            nickname=user.nickname,
+            ttl_min=OTP_TTL_SECONDS // 60,
+        )
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(data=False, code=RetCode.SERVER_ERROR, message="Failed to send activation email. Please check SMTP configuration.")
+
+    return get_json_result(data=True, code=RetCode.SUCCESS, message="New activation code sent to your email.")
 
 
 @manager.route("/users/me/models", methods=["GET"])  # noqa: F821

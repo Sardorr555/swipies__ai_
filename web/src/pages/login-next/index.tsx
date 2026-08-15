@@ -1,10 +1,13 @@
 import SvgIcon from '@/components/svg-icon';
+import message from '@/components/ui/message';
 import { useAuth } from '@/hooks/auth-hooks';
 import {
+  useActivateAccount,
   useLogin,
   useLoginChannels,
   useLoginWithChannel,
   useRegister,
+  useResendActivationCode,
 } from '@/hooks/use-login-request';
 import { useSystemConfig } from '@/hooks/use-system-request';
 import { rsaPsw } from '@/utils';
@@ -412,11 +415,120 @@ function LoginFormContent({
   );
 }
 
+type ActivationFormContentProps = {
+  email: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+};
+
+function ActivationFormContent({
+  email,
+  onSuccess,
+  onCancel,
+}: ActivationFormContentProps) {
+  const [code, setCode] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+  const { activateAccount, loading: activating } = useActivateAccount();
+  const { resendActivationCode, loading: resending } = useResendActivationCode();
+
+  useEffect(() => {
+    let timer: any;
+    if (cooldown > 0) {
+      timer = setInterval(() => {
+        setCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code || code.length < 6) {
+      message.error('Please enter a 6-digit activation code.');
+      return;
+    }
+    const res = await activateAccount({ email, code });
+    if (res?.code === 0) {
+      onSuccess();
+    }
+  };
+
+  const handleResend = async () => {
+    if (cooldown > 0 || resending) return;
+    const res = await resendActivationCode({ email });
+    if (res?.code === 0) {
+      setCooldown(60);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center w-full">
+      <div className="text-center mb-8">
+        <h2 className="text-xl font-semibold text-text-primary">
+          Verify Your Email
+        </h2>
+        <p className="text-sm text-text-secondary mt-1 max-w-sm mx-auto">
+          We sent a 6-digit activation code to{' '}
+          <span className="font-semibold text-accent-primary">{email}</span>
+        </p>
+      </div>
+      <div className="w-full max-w-[540px] bg-bg-component backdrop-blur-sm rounded-2xl shadow-xl pt-10 pl-10 pr-10 pb-8 border border-border-button">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6 text-text-primary">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-text-primary">
+              Activation Code
+            </label>
+            <Input
+              type="text"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="123456"
+              className="text-center tracking-[0.5em] text-2xl font-bold h-14"
+              autoFocus
+            />
+          </div>
+
+          <ButtonLoading
+            type="submit"
+            loading={activating}
+            className="bg-metallic-gradient border-b-[#00BEB4] border-b-2 hover:bg-metallic-gradient hover:border-b-[#02bcdd] w-full h-11"
+          >
+            Activate Account & Continue
+          </ButtonLoading>
+
+          <div className="flex items-center justify-between text-sm pt-2">
+            <Button
+              type="button"
+              variant="transparent"
+              disabled={cooldown > 0 || resending}
+              onClick={handleResend}
+              className="text-accent-primary hover:underline p-0 h-auto font-medium"
+            >
+              {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Code'}
+            </Button>
+
+            <Button
+              type="button"
+              variant="transparent"
+              onClick={onCancel}
+              className="text-text-secondary hover:text-text-primary p-0 h-auto"
+            >
+              Back to Login
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 const Login = () => {
   const [title, setTitle] = useState('login');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const ref = searchParams.get('ref') || '';
+  const [activationEmail, setActivationEmail] = useState<string | null>(null);
   const { login, loading: signLoading } = useLogin();
   const { register, loading: registerLoading } = useRegister();
   const { channels, loading: channelsLoading } = useLoginChannels();
@@ -534,23 +646,27 @@ const Login = () => {
       const rsaPassWord = rsaPsw(params.password) as string;
 
       if (title === 'login') {
-        const code = await login({
+        const res = await login({
           email: `${params.email}`.trim(),
           password: rsaPassWord,
         });
-        if (code === 0) {
+        if (res?.code === 0) {
           const redirectTo = searchParams.get('redirect') || '/';
           navigate(redirectTo);
+        } else if (res?.code === 403 && (res?.data?.requires_activation || res?.message?.includes('not activated'))) {
+          setActivationEmail(`${params.email}`.trim());
         }
       } else {
-        const code = await register({
+        const res = await register({
           nickname: params.nickname,
           email: params.email,
           password: rsaPassWord,
           phone: params.phone,
           referred_by_id: ref,
         });
-        if (code === 0) {
+        if (res?.code === 0 && res?.data?.requires_activation) {
+          setActivationEmail(params.email);
+        } else if (res?.code === 0) {
           setTitle('login');
         }
       }
@@ -595,22 +711,32 @@ const Login = () => {
           </h1>
         </div>
         <div className="relative z-10 flex flex-col items-center justify-center min-h-[1250px] px-4 sm:px-6 lg:px-8 py-8">
-          {/* Login Form */}
-          <FlipCard3D isLoginPage={isLoginPage}>
-            <LoginFormContent
-              isLoginPage={isLoginPage}
-              title={title}
-              form={form}
-              loading={loading}
-              onCheck={onCheck}
-              changeTitle={changeTitle}
-              registerEnabled={registerEnabled}
-              channels={channels || []}
-              handleLoginWithChannel={handleLoginWithChannel}
-              t={t}
-              disablePasswordLogin={!!config?.disablePasswordLogin}
+          {activationEmail ? (
+            <ActivationFormContent
+              email={activationEmail}
+              onSuccess={() => {
+                const redirectTo = searchParams.get('redirect') || '/';
+                navigate(redirectTo);
+              }}
+              onCancel={() => setActivationEmail(null)}
             />
-          </FlipCard3D>
+          ) : (
+            <FlipCard3D isLoginPage={isLoginPage}>
+              <LoginFormContent
+                isLoginPage={isLoginPage}
+                title={title}
+                form={form}
+                loading={loading}
+                onCheck={onCheck}
+                changeTitle={changeTitle}
+                registerEnabled={registerEnabled}
+                channels={channels || []}
+                handleLoginWithChannel={handleLoginWithChannel}
+                t={t}
+                disablePasswordLogin={!!config?.disablePasswordLogin}
+              />
+            </FlipCard3D>
+          )}
         </div>
       </div>
     </>

@@ -34,8 +34,23 @@ Your password reset code is: {{ code }}
 This code will expire in {{ ttl_min }} minutes.
 """
 
+# Account activation code template
+ACTIVATION_CODE_EMAIL_TMPL = """
+Hello {{ nickname or email }},
+
+Welcome to Swipies AI!
+
+Your account activation code is: {{ code }}
+
+Enter this 6-digit code on the activation screen to verify your email and activate your account.
+This code will expire in {{ ttl_min }} minutes.
+
+If you did not create an account, please ignore this email.
+"""
+
 # Template registry
 EMAIL_TEMPLATES = {
     "invite": INVITE_EMAIL_TMPL,
     "reset_code": RESET_CODE_EMAIL_TMPL,
+    "activation_code": ACTIVATION_CODE_EMAIL_TMPL,
 }

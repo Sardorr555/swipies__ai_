@@ -6,6 +6,8 @@ const {
   login,
   logout,
   register,
+  activateAccount,
+  resendActivationCode,
   setting,
   userInfo,
   tenantInfo,
@@ -28,6 +30,14 @@ const methods = {
   },
   register: {
     url: register,
+    method: 'post',
+  },
+  activateAccount: {
+    url: activateAccount,
+    method: 'post',
+  },
+  resendActivationCode: {
+    url: resendActivationCode,
     method: 'post',
   },
   setting: {
