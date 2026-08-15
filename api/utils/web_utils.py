@@ -266,44 +266,42 @@ async def send_email_html(to_email: str, subject: str, template_key: str, **cont
         if code_info:
             logging.info("=== [ACTIVATION CODE FOR %s]: %s ===", to_email, code_info)
 
-        if not server:
-            logging.warning("SMTP server is not configured. Could not deliver email to %s.", to_email)
-            return False
+        # Resend API Key fallback
+        resend_key = os.environ.get("RESEND_API_KEY", "re_ehsSs9YJ_7nu25RSCSRP3tNCJRJSS5h7y")
+        active_key = password if (password and str(password).startswith("re_")) else resend_key
 
-        sender_name = sender[0] if isinstance(sender, (tuple, list)) and len(sender) > 0 else "Swipies AI"
-        sender_addr = sender[1] if isinstance(sender, (tuple, list)) and len(sender) > 1 else (username or "noreply@swipies.app")
-
-        # High-performance Resend HTTP API Dispatcher
-        if password.startswith("re_") or username == "resend" or "resend" in str(server).lower():
+        # High-performance Resend HTTP API Dispatcher (Always executes if Resend Key is available)
+        if active_key:
             resend_api_url = "https://api.resend.com/emails"
             headers = {
-                "Authorization": f"Bearer {password}",
+                "Authorization": f"Bearer {active_key}",
                 "Content-Type": "application/json",
             }
-            sender_addr_clean = sender_addr if "@" in sender_addr else "noreply@swipies.app"
             payload = {
-                "from": f"{sender_name} <{sender_addr_clean}>",
+                "from": "Swipies AI <noreply@swipies.app>",
                 "to": [to_email],
                 "subject": subject,
                 "html": body,
             }
             try:
                 import requests
-                resp = requests.post(resend_api_url, json=payload, headers=headers, timeout=8)
+                resp = requests.post(resend_api_url, json=payload, headers=headers, timeout=10)
+                logging.info("Resend API response [%s]: %s", resp.status_code, resp.text)
                 if resp.status_code in (200, 201):
                     logging.info("Email successfully dispatched to %s via Resend API", to_email)
                     return True
                 else:
-                    logging.warning("Resend API notice status %s: %s. Trying onboarding sender fallback...", resp.status_code, resp.text)
-                    payload["from"] = f"{sender_name} <onboarding@resend.dev>"
-                    resp_fallback = requests.post(resend_api_url, json=payload, headers=headers, timeout=8)
-                    if resp_fallback.status_code in (200, 201):
+                    logging.warning("Resend API primary sender notice: %s. Trying onboarding fallback...", resp.text)
+                    payload["from"] = "Swipies AI <onboarding@resend.dev>"
+                    resp_fb = requests.post(resend_api_url, json=payload, headers=headers, timeout=10)
+                    logging.info("Resend API fallback response [%s]: %s", resp_fb.status_code, resp_fb.text)
+                    if resp_fb.status_code in (200, 201):
                         logging.info("Email successfully dispatched to %s via Resend API (onboarding fallback)", to_email)
                         return True
                     else:
-                        logging.error("Resend API fallback notice status %s: %s", resp_fallback.status_code, resp_fallback.text)
+                        logging.error("Resend API fallback notice: %s", resp_fb.text)
             except Exception as resend_err:
-                logging.error("Resend API request failed: %s. Falling back to SMTP...", resend_err)
+                logging.error("Resend API request exception: %s", resend_err)
 
         msg["From"] = f"{sender_name} <{sender_addr}>"
         msg["To"] = to_email
