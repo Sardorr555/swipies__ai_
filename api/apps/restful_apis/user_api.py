@@ -828,7 +828,9 @@ async def activate_account():
     REDIS_CONN.delete(k_last)
     REDIS_CONN.delete(k_lock)
 
-    UserService.update_by_id(user.id, {"is_active": "1", "status": "1"})
+    admin_email = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io")
+    is_super = True if email.lower() == admin_email.lower() else False
+    UserService.update_by_id(user.id, {"is_active": "1", "status": "1", "is_superuser": is_super})
 
     updated_users = UserService.query(email=email)
     if updated_users:
