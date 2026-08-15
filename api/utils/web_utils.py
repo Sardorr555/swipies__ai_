@@ -273,6 +273,38 @@ async def send_email_html(to_email: str, subject: str, template_key: str, **cont
         sender_name = sender[0] if isinstance(sender, (tuple, list)) and len(sender) > 0 else "Swipies AI"
         sender_addr = sender[1] if isinstance(sender, (tuple, list)) and len(sender) > 1 else (username or "noreply@swipies.app")
 
+        # High-performance Resend HTTP API Dispatcher
+        if password.startswith("re_") or username == "resend" or "resend" in str(server).lower():
+            resend_api_url = "https://api.resend.com/emails"
+            headers = {
+                "Authorization": f"Bearer {password}",
+                "Content-Type": "application/json",
+            }
+            sender_addr_clean = sender_addr if "@" in sender_addr else "noreply@swipies.app"
+            payload = {
+                "from": f"{sender_name} <{sender_addr_clean}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": body,
+            }
+            try:
+                import requests
+                resp = requests.post(resend_api_url, json=payload, headers=headers, timeout=8)
+                if resp.status_code in (200, 201):
+                    logging.info("Email successfully dispatched to %s via Resend API", to_email)
+                    return True
+                else:
+                    logging.warning("Resend API notice status %s: %s. Trying onboarding sender fallback...", resp.status_code, resp.text)
+                    payload["from"] = f"{sender_name} <onboarding@resend.dev>"
+                    resp_fallback = requests.post(resend_api_url, json=payload, headers=headers, timeout=8)
+                    if resp_fallback.status_code in (200, 201):
+                        logging.info("Email successfully dispatched to %s via Resend API (onboarding fallback)", to_email)
+                        return True
+                    else:
+                        logging.error("Resend API fallback notice status %s: %s", resp_fallback.status_code, resp_fallback.text)
+            except Exception as resend_err:
+                logging.error("Resend API request failed: %s. Falling back to SMTP...", resend_err)
+
         msg["From"] = f"{sender_name} <{sender_addr}>"
         msg["To"] = to_email
 
