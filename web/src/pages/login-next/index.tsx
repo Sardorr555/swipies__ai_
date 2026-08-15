@@ -675,8 +675,7 @@ const Login = () => {
           password: rsaPassWord,
         });
         if (res?.code === 0) {
-          const redirectTo = searchParams.get('redirect') || '/';
-          navigate(redirectTo);
+          navigate('/');
         } else if (res?.code === 403 && (res?.data?.requires_activation || res?.message?.includes('not activated'))) {
           setActivationEmail(`${params.email}`.trim());
         }
@@ -736,8 +735,7 @@ const Login = () => {
             <ActivationFormContent
               email={activationEmail}
               onSuccess={() => {
-                const redirectTo = searchParams.get('redirect') || '/';
-                navigate(redirectTo);
+                navigate('/');
               }}
               onCancel={() => setActivationEmail(null)}
             />

@@ -845,38 +845,52 @@ def get_onboarding_stats():
         import json
 
         total_users = User.select().count()
-        onboarded_users = User.select().where(User.is_onboarded == 1).count()
+        completed_count = 0
+        skipped_count = 0
 
-        reason_counts = {}
-        company_counts = {}
+        goal_counts = {}
         role_counts = {}
         team_size_counts = {}
+        industry_counts = {}
 
         users_with_info = User.select().where(User.onboarding_info.is_null(False))
         for u in users_with_info:
             if not u.onboarding_info:
                 continue
             try:
-                info = json.loads(u.onboarding_info) if isinstance(u.onboarding_info, str) else u.onboarding_info
+                raw_info = json.loads(u.onboarding_info) if isinstance(u.onboarding_info, str) else u.onboarding_info
+                info = raw_info.get("data", raw_info) if isinstance(raw_info, dict) else {}
                 if isinstance(info, dict):
-                    if info.get("reason"):
-                        reason_counts[info["reason"]] = reason_counts.get(info["reason"], 0) + 1
-                    if info.get("company_type"):
-                        company_counts[info["company_type"]] = company_counts.get(info["company_type"], 0) + 1
-                    if info.get("role"):
-                        role_counts[info["role"]] = role_counts.get(info["role"], 0) + 1
-                    if info.get("team_size"):
-                        team_size_counts[info["team_size"]] = team_size_counts.get(info["team_size"], 0) + 1
+                    if info.get("skipped"):
+                        skipped_count += 1
+                    else:
+                        completed_count += 1
+                        goal = info.get("purpose") or info.get("reason") or info.get("goal")
+                        if goal:
+                            goal_counts[goal] = goal_counts.get(goal, 0) + 1
+                        if info.get("role"):
+                            role_counts[info["role"]] = role_counts.get(info["role"], 0) + 1
+                        if info.get("team_size"):
+                            team_size_counts[info["team_size"]] = team_size_counts.get(info["team_size"], 0) + 1
+                        industry = info.get("industry") or info.get("company_type")
+                        if industry:
+                            industry_counts[industry] = industry_counts.get(industry, 0) + 1
             except Exception:
                 pass
 
+        completion_rate = round((completed_count / total_users * 100)) if total_users > 0 else 0
+
         res = {
             "total_users": total_users,
-            "onboarded_users": onboarded_users,
-            "reasons": reason_counts,
-            "company_types": company_counts,
+            "completed_count": completed_count,
+            "skipped_count": skipped_count,
+            "completion_rate": completion_rate,
+            "goals": goal_counts,
+            "reasons": goal_counts,
             "roles": role_counts,
             "team_sizes": team_size_counts,
+            "company_types": industry_counts,
+            "industries": industry_counts,
         }
         return success_response(res)
     except Exception as e:
