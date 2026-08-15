@@ -823,3 +823,50 @@ def update_license_pricing():
     except Exception as e:
         return error_response(str(e), 500)
 
+
+@admin_bp.route("/onboarding/stats", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_onboarding_stats():
+    try:
+        from api.db.db_models import User
+        import json
+
+        total_users = User.select().count()
+        onboarded_users = User.select().where(User.is_onboarded == True).count()
+
+        reason_counts = {}
+        company_counts = {}
+        role_counts = {}
+        team_size_counts = {}
+
+        users_with_info = User.select().where(User.onboarding_info.is_null(False))
+        for u in users_with_info:
+            if not u.onboarding_info:
+                continue
+            try:
+                info = json.loads(u.onboarding_info) if isinstance(u.onboarding_info, str) else u.onboarding_info
+                if isinstance(info, dict):
+                    if info.get("reason"):
+                        reason_counts[info["reason"]] = reason_counts.get(info["reason"], 0) + 1
+                    if info.get("company_type"):
+                        company_counts[info["company_type"]] = company_counts.get(info["company_type"], 0) + 1
+                    if info.get("role"):
+                        role_counts[info["role"]] = role_counts.get(info["role"], 0) + 1
+                    if info.get("team_size"):
+                        team_size_counts[info["team_size"]] = team_size_counts.get(info["team_size"], 0) + 1
+            except Exception:
+                pass
+
+        res = {
+            "total_users": total_users,
+            "onboarded_users": onboarded_users,
+            "reasons": reason_counts,
+            "company_types": company_counts,
+            "roles": role_counts,
+            "team_sizes": team_size_counts,
+        }
+        return success_response(res)
+    except Exception as e:
+        return error_response(str(e), 500)
+

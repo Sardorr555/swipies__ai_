@@ -730,9 +730,6 @@ const Login = () => {
             </div>
             <div className="text-xl font-bold self-center">{BRAND.name}</div>
           </div>
-          <h1 className="text-[36px] font-medium  text-center mb-2">
-            {t('title')}
-          </h1>
         </div>
         <div className="relative z-10 flex flex-col items-center justify-center min-h-[1250px] px-4 sm:px-6 lg:px-8 py-8">
           {activationEmail ? (
