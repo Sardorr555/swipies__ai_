@@ -1889,6 +1889,16 @@ def migrate_db():
     alter_db_column_type(migrator, "document", "size", BigIntegerField(default=0, index=True))
     alter_db_column_type(migrator, "file", "size", BigIntegerField(default=0, index=True))
     alter_db_add_column(migrator, "tenant", "ocr_id", CharField(max_length=128, null=True, help_text="default ocr model ID", index=True))
+    alter_db_add_column(migrator, "user", "is_onboarded", BooleanField(null=True, help_text="is onboarding survey completed", default=False, index=True))
+    alter_db_add_column(migrator, "user", "onboarding_info", TextField(null=True, help_text="onboarding survey responses"))
+    try:
+        DB.execute_sql("ALTER TABLE user ADD COLUMN is_onboarded TINYINT(1) DEFAULT 0;")
+    except Exception:
+        pass
+    try:
+        DB.execute_sql("ALTER TABLE user ADD COLUMN onboarding_info TEXT;")
+    except Exception:
+        pass
     alter_db_column_type(migrator, "chat_channel", "status", IntegerField(default=1, index=True))
     alter_db_rename_column(migrator, "chat_channel", "dialog_id", "chat_id")
     # Drop both the explicit "idx_*" name from later migrations AND the
