@@ -25,7 +25,7 @@ import aiosmtplib
 from email.mime.text import MIMEText
 from email.header import Header
 from common import settings
-from quart import render_template_string
+from jinja2 import Template
 from api.utils.email_templates import EMAIL_TEMPLATES
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -229,8 +229,8 @@ async def send_email_html(to_email: str, subject: str, template_key: str, **cont
             logging.error("Email template '%s' not found.", template_key)
             return False
 
-        body = await render_template_string(tmpl, **context)
-        msg = MIMEText(body, "plain", "utf-8")
+        body = Template(tmpl).render(**context)
+        msg = MIMEText(body, "html", "utf-8")
         msg["Subject"] = Header(subject, "utf-8")
 
         # Base SMTP settings from settings module & env vars
