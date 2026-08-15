@@ -672,12 +672,32 @@ async def user_add():
             resolved_referrer_id = referrers[0].id
 
 
+    raw_password = decrypt(req["password"])
+    if not raw_password or len(raw_password) < 8:
+        return get_json_result(
+            data=False,
+            message="Password must be at least 8 characters long!",
+            code=RetCode.OPERATING_ERROR,
+        )
+    if not re.search(r"[A-Za-z]", raw_password) or not re.search(r"[0-9]", raw_password):
+        return get_json_result(
+            data=False,
+            message="Password must contain at least one letter and one number!",
+            code=RetCode.OPERATING_ERROR,
+        )
+    if raw_password.lower() in {"123456", "12345678", "123456789", "password", "qwerty", "12345", "1234567"}:
+        return get_json_result(
+            data=False,
+            message="Password is too common and weak. Please choose a stronger password!",
+            code=RetCode.OPERATING_ERROR,
+        )
+
     user_dict = {
         "access_token": get_uuid(),
         "email": email_address,
         "nickname": nickname,
         "phone": req.get("phone"),
-        "password": decrypt(req["password"]),
+        "password": raw_password,
         "login_channel": "password",
         "last_login_time": get_format_time(),
         "is_superuser": False,

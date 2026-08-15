@@ -605,6 +605,30 @@ const Login = () => {
             code: z.ZodIssueCode.custom,
           });
         }
+        const pwd = data.password || '';
+        if (pwd.length < 8) {
+          ctx.addIssue({
+            path: ['password'],
+            message: 'Password must be at least 8 characters long',
+            code: z.ZodIssueCode.custom,
+          });
+        } else if (!/[A-Za-z]/.test(pwd) || !/[0-9]/.test(pwd)) {
+          ctx.addIssue({
+            path: ['password'],
+            message: 'Password must contain both letters and numbers',
+            code: z.ZodIssueCode.custom,
+          });
+        } else if (
+          ['123456', '12345678', '123456789', 'password', 'qwerty', '12345', '1234567'].includes(
+            pwd.toLowerCase(),
+          )
+        ) {
+          ctx.addIssue({
+            path: ['password'],
+            message: 'This password is too common and weak',
+            code: z.ZodIssueCode.custom,
+          });
+        }
         if (!data.confirmPassword) {
           ctx.addIssue({
             path: ['confirmPassword'],
