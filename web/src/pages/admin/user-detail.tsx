@@ -54,7 +54,7 @@ import { TableEmpty } from '@/components/table-skeleton';
 import EnterpriseFeature from './components/enterprise-feature';
 import { parseBooleanish } from './utils';
 
-const ASSET_NAMES = ['dataset', 'flow', 'referrals'];
+const ASSET_NAMES = ['dataset', 'flow', 'referrals', 'onboarding'];
 
 const datasetColumnHelper =
   createColumnHelper<AdminService.ListUserDatasetItem>();
@@ -818,6 +818,8 @@ function AdminUserDetail() {
                 >
                   {name === 'referrals'
                     ? t('admin.referrals')
+                    : name === 'onboarding'
+                    ? 'Onboarding Survey'
                     : t(`header.${name}`)}
                 </TabsTrigger>
               ))}
@@ -838,6 +840,54 @@ function AdminUserDetail() {
             <TabsContent value="referrals" className="h-0 basis-0 grow">
               <ScrollArea className="h-full">
                 <ReferredUsersTable data={referredUsers} />
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="onboarding" className="h-0 basis-0 grow">
+              <ScrollArea className="h-full">
+                <div className="p-6 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 space-y-4 max-w-2xl">
+                  <h4 className="font-bold text-white flex items-center gap-2">
+                    📝 Onboarding Survey Answers / Ответы на Опросник
+                  </h4>
+                  {detail?.is_onboarded ? (
+                    <div className="space-y-3 text-sm">
+                      {(() => {
+                        try {
+                          const info = typeof detail.onboarding_info === 'string'
+                            ? JSON.parse(detail.onboarding_info)
+                            : detail.onboarding_info;
+                          if (info?.skipped) {
+                            return <p className="text-amber-400 font-medium">Пользователь пропустил опросник (Skipped).</p>;
+                          }
+                          return (
+                            <div className="grid grid-cols-2 gap-4 bg-slate-950 p-4 rounded-lg border border-slate-800">
+                              <div>
+                                <span className="text-xs text-slate-400 block">Цель использования (Goal)</span>
+                                <span className="font-semibold text-teal-400">{info?.purpose || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <span className="text-xs text-slate-400 block">Должность / Роль (Role)</span>
+                                <span className="font-semibold text-cyan-400">{info?.role || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <span className="text-xs text-slate-400 block">Размер команды (Team Size)</span>
+                                <span className="font-semibold text-purple-400">{info?.team_size || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <span className="text-xs text-slate-400 block">Сфера деятельности (Industry)</span>
+                                <span className="font-semibold text-indigo-400">{info?.industry || 'N/A'}</span>
+                              </div>
+                            </div>
+                          );
+                        } catch (e) {
+                          return <pre className="text-xs bg-slate-950 p-3 rounded">{String(detail.onboarding_info)}</pre>;
+                        }
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 text-sm">Пользователь еще не проходил опросник (Not Onboarded).</p>
+                  )}
+                </div>
               </ScrollArea>
             </TabsContent>
           </Tabs>

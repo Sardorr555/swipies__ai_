@@ -354,3 +354,6 @@ export const getReferrals = (params: {
   size: number;
   search?: string;
 }) => request.get<ResponseData<any>>(adminListReferrals, { params });
+
+export const getOnboardingStats = () =>
+  request.get<ResponseData<any>>('/api/v1/admin/onboarding/stats');

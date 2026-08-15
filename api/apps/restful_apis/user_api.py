@@ -1432,5 +1432,79 @@ async def admin_yandex_analytics_query():
         )
 
 
+@manager.route("/admin/onboarding/stats", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_onboarding_stats():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="Unauthorized access",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    try:
+        users = UserService.query()
+        total_users = len(users)
+        completed_count = 0
+        skipped_count = 0
+
+        goals = {}
+        roles = {}
+        team_sizes = {}
+        industries = {}
+
+        for u in users:
+            info_raw = getattr(u, "onboarding_info", None)
+            is_onboarded = getattr(u, "is_onboarded", False)
+
+            if is_onboarded or info_raw:
+                completed_count += 1
+                if info_raw:
+                    try:
+                        info = json.loads(info_raw) if isinstance(info_raw, str) else info_raw
+                        if isinstance(info, dict):
+                            if info.get("skipped"):
+                                skipped_count += 1
+
+                            purpose = info.get("purpose")
+                            if purpose:
+                                goals[purpose] = goals.get(purpose, 0) + 1
+
+                            role = info.get("role")
+                            if role:
+                                roles[role] = roles.get(role, 0) + 1
+
+                            team_size = info.get("team_size")
+                            if team_size:
+                                team_sizes[team_size] = team_sizes.get(team_size, 0) + 1
+
+                            industry = info.get("industry")
+                            if industry:
+                                industries[industry] = industries.get(industry, 0) + 1
+                    except Exception:
+                        pass
+
+        stats_data = {
+            "total_users": total_users,
+            "completed_count": completed_count,
+            "skipped_count": skipped_count,
+            "completion_rate": round((completed_count / total_users * 100), 1) if total_users > 0 else 0,
+            "goals": goals,
+            "roles": roles,
+            "team_sizes": team_sizes,
+            "industries": industries,
+        }
+
+        return get_json_result(data=stats_data)
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(
+            data=False,
+            message=str(e),
+            code=RetCode.EXCEPTION_ERROR,
+        )
+
+
+
 
 

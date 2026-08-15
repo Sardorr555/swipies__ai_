@@ -355,7 +355,7 @@ export function OnboardingModal() {
     setLoading(true);
     try {
       const finalAnswers = skipped ? { skipped: true } : answers;
-      await request.post('/v1/users/me/onboarding', {
+      await request.post('/api/v1/users/me/onboarding', {
         data: finalAnswers,
       });
     } catch (e) {
