@@ -703,8 +703,9 @@ async def user_add():
         REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
         REDIS_CONN.delete(k_lock)
 
-        try:
-            await send_email_html(
+        # Dispatch activation email in non-blocking background task
+        asyncio.create_task(
+            send_email_html(
                 to_email=email_address,
                 subject="Activate Your Swipies AI Account",
                 template_key="activation_code",
@@ -712,8 +713,7 @@ async def user_add():
                 nickname=nickname,
                 ttl_min=OTP_TTL_SECONDS // 60,
             )
-        except Exception as mail_err:
-            logging.error("Failed to send activation email to %s: %s", email_address, mail_err)
+        )
 
         return get_json_result(
             data={"email": email_address, "requires_activation": True},
@@ -844,8 +844,9 @@ async def resend_activation_code():
     REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
     REDIS_CONN.delete(k_lock)
 
-    try:
-        await send_email_html(
+    # Dispatch activation email in non-blocking background task
+    asyncio.create_task(
+        send_email_html(
             to_email=email,
             subject="Activate Your Swipies AI Account",
             template_key="activation_code",
@@ -853,9 +854,7 @@ async def resend_activation_code():
             nickname=user.nickname,
             ttl_min=OTP_TTL_SECONDS // 60,
         )
-    except Exception as e:
-        logging.exception(e)
-        return get_json_result(data=False, code=RetCode.SERVER_ERROR, message="Failed to send activation email. Please check SMTP configuration.")
+    )
 
     return get_json_result(data=True, code=RetCode.SUCCESS, message="New activation code sent to your email.")
 

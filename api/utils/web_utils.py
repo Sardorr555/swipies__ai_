@@ -219,23 +219,87 @@ def get_float(req: dict, key: str, default: float | int = 10.0) -> float:
 
 
 async def send_email_html(to_email: str, subject: str, template_key: str, **context):
-    body = await render_template_string(EMAIL_TEMPLATES.get(template_key), **context)
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = f"{settings.MAIL_DEFAULT_SENDER[0]} <{settings.MAIL_DEFAULT_SENDER[1]}>"
-    msg["To"] = to_email
+    try:
+        tmpl = EMAIL_TEMPLATES.get(template_key)
+        if not tmpl:
+            logging.error("Email template '%s' not found.", template_key)
+            return False
 
-    smtp = aiosmtplib.SMTP(
-        hostname=settings.MAIL_SERVER,
-        port=settings.MAIL_PORT,
-        use_tls=True,
-        timeout=10,
-    )
+        body = await render_template_string(tmpl, **context)
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = Header(subject, "utf-8")
 
-    await smtp.connect()
-    await smtp.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-    await smtp.send_message(msg)
-    await smtp.quit()
+        # Base SMTP settings from settings module
+        server = settings.MAIL_SERVER
+        port = settings.MAIL_PORT or 587
+        username = settings.MAIL_USERNAME
+        password = settings.MAIL_PASSWORD
+        use_ssl = getattr(settings, "MAIL_USE_SSL", False)
+        use_tls = getattr(settings, "MAIL_USE_TLS", True)
+        sender = getattr(settings, "MAIL_DEFAULT_SENDER", ())
+
+        # Try override from SystemSettings DB table if available
+        try:
+            from api.db.services.system_settings_service import SystemSettingsService
+            def get_sys_val(key, default=""):
+                objs = SystemSettingsService.get_by_name(key)
+                return objs[0].value if objs and objs[0].value else default
+
+            server = get_sys_val("smtp.server", server) or get_sys_val("mail_server", server)
+            port_val = get_sys_val("smtp.port", "") or get_sys_val("mail_port", "")
+            if port_val:
+                try:
+                    port = int(port_val)
+                except ValueError:
+                    pass
+            username = get_sys_val("smtp.username", username) or get_sys_val("mail_username", username)
+            password = get_sys_val("smtp.password", password) or get_sys_val("mail_password", password)
+            sender_val = get_sys_val("smtp.sender", "") or get_sys_val("mail_sender", "")
+            if sender_val:
+                sender = ("Swipies AI", sender_val)
+        except Exception:
+            pass
+
+        code_info = context.get("code")
+        if code_info:
+            logging.info("=== [ACTIVATION CODE FOR %s]: %s ===", to_email, code_info)
+
+        if not server:
+            logging.warning("SMTP server is not configured. Could not deliver email to %s.", to_email)
+            return False
+
+        sender_name = sender[0] if isinstance(sender, (tuple, list)) and len(sender) > 0 else "Swipies AI"
+        sender_addr = sender[1] if isinstance(sender, (tuple, list)) and len(sender) > 1 else (username or "noreply@swipies.app")
+
+        msg["From"] = f"{sender_name} <{sender_addr}>"
+        msg["To"] = to_email
+
+        is_ssl = (port == 465) or (use_ssl and not use_tls)
+
+        smtp = aiosmtplib.SMTP(
+            hostname=server,
+            port=port,
+            use_tls=is_ssl,
+            timeout=5,
+        )
+
+        await smtp.connect()
+        if not is_ssl and (use_tls or port == 587):
+            try:
+                await smtp.starttls()
+            except Exception as tls_err:
+                logging.warning("SMTP STARTTLS notice: %s", tls_err)
+
+        if username and password:
+            await smtp.login(username, password)
+
+        await smtp.send_message(msg)
+        await smtp.quit()
+        logging.info("Email successfully dispatched to %s", to_email)
+        return True
+    except Exception as err:
+        logging.error("Failed to send email to %s: %s", to_email, err)
+        return False
 
 
 async def send_invite_email(to_email, invite_url, tenant_id, inviter):
