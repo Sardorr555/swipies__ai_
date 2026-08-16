@@ -1,0 +1,16 @@
+:root {
+  --ifm-color-primary: #0d9488;
+  --ifm-color-primary-dark: #0f766e;
+  --ifm-color-primary-darker: #115e59;
+  --ifm-color-primary-darkest: #134e4a;
+  --ifm-color-primary-light: #14b8a6;
+  --ifm-color-primary-lighter: #2dd4bf;
+  --ifm-color-primary-lightest: #5eead4;
+  --ifm-background-color: #090d16;
+  --ifm-background-surface-color: #0f172a;
+}
+
+html[data-theme='dark'] {
+  --ifm-background-color: #090d16;
+  --ifm-background-surface-color: #0f172a;
+}

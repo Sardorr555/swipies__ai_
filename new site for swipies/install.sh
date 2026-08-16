@@ -34,7 +34,7 @@ if [ -d "$HOME/swipies__ai_/docker" ]; then
     sudo docker compose build
     sudo docker compose up -d --remove-orphans
     sleep 10
-    sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" 2>/dev/null || true
+    sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 0 WHERE email != 'admin@ragflow.io'; UPDATE user SET is_superuser = 1 WHERE email = 'admin@ragflow.io';" 2>/dev/null || true
     SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
     echo "=================================================="
     echo "✅ Swipies AI successfully installed and running!"
@@ -235,8 +235,8 @@ fi
 echo "⏳ Waiting 15 seconds for services to initialize..."
 sleep 15
 
-# 7. Grant superuser permissions to initial admin accounts
-sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" 2>/dev/null || true
+# 7. Grant superuser permissions strictly to main admin account
+sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 0 WHERE email != 'admin@ragflow.io'; UPDATE user SET is_superuser = 1 WHERE email = 'admin@ragflow.io';" 2>/dev/null || true
 
 SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
 

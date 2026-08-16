@@ -183,3 +183,13 @@ services:
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  docs:
+    build:
+      context: ..
+      dockerfile: ragflow-docs/Dockerfile
+    container_name: swipies-docs
+    networks:
+      - ragflow
+    restart: unless-stopped
+
