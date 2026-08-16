@@ -19,9 +19,33 @@ package dao
 import (
 	"os"
 	"strings"
+	"sync"
 
 	"ragflow/internal/entity"
 )
+
+var (
+	adminUserIDCache     string
+	adminUserIDCacheOnce sync.Once
+)
+
+func getAdminUserID() string {
+	adminUserIDCacheOnce.Do(func() {
+		var adminUser entity.User
+		adminEmail := os.Getenv("DEFAULT_SUPERUSER_EMAIL")
+		if adminEmail == "" {
+			adminEmail = "admin@ragflow.io"
+		}
+		errAdmin := DB.Where("LOWER(email) = ?", strings.ToLower(adminEmail)).First(&adminUser).Error
+		if errAdmin != nil {
+			errAdmin = DB.Where("is_superuser = ?", true).First(&adminUser).Error
+		}
+		if errAdmin == nil {
+			adminUserIDCache = adminUser.ID
+		}
+	})
+	return adminUserIDCache
+}
 
 // TenantModelProviderDAO tenant model provider data access object
 type TenantModelProviderDAO struct{}
@@ -53,19 +77,10 @@ func (dao *TenantModelProviderDAO) GetByTenantIDAndProviderName(tenantID, provid
 		return &provider, nil
 	}
 
-	// Fallback to superuser admin provider if not configured for tenantID
-	var adminUser entity.User
-	adminEmail := os.Getenv("DEFAULT_SUPERUSER_EMAIL")
-	if adminEmail == "" {
-		adminEmail = "admin@ragflow.io"
-	}
-	errAdmin := DB.Where("LOWER(email) = ?", strings.ToLower(adminEmail)).First(&adminUser).Error
-	if errAdmin != nil {
-		errAdmin = DB.Where("is_superuser = ?", true).First(&adminUser).Error
-	}
-	if errAdmin == nil && adminUser.ID != tenantID {
+	adminID := getAdminUserID()
+	if adminID != "" && adminID != tenantID {
 		var adminProvider entity.TenantModelProvider
-		if errP := DB.Where("tenant_id = ? AND provider_name = ?", adminUser.ID, providerName).First(&adminProvider).Error; errP == nil {
+		if errP := DB.Where("tenant_id = ? AND provider_name = ?", adminID, providerName).First(&adminProvider).Error; errP == nil {
 			return &adminProvider, nil
 		}
 	}
@@ -95,19 +110,11 @@ func (dao *TenantModelProviderDAO) ListByID(id string) ([]string, error) {
 		return nil, err
 	}
 
-	var adminUser entity.User
-	adminEmail := os.Getenv("DEFAULT_SUPERUSER_EMAIL")
-	if adminEmail == "" {
-		adminEmail = "admin@ragflow.io"
-	}
-	errAdmin := DB.Where("LOWER(email) = ?", strings.ToLower(adminEmail)).First(&adminUser).Error
-	if errAdmin != nil {
-		errAdmin = DB.Where("is_superuser = ?", true).First(&adminUser).Error
-	}
-	if errAdmin == nil && adminUser.ID != id {
+	adminID := getAdminUserID()
+	if adminID != "" && adminID != id {
 		var adminProviderNames []string
 		if errP := DB.Model(&entity.TenantModelProvider{}).
-			Where("tenant_id = ?", adminUser.ID).
+			Where("tenant_id = ?", adminID).
 			Pluck("provider_name", &adminProviderNames).Error; errP == nil {
 			existing := make(map[string]bool)
 			for _, name := range providerNames {
@@ -132,22 +139,14 @@ func (dao *TenantModelProviderDAO) GetByTenantID(tenantID string) ([]*entity.Ten
 		return nil, err
 	}
 
-	var adminUser entity.User
-	adminEmail := os.Getenv("DEFAULT_SUPERUSER_EMAIL")
-	if adminEmail == "" {
-		adminEmail = "admin@ragflow.io"
-	}
-	errAdmin := DB.Where("LOWER(email) = ?", strings.ToLower(adminEmail)).First(&adminUser).Error
-	if errAdmin != nil {
-		errAdmin = DB.Where("is_superuser = ?", true).First(&adminUser).Error
-	}
-	if errAdmin == nil && adminUser.ID != tenantID {
+	adminID := getAdminUserID()
+	if adminID != "" && adminID != tenantID {
 		existingNames := make(map[string]bool)
 		for _, p := range providers {
 			existingNames[p.ProviderName] = true
 		}
 		var adminProviders []*entity.TenantModelProvider
-		if errP := DB.Where("tenant_id = ?", adminUser.ID).Find(&adminProviders).Error; errP == nil {
+		if errP := DB.Where("tenant_id = ?", adminID).Find(&adminProviders).Error; errP == nil {
 			for _, ap := range adminProviders {
 				if !existingNames[ap.ProviderName] {
 					providers = append(providers, ap)

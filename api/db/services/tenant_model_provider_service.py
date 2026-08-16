@@ -20,20 +20,30 @@ from api.db.services.common_service import CommonService
 
 logger = logging.getLogger(__name__)
 
+_ADMIN_TENANT_ID_CACHE = None
+
 
 class TenantModelProviderService(CommonService):
     model = TenantModelProvider
 
     @classmethod
     def _get_admin_tenant_id(cls, current_tenant_id=None):
+        global _ADMIN_TENANT_ID_CACHE
+        if _ADMIN_TENANT_ID_CACHE:
+            if _ADMIN_TENANT_ID_CACHE != current_tenant_id:
+                return _ADMIN_TENANT_ID_CACHE
+            return None
+
         try:
             from api.db.db_models import User
             admin_email = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io").strip().lower()
             admin_user = User.get_or_none(User.email.fn.LOWER() == admin_email)
             if not admin_user:
                 admin_user = User.get_or_none(User.is_superuser == True)
-            if admin_user and admin_user.id != current_tenant_id:
-                return admin_user.id
+            if admin_user:
+                _ADMIN_TENANT_ID_CACHE = admin_user.id
+                if admin_user.id != current_tenant_id:
+                    return admin_user.id
         except Exception as e:
             logger.warning(f"_get_admin_tenant_id failed: {e}")
         return None
