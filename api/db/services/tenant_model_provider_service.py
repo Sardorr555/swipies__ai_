@@ -49,40 +49,79 @@ class TenantModelProviderService(CommonService):
         return None
 
     @classmethod
+    def _is_pro_or_enterprise(cls, tenant_id):
+        if not tenant_id:
+            return False
+        admin_tenant_id = cls._get_admin_tenant_id()
+        if admin_tenant_id and tenant_id == admin_tenant_id:
+            return True
+        try:
+            from api.db.db_models import User, Tenant
+            user = User.get_or_none(User.id == tenant_id)
+            if user and getattr(user, "is_superuser", False):
+                return True
+            tenant = Tenant.get_or_none(Tenant.id == tenant_id)
+            if tenant:
+                plan_type = (getattr(tenant, "plan_type", None) or "").lower()
+                if plan_type in ["pro", "enterprise"]:
+                    return True
+        except Exception as e:
+            logger.warning(f"_is_pro_or_enterprise check error: {e}")
+        return False
+
+    @classmethod
     @DB.connection_context()
     def get_by_tenant_id_and_provider_name(cls, tenant_id, provider_name, fallback_admin=True):
-        res = cls.model.get_or_none(
+        # PRO / Enterprise users with custom configured keys get custom instance
+        if cls._is_pro_or_enterprise(tenant_id):
+            custom_res = cls.model.get_or_none(
+                cls.model.tenant_id == tenant_id,
+                cls.model.provider_name == provider_name,
+            )
+            if custom_res:
+                return custom_res
+
+        # Platform instance (system admin) for FREE/PLUS or unconfigured PRO users
+        if fallback_admin:
+            admin_tenant_id = cls._get_admin_tenant_id(tenant_id)
+            if admin_tenant_id:
+                platform_provider = cls.model.get_or_none(
+                    cls.model.tenant_id == admin_tenant_id,
+                    cls.model.provider_name == provider_name,
+                )
+                if platform_provider:
+                    return platform_provider
+
+        return cls.model.get_or_none(
             cls.model.tenant_id == tenant_id,
             cls.model.provider_name == provider_name,
         )
-        if res or not fallback_admin:
-            return res
-
-        admin_tenant_id = cls._get_admin_tenant_id(tenant_id)
-        if admin_tenant_id:
-            return cls.model.get_or_none(
-                cls.model.tenant_id == admin_tenant_id,
-                cls.model.provider_name == provider_name,
-            )
-        return None
 
     @classmethod
     @DB.connection_context()
     def get_by_tenant_id_and_provider_id(cls, tenant_id, provider_id, fallback_admin=True):
-        res = cls.model.get_or_none(
+        if cls._is_pro_or_enterprise(tenant_id):
+            custom_res = cls.model.get_or_none(
+                cls.model.tenant_id == tenant_id,
+                cls.model.id == provider_id,
+            )
+            if custom_res:
+                return custom_res
+
+        if fallback_admin:
+            admin_tenant_id = cls._get_admin_tenant_id(tenant_id)
+            if admin_tenant_id:
+                platform_provider = cls.model.get_or_none(
+                    cls.model.tenant_id == admin_tenant_id,
+                    cls.model.id == provider_id,
+                )
+                if platform_provider:
+                    return platform_provider
+
+        return cls.model.get_or_none(
             cls.model.tenant_id == tenant_id,
             cls.model.id == provider_id,
         )
-        if res or not fallback_admin:
-            return res
-
-        admin_tenant_id = cls._get_admin_tenant_id(tenant_id)
-        if admin_tenant_id:
-            return cls.model.get_or_none(
-                cls.model.tenant_id == admin_tenant_id,
-                cls.model.id == provider_id,
-            )
-        return None
 
     @classmethod
     @DB.connection_context()

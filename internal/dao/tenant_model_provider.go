@@ -47,6 +47,30 @@ func getAdminUserID() string {
 	return adminUserIDCache
 }
 
+func isProOrEnterprise(tenantID string) bool {
+	if tenantID == "" {
+		return false
+	}
+	adminID := getAdminUserID()
+	if adminID != "" && tenantID == adminID {
+		return true
+	}
+	var user entity.User
+	if err := DB.Where("id = ?", tenantID).First(&user).Error; err == nil {
+		if user.IsSuperuser {
+			return true
+		}
+	}
+	var tenant entity.Tenant
+	if err := DB.Where("id = ?", tenantID).First(&tenant).Error; err == nil {
+		planType := strings.ToLower(tenant.PlanType)
+		if planType == "pro" || planType == "enterprise" {
+			return true
+		}
+	}
+	return false
+}
+
 // TenantModelProviderDAO tenant model provider data access object
 type TenantModelProviderDAO struct{}
 
@@ -69,22 +93,28 @@ func (dao *TenantModelProviderDAO) GetByID(id string) (*entity.TenantModelProvid
 	return &provider, nil
 }
 
-// GetByTenantIDAndProviderName get the providers by tenant ID and provider name with superuser admin fallback
+// GetByTenantIDAndProviderName get the providers by tenant ID and provider name with platform instance routing
 func (dao *TenantModelProviderDAO) GetByTenantIDAndProviderName(tenantID, providerName string) (*entity.TenantModelProvider, error) {
+	if isProOrEnterprise(tenantID) {
+		var customProvider entity.TenantModelProvider
+		if err := DB.Where("tenant_id = ? AND provider_name = ?", tenantID, providerName).First(&customProvider).Error; err == nil {
+			return &customProvider, nil
+		}
+	}
+
+	adminID := getAdminUserID()
+	if adminID != "" && adminID != tenantID {
+		var platformProvider entity.TenantModelProvider
+		if errP := DB.Where("tenant_id = ? AND provider_name = ?", adminID, providerName).First(&platformProvider).Error; errP == nil {
+			return &platformProvider, nil
+		}
+	}
+
 	var provider entity.TenantModelProvider
 	err := DB.Where("tenant_id = ? AND provider_name = ?", tenantID, providerName).First(&provider).Error
 	if err == nil {
 		return &provider, nil
 	}
-
-	adminID := getAdminUserID()
-	if adminID != "" && adminID != tenantID {
-		var adminProvider entity.TenantModelProvider
-		if errP := DB.Where("tenant_id = ? AND provider_name = ?", adminID, providerName).First(&adminProvider).Error; errP == nil {
-			return &adminProvider, nil
-		}
-	}
-
 	return nil, err
 }
 
@@ -100,7 +130,7 @@ func (dao *TenantModelProviderDAO) DeleteByTenantIDAndProviderName(tenantID, pro
 	return result.RowsAffected, result.Error
 }
 
-// ListByID list tenant model providers by ID with admin fallback
+// ListByID list tenant model providers by ID with platform fallback
 func (dao *TenantModelProviderDAO) ListByID(id string) ([]string, error) {
 	var providerNames []string
 	err := DB.Model(&entity.TenantModelProvider{}).
@@ -131,7 +161,7 @@ func (dao *TenantModelProviderDAO) ListByID(id string) ([]string, error) {
 	return providerNames, nil
 }
 
-// GetByTenantID returns all TenantModelProvider rows for a tenant with admin fallback.
+// GetByTenantID returns all TenantModelProvider rows for a tenant with platform fallback.
 func (dao *TenantModelProviderDAO) GetByTenantID(tenantID string) ([]*entity.TenantModelProvider, error) {
 	var providers []*entity.TenantModelProvider
 	err := DB.Where("tenant_id = ?", tenantID).Find(&providers).Error
