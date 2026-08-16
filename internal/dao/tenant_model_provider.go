@@ -17,6 +17,9 @@
 package dao
 
 import (
+	"os"
+	"strings"
+
 	"ragflow/internal/entity"
 )
 
@@ -42,14 +45,32 @@ func (dao *TenantModelProviderDAO) GetByID(id string) (*entity.TenantModelProvid
 	return &provider, nil
 }
 
-// GetByTenantIDAndProviderName get the providers by tenant ID and provider name
+// GetByTenantIDAndProviderName get the providers by tenant ID and provider name with superuser admin fallback
 func (dao *TenantModelProviderDAO) GetByTenantIDAndProviderName(tenantID, providerName string) (*entity.TenantModelProvider, error) {
 	var provider entity.TenantModelProvider
 	err := DB.Where("tenant_id = ? AND provider_name = ?", tenantID, providerName).First(&provider).Error
-	if err != nil {
-		return nil, err
+	if err == nil {
+		return &provider, nil
 	}
-	return &provider, nil
+
+	// Fallback to superuser admin provider if not configured for tenantID
+	var adminUser entity.User
+	adminEmail := os.Getenv("DEFAULT_SUPERUSER_EMAIL")
+	if adminEmail == "" {
+		adminEmail = "admin@ragflow.io"
+	}
+	errAdmin := DB.Where("LOWER(email) = ?", strings.ToLower(adminEmail)).First(&adminUser).Error
+	if errAdmin != nil {
+		errAdmin = DB.Where("is_superuser = ?", true).First(&adminUser).Error
+	}
+	if errAdmin == nil && adminUser.ID != tenantID {
+		var adminProvider entity.TenantModelProvider
+		if errP := DB.Where("tenant_id = ? AND provider_name = ?", adminUser.ID, providerName).First(&adminProvider).Error; errP == nil {
+			return &adminProvider, nil
+		}
+	}
+
+	return nil, err
 }
 
 // DeleteByTenantID deletes all model providers by tenant ID (hard delete)
@@ -64,26 +85,76 @@ func (dao *TenantModelProviderDAO) DeleteByTenantIDAndProviderName(tenantID, pro
 	return result.RowsAffected, result.Error
 }
 
-// ListByID list tenant model providers by ID
+// ListByID list tenant model providers by ID with admin fallback
 func (dao *TenantModelProviderDAO) ListByID(id string) ([]string, error) {
 	var providerNames []string
 	err := DB.Model(&entity.TenantModelProvider{}).
 		Where("tenant_id = ?", id).
 		Pluck("provider_name", &providerNames).Error
-	return providerNames, err
+	if err != nil {
+		return nil, err
+	}
+
+	var adminUser entity.User
+	adminEmail := os.Getenv("DEFAULT_SUPERUSER_EMAIL")
+	if adminEmail == "" {
+		adminEmail = "admin@ragflow.io"
+	}
+	errAdmin := DB.Where("LOWER(email) = ?", strings.ToLower(adminEmail)).First(&adminUser).Error
+	if errAdmin != nil {
+		errAdmin = DB.Where("is_superuser = ?", true).First(&adminUser).Error
+	}
+	if errAdmin == nil && adminUser.ID != id {
+		var adminProviderNames []string
+		if errP := DB.Model(&entity.TenantModelProvider{}).
+			Where("tenant_id = ?", adminUser.ID).
+			Pluck("provider_name", &adminProviderNames).Error; errP == nil {
+			existing := make(map[string]bool)
+			for _, name := range providerNames {
+				existing[name] = true
+			}
+			for _, name := range adminProviderNames {
+				if !existing[name] {
+					providerNames = append(providerNames, name)
+				}
+			}
+		}
+	}
+
+	return providerNames, nil
 }
 
-// GetByTenantID returns all TenantModelProvider rows for a tenant.
-// Mirrors Python's TenantModelProviderService.get_by_tenant_id and is the
-// entry point for /api/v1/models ("list all added models"). The Go port
-// uses this to enumerate which providers a tenant has linked before
-// fanning out to TenantModelInstanceDAO / TenantModelDAO for the joined
-// result.
+// GetByTenantID returns all TenantModelProvider rows for a tenant with admin fallback.
 func (dao *TenantModelProviderDAO) GetByTenantID(tenantID string) ([]*entity.TenantModelProvider, error) {
 	var providers []*entity.TenantModelProvider
 	err := DB.Where("tenant_id = ?", tenantID).Find(&providers).Error
 	if err != nil {
 		return nil, err
 	}
+
+	var adminUser entity.User
+	adminEmail := os.Getenv("DEFAULT_SUPERUSER_EMAIL")
+	if adminEmail == "" {
+		adminEmail = "admin@ragflow.io"
+	}
+	errAdmin := DB.Where("LOWER(email) = ?", strings.ToLower(adminEmail)).First(&adminUser).Error
+	if errAdmin != nil {
+		errAdmin = DB.Where("is_superuser = ?", true).First(&adminUser).Error
+	}
+	if errAdmin == nil && adminUser.ID != tenantID {
+		existingNames := make(map[string]bool)
+		for _, p := range providers {
+			existingNames[p.ProviderName] = true
+		}
+		var adminProviders []*entity.TenantModelProvider
+		if errP := DB.Where("tenant_id = ?", adminUser.ID).Find(&adminProviders).Error; errP == nil {
+			for _, ap := range adminProviders {
+				if !existingNames[ap.ProviderName] {
+					providers = append(providers, ap)
+				}
+			}
+		}
+	}
+
 	return providers, nil
 }

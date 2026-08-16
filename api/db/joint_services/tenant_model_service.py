@@ -107,10 +107,10 @@ def _ensure_ocr_provider_from_env(tenant_id: str, provider_name: str, model_name
     if not config:
         return None
 
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name, fallback_admin=False)
     if not provider_obj:
         TenantModelProviderService.insert(tenant_id=tenant_id, provider_name=provider_name)
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name, fallback_admin=False)
 
     api_key = json.dumps(config)
     instance_obj = TenantModelInstanceService.get_by_provider_id_and_api_key(provider_obj.id, api_key)
