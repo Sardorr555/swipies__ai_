@@ -312,7 +312,7 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
     # 2. Fallback to TenantLLMService & AIModelService
     from api.db.services.tenant_llm_service import TenantLLMService
     try:
-        target_name = pure_model_name if pure_model_name else model_name
+        target_name = f"{pure_model_name}@{provider_name}" if (pure_model_name and provider_name) else (pure_model_name or model_name)
         fallback_cfg = TenantLLMService.get_model_config(tenant_id, model_type_val, target_name)
         if fallback_cfg:
             return fallback_cfg

@@ -94,7 +94,50 @@ class TenantLLMService(CommonService):
             query_kwargs["llm_name"] = mdlnm
             objs = cls.query(**query_kwargs, llm_factory=fid)
         if not objs:
-            # Fallback to global Admin-registered AIModel if tenant has no custom API key
+            # 1. Fallback to Admin TenantLLM or TenantModelInstance
+            try:
+                from api.db.services.tenant_model_provider_service import TenantModelProviderService
+                from api.db.services.tenant_model_instance_service import TenantModelInstanceService
+                admin_tenant_id = TenantModelProviderService._get_admin_tenant_id(tenant_id)
+                if admin_tenant_id and admin_tenant_id != tenant_id:
+                    admin_objs = cls.query(tenant_id=admin_tenant_id, llm_name=mdlnm)
+                    if not admin_objs and fid:
+                        admin_objs = cls.query(tenant_id=admin_tenant_id, llm_factory=fid)
+                    if admin_objs and admin_objs[0].api_key:
+                        ao = admin_objs[0]
+                        syn_tenant_llm = TenantLLM(
+                            tenant_id=tenant_id,
+                            llm_factory=ao.llm_factory,
+                            model_type=ao.model_type or (model_type_val if model_type_val else "CHAT"),
+                            llm_name=mdlnm,
+                            api_key=ao.api_key,
+                            api_base=ao.api_base or "",
+                            max_tokens=ao.max_tokens or 8192,
+                            status="1",
+                        )
+                        return syn_tenant_llm
+
+                    if fid:
+                        p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(admin_tenant_id, fid, fallback_admin=False)
+                        if p_obj:
+                            inst = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
+                            if inst and inst.api_key:
+                                extra_dict = json.loads(inst.extra) if inst.extra else {}
+                                syn_tenant_llm = TenantLLM(
+                                    tenant_id=tenant_id,
+                                    llm_factory=fid,
+                                    model_type=model_type_val if model_type_val else "CHAT",
+                                    llm_name=mdlnm,
+                                    api_key=inst.api_key,
+                                    api_base=extra_dict.get("base_url", ""),
+                                    max_tokens=8192,
+                                    status="1",
+                                )
+                                return syn_tenant_llm
+            except Exception as e:
+                logging.warning(f"TenantLLMService.get_api_key admin fallback exception: {e}")
+
+            # 2. Fallback to global Admin-registered AIModel if tenant has no custom API key
             try:
                 from api.db.services.ai_policy_service import AIModelService
                 global_models = AIModelService.query(model_name=mdlnm, enabled=True)
@@ -119,6 +162,37 @@ class TenantLLMService(CommonService):
                     return syn_tenant_llm
             except Exception as e:
                 logging.warning(f"TenantLLMService.get_api_key global fallback exception: {e}")
+
+            # 3. Fallback to system environment variables
+            env_key_map = {
+                "OpenAI": ("OPENAI_API_KEY", "OPENAI_BASE_URL"),
+                "DeepSeek": ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL"),
+                "Anthropic": ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL"),
+                "DashScope": ("DASHSCOPE_API_KEY", "DASHSCOPE_BASE_URL"),
+                "Qwen": ("DASHSCOPE_API_KEY", "DASHSCOPE_BASE_URL"),
+                "Zhipu AI": ("ZHIPU_API_KEY", "ZHIPU_BASE_URL"),
+                "Moonshot": ("MOONSHOT_API_KEY", "MOONSHOT_BASE_URL"),
+            }
+            target_fid = fid
+            if not target_fid:
+                _, target_fid = TenantLLMService.split_model_name_and_factory(mdlnm)
+            
+            if target_fid in env_key_map:
+                key_var, base_var = env_key_map[target_fid]
+                sys_key = os.getenv(key_var)
+                if sys_key:
+                    syn_tenant_llm = TenantLLM(
+                        tenant_id=tenant_id,
+                        llm_factory=target_fid,
+                        model_type=model_type_val if model_type_val else "CHAT",
+                        llm_name=mdlnm,
+                        api_key=sys_key,
+                        api_base=os.getenv(base_var, ""),
+                        max_tokens=8192,
+                        status="1",
+                    )
+                    return syn_tenant_llm
+
             return None
         return objs[0]
 
@@ -157,8 +231,11 @@ class TenantLLMService(CommonService):
         arr = model_name.split("@")
         if len(arr) < 2:
             return model_name, None
-        if len(arr) > 2:
-            return "@".join(arr[0:-1]), arr[-1]
+        if len(arr) == 3:
+            # {pure_model_name}@{instance_name}@{provider_name}
+            return arr[0], arr[2]
+        if len(arr) > 3:
+            return "@".join(arr[0:-2]), arr[-1]
 
         # model name must be xxx@yyy
         try:
