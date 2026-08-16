@@ -326,6 +326,50 @@ async def admin_set_user_limit():
     return get_json_result(data=True)
 
 
+# ==========================================
+# Admin APIs: Default Model Selection
+# ==========================================
+
+
+@manager.route("/defaults", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_get_defaults():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    plan = AIPolicyManager.get_user_plan(current_user.id)
+    return get_json_result(data={
+        "default_llm_id": plan.get("default_llm_id", "openai/gpt-4o-mini"),
+        "default_embd_id": plan.get("default_embd_id", "openai/text-embedding-3-small"),
+        "default_rerank_id": plan.get("default_rerank_id", "BAAI/bge-reranker-v2-m3"),
+    })
+
+
+@manager.route("/defaults", methods=["PUT"])  # noqa: F821
+@login_required
+async def admin_update_defaults():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    req = await get_request_json()
+    default_llm_id = req.get("default_llm_id")
+    default_embd_id = req.get("default_embd_id")
+    default_rerank_id = req.get("default_rerank_id")
+
+    update_fields = {}
+    if default_llm_id:
+        update_fields["default_llm_id"] = default_llm_id
+    if default_embd_id:
+        update_fields["default_embd_id"] = default_embd_id
+
+    if update_fields:
+        SubscriptionPlanService.filter_update([SubscriptionPlanService.model.status == "1"], update_fields)
+
+    return get_json_result(data=True)
+
+
 # Register user routes under /v1/user/ai/...
 user_ai_manager = Blueprint("user_ai_manager", __name__)
 

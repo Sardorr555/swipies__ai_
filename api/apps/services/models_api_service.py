@@ -352,6 +352,31 @@ def set_tenant_default_models(tenant_id: str, model_provider: str, model_instanc
     return True, "success"
 
 
+def _is_instance_connected_with_key(factory_name: str, instance_record) -> bool:
+    LOCAL_PROVIDERS = {"builtin", "ollama", "localai", "xinference", "vllm", "mineru", "paddleocr", "opendataloader", "somark"}
+    if factory_name.lower() in LOCAL_PROVIDERS:
+        return True
+
+    if not instance_record or not instance_record.api_key:
+        return False
+
+    raw_key = instance_record.api_key.strip()
+    if not raw_key or raw_key == "{}" or raw_key == '{"api_key": ""}':
+        return False
+
+    try:
+        parsed = json.loads(raw_key)
+        if isinstance(parsed, dict):
+            key = parsed.get("api_key", "").strip()
+            if not key and len(parsed.keys()) <= 1:
+                return False
+            return True
+    except Exception:
+        pass
+
+    return len(raw_key) > 0
+
+
 def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
     """
     List all added models for a tenant.
@@ -379,6 +404,8 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
     provider_info_map = {provider.id: provider for provider in (providers or [])}
     for provider_instance_record in instances:
         provider_name = provider_info_map[provider_instance_record.provider_id].provider_name if provider_info_map.get(provider_instance_record.provider_id) else ""
+        if not _is_instance_connected_with_key(provider_name, provider_instance_record):
+            continue
         if provider_instance_map.get(provider_name):
             provider_instance_map[provider_name].append(provider_instance_record)
         else:
@@ -469,13 +496,16 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
                     "instance_name": "default",
                 })
 
-    # Include Admin-registered global AI models into added_models for user selection
+    # Include Admin-registered global AI models ONLY IF provider has connected API key or model has api_key
     try:
         from api.db.services.ai_policy_service import AIModelService
         global_models = AIModelService.query(enabled=True)
         existing_model_keys = {(m["provider_name"], m["name"]) for m in added_models}
         for gm in global_models:
             if (gm.provider, gm.model_name) not in existing_model_keys:
+                # Check if provider has active key
+                if not (gm.api_key and gm.api_key.strip()) and gm.provider not in provider_instance_map:
+                    continue
                 gm_type = normalize_model_type(gm.model_type)
                 if model_type_filter and normalize_model_type(model_type_filter) != gm_type:
                     continue

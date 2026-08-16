@@ -128,14 +128,14 @@ class TenantLLMService(CommonService):
         fields = [cls.model.id, cls.model.llm_factory, LLMFactories.logo, LLMFactories.tags, cls.model.model_type, cls.model.llm_name, cls.model.used_tokens, cls.model.status]
         objs = list(cls.model.select(*fields).join(LLMFactories, on=(cls.model.llm_factory == LLMFactories.name)).where(cls.model.tenant_id == tenant_id, ~cls.model.api_key.is_null()).dicts())
 
-        # Include Admin-registered global AIModels for all tenants
+        # Include Admin-registered global AIModels for all tenants ONLY if API key is configured
         try:
             from api.db.services.ai_policy_service import AIModelService
             global_models = AIModelService.query(enabled=True)
             factories = {f.name: (f.logo, f.tags) for f in LLMFactoriesService.query(status="1")}
             existing_keys = {(o["llm_factory"], o["llm_name"]) for o in objs}
             for gm in global_models:
-                if (gm.provider, gm.model_name) not in existing_keys and gm.api_key:
+                if (gm.provider, gm.model_name) not in existing_keys and gm.api_key and gm.api_key.strip():
                     logo, tags = factories.get(gm.provider, (None, None))
                     objs.append({
                         "id": gm.id,

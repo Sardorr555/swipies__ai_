@@ -58,12 +58,25 @@ def create_new_user(user_info: dict) -> dict:
     user_id = uuid.uuid1().hex
     user_info['id'] = user_id
     user_info['access_token'] = uuid.uuid1().hex
+    # Get admin plan defaults if configured
+    default_llm = settings.CHAT_MDL
+    default_embd = settings.EMBEDDING_MDL
+    try:
+        from api.db.services.ai_policy_service import AIPolicyManager
+        free_plan = AIPolicyManager.get_user_plan(user_id)
+        if free_plan.get("default_llm_id"):
+            default_llm = free_plan["default_llm_id"]
+        if free_plan.get("default_embd_id"):
+            default_embd = free_plan["default_embd_id"]
+    except Exception:
+        pass
+
     # construct tenant info
     tenant = {
         "id": user_id,
         "name": user_info["nickname"] + "‘s Kingdom",
-        "llm_id": settings.CHAT_MDL,
-        "embd_id": settings.EMBEDDING_MDL,
+        "llm_id": default_llm,
+        "embd_id": default_embd,
         "asr_id": settings.ASR_MDL,
         "parser_ids": settings.PARSERS,
         "img2txt_id": settings.IMAGE2TEXT_MDL,
