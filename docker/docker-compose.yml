@@ -189,6 +189,8 @@ services:
       context: ..
       dockerfile: ragflow-docs/Dockerfile
     container_name: swipies-docs
+    ports:
+      - "127.0.0.1:9385:80"
     networks:
       - ragflow
     restart: unless-stopped
