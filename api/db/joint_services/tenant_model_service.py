@@ -245,72 +245,81 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
             "model_type": LLMType.EMBEDDING.value,
         }
 
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
-    if not provider_obj:
-        raise LookupError(f"Provider {provider_name} not found for model {model_name}.")
-    instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
-    model_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(provider_obj.id, instance_obj.id, model_type_val, pure_model_name)
+    # 1. Try finding via Provider Instance architecture
+    try:
+        if not provider_name:
+            from api.db.services.tenant_llm_service import TenantLLMService
+            _, fid = TenantLLMService.split_model_name_and_factory(pure_model_name)
+            if fid:
+                provider_name = fid
 
-    api_key, is_tool, api_key_payload = _decode_api_key_config(instance_obj.api_key)
-    extra_fields = json.loads(instance_obj.extra) if instance_obj.extra else {}
+        if provider_name:
+            provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+            if provider_obj:
+                instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
+                if instance_obj:
+                    model_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(provider_obj.id, instance_obj.id, model_type_val, pure_model_name)
+                    api_key, is_tool, api_key_payload = _decode_api_key_config(instance_obj.api_key)
+                    extra_fields = json.loads(instance_obj.extra) if instance_obj.extra else {}
 
-    if model_obj:
-        if model_obj.status == ActiveStatusEnum.INACTIVE.value:
-            raise LookupError(f"Model {model_name} is disabled.")
-        if model_obj.status == ActiveStatusEnum.UNSUPPORTED.value:
-            raise LookupError(f"Model {model_name} cannot be used as {model_type_val} model.")
+                    if model_obj:
+                        if model_obj.status == ActiveStatusEnum.INACTIVE.value:
+                            raise LookupError(f"Model {model_name} is disabled.")
+                        if model_obj.status == ActiveStatusEnum.UNSUPPORTED.value:
+                            raise LookupError(f"Model {model_name} cannot be used as {model_type_val} model.")
 
-        model_extra = json.loads(model_obj.extra) if model_obj.extra else {}
-        llm_info = _lookup_factory_llm_info(provider_obj.provider_name, pure_model_name, extra_fields)
-        if "max_tokens" in model_extra:
-            max_tokens = model_extra["max_tokens"]
-        else:
-            max_tokens = (llm_info or {}).get("max_tokens", 8192)
-        model_config = {
-            "llm_factory": provider_obj.provider_name,
-            "api_key": api_key,
-            "llm_name": model_obj.model_name,
-            "api_base": extra_fields.get("base_url", ""),
-            "model_type": model_obj.model_type,
-            "is_tools": model_extra.get("is_tools", is_tool),
-            "max_tokens": max_tokens,
-        }
-        if provider_name.lower() == "somark":
-            # SoMark/OCR factories read parser config (somark_*, parse_method, ...)
-            # from model_config["extra"]; see tenant_llm_service.LLMBundle OCR path.
-            model_config["extra"] = model_extra
+                        model_extra = json.loads(model_obj.extra) if model_obj.extra else {}
+                        llm_info = _lookup_factory_llm_info(provider_obj.provider_name, pure_model_name, extra_fields)
+                        max_tokens = model_extra.get("max_tokens", (llm_info or {}).get("max_tokens", 8192))
+                        model_config = {
+                            "llm_factory": provider_obj.provider_name,
+                            "api_key": api_key,
+                            "llm_name": model_obj.model_name,
+                            "api_base": extra_fields.get("base_url", ""),
+                            "model_type": model_obj.model_type,
+                            "is_tools": model_extra.get("is_tools", is_tool),
+                            "max_tokens": max_tokens,
+                        }
+                        if provider_name.lower() == "somark":
+                            model_config["extra"] = model_extra
+                        if api_key_payload is not None:
+                            model_config["api_key_payload"] = api_key_payload
+                        return model_config
+                    else:
+                        region = extra_fields.get("region", "default")
+                        target_factory_name = "siliconflow_intl" if (region == "intl" and provider_name.lower() == "siliconflow") else provider_name
+                        fac_list = [f for f in settings.FACTORY_LLM_INFOS if f["name"] == target_factory_name]
+                        if fac_list:
+                            llm_list = [llm for llm in fac_list[0]["llm"] if llm["llm_name"] == pure_model_name]
+                            if llm_list:
+                                llm_info = llm_list[0]
+                                if model_type_val in _factory_model_types(llm_info):
+                                    model_config = {
+                                        "llm_factory": provider_obj.provider_name,
+                                        "api_key": api_key,
+                                        "llm_name": llm_info["llm_name"],
+                                        "api_base": extra_fields.get("base_url", ""),
+                                        "model_type": model_type_val,
+                                        "is_tools": llm_info.get("is_tools", is_tool),
+                                        "max_tokens": llm_info.get("max_tokens") or 8192,
+                                    }
+                                    if api_key_payload is not None:
+                                        model_config["api_key_payload"] = api_key_payload
+                                    return model_config
+    except Exception as e:
+        logger.warning(f"get_model_config_from_provider_instance provider instance lookup exception: {e}")
 
-        if api_key_payload is not None:
-            model_config["api_key_payload"] = api_key_payload
+    # 2. Fallback to TenantLLMService & AIModelService
+    from api.db.services.tenant_llm_service import TenantLLMService
+    try:
+        target_name = pure_model_name if pure_model_name else model_name
+        fallback_cfg = TenantLLMService.get_model_config(tenant_id, model_type_val, target_name)
+        if fallback_cfg:
+            return fallback_cfg
+    except Exception as fallback_e:
+        logger.warning(f"TenantLLMService get_model_config fallback exception: {fallback_e}")
 
-        return model_config
-    else:
-        region = extra_fields.get("region", "default")
-        if region == "intl" and provider_name.lower() == "siliconflow":
-            target_factory_name = "siliconflow_intl"
-        else:
-            target_factory_name = provider_name
-        fac_list = [f for f in settings.FACTORY_LLM_INFOS if f["name"] == target_factory_name]
-        if not fac_list:
-            raise LookupError(f"Model provider config not found: {provider_name}")
-        llm_list = [llm for llm in fac_list[0]["llm"] if llm["llm_name"] == pure_model_name]
-        if not llm_list:
-            raise LookupError(f"Instance {instance_name} not found for model {model_name}.")
-        llm_info = llm_list[0]
-        if model_type_val not in _factory_model_types(llm_info):
-            raise LookupError(f"Model {model_name} is not a {model_type_val} model.")
-        model_config = {
-            "llm_factory": provider_obj.provider_name,
-            "api_key": api_key,
-            "llm_name": llm_info["llm_name"],
-            "api_base": extra_fields.get("base_url", ""),
-            "model_type": model_type_val,
-            "is_tools": llm_info.get("is_tools", is_tool),
-            "max_tokens": llm_info.get("max_tokens") or 8192,
-        }
-        if api_key_payload is not None:
-            model_config["api_key_payload"] = api_key_payload
-        return model_config
+    raise LookupError(f"Provider {provider_name or 'unknown'} not found or not configured for model {model_name}.")
 
 
 def get_api_key(tenant_id: str, model_name: str):

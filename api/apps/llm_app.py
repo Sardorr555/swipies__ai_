@@ -165,6 +165,10 @@ async def set_api_key():
         if n in req:
             llm_config[n] = req[n]
 
+    from api.db.services.tenant_model_provider_service import TenantModelProviderService
+    from api.db.services.tenant_model_instance_service import TenantModelInstanceService
+    from api.db.services.tenant_model_service import TenantModelService
+
     for llm in source_llms:
         llm_config["max_tokens"] = llm.max_tokens
         if not TenantLLMService.filter_update([TenantLLM.tenant_id == current_user.id, TenantLLM.llm_factory == factory, TenantLLM.llm_name == llm.llm_name], llm_config):
@@ -177,6 +181,25 @@ async def set_api_key():
                 api_base=llm_config["api_base"],
                 max_tokens=llm_config["max_tokens"],
             )
+
+        # Sync to TenantModelProvider & TenantModelInstance & TenantModel
+        try:
+            p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
+            if not p_obj:
+                TenantModelProviderService.insert(tenant_id=current_user.id, provider_name=factory)
+                p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
+            if p_obj:
+                inst_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
+                if not inst_obj:
+                    inst_obj = TenantModelInstanceService.create_instance(provider_id=p_obj.id, instance_name="default", api_key=llm_config["api_key"], extra=json.dumps({"base_url": base_url}))
+                else:
+                    TenantModelInstanceService.filter_update([TenantModelInstanceService.model.id == inst_obj.id], {"api_key": llm_config["api_key"], "extra": json.dumps({"base_url": base_url})})
+
+                m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(p_obj.id, inst_obj.id, llm.model_type, llm.llm_name)
+                if not m_obj:
+                    TenantModelService.insert(model_name=llm.llm_name, provider_id=p_obj.id, instance_id=inst_obj.id, model_type=llm.model_type, extra=json.dumps({"max_tokens": llm.max_tokens}))
+        except Exception as sync_e:
+            logging.warning(f"set_api_key provider instance sync warning: {sync_e}")
 
     return get_json_result(data=True)
 
@@ -443,6 +466,25 @@ async def add_llm():
 
     if not TenantLLMService.filter_update([TenantLLM.tenant_id == current_user.id, TenantLLM.llm_factory == factory, TenantLLM.llm_name == llm["llm_name"]], llm):
         TenantLLMService.save(**llm)
+
+    # Sync to TenantModelProvider & TenantModelInstance & TenantModel
+    try:
+        p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
+        if not p_obj:
+            TenantModelProviderService.insert(tenant_id=current_user.id, provider_name=factory)
+            p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
+        if p_obj:
+            inst_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
+            if not inst_obj:
+                inst_obj = TenantModelInstanceService.create_instance(provider_id=p_obj.id, instance_name="default", api_key=llm["api_key"], extra=json.dumps({"base_url": llm.get("api_base", "")}))
+            else:
+                TenantModelInstanceService.filter_update([TenantModelInstanceService.model.id == inst_obj.id], {"api_key": llm["api_key"], "extra": json.dumps({"base_url": llm.get("api_base", "")})})
+
+            m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(p_obj.id, inst_obj.id, llm["model_type"], llm["llm_name"])
+            if not m_obj:
+                TenantModelService.insert(model_name=llm["llm_name"], provider_id=p_obj.id, instance_id=inst_obj.id, model_type=llm["model_type"], extra=json.dumps({"max_tokens": llm.get("max_tokens", 8192)}))
+    except Exception as sync_e:
+        logging.warning(f"add_llm provider instance sync warning: {sync_e}")
 
     return get_json_result(data=True)
 
