@@ -203,7 +203,7 @@ export const updateAdminPolicies = (planId: string, policies: Partial<Subscripti
 
 // Analytics & Logs
 export const getAdminAnalytics = (period?: string) =>
-  request.get<ResponseData<AdminAnalyticsData>>('/v1/admin/ai/analytics', {
+  request.get<ResponseData<AdminAnalyticsData>>('/v1/admin/ai/metrics', {
     params: { period },
   });
 

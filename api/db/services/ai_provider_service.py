@@ -127,7 +127,8 @@ class AIProviderService(CommonService):
             if admin_tenant_id:
                 p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(admin_tenant_id, provider_name, fallback_admin=False)
                 if not p_obj:
-                    TenantModelProviderService.insert(tenant_id=admin_tenant_id, provider_name=provider_name)
+                    from common.misc_utils import get_uuid
+                    TenantModelProviderService.insert(id=get_uuid(), tenant_id=admin_tenant_id, provider_name=provider_name)
                     p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(admin_tenant_id, provider_name, fallback_admin=False)
 
                 if p_obj:

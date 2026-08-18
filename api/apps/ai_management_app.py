@@ -40,6 +40,7 @@ from api.utils.api_utils import (
 )
 from api.utils.key_crypto import encrypt_api_key, decrypt_api_key, mask_api_key
 from common.constants import ActiveStatusEnum, RetCode, StatusEnum
+from common.misc_utils import get_uuid
 from common.time_utils import current_timestamp
 
 # Define page_name so __init__.py mounts this blueprint at /v1/admin/ai
@@ -68,8 +69,12 @@ async def admin_get_global_instance():
     if auth_err:
         return auth_err
 
-    stats = GlobalInstanceService.get_instance_stats()
-    return get_json_result(data=stats)
+    try:
+        stats = GlobalInstanceService.get_instance_stats()
+        return get_json_result(data=stats)
+    except Exception as e:
+        logging.exception("admin_get_global_instance error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/instance", methods=["PUT"])  # noqa: F821
@@ -79,12 +84,16 @@ async def admin_update_global_instance():
     if auth_err:
         return auth_err
 
-    req = await get_request_json()
-    if not req:
-        return get_data_error_result(message="Request payload is empty.")
+    try:
+        req = await get_request_json()
+        if not req:
+            return get_data_error_result(message="Request payload is empty.")
 
-    updated_inst = GlobalInstanceService.update_global_instance(req, admin_user_id=current_user.id)
-    return get_json_result(data=GlobalInstanceService.get_instance_stats())
+        updated_inst = GlobalInstanceService.update_global_instance(req, admin_user_id=current_user.id)
+        return get_json_result(data=GlobalInstanceService.get_instance_stats())
+    except Exception as e:
+        logging.exception("admin_update_global_instance error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 # ==========================================
@@ -99,8 +108,12 @@ async def admin_get_providers():
     if auth_err:
         return auth_err
 
-    providers = AIProviderService.get_global_providers()
-    return get_json_result(data=providers)
+    try:
+        providers = AIProviderService.get_global_providers()
+        return get_json_result(data=providers)
+    except Exception as e:
+        logging.exception("admin_get_providers error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/providers", methods=["POST"])  # noqa: F821
@@ -110,12 +123,16 @@ async def admin_save_provider():
     if auth_err:
         return auth_err
 
-    req = await get_request_json()
-    if not req or not req.get("provider_name"):
-        return get_data_error_result(message="provider_name is required.")
+    try:
+        req = await get_request_json()
+        if not req or not req.get("provider_name"):
+            return get_data_error_result(message="provider_name is required.")
 
-    res = AIProviderService.save_global_provider(req, admin_user_id=current_user.id)
-    return get_json_result(data=res)
+        res = AIProviderService.save_global_provider(req, admin_user_id=current_user.id)
+        return get_json_result(data=res)
+    except Exception as e:
+        logging.exception("admin_save_provider error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/providers/<provider_id>", methods=["DELETE"])  # noqa: F821
@@ -125,8 +142,12 @@ async def admin_delete_provider(provider_id):
     if auth_err:
         return auth_err
 
-    success = AIProviderService.delete_global_provider(provider_id, admin_user_id=current_user.id)
-    return get_json_result(data=success)
+    try:
+        success = AIProviderService.delete_global_provider(provider_id, admin_user_id=current_user.id)
+        return get_json_result(data=success)
+    except Exception as e:
+        logging.exception("admin_delete_provider error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 # ==========================================
@@ -141,22 +162,26 @@ async def admin_get_models():
     if auth_err:
         return auth_err
 
-    # Query all global platform models
-    models = AIModelService.get_platform_models()
+    try:
+        # Query all global platform models
+        models = AIModelService.get_platform_models()
 
-    # Attach subscription plan access for each model
-    policies = SubscriptionAIPolicyService.get_all()
-    plan_access_map = {}
-    for p in policies:
-        if p.model_id not in plan_access_map:
-            plan_access_map[p.model_id] = []
-        if p.enabled:
-            plan_access_map[p.model_id].append(p.plan_id.lower())
+        # Attach subscription plan access for each model
+        policies = SubscriptionAIPolicyService.get_all()
+        plan_access_map = {}
+        for p in policies:
+            if p.model_id not in plan_access_map:
+                plan_access_map[p.model_id] = []
+            if p.enabled:
+                plan_access_map[p.model_id].append(p.plan_id.lower())
 
-    for m in models:
-        m["allowed_plans"] = plan_access_map.get(m["id"], [])
+        for m in models:
+            m["allowed_plans"] = plan_access_map.get(m["id"], [])
 
-    return get_json_result(data=models)
+        return get_json_result(data=models)
+    except Exception as e:
+        logging.exception("admin_get_models error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/models", methods=["POST"])  # noqa: F821
@@ -166,139 +191,144 @@ async def admin_save_model():
     if auth_err:
         return auth_err
 
-    req = await get_request_json()
-    if not req:
-        return get_data_error_result(message="Payload is required.")
-
-    model_name = req.get("model_name")
-    provider = req.get("provider")
-    model_type = req.get("model_type", "CHAT")
-    if not model_name or not provider:
-        return get_data_error_result(message="model_name and provider are required.")
-
-    model_id = req.get("id") or f"{provider.lower()}/{model_name}"
-    raw_key = req.get("api_key", "")
-    existing = AIModel.get_or_none(AIModel.id == model_id)
-
-    if raw_key and not raw_key.startswith("enc:v1:"):
-        enc_key = encrypt_api_key(raw_key)
-    elif raw_key:
-        enc_key = raw_key
-    elif existing:
-        enc_key = existing.api_key
-    else:
-        # Fallback to provider key if model key not explicitly given
-        prov = AIProviderService.get_raw_by_provider_name(provider)
-        enc_key = prov.api_key if prov else ""
-
-    now = current_timestamp()
-    model_data = {
-        "id": model_id,
-        "provider": provider,
-        "model_name": model_name,
-        "model_type": model_type.upper(),
-        "base_url": req.get("base_url", ""),
-        "api_key": enc_key,
-        "input_token_price": float(req.get("input_token_price", 0.0) or 0.0),
-        "output_token_price": float(req.get("output_token_price", 0.0) or 0.0),
-        "max_tokens": int(req.get("max_tokens", 8192) or 8192),
-        "enabled": bool(req.get("enabled", True)),
-        "is_global": True,
-        "is_custom": False,
-        "global_instance_id": GLOBAL_INSTANCE_ID,
-        "status": "active" if req.get("enabled", True) else "disabled",
-        "update_time": now,
-    }
-
-    old_val = existing.to_dict() if existing else None
-    if existing:
-        AIModelService.filter_update([AIModelService.model.id == model_id], model_data)
-    else:
-        model_data["create_time"] = now
-        AIModelService.save(**model_data)
-
-    # Update subscription plan mappings if provided
-    allowed_plans = req.get("allowed_plans", [])
-    if isinstance(allowed_plans, list):
-        for plan_id in ["free", "plus", "pro"]:
-            pol_id = f"{plan_id}_{model_id}"
-            is_enabled = plan_id in [p.lower() for p in allowed_plans]
-            if SubscriptionAIPolicyService.query(id=pol_id):
-                SubscriptionAIPolicyService.filter_update(
-                    [SubscriptionAIPolicyService.model.id == pol_id],
-                    {"enabled": is_enabled},
-                )
-            elif is_enabled:
-                SubscriptionAIPolicyService.save(
-                    id=pol_id,
-                    plan_id=plan_id,
-                    model_id=model_id,
-                    model_token_limit=0,
-                    enabled=True,
-                )
-
-    # Audit log
-    AIAuditLogService.log_action(
-        user_id=current_user.id,
-        action="MODEL_UPDATE" if existing else "MODEL_CREATE",
-        target_type="ai_model",
-        target_id=model_id,
-        old_val=old_val,
-        new_val=model_data,
-    )
-
-    # Sync to RAGFlow core TenantLLM and TenantModel
     try:
-        from api.db.services.tenant_model_provider_service import TenantModelProviderService
-        from api.db.services.tenant_model_instance_service import TenantModelInstanceService
-        from api.db.services.tenant_model_service import TenantModelService
+        req = await get_request_json()
+        if not req:
+            return get_data_error_result(message="Payload is required.")
 
-        admin_tenant_id = TenantModelProviderService._get_admin_tenant_id()
-        if admin_tenant_id:
-            decrypted_key = decrypt_api_key(enc_key) if enc_key else ""
-            p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(admin_tenant_id, provider, fallback_admin=False)
-            if not p_obj:
-                TenantModelProviderService.insert(tenant_id=admin_tenant_id, provider_name=provider)
+        model_name = req.get("model_name")
+        provider = req.get("provider")
+        model_type = req.get("model_type", "CHAT")
+        if not model_name or not provider:
+            return get_data_error_result(message="model_name and provider are required.")
+
+        model_id = req.get("id") or f"{provider.lower()}/{model_name}"
+        raw_key = req.get("api_key", "")
+        existing = AIModel.get_or_none(AIModel.id == model_id)
+
+        if raw_key and not raw_key.startswith("enc:v1:"):
+            enc_key = encrypt_api_key(raw_key)
+        elif raw_key:
+            enc_key = raw_key
+        elif existing:
+            enc_key = existing.api_key
+        else:
+            # Fallback to provider key if model key not explicitly given
+            prov = AIProviderService.get_raw_by_provider_name(provider)
+            enc_key = prov.api_key if prov else ""
+
+        now = current_timestamp()
+        model_data = {
+            "id": model_id,
+            "provider": provider,
+            "model_name": model_name,
+            "model_type": model_type.upper(),
+            "base_url": req.get("base_url", ""),
+            "api_key": enc_key,
+            "input_token_price": float(req.get("input_token_price", 0.0) or 0.0),
+            "output_token_price": float(req.get("output_token_price", 0.0) or 0.0),
+            "max_tokens": int(req.get("max_tokens", 8192) or 8192),
+            "enabled": bool(req.get("enabled", True)),
+            "is_global": True,
+            "is_custom": False,
+            "global_instance_id": GLOBAL_INSTANCE_ID,
+            "status": "active" if req.get("enabled", True) else "disabled",
+            "update_time": now,
+        }
+
+        old_val = existing.to_dict() if existing else None
+        if existing:
+            AIModelService.filter_update([AIModelService.model.id == model_id], model_data)
+        else:
+            model_data["create_time"] = now
+            AIModelService.save(**model_data)
+
+        # Update subscription plan mappings if provided
+        allowed_plans = req.get("allowed_plans", [])
+        if isinstance(allowed_plans, list):
+            for plan_id in ["free", "plus", "pro"]:
+                pol_id = f"{plan_id}_{model_id}"
+                is_enabled = plan_id in [p.lower() for p in allowed_plans]
+                if SubscriptionAIPolicyService.query(id=pol_id):
+                    SubscriptionAIPolicyService.filter_update(
+                        [SubscriptionAIPolicyService.model.id == pol_id],
+                        {"enabled": is_enabled},
+                    )
+                elif is_enabled:
+                    SubscriptionAIPolicyService.save(
+                        id=pol_id,
+                        plan_id=plan_id,
+                        model_id=model_id,
+                        model_token_limit=0,
+                        enabled=True,
+                    )
+
+        # Audit log
+        AIAuditLogService.log_action(
+            user_id=current_user.id,
+            action="MODEL_UPDATE" if existing else "MODEL_CREATE",
+            target_type="ai_model",
+            target_id=model_id,
+            old_val=old_val,
+            new_val=model_data,
+        )
+
+        # Sync to RAGFlow core TenantLLM and TenantModel
+        try:
+            from api.db.services.tenant_model_provider_service import TenantModelProviderService
+            from api.db.services.tenant_model_instance_service import TenantModelInstanceService
+            from api.db.services.tenant_model_service import TenantModelService
+
+            admin_tenant_id = TenantModelProviderService._get_admin_tenant_id()
+            if admin_tenant_id:
+                decrypted_key = decrypt_api_key(enc_key) if enc_key else ""
                 p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(admin_tenant_id, provider, fallback_admin=False)
-            if p_obj:
-                inst_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
-                if not inst_obj:
-                    inst_obj = TenantModelInstanceService.create_instance(
-                        provider_id=p_obj.id,
-                        instance_name="default",
-                        api_key=decrypted_key,
-                        extra=json.dumps({"base_url": model_data["base_url"]}),
-                    )
-                else:
-                    TenantModelInstanceService.filter_update(
-                        [TenantModelInstanceService.model.id == inst_obj.id],
-                        {"api_key": decrypted_key, "extra": json.dumps({"base_url": model_data["base_url"]})},
-                    )
+                if not p_obj:
+                    TenantModelProviderService.insert(id=get_uuid(), tenant_id=admin_tenant_id, provider_name=provider)
+                    p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(admin_tenant_id, provider, fallback_admin=False)
+                if p_obj:
+                    inst_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
+                    if not inst_obj:
+                        inst_obj = TenantModelInstanceService.create_instance(
+                            provider_id=p_obj.id,
+                            instance_name="default",
+                            api_key=decrypted_key,
+                            extra=json.dumps({"base_url": model_data["base_url"]}),
+                        )
+                    else:
+                        TenantModelInstanceService.filter_update(
+                            [TenantModelInstanceService.model.id == inst_obj.id],
+                            {"api_key": decrypted_key, "extra": json.dumps({"base_url": model_data["base_url"]})},
+                        )
 
-                m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(
-                    p_obj.id, inst_obj.id, model_type.upper(), model_name
-                )
-                status_act = ActiveStatusEnum.ACTIVE.value if model_data["enabled"] else ActiveStatusEnum.INACTIVE.value
-                if not m_obj:
-                    TenantModelService.insert(
-                        model_name=model_name,
-                        provider_id=p_obj.id,
-                        instance_id=inst_obj.id,
-                        model_type=model_type.upper(),
-                        extra=json.dumps({"max_tokens": model_data["max_tokens"]}),
-                        status=status_act,
+                    m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(
+                        p_obj.id, inst_obj.id, model_type.upper(), model_name
                     )
-                else:
-                    TenantModelService.filter_update(
-                        [TenantModelService.model.id == m_obj.id],
-                        {"status": status_act},
-                    )
-    except Exception as sync_e:
-        logging.warning("Sync AIModel to RAGFlow LLM core warning: %s", sync_e)
+                    status_act = ActiveStatusEnum.ACTIVE.value if model_data["enabled"] else ActiveStatusEnum.INACTIVE.value
+                    if not m_obj:
+                        TenantModelService.insert(
+                            id=get_uuid(),
+                            model_name=model_name,
+                            provider_id=p_obj.id,
+                            instance_id=inst_obj.id,
+                            model_type=model_type.upper(),
+                            extra=json.dumps({"max_tokens": model_data["max_tokens"]}),
+                            status=status_act,
+                        )
+                    else:
+                        TenantModelService.filter_update(
+                            [TenantModelService.model.id == m_obj.id],
+                            {"status": status_act},
+                        )
+        except Exception as sync_e:
+            logging.warning("Sync AIModel to RAGFlow LLM core warning: %s", sync_e)
 
-    model_data["api_key_masked"] = mask_api_key(enc_key)
-    del model_data["api_key"]
-    return get_json_result(data=model_data)
+        model_data["api_key_masked"] = mask_api_key(enc_key)
+        del model_data["api_key"]
+        return get_json_result(data=model_data)
+    except Exception as e:
+        logging.exception("admin_save_model error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/models/<path:model_id>", methods=["DELETE"])  # noqa: F821
@@ -308,19 +338,23 @@ async def admin_delete_model(model_id):
     if auth_err:
         return auth_err
 
-    m = AIModel.get_or_none(AIModel.id == model_id)
-    if m:
-        old_val = m.to_dict()
-        AIModelService.filter_delete([AIModelService.model.id == model_id])
-        SubscriptionAIPolicyService.filter_delete([SubscriptionAIPolicyService.model.model_id == model_id])
-        AIAuditLogService.log_action(
-            user_id=current_user.id,
-            action="MODEL_DELETE",
-            target_type="ai_model",
-            target_id=model_id,
-            old_val=old_val,
-        )
-    return get_json_result(data=True)
+    try:
+        m = AIModel.get_or_none(AIModel.id == model_id)
+        if m:
+            old_val = m.to_dict()
+            AIModelService.filter_delete([AIModelService.model.id == model_id])
+            SubscriptionAIPolicyService.filter_delete([SubscriptionAIPolicyService.model.model_id == model_id])
+            AIAuditLogService.log_action(
+                user_id=current_user.id,
+                action="MODEL_DELETE",
+                target_type="ai_model",
+                target_id=model_id,
+                old_val=old_val,
+            )
+        return get_json_result(data=True)
+    except Exception as e:
+        logging.exception("admin_delete_model error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 # ==========================================
@@ -335,9 +369,13 @@ async def admin_get_plans():
     if auth_err:
         return auth_err
 
-    plans = SubscriptionPlanService.get_all()
-    res = [p.to_dict() for p in plans]
-    return get_json_result(data=res)
+    try:
+        plans = SubscriptionPlanService.get_all()
+        res = [p.to_dict() for p in plans]
+        return get_json_result(data=res)
+    except Exception as e:
+        logging.exception("admin_get_plans error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/plans/<plan_id>", methods=["PUT"])  # noqa: F821
@@ -347,52 +385,56 @@ async def admin_update_plan(plan_id):
     if auth_err:
         return auth_err
 
-    req = await get_request_json()
-    if not req:
-        return get_data_error_result(message="Request payload is empty.")
+    try:
+        req = await get_request_json()
+        if not req:
+            return get_data_error_result(message="Request payload is empty.")
 
-    plans = SubscriptionPlanService.query(id=plan_id)
-    if not plans:
-        return get_data_error_result(message=f"Plan '{plan_id}' not found.")
+        plans = SubscriptionPlanService.query(id=plan_id)
+        if not plans:
+            return get_data_error_result(message=f"Plan '{plan_id}' not found.")
 
-    allowed_keys = [
-        "name",
-        "daily_token_limit",
-        "monthly_token_limit",
-        "daily_request_limit",
-        "monthly_request_limit",
-        "requests_per_minute",
-        "max_tokens_per_request",
-        "limit_mode",
-        "max_storage_gb",
-        "max_datasets",
-        "max_agents",
-        "allow_custom_providers",
-        "allow_custom_models",
-        "allow_custom_endpoints",
-        "allow_private_servers",
-        "allow_byok",
-        "max_byok_models",
-        "default_llm_id",
-        "default_embd_id",
-        "default_rerank_id",
-        "status",
-    ]
-    update_fields = {k: req[k] for k in allowed_keys if k in req}
+        allowed_keys = [
+            "name",
+            "daily_token_limit",
+            "monthly_token_limit",
+            "daily_request_limit",
+            "monthly_request_limit",
+            "requests_per_minute",
+            "max_tokens_per_request",
+            "limit_mode",
+            "max_storage_gb",
+            "max_datasets",
+            "max_agents",
+            "allow_custom_providers",
+            "allow_custom_models",
+            "allow_custom_endpoints",
+            "allow_private_servers",
+            "allow_byok",
+            "max_byok_models",
+            "default_llm_id",
+            "default_embd_id",
+            "default_rerank_id",
+            "status",
+        ]
+        update_fields = {k: req[k] for k in allowed_keys if k in req}
 
-    old_val = plans[0].to_dict()
-    SubscriptionPlanService.filter_update([SubscriptionPlanService.model.id == plan_id], update_fields)
+        old_val = plans[0].to_dict()
+        SubscriptionPlanService.filter_update([SubscriptionPlanService.model.id == plan_id], update_fields)
 
-    AIAuditLogService.log_action(
-        user_id=current_user.id,
-        action="PLAN_UPDATE",
-        target_type="subscription_plan",
-        target_id=plan_id,
-        old_val=old_val,
-        new_val=update_fields,
-    )
+        AIAuditLogService.log_action(
+            user_id=current_user.id,
+            action="PLAN_UPDATE",
+            target_type="subscription_plan",
+            target_id=plan_id,
+            old_val=old_val,
+            new_val=update_fields,
+        )
 
-    return get_json_result(data=True)
+        return get_json_result(data=True)
+    except Exception as e:
+        logging.exception("admin_update_plan error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/policies", methods=["GET"])  # noqa: F821
@@ -402,14 +444,18 @@ async def admin_get_policies():
     if auth_err:
         return auth_err
 
-    plan_id = request.args.get("plan_id")
-    if plan_id:
-        policies = SubscriptionAIPolicyService.query(plan_id=plan_id)
-    else:
-        policies = SubscriptionAIPolicyService.get_all()
+    try:
+        plan_id = request.args.get("plan_id")
+        if plan_id:
+            policies = SubscriptionAIPolicyService.query(plan_id=plan_id)
+        else:
+            policies = SubscriptionAIPolicyService.get_all()
 
-    res = [p.to_dict() for p in policies]
-    return get_json_result(data=res)
+        res = [p.to_dict() for p in policies]
+        return get_json_result(data=res)
+    except Exception as e:
+        logging.exception("admin_get_policies error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/policies", methods=["PUT"])  # noqa: F821
@@ -419,43 +465,47 @@ async def admin_update_policies():
     if auth_err:
         return auth_err
 
-    req = await get_request_json()
-    plan_id = req.get("plan_id")
-    policies_list = req.get("policies", [])
+    try:
+        req = await get_request_json()
+        plan_id = req.get("plan_id")
+        policies_list = req.get("policies", [])
 
-    if not plan_id:
-        return get_data_error_result(message="plan_id is required.")
+        if not plan_id:
+            return get_data_error_result(message="plan_id is required.")
 
-    for item in policies_list:
-        model_id = item.get("model_id")
-        if not model_id:
-            continue
-        pol_id = f"{plan_id}_{model_id}"
-        pol_data = {
-            "id": pol_id,
-            "plan_id": plan_id,
-            "model_id": model_id,
-            "model_token_limit": int(item.get("model_token_limit", 0) or 0),
-            "is_default_llm": bool(item.get("is_default_llm", False)),
-            "is_default_embd": bool(item.get("is_default_embd", False)),
-            "is_default_rerank": bool(item.get("is_default_rerank", False)),
-            "enabled": bool(item.get("enabled", True)),
-        }
+        for item in policies_list:
+            model_id = item.get("model_id")
+            if not model_id:
+                continue
+            pol_id = f"{plan_id}_{model_id}"
+            pol_data = {
+                "id": pol_id,
+                "plan_id": plan_id,
+                "model_id": model_id,
+                "model_token_limit": int(item.get("model_token_limit", 0) or 0),
+                "is_default_llm": bool(item.get("is_default_llm", False)),
+                "is_default_embd": bool(item.get("is_default_embd", False)),
+                "is_default_rerank": bool(item.get("is_default_rerank", False)),
+                "enabled": bool(item.get("enabled", True)),
+            }
 
-        if SubscriptionAIPolicyService.query(id=pol_id):
-            SubscriptionAIPolicyService.filter_update([SubscriptionAIPolicyService.model.id == pol_id], pol_data)
-        else:
-            SubscriptionAIPolicyService.save(**pol_data)
+            if SubscriptionAIPolicyService.query(id=pol_id):
+                SubscriptionAIPolicyService.filter_update([SubscriptionAIPolicyService.model.id == pol_id], pol_data)
+            else:
+                SubscriptionAIPolicyService.save(**pol_data)
 
-    AIAuditLogService.log_action(
-        user_id=current_user.id,
-        action="POLICIES_UPDATE",
-        target_type="subscription_ai_policy",
-        target_id=plan_id,
-        new_val={"count": len(policies_list)},
-    )
+        AIAuditLogService.log_action(
+            user_id=current_user.id,
+            action="POLICIES_UPDATE",
+            target_type="subscription_ai_policy",
+            target_id=plan_id,
+            new_val={"count": len(policies_list)},
+        )
 
-    return get_json_result(data=True)
+        return get_json_result(data=True)
+    except Exception as e:
+        logging.exception("admin_update_policies error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 # ==========================================
@@ -464,15 +514,21 @@ async def admin_update_policies():
 
 
 @manager.route("/analytics", methods=["GET"])  # noqa: F821
+@manager.route("/metrics", methods=["GET"])  # noqa: F821
+@manager.route("/usage-stats", methods=["GET"])  # noqa: F821
 @login_required
 async def admin_get_analytics():
     auth_err = require_superuser()
     if auth_err:
         return auth_err
 
-    period = request.args.get("period")
-    data = AIPolicyManager.get_admin_analytics(period)
-    return get_json_result(data=data)
+    try:
+        period = request.args.get("period")
+        data = AIPolicyManager.get_admin_analytics(period)
+        return get_json_result(data=data)
+    except Exception as e:
+        logging.exception("admin_get_analytics error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/audit-logs", methods=["GET"])  # noqa: F821
@@ -482,13 +538,17 @@ async def admin_get_audit_logs():
     if auth_err:
         return auth_err
 
-    limit = int(request.args.get("limit", 50))
-    offset = int(request.args.get("offset", 0))
-    action = request.args.get("action")
-    target_type = request.args.get("target_type")
+    try:
+        limit = int(request.args.get("limit", 50))
+        offset = int(request.args.get("offset", 0))
+        action = request.args.get("action")
+        target_type = request.args.get("target_type")
 
-    logs, total = AIAuditLogService.get_logs(limit=limit, offset=offset, action=action, target_type=target_type)
-    return get_json_result(data={"items": logs, "total": total})
+        logs, total = AIAuditLogService.get_logs(limit=limit, offset=offset, action=action, target_type=target_type)
+        return get_json_result(data={"items": logs, "total": total})
+    except Exception as e:
+        logging.exception("admin_get_audit_logs error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/byok-stats", methods=["GET"])  # noqa: F821
@@ -498,17 +558,21 @@ async def admin_get_byok_stats():
     if auth_err:
         return auth_err
 
-    total_byok = AIModel.select().where(AIModel.is_custom == True).count()
-    active_byok = AIModel.select().where(AIModel.is_custom == True, AIModel.status == "active").count()
-    locked_byok = AIModel.select().where(AIModel.is_custom == True, AIModel.status == "locked_pro_required").count()
-    unique_users = AIModel.select(fn.COUNT(fn.DISTINCT(AIModel.owner_user_id))).where(AIModel.is_custom == True).scalar() or 0
+    try:
+        total_byok = AIModel.select().where(AIModel.is_custom == True).count()
+        active_byok = AIModel.select().where(AIModel.is_custom == True, AIModel.status == "active").count()
+        locked_byok = AIModel.select().where(AIModel.is_custom == True, AIModel.status == "locked_pro_required").count()
+        unique_users = AIModel.select(fn.COUNT(fn.DISTINCT(AIModel.owner_user_id))).where(AIModel.is_custom == True).scalar() or 0
 
-    return get_json_result(data={
-        "total_byok_models": total_byok,
-        "active_byok_models": active_byok,
-        "locked_byok_models": locked_byok,
-        "byok_users_count": unique_users,
-    })
+        return get_json_result(data={
+            "total_byok_models": total_byok,
+            "active_byok_models": active_byok,
+            "locked_byok_models": locked_byok,
+            "byok_users_count": unique_users,
+        })
+    except Exception as e:
+        logging.exception("admin_get_byok_stats error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 # ==========================================
@@ -523,9 +587,13 @@ async def admin_get_user_limit(user_id):
     if auth_err:
         return auth_err
 
-    limits = UserTokenLimitService.query(user_id=user_id)
-    data = limits[0].to_dict() if limits else {"user_id": user_id, "monthly_token_limit": 0, "enabled": True}
-    return get_json_result(data=data)
+    try:
+        limits = UserTokenLimitService.query(user_id=user_id)
+        data = limits[0].to_dict() if limits else {"user_id": user_id, "monthly_token_limit": 0, "enabled": True}
+        return get_json_result(data=data)
+    except Exception as e:
+        logging.exception("admin_get_user_limit error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/user-limits", methods=["PUT"])  # noqa: F821
@@ -535,31 +603,35 @@ async def admin_set_user_limit():
     if auth_err:
         return auth_err
 
-    req = await get_request_json()
-    user_id = req.get("user_id")
-    limit = req.get("monthly_token_limit", 0)
-    enabled = req.get("enabled", True)
+    try:
+        req = await get_request_json()
+        user_id = req.get("user_id")
+        limit = req.get("monthly_token_limit", 0)
+        enabled = req.get("enabled", True)
 
-    if not user_id:
-        return get_data_error_result(message="user_id is required.")
+        if not user_id:
+            return get_data_error_result(message="user_id is required.")
 
-    if UserTokenLimitService.query(user_id=user_id):
-        UserTokenLimitService.filter_update(
-            [UserTokenLimitService.model.user_id == user_id],
-            {"monthly_token_limit": limit, "enabled": enabled},
+        if UserTokenLimitService.query(user_id=user_id):
+            UserTokenLimitService.filter_update(
+                [UserTokenLimitService.model.user_id == user_id],
+                {"monthly_token_limit": limit, "enabled": enabled},
+            )
+        else:
+            UserTokenLimitService.save(user_id=user_id, monthly_token_limit=limit, enabled=enabled)
+
+        AIAuditLogService.log_action(
+            user_id=current_user.id,
+            action="USER_LIMIT_UPDATE",
+            target_type="user",
+            target_id=user_id,
+            new_val={"monthly_token_limit": limit, "enabled": enabled},
         )
-    else:
-        UserTokenLimitService.save(user_id=user_id, monthly_token_limit=limit, enabled=enabled)
 
-    AIAuditLogService.log_action(
-        user_id=current_user.id,
-        action="USER_LIMIT_UPDATE",
-        target_type="user",
-        target_id=user_id,
-        new_val={"monthly_token_limit": limit, "enabled": enabled},
-    )
-
-    return get_json_result(data=True)
+        return get_json_result(data=True)
+    except Exception as e:
+        logging.exception("admin_set_user_limit error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 # ==========================================
