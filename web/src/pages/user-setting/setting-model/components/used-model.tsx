@@ -24,7 +24,7 @@ import {
 } from '@/interfaces/database/llm';
 import { IProviderModelItem } from '@/interfaces/request/llm';
 import { cn } from '@/lib/utils';
-import { ChevronsDown, ChevronsUp, Pencil, Trash2 } from 'lucide-react';
+import { ChevronsDown, ChevronsUp, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AddCustomModelDialog } from '../modal/provider-modal/components/add-custom-model-dialog';
@@ -50,8 +50,18 @@ export function UsedModel({
       className="flex flex-col w-full gap-5 mb-4"
       data-testid="added-models-section"
     >
-      <div className="text-text-primary text-2xl font-medium mb-2 mt-4">
-        {t('setting.addedModels')}
+      <div className="flex items-center justify-between mb-2 mt-4">
+        <div className="text-text-primary text-2xl font-medium">
+          {t('setting.addedModels')}
+        </div>
+        <Button
+          size="sm"
+          className="gap-1.5 font-medium"
+          onClick={() => handleAddModel('OpenAI')}
+        >
+          <Plus className="size-4" />
+          {t('setting.addModel', { defaultValue: 'Add AI Model' })}
+        </Button>
       </div>
       {providerList.map((provider) => (
         <ProviderCard

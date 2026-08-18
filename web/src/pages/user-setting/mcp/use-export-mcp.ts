@@ -3,7 +3,7 @@ import { IMcpServer } from '@/interfaces/database/mcp';
 import { downloadJsonFile } from '@/utils/file-util';
 import { useCallback } from 'react';
 
-export function useExportMcp(mcp: IMcpServer) {
+export function useExportMcp(mcp?: IMcpServer) {
   const { exportMcpServer } = useExportMcpServer();
 
   const handleExportMcpJson = useCallback(

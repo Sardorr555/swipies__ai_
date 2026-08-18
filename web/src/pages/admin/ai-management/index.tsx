@@ -1,111 +1,130 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Activity,
+  AlertCircle,
+  BarChart3,
   Bot,
+  Building2,
   CheckCircle2,
+  Coins,
   Cpu,
+  Database,
+  Edit3,
   ExternalLink,
   Eye,
   EyeOff,
+  Globe,
+  Key,
   Layers,
+  Lock,
   Plus,
   RefreshCw,
   Save,
+  Search,
+  Server,
   Shield,
+  Sparkles,
   Trash2,
+  TrendingUp,
+  Unlock,
   UserCheck,
+  Users,
   X,
   Zap,
 } from 'lucide-react';
-
-const PROVIDER_PRESETS = [
-  {
-    name: 'OpenAI',
-    providerKey: 'OpenAI',
-    baseUrl: 'https://api.openai.com/v1',
-    apiKeyUrl: 'https://platform.openai.com/api-keys',
-    suggestedModel: 'gpt-4o',
-    type: 'CHAT' as const,
-  },
-  {
-    name: 'Claude / Anthropic',
-    providerKey: 'Anthropic',
-    baseUrl: 'https://api.anthropic.com',
-    apiKeyUrl: 'https://console.anthropic.com/settings/keys',
-    suggestedModel: 'claude-3-5-sonnet-20241022',
-    type: 'CHAT' as const,
-  },
-  {
-    name: 'DeepSeek',
-    providerKey: 'DeepSeek',
-    baseUrl: 'https://api.deepseek.com',
-    apiKeyUrl: 'https://platform.deepseek.com/api_keys',
-    suggestedModel: 'deepseek-chat',
-    type: 'CHAT' as const,
-  },
-  {
-    name: 'Google Gemini',
-    providerKey: 'Google',
-    baseUrl: 'https://generativelanguage.googleapis.com',
-    apiKeyUrl: 'https://aistudio.google.com/app/apikey',
-    suggestedModel: 'gemini-1.5-pro',
-    type: 'CHAT' as const,
-  },
-];
-
-const getProviderApiKeyUrl = (provider: string): string | null => {
-  const p = (provider || '').toLowerCase();
-  if (p.includes('openai')) return 'https://platform.openai.com/api-keys';
-  if (p.includes('anthropic') || p.includes('claude')) return 'https://console.anthropic.com/settings/keys';
-  if (p.includes('deepseek')) return 'https://platform.deepseek.com/api_keys';
-  if (p.includes('google') || p.includes('gemini')) return 'https://aistudio.google.com/app/apikey';
-  return null;
-};
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import message from '@/components/ui/message';
-import * as Dialog from '@radix-ui/react-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 import {
+  AIAuditLogItem,
   AIModelItem,
+  AIProviderItem,
+  AdminAnalyticsData,
+  GlobalInstanceStats,
+  SubscriptionAIPolicyItem,
+  SubscriptionPlanItem,
   deleteAdminModel,
+  deleteAdminProvider,
+  getAdminAnalytics,
+  getAdminAuditLogs,
+  getAdminByokStats,
+  getAdminInstance,
   getAdminModels,
   getAdminPlans,
   getAdminPolicies,
+  getAdminProviders,
   getAdminUserLimit,
   saveAdminModel,
+  saveAdminProvider,
   setAdminUserLimit,
-  SubscriptionAIPolicyItem,
-  SubscriptionPlanItem,
+  updateAdminInstance,
   updateAdminPlan,
   updateAdminPolicies,
 } from '@/services/ai-management-service';
 
+const PROVIDER_PRESETS = [
+  { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', suggestedModel: 'gpt-4o' },
+  { name: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1', suggestedModel: 'claude-3-5-sonnet-20241022' },
+  { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', suggestedModel: 'deepseek-chat' },
+  { name: 'Google', baseUrl: 'https://generativelanguage.googleapis.com', suggestedModel: 'gemini-1.5-pro' },
+  { name: 'OpenAI-Compatible', baseUrl: 'http://localhost:8000/v1', suggestedModel: 'custom-model' },
+  { name: 'Ollama', baseUrl: 'http://localhost:11434/v1', suggestedModel: 'llama3:latest' },
+];
+
 export default function AIManagementPage() {
-  const [activeTab, setActiveTab] = useState('models');
+  const [activeTab, setActiveTab] = useState('instance');
   const [loading, setLoading] = useState(false);
 
   // Data states
-  const [plans, setPlans] = useState<SubscriptionPlanItem[]>([]);
+  const [instanceStats, setInstanceStats] = useState<GlobalInstanceStats | null>(null);
+  const [providers, setProviders] = useState<AIProviderItem[]>([]);
   const [models, setModels] = useState<AIModelItem[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlanItem[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('plus');
   const [policies, setPolicies] = useState<SubscriptionAIPolicyItem[]>([]);
-  
-  // Model Modal
+  const [analytics, setAnalytics] = useState<AdminAnalyticsData | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AIAuditLogItem[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [byokStats, setByokStats] = useState<{ total_byok_models: number; active_byok_models: number; locked_byok_models: number; byok_users_count: number } | null>(null);
+
+  // Modals
+  const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<Partial<AIProviderItem> & { api_key?: string }>({
+    provider_name: 'OpenAI',
+    base_url: 'https://api.openai.com/v1',
+    api_key: '',
+    organization: '',
+    status: 'active',
+  });
+
   const [isModelModalOpen, setIsModelModalOpen] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [editingModel, setEditingModel] = useState<Partial<AIModelItem>>({
+  const [editingModel, setEditingModel] = useState<Partial<AIModelItem> & { allowed_plans?: string[] }>({
     provider: 'OpenAI',
     model_name: '',
     model_type: 'CHAT',
     base_url: 'https://api.openai.com/v1',
     api_key: '',
+    input_token_price: 0.15,
+    output_token_price: 0.60,
+    max_tokens: 8192,
     enabled: true,
     is_global: true,
+    allowed_plans: ['plus', 'pro'],
   });
 
   // User Limit Override
@@ -115,626 +134,1300 @@ export default function AIManagementPage() {
   const [searchingUser, setSearchingUser] = useState(false);
 
   useEffect(() => {
-    fetchPlans();
-    fetchModels();
+    fetchInitialData();
   }, []);
 
-  useEffect(() => {
-    if (selectedPlanId) {
-      fetchPolicies(selectedPlanId);
-    }
-  }, [selectedPlanId]);
-
-  const extractArray = (res: any): any[] => {
-    if (!res) return [];
-    if (Array.isArray(res)) return res;
-    if (Array.isArray(res?.data)) return res.data;
-    if (Array.isArray(res?.data?.data)) return res.data.data;
-    return [];
-  };
-
-  const fetchPlans = async () => {
+  const fetchInitialData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await getAdminPlans();
-      setPlans(extractArray(res));
+      await Promise.all([
+        fetchInstanceStats(),
+        fetchProviders(),
+        fetchModels(),
+        fetchPlans(),
+        fetchPolicies(selectedPlanId),
+        fetchAnalytics(),
+        fetchAuditLogs(),
+        fetchByokStats(),
+      ]);
     } catch (e: any) {
-      message.error(e?.message || 'Failed to fetch subscription plans');
+      console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInstanceStats = async () => {
+    try {
+      const res = await getAdminInstance();
+      if (res.data?.code === 0 && res.data?.data) {
+        setInstanceStats(res.data.data);
+      }
+    } catch (e) {
+      console.error('fetchInstanceStats failed', e);
+    }
+  };
+
+  const fetchProviders = async () => {
+    try {
+      const res = await getAdminProviders();
+      if (res.data?.code === 0 && res.data?.data) {
+        setProviders(res.data.data);
+      }
+    } catch (e) {
+      console.error('fetchProviders failed', e);
     }
   };
 
   const fetchModels = async () => {
     try {
       const res = await getAdminModels();
-      setModels(extractArray(res));
-    } catch (e: any) {
-      message.error(e?.message || 'Failed to fetch AI models');
+      if (res.data?.code === 0 && res.data?.data) {
+        setModels(res.data.data);
+      }
+    } catch (e) {
+      console.error('fetchModels failed', e);
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      const res = await getAdminPlans();
+      if (res.data?.code === 0 && res.data?.data) {
+        setPlans(res.data.data);
+      }
+    } catch (e) {
+      console.error('fetchPlans failed', e);
     }
   };
 
   const fetchPolicies = async (planId: string) => {
     try {
       const res = await getAdminPolicies(planId);
-      setPolicies(extractArray(res));
-    } catch (e: any) {
-      message.error(e?.message || 'Failed to fetch policies');
+      if (res.data?.code === 0 && res.data?.data) {
+        setPolicies(res.data.data);
+      }
+    } catch (e) {
+      console.error('fetchPolicies failed', e);
     }
   };
 
-  // Plan handlers
-  const handlePlanChange = (planId: string, key: keyof SubscriptionPlanItem, value: any) => {
-    setPlans((prev) =>
-      prev.map((p) => (p.id === planId ? { ...p, [key]: value } : p))
-    );
-  };
-
-  const handleSavePlan = async (plan: SubscriptionPlanItem) => {
+  const fetchAnalytics = async () => {
     try {
-      await updateAdminPlan(plan.id, plan);
-      message.success(`Plan ${plan.name} updated successfully.`);
-      fetchPlans();
-    } catch (e: any) {
-      message.error(e.message || 'Failed to update plan.');
+      const res = await getAdminAnalytics();
+      if (res.data?.code === 0 && res.data?.data) {
+        setAnalytics(res.data.data);
+      }
+    } catch (e) {
+      console.error('fetchAnalytics failed', e);
     }
   };
 
-  // Model handlers
-  const handleOpenModelModal = (model?: AIModelItem) => {
-    if (model) {
-      setEditingModel(model);
-    } else {
-      setEditingModel({
-        provider: 'OpenAI',
-        model_name: '',
-        model_type: 'CHAT',
-        base_url: 'https://api.openai.com/v1',
-        enabled: true,
-        is_global: true,
-      });
+  const fetchAuditLogs = async () => {
+    try {
+      const res = await getAdminAuditLogs({ limit: 50, offset: 0 });
+      if (res.data?.code === 0 && res.data?.data) {
+        setAuditLogs(res.data.data.items || []);
+        setAuditTotal(res.data.data.total || 0);
+      }
+    } catch (e) {
+      console.error('fetchAuditLogs failed', e);
     }
+  };
+
+  const fetchByokStats = async () => {
+    try {
+      const res = await getAdminByokStats();
+      if (res.data?.code === 0 && res.data?.data) {
+        setByokStats(res.data.data);
+      }
+    } catch (e) {
+      console.error('fetchByokStats failed', e);
+    }
+  };
+
+  // Global Instance Updates
+  const handleUpdateGlobalDefaults = async (field: keyof GlobalInstanceStats, value: any) => {
+    try {
+      const res = await updateAdminInstance({ [field]: value });
+      if (res.data?.code === 0) {
+        message.success('Global Instance settings updated successfully');
+        fetchInstanceStats();
+      } else {
+        message.error(res.data?.message || 'Failed to update Global Instance');
+      }
+    } catch (e: any) {
+      message.error(e?.message || 'Update error');
+    }
+  };
+
+  // Provider Actions
+  const handleOpenAddProvider = () => {
+    setEditingProvider({
+      provider_name: 'OpenAI',
+      base_url: 'https://api.openai.com/v1',
+      api_key: '',
+      organization: '',
+      status: 'active',
+    });
+    setIsProviderModalOpen(true);
+  };
+
+  const handleOpenEditProvider = (p: AIProviderItem) => {
+    setEditingProvider({
+      id: p.id,
+      provider_name: p.provider_name,
+      base_url: p.base_url || '',
+      organization: p.organization || '',
+      status: p.status,
+      api_key: '', // Left blank unless updated
+    });
+    setIsProviderModalOpen(true);
+  };
+
+  const handleSaveProvider = async () => {
+    if (!editingProvider.provider_name) {
+      message.error('Provider name is required');
+      return;
+    }
+    try {
+      const res = await saveAdminProvider(editingProvider);
+      if (res.data?.code === 0) {
+        message.success('Provider saved successfully');
+        setIsProviderModalOpen(false);
+        fetchProviders();
+        fetchInstanceStats();
+      } else {
+        message.error(res.data?.message || 'Failed to save provider');
+      }
+    } catch (e: any) {
+      message.error(e?.message || 'Save error');
+    }
+  };
+
+  const handleDeleteProvider = async (providerId: string) => {
+    if (!confirm('Are you sure you want to delete this provider?')) return;
+    try {
+      const res = await deleteAdminProvider(providerId);
+      if (res.data?.code === 0) {
+        message.success('Provider deleted');
+        fetchProviders();
+        fetchInstanceStats();
+      } else {
+        message.error(res.data?.message || 'Delete failed');
+      }
+    } catch (e: any) {
+      message.error(e?.message || 'Delete error');
+    }
+  };
+
+  // Model Actions
+  const handleOpenAddModel = () => {
+    setEditingModel({
+      provider: providers[0]?.provider_name || 'OpenAI',
+      model_name: '',
+      model_type: 'CHAT',
+      base_url: 'https://api.openai.com/v1',
+      api_key: '',
+      input_token_price: 0.15,
+      output_token_price: 0.60,
+      max_tokens: 8192,
+      enabled: true,
+      is_global: true,
+      allowed_plans: ['plus', 'pro'],
+    });
+    setShowApiKey(false);
+    setIsModelModalOpen(true);
+  };
+
+  const handleOpenEditModel = (m: AIModelItem) => {
+    setEditingModel({
+      ...m,
+      api_key: '',
+    });
+    setShowApiKey(false);
     setIsModelModalOpen(true);
   };
 
   const handleSaveModel = async () => {
-    if (!editingModel.provider || !editingModel.model_name) {
-      message.error('Provider and Model Name are required.');
+    if (!editingModel.model_name || !editingModel.provider) {
+      message.error('Model name and Provider are required');
       return;
     }
     try {
-      await saveAdminModel(editingModel);
-      message.success('AI Model saved successfully.');
-      setIsModelModalOpen(false);
-      fetchModels();
+      const res = await saveAdminModel(editingModel);
+      if (res.data?.code === 0) {
+        message.success('Model saved successfully');
+        setIsModelModalOpen(false);
+        fetchModels();
+        fetchPolicies(selectedPlanId);
+        fetchInstanceStats();
+      } else {
+        message.error(res.data?.message || 'Failed to save model');
+      }
     } catch (e: any) {
-      message.error(e.message || 'Failed to save model.');
+      message.error(e?.message || 'Save error');
     }
   };
 
   const handleDeleteModel = async (modelId: string) => {
+    if (!confirm(`Are you sure you want to delete model ${modelId}?`)) return;
     try {
-      await deleteAdminModel(modelId);
-      message.success('Model deleted.');
-      fetchModels();
-    } catch (e: any) {
-      message.error(e.message || 'Failed to delete model.');
-    }
-  };
-
-  // Policy handlers
-  const handlePolicyToggle = (modelId: string, enabled: boolean) => {
-    setPolicies((prev) => {
-      const existing = prev.find((p) => p.model_id === modelId);
-      if (existing) {
-        return prev.map((p) => (p.model_id === modelId ? { ...p, enabled } : p));
+      const res = await deleteAdminModel(modelId);
+      if (res.data?.code === 0) {
+        message.success('Model deleted');
+        fetchModels();
+        fetchPolicies(selectedPlanId);
+        fetchInstanceStats();
       } else {
-        return [
-          ...prev,
-          {
-            id: `${selectedPlanId}_${modelId}`,
-            plan_id: selectedPlanId,
-            model_id: modelId,
-            model_token_limit: 0,
-            is_default_llm: false,
-            is_default_embd: false,
-            enabled,
-          },
-        ];
+        message.error(res.data?.message || 'Delete failed');
       }
-    });
-  };
-
-  const handlePolicyLimitChange = (modelId: string, limit: number) => {
-    setPolicies((prev) =>
-      prev.map((p) => (p.model_id === modelId ? { ...p, model_token_limit: limit } : p))
-    );
-  };
-
-  const handleSavePolicies = async () => {
-    try {
-      await updateAdminPolicies(selectedPlanId, policies);
-      message.success(`Policies for plan ${selectedPlanId.toUpperCase()} updated.`);
-      fetchPolicies(selectedPlanId);
     } catch (e: any) {
-      message.error(e.message || 'Failed to update policies.');
+      message.error(e?.message || 'Delete error');
     }
   };
 
-  // User Limit Override handlers
-  const handleSearchUserLimit = async () => {
-    if (!targetUserId.trim()) return;
+  // Plan Updates
+  const handleUpdatePlanField = async (planId: string, field: keyof SubscriptionPlanItem, val: any) => {
     try {
-      setSearchingUser(true);
-      const res = await getAdminUserLimit(targetUserId.trim());
-      const data = extractArray(res)[0] || (res as any)?.data || res;
-      if (data) {
-        setUserLimitValue(data.monthly_token_limit || 0);
-        setUserLimitEnabled(data.enabled ?? true);
+      const res = await updateAdminPlan(planId, { [field]: val });
+      if (res.data?.code === 0) {
+        message.success('Plan limit updated');
+        fetchPlans();
+      } else {
+        message.error(res.data?.message || 'Update failed');
       }
     } catch (e: any) {
-      message.error(e.message || 'User override limit not found.');
+      message.error(e?.message || 'Update error');
+    }
+  };
+
+  // Policy Matrix Updates
+  const handleTogglePolicyAccess = async (planId: string, modelId: string, enabled: boolean) => {
+    try {
+      const existing = policies.find((p) => p.model_id === modelId) || {
+        id: `${planId}_${modelId}`,
+        plan_id: planId,
+        model_id: modelId,
+        model_token_limit: 0,
+        is_default_llm: false,
+        is_default_embd: false,
+        enabled: false,
+      };
+
+      const updatedPolicy = { ...existing, enabled };
+      const res = await updateAdminPolicies(planId, [updatedPolicy]);
+      if (res.data?.code === 0) {
+        message.success(`Access updated for ${modelId}`);
+        fetchPolicies(planId);
+      } else {
+        message.error(res.data?.message || 'Policy update failed');
+      }
+    } catch (e: any) {
+      message.error(e?.message || 'Policy update error');
+    }
+  };
+
+  const handleUpdatePolicyLimit = async (planId: string, modelId: string, limit: number) => {
+    try {
+      const existing = policies.find((p) => p.model_id === modelId) || {
+        id: `${planId}_${modelId}`,
+        plan_id: planId,
+        model_id: modelId,
+        model_token_limit: 0,
+        is_default_llm: false,
+        is_default_embd: false,
+        enabled: true,
+      };
+
+      const updatedPolicy = { ...existing, model_token_limit: limit };
+      const res = await updateAdminPolicies(planId, [updatedPolicy]);
+      if (res.data?.code === 0) {
+        message.success(`Token limit updated for ${modelId}`);
+        fetchPolicies(planId);
+      } else {
+        message.error(res.data?.message || 'Update failed');
+      }
+    } catch (e: any) {
+      message.error(e?.message || 'Update error');
+    }
+  };
+
+  // User Limit Override Search & Save
+  const handleSearchUser = async () => {
+    if (!targetUserId.trim()) {
+      message.error('Please enter a User ID');
+      return;
+    }
+    setSearchingUser(true);
+    try {
+      const res = await getAdminUserLimit(targetUserId.trim());
+      if (res.data?.code === 0 && res.data?.data) {
+        setUserLimitValue(res.data.data.monthly_token_limit || 0);
+        setUserLimitEnabled(res.data.data.enabled ?? true);
+        message.success('User token limit loaded');
+      }
+    } catch (e: any) {
+      message.error(e?.message || 'User search error');
     } finally {
       setSearchingUser(false);
     }
   };
 
   const handleSaveUserLimit = async () => {
-    if (!targetUserId.trim()) {
-      message.error('Please enter a User ID.');
-      return;
-    }
+    if (!targetUserId.trim()) return;
     try {
-      await setAdminUserLimit(targetUserId.trim(), Number(userLimitValue), userLimitEnabled);
-      message.success(`Token limit override saved for user ${targetUserId}.`);
+      const res = await setAdminUserLimit(targetUserId.trim(), userLimitValue, userLimitEnabled);
+      if (res.data?.code === 0) {
+        message.success('User token limit saved');
+      } else {
+        message.error(res.data?.message || 'Save failed');
+      }
     } catch (e: any) {
-      message.error(e.message || 'Failed to set user limit.');
+      message.error(e?.message || 'Save error');
     }
   };
 
   return (
-    <div className="h-full w-full overflow-y-auto overflow-x-hidden p-6 flex-1 min-h-0 space-y-6">
-      <div className="max-w-7xl mx-auto space-y-6 pb-16">
-      {/* Page Title Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 text-foreground">
-            <Bot className="size-7 text-primary" />
-            AI Models & Subscription Policies
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage global AI providers, model credentials, plan access rules, and token quota overrides.
-          </p>
+    <div className="flex flex-col h-full overflow-y-auto pr-2 space-y-6">
+      {/* Header Banner: Single Global Instance Status */}
+      <div className="rounded-xl border border-border-button bg-bg-card p-5 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-accent-primary/10 text-accent-primary border border-accent-primary/20">
+              <Server className="size-8" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-text-primary">
+                  {instanceStats?.name || 'Global RAGFlow Instance'}
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                  {instanceStats?.status || 'ACTIVE'}
+                </span>
+                <span className="px-2 py-0.5 rounded text-xs font-mono bg-bg-base text-text-secondary border border-border-button">
+                  ID: {instanceStats?.instance_id || 'GLOBAL'}
+                </span>
+              </div>
+              <p className="text-xs text-text-secondary mt-1">
+                Single centralized AI infrastructure for all FREE, PLUS, and PRO platform requests.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={fetchInitialData} disabled={loading}>
+              <RefreshCw className={`size-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => { fetchPlans(); fetchModels(); }} className="gap-2">
-          <RefreshCw className="size-4" />
-          Refresh Catalog
-        </Button>
+
+        {/* Metric Quick Badges */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border-button">
+          <div className="p-3 rounded-lg bg-bg-base border border-border-button/60">
+            <div className="text-xs text-text-secondary flex items-center gap-1.5">
+              <Users className="size-3.5 text-blue-500" /> Platform Users
+            </div>
+            <div className="text-lg font-bold text-text-primary mt-1">
+              {(instanceStats?.total_users || 0).toLocaleString()}
+            </div>
+          </div>
+          <div className="p-3 rounded-lg bg-bg-base border border-border-button/60">
+            <div className="text-xs text-text-secondary flex items-center gap-1.5">
+              <Cpu className="size-3.5 text-purple-500" /> Platform Models
+            </div>
+            <div className="text-lg font-bold text-text-primary mt-1">
+              {instanceStats?.total_models || 0}
+            </div>
+          </div>
+          <div className="p-3 rounded-lg bg-bg-base border border-border-button/60">
+            <div className="text-xs text-text-secondary flex items-center gap-1.5">
+              <Building2 className="size-3.5 text-amber-500" /> AI Providers
+            </div>
+            <div className="text-lg font-bold text-text-primary mt-1">
+              {instanceStats?.total_providers || 0}
+            </div>
+          </div>
+          <div className="p-3 rounded-lg bg-bg-base border border-border-button/60">
+            <div className="text-xs text-text-secondary flex items-center gap-1.5">
+              <Key className="size-3.5 text-emerald-500" /> PRO BYOK Connections
+            </div>
+            <div className="text-lg font-bold text-text-primary mt-1">
+              {instanceStats?.byok_connections || 0}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 max-w-xl bg-muted/60 p-1 rounded-xl">
-          <TabsTrigger value="models" className="gap-2">
-            <Cpu className="size-4" />
-            AI Models & Providers
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-6 w-full max-w-4xl bg-bg-card border border-border-button p-1 rounded-lg">
+          <TabsTrigger value="instance" className="text-xs">
+            <Server className="size-3.5 mr-1.5" /> Instance & Providers
           </TabsTrigger>
-          <TabsTrigger value="policies" className="gap-2">
-            <Shield className="size-4" />
-            Subscription AI Policies
+          <TabsTrigger value="models" className="text-xs">
+            <Cpu className="size-3.5 mr-1.5" /> Models & Pricing
           </TabsTrigger>
-          <TabsTrigger value="user-overrides" className="gap-2">
-            <UserCheck className="size-4" />
-            User Quota Overrides
+          <TabsTrigger value="subscriptions" className="text-xs">
+            <Layers className="size-3.5 mr-1.5" /> Subscriptions & Policies
+          </TabsTrigger>
+          <TabsTrigger value="byok" className="text-xs">
+            <Key className="size-3.5 mr-1.5" /> PRO BYOK
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs">
+            <BarChart3 className="size-3.5 mr-1.5" /> Analytics & Cost
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="text-xs">
+            <Shield className="size-3.5 mr-1.5" /> Audit Logs
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: GLOBAL AI MODELS */}
-        <TabsContent value="models" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">Registered System AI Models</h3>
-              <p className="text-xs text-muted-foreground">Manage global AI providers, model endpoints, and system API keys.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={fetchModels} className="gap-2">
-                <RefreshCw className="size-3.5" />
-                Refresh
-              </Button>
-              <Button onClick={() => handleOpenModelModal()} className="gap-2">
-                <Plus className="size-4" />
-                Register AI Model
-              </Button>
-            </div>
-          </div>
+        {/* TAB 1: Global Instance & Providers */}
+        <TabsContent value="instance" className="space-y-5 pt-2">
+          {/* Global Defaults Card */}
+          <Card className="bg-bg-card border-border-button">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Globe className="size-4 text-accent-primary" /> Default Global Models
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Configure default models resolved for FREE, PLUS, and PRO subscription plans. Changes take effect platform-wide immediately.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-text-secondary">Default Free Model</label>
+                <Select
+                  value={instanceStats?.default_free_model_id || 'openai/gpt-4o-mini'}
+                  onValueChange={(val) => handleUpdateGlobalDefaults('default_free_model_id', val)}
+                >
+                  <SelectTrigger className="bg-bg-base border-border-button">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {models.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.model_name} ({m.provider})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead className="bg-muted/50 text-xs font-semibold uppercase text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="p-3.5">Provider</th>
-                  <th className="p-3.5">Model ID</th>
-                  <th className="p-3.5">Model Name</th>
-                  <th className="p-3.5">Type</th>
-                  <th className="p-3.5">API Key</th>
-                  <th className="p-3.5">Base URL</th>
-                  <th className="p-3.5">Status</th>
-                  <th className="p-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {models.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                      No models registered yet. Click "Register AI Model" to add your first AI provider.
-                    </td>
-                  </tr>
-                ) : (
-                  models.map((m) => (
-                    <tr key={m.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="p-3.5 font-medium">
-                        <div className="flex items-center gap-1.5">
-                          <span>{m.provider}</span>
-                          {getProviderApiKeyUrl(m.provider) && (
-                            <a
-                              href={getProviderApiKeyUrl(m.provider)!}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={`Get ${m.provider} API Key`}
-                              className="text-muted-foreground hover:text-primary transition-colors"
-                            >
-                              <ExternalLink className="size-3.5" />
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3.5 font-mono text-xs text-primary">{m.id}</td>
-                      <td className="p-3.5 font-mono text-xs">{m.model_name}</td>
-                      <td className="p-3.5">
-                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-secondary text-secondary-foreground">
-                          {m.model_type}
-                        </span>
-                      </td>
-                      <td className="p-3.5 font-mono text-xs">
-                        {m.api_key ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded">
-                            <CheckCircle2 className="size-3" /> Configured
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-[11px]">Not Set</span>
-                        )}
-                      </td>
-                      <td className="p-3.5 font-mono text-xs max-w-[200px] truncate text-muted-foreground">
-                        {m.base_url || '-'}
-                      </td>
-                      <td className="p-3.5">
-                        {m.enabled ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                            <CheckCircle2 className="size-3.5" /> Enabled
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Disabled</span>
-                        )}
-                      </td>
-                      <td className="p-3.5 text-right space-x-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleOpenModelModal(m)}>
-                          Edit
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteModel(m.id)} className="text-destructive hover:text-destructive">
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-text-secondary">Default Plus Model</label>
+                <Select
+                  value={instanceStats?.default_plus_model_id || 'openai/gpt-4o'}
+                  onValueChange={(val) => handleUpdateGlobalDefaults('default_plus_model_id', val)}
+                >
+                  <SelectTrigger className="bg-bg-base border-border-button">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {models.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.model_name} ({m.provider})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-text-secondary">Default Pro Model</label>
+                <Select
+                  value={instanceStats?.default_pro_model_id || 'anthropic/claude-3-5-sonnet-20241022'}
+                  onValueChange={(val) => handleUpdateGlobalDefaults('default_pro_model_id', val)}
+                >
+                  <SelectTrigger className="bg-bg-base border-border-button">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {models.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.model_name} ({m.provider})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Providers Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
+                  <Building2 className="size-4 text-accent-primary" /> Platform AI Providers
+                </h3>
+                <p className="text-xs text-text-secondary">
+                  API credentials belong to the Global Instance and are never exposed to frontend users.
+                </p>
+              </div>
+              <Button size="sm" onClick={handleOpenAddProvider}>
+                <Plus className="size-4 mr-1.5" /> Add Provider
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {providers.map((p) => (
+                <Card key={p.id} className="bg-bg-card border-border-button hover:border-accent-primary/50 transition-colors">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <Zap className="size-4 text-accent-primary" /> {p.provider_name}
+                      </CardTitle>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        p.status === 'active' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'
+                      }`}>
+                        {p.status.toUpperCase()}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="text-xs space-y-2 pt-0">
+                    <div>
+                      <span className="text-text-secondary">Base URL: </span>
+                      <span className="font-mono text-text-primary truncate block">{p.base_url || 'Default'}</span>
+                    </div>
+                    <div>
+                      <span className="text-text-secondary">API Key: </span>
+                      <span className="font-mono text-text-primary">
+                        {p.has_api_key ? p.api_key_masked || '••••••••••••' : <span className="text-amber-500 font-medium">Not configured</span>}
+                      </span>
+                    </div>
+                    {p.organization && (
+                      <div>
+                        <span className="text-text-secondary">Organization: </span>
+                        <span className="text-text-primary">{p.organization}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-button mt-3">
+                      <Button variant="ghost" size="xs" onClick={() => handleOpenEditProvider(p)}>
+                        <Edit3 className="size-3.5 mr-1" /> Edit
+                      </Button>
+                      <Button variant="ghost" size="xs" className="text-rose-500 hover:text-rose-600" onClick={() => handleDeleteProvider(p.id)}>
+                        <Trash2 className="size-3.5 mr-1" /> Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </TabsContent>
 
-        {/* TAB 3: POLICY MATRIX */}
-        <TabsContent value="policies" className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold">Select Subscription Plan:</span>
-              <div className="flex gap-2">
-                {['free', 'plus', 'pro', 'enterprise'].map((pid) => (
-                  <Button
-                    key={pid}
-                    variant={selectedPlanId === pid ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedPlanId(pid)}
-                    className="capitalize"
-                  >
-                    {pid}
-                  </Button>
-                ))}
-              </div>
+        {/* TAB 2: Platform Models & Pricing */}
+        <TabsContent value="models" className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-text-primary">Platform AI Models & Pricing</h3>
+              <p className="text-xs text-text-secondary">
+                Configure platform models, subscription tier availability, and token costs ($ per 1M tokens).
+              </p>
             </div>
-
-            <Button onClick={handleSavePolicies} className="gap-2">
-              <Save className="size-4" />
-              Save {selectedPlanId.toUpperCase()} Policies
+            <Button size="sm" onClick={handleOpenAddModel}>
+              <Plus className="size-4 mr-1.5" /> Add Platform Model
             </Button>
           </div>
 
-          <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead className="bg-muted/50 text-xs font-semibold uppercase text-muted-foreground border-b border-border">
+          <div className="border border-border-button rounded-lg bg-bg-card overflow-hidden">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-bg-base/70 text-text-secondary border-b border-border-button">
                 <tr>
-                  <th className="p-3.5">Allowed</th>
-                  <th className="p-3.5">Provider / Model</th>
-                  <th className="p-3.5">Model Type</th>
-                  <th className="p-3.5">Model Token Limit (0 = Shared Pool)</th>
+                  <th className="p-3">Model</th>
+                  <th className="p-3">Provider</th>
+                  <th className="p-3">Type</th>
+                  <th className="p-3">Allowed Plans</th>
+                  <th className="p-3 text-right">Input ($/1M)</th>
+                  <th className="p-3 text-right">Output ($/1M)</th>
+                  <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {models.map((m) => {
-                  const pol = policies.find((p) => p.model_id === m.id || p.model_id === m.model_name);
-                  const isEnabled = pol ? pol.enabled : false;
-                  const tokenLimit = pol ? pol.model_token_limit : 0;
-
-                  return (
-                    <tr key={m.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="p-3.5">
-                        <Switch
-                          checked={isEnabled}
-                          onCheckedChange={(val) => handlePolicyToggle(m.id, val)}
-                        />
-                      </td>
-                      <td className="p-3.5">
-                        <div className="font-semibold text-sm">{m.model_name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{m.provider} • {m.id}</div>
-                      </td>
-                      <td className="p-3.5">
-                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-secondary text-secondary-foreground">
-                          {m.model_type}
-                        </span>
-                      </td>
-                      <td className="p-3.5 max-w-xs">
-                        <Input
-                          type="number"
-                          disabled={!isEnabled}
-                          value={tokenLimit}
-                          onChange={(e) => handlePolicyLimitChange(m.id, Number(e.target.value))}
-                          placeholder="0 for plan limit"
-                          className="font-mono text-xs"
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
+              <tbody className="divide-y divide-border-button">
+                {models.map((m) => (
+                  <tr key={m.id} className="hover:bg-bg-base/40 transition-colors">
+                    <td className="p-3 font-semibold text-text-primary">
+                      {m.model_name}
+                      <span className="block text-[10px] font-mono text-text-secondary">{m.id}</span>
+                    </td>
+                    <td className="p-3 text-text-primary">{m.provider}</td>
+                    <td className="p-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-bg-base font-mono border border-border-button">
+                        {m.model_type}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex gap-1 flex-wrap">
+                        {(m.allowed_plans || []).map((plan) => (
+                          <span
+                            key={plan}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                              plan === 'free'
+                                ? 'bg-emerald-500/15 text-emerald-500'
+                                : plan === 'plus'
+                                ? 'bg-blue-500/15 text-blue-500'
+                                : 'bg-purple-500/15 text-purple-500'
+                            }`}
+                          >
+                            {plan}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-3 text-right font-mono">${(m.input_token_price || 0).toFixed(3)}</td>
+                    <td className="p-3 text-right font-mono">${(m.output_token_price || 0).toFixed(3)}</td>
+                    <td className="p-3 text-center">
+                      <span className={`inline-block size-2 rounded-full ${m.enabled ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="xs" onClick={() => handleOpenEditModel(m)}>
+                          <Edit3 className="size-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="xs" className="text-rose-500 hover:text-rose-600" onClick={() => handleDeleteModel(m.id)}>
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </TabsContent>
 
-        {/* TAB 4: USER QUOTA OVERRIDES */}
-        <TabsContent value="user-overrides" className="space-y-6">
-          <Card className="max-w-2xl border-border shadow-sm">
+        {/* TAB 3: Subscriptions & Policies */}
+        <TabsContent value="subscriptions" className="space-y-6 pt-2">
+          {/* Subscription Plans Limit Configuration */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {plans.map((p) => {
+              const isPro = p.id.toLowerCase() === 'pro';
+              const isPlus = p.id.toLowerCase() === 'plus';
+              return (
+                <Card key={p.id} className="bg-bg-card border-border-button relative overflow-hidden">
+                  <div className={`h-1.5 w-full ${isPro ? 'bg-purple-500' : isPlus ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-base font-bold">{p.name}</CardTitle>
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-bg-base border border-border-button">
+                        {p.id}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="text-xs space-y-3 pt-0">
+                    <div className="space-y-1">
+                      <label className="text-text-secondary text-[11px]">Monthly Token Limit</label>
+                      <Input
+                        type="number"
+                        defaultValue={p.monthly_token_limit}
+                        onBlur={(e) => handleUpdatePlanField(p.id, 'monthly_token_limit', parseInt(e.target.value) || 0)}
+                        className="bg-bg-base h-8 text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-text-secondary text-[11px]">Daily Token Limit</label>
+                      <Input
+                        type="number"
+                        defaultValue={p.daily_token_limit || 50000}
+                        onBlur={(e) => handleUpdatePlanField(p.id, 'daily_token_limit', parseInt(e.target.value) || 0)}
+                        className="bg-bg-base h-8 text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-text-secondary text-[11px]">Daily Requests Limit</label>
+                      <Input
+                        type="number"
+                        defaultValue={p.daily_request_limit || 500}
+                        onBlur={(e) => handleUpdatePlanField(p.id, 'daily_request_limit', parseInt(e.target.value) || 0)}
+                        className="bg-bg-base h-8 text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-text-secondary text-[11px]">Rate Limit (Req / Min)</label>
+                      <Input
+                        type="number"
+                        defaultValue={p.requests_per_minute || 60}
+                        onBlur={(e) => handleUpdatePlanField(p.id, 'requests_per_minute', parseInt(e.target.value) || 0)}
+                        className="bg-bg-base h-8 text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="pt-2 border-t border-border-button flex items-center justify-between">
+                      <span className="text-text-secondary">Allow PRO BYOK:</span>
+                      <Switch
+                        checked={p.allow_byok ?? isPro}
+                        disabled={!isPro}
+                        onCheckedChange={(checked) => handleUpdatePlanField(p.id, 'allow_byok', checked)}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Model Access Policy Matrix */}
+          <Card className="bg-bg-card border-border-button">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base font-semibold">Model Access Policy Matrix</CardTitle>
+                  <CardDescription className="text-xs">
+                    Define which models are authorized for each subscription plan.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-text-secondary">Filter Plan:</span>
+                  <Select value={selectedPlanId} onValueChange={(val) => { setSelectedPlanId(val); fetchPolicies(val); }}>
+                    <SelectTrigger className="w-32 h-8 text-xs bg-bg-base border-border-button">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">FREE</SelectItem>
+                      <SelectItem value="plus">PLUS</SelectItem>
+                      <SelectItem value="pro">PRO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="border border-border-button rounded-lg overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-bg-base text-text-secondary border-b border-border-button">
+                    <tr>
+                      <th className="p-3">Model</th>
+                      <th className="p-3">Provider</th>
+                      <th className="p-3">Type</th>
+                      <th className="p-3 text-center">Enabled for {selectedPlanId.toUpperCase()}</th>
+                      <th className="p-3 text-right">Per-Model Monthly Cap (0 = Unlimited)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-button">
+                    {models.map((m) => {
+                      const policy = policies.find((p) => p.model_id === m.id);
+                      const isEnabled = policy ? policy.enabled : false;
+                      const limit = policy ? policy.model_token_limit : 0;
+                      return (
+                        <tr key={m.id} className="hover:bg-bg-base/40 transition-colors">
+                          <td className="p-3 font-medium text-text-primary">{m.model_name}</td>
+                          <td className="p-3 text-text-secondary">{m.provider}</td>
+                          <td className="p-3 font-mono">{m.model_type}</td>
+                          <td className="p-3 text-center">
+                            <Switch
+                              checked={isEnabled}
+                              onCheckedChange={(checked) => handleTogglePolicyAccess(selectedPlanId, m.id, checked)}
+                            />
+                          </td>
+                          <td className="p-3 text-right">
+                            <Input
+                              type="number"
+                              defaultValue={limit}
+                              onBlur={(e) => handleUpdatePolicyLimit(selectedPlanId, m.id, parseInt(e.target.value) || 0)}
+                              className="w-36 ml-auto h-7 text-xs font-mono bg-bg-base text-right"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 4: BYOK Administration */}
+        <TabsContent value="byok" className="space-y-4 pt-2">
+          <Card className="bg-bg-card border-border-button">
             <CardHeader>
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <UserCheck className="size-5 text-primary" />
-                Custom User Monthly Token Limit Override
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Key className="size-4 text-purple-500" /> PRO Bring-Your-Own-Key (BYOK) Management
               </CardTitle>
               <CardDescription className="text-xs">
-                Override regular subscription plan token quotas for specific user accounts (e.g. enterprise VIPs or trial users).
+                PRO users can register custom AI connections integrated with the single Global Instance. All API keys are encrypted at rest with AES/HMAC.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter User ID"
-                  value={targetUserId}
-                  onChange={(e) => setTargetUserId(e.target.value)}
-                  className="font-mono"
-                />
-                <Button onClick={handleSearchUserLimit} disabled={searchingUser} variant="secondary">
-                  Fetch Config
-                </Button>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg bg-bg-base border border-border-button">
+                  <div className="text-xs text-text-secondary">Total BYOK Models</div>
+                  <div className="text-xl font-bold text-text-primary mt-1">
+                    {byokStats?.total_byok_models || 0}
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg bg-bg-base border border-border-button">
+                  <div className="text-xs text-text-secondary">Active Connections</div>
+                  <div className="text-xl font-bold text-emerald-500 mt-1">
+                    {byokStats?.active_byok_models || 0}
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg bg-bg-base border border-border-button">
+                  <div className="text-xs text-text-secondary">Locked (Downgraded)</div>
+                  <div className="text-xl font-bold text-amber-500 mt-1">
+                    {byokStats?.locked_byok_models || 0}
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg bg-bg-base border border-border-button">
+                  <div className="text-xs text-text-secondary">PRO Users with BYOK</div>
+                  <div className="text-xl font-bold text-purple-500 mt-1">
+                    {byokStats?.byok_users_count || 0}
+                  </div>
+                </div>
               </div>
 
-              <div className="pt-4 border-t border-border space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Custom Monthly Token Limit (0 = Default Plan Quota)</label>
-                  <Input
-                    type="number"
-                    value={userLimitValue}
-                    onChange={(e) => setUserLimitValue(Number(e.target.value))}
-                    className="font-mono text-sm"
-                  />
-                </div>
-
+              <div className="p-4 rounded-lg bg-bg-base border border-border-button space-y-4">
+                <h4 className="text-sm font-semibold text-text-primary">Global BYOK Controls</h4>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Enable Custom Quota Override</span>
+                  <div>
+                    <div className="text-xs font-medium text-text-primary">Enable BYOK for PRO Plan</div>
+                    <div className="text-[11px] text-text-secondary">Toggle custom AI key connections globally for PRO subscribers</div>
+                  </div>
                   <Switch
-                    checked={userLimitEnabled}
-                    onCheckedChange={setUserLimitEnabled}
+                    checked={instanceStats?.byok_enabled ?? true}
+                    onCheckedChange={(checked) => handleUpdateGlobalDefaults('byok_enabled', checked)}
                   />
                 </div>
 
-                <Button onClick={handleSaveUserLimit} className="w-full gap-2 mt-4">
-                  <Save className="size-4" />
-                  Save User Override Limit
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border-button">
+                  <div className="space-y-1">
+                    <label className="text-xs text-text-secondary">Max BYOK Models per PRO User</label>
+                    <Input
+                      type="number"
+                      defaultValue={instanceStats?.max_byok_models || 10}
+                      onBlur={(e) => handleUpdateGlobalDefaults('max_byok_models', parseInt(e.target.value) || 10)}
+                      className="bg-bg-card h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-text-secondary">Monthly BYOK Token Limit</label>
+                    <Input
+                      type="number"
+                      defaultValue={instanceStats?.byok_token_limit || 50000000}
+                      onBlur={(e) => handleUpdateGlobalDefaults('byok_token_limit', parseInt(e.target.value) || 50000000)}
+                      className="bg-bg-card h-8 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 5: Analytics & Cost Management */}
+        <TabsContent value="analytics" className="space-y-5 pt-2">
+          {/* Analytics Summary */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <Card className="bg-bg-card border-border-button p-4">
+              <div className="text-xs text-text-secondary">Total Requests</div>
+              <div className="text-xl font-bold text-text-primary mt-1">
+                {(analytics?.summary?.total_requests || 0).toLocaleString()}
+              </div>
+            </Card>
+            <Card className="bg-bg-card border-border-button p-4">
+              <div className="text-xs text-text-secondary">Total Tokens</div>
+              <div className="text-xl font-bold text-text-primary mt-1">
+                {(analytics?.summary?.total_tokens || 0).toLocaleString()}
+              </div>
+            </Card>
+            <Card className="bg-bg-card border-border-button p-4">
+              <div className="text-xs text-text-secondary">Input Tokens</div>
+              <div className="text-xl font-bold text-blue-500 mt-1">
+                {(analytics?.summary?.total_input_tokens || 0).toLocaleString()}
+              </div>
+            </Card>
+            <Card className="bg-bg-card border-border-button p-4">
+              <div className="text-xs text-text-secondary">Output Tokens</div>
+              <div className="text-xl font-bold text-purple-500 mt-1">
+                {(analytics?.summary?.total_output_tokens || 0).toLocaleString()}
+              </div>
+            </Card>
+            <Card className="bg-bg-card border-border-button p-4">
+              <div className="text-xs text-text-secondary">Estimated AI Cost</div>
+              <div className="text-xl font-bold text-emerald-500 mt-1">
+                ${(analytics?.summary?.total_cost || 0).toFixed(4)}
+              </div>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Cost by Subscription */}
+            <Card className="bg-bg-card border-border-button">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold">Usage by Subscription Plan</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-bg-base text-text-secondary border-b border-border-button">
+                    <tr>
+                      <th className="p-2">Plan</th>
+                      <th className="p-2 text-right">Requests</th>
+                      <th className="p-2 text-right">Tokens</th>
+                      <th className="p-2 text-right">Cost ($)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-button">
+                    {(analytics?.by_subscription || []).map((sub) => (
+                      <tr key={sub.subscription_id}>
+                        <td className="p-2 font-bold uppercase">{sub.subscription_id}</td>
+                        <td className="p-2 text-right font-mono">{sub.requests.toLocaleString()}</td>
+                        <td className="p-2 text-right font-mono">{sub.tokens.toLocaleString()}</td>
+                        <td className="p-2 text-right font-mono text-emerald-500">${sub.cost.toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+
+            {/* Cost by Model */}
+            <Card className="bg-bg-card border-border-button">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold">Top Models by Consumption</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-bg-base text-text-secondary border-b border-border-button">
+                    <tr>
+                      <th className="p-2">Model</th>
+                      <th className="p-2 text-right">Tokens</th>
+                      <th className="p-2 text-right">Cost ($)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-button">
+                    {(analytics?.by_model || []).slice(0, 5).map((m) => (
+                      <tr key={m.model_id}>
+                        <td className="p-2 font-medium">{m.model_id}</td>
+                        <td className="p-2 text-right font-mono">{m.total_tokens.toLocaleString()}</td>
+                        <td className="p-2 text-right font-mono text-emerald-500">${m.cost.toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Users Table */}
+          <Card className="bg-bg-card border-border-button">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold">Top Consuming Users</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="border border-border-button rounded-lg overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-bg-base text-text-secondary border-b border-border-button">
+                    <tr>
+                      <th className="p-2.5">User</th>
+                      <th className="p-2.5">Plan</th>
+                      <th className="p-2.5 text-right">Requests</th>
+                      <th className="p-2.5 text-right">Tokens</th>
+                      <th className="p-2.5 text-right">Estimated Cost ($)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-button">
+                    {(analytics?.top_users || []).map((u) => (
+                      <tr key={u.user_id} className="hover:bg-bg-base/40">
+                        <td className="p-2.5">
+                          <div className="font-semibold text-text-primary">{u.nickname || u.email || u.user_id}</div>
+                          <div className="text-[10px] text-text-secondary font-mono">{u.user_id}</div>
+                        </td>
+                        <td className="p-2.5 uppercase font-bold text-[10px]">{u.subscription_id}</td>
+                        <td className="p-2.5 text-right font-mono">{u.requests.toLocaleString()}</td>
+                        <td className="p-2.5 text-right font-mono">{u.tokens.toLocaleString()}</td>
+                        <td className="p-2.5 text-right font-mono text-emerald-500">${u.cost.toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 6: Audit Logs */}
+        <TabsContent value="audit" className="space-y-4 pt-2">
+          <Card className="bg-bg-card border-border-button">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Shield className="size-4 text-accent-primary" /> AI Infrastructure Audit Logs
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Complete immutable log of administrative configuration changes. API keys and credentials are automatically sanitized.
+                  </CardDescription>
+                </div>
+                <Button size="xs" variant="outline" onClick={fetchAuditLogs}>
+                  <RefreshCw className="size-3.5 mr-1" /> Refresh Logs
                 </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="border border-border-button rounded-lg overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-bg-base text-text-secondary border-b border-border-button">
+                    <tr>
+                      <th className="p-3">Timestamp</th>
+                      <th className="p-3">Administrator</th>
+                      <th className="p-3">Action</th>
+                      <th className="p-3">Target</th>
+                      <th className="p-3">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-button">
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-bg-base/40">
+                        <td className="p-3 font-mono text-[11px] text-text-secondary whitespace-nowrap">
+                          {log.create_time ? new Date(log.create_time * 1000).toLocaleString() : '-'}
+                        </td>
+                        <td className="p-3">
+                          <div className="font-semibold text-text-primary">{log.user_email || log.user_id}</div>
+                        </td>
+                        <td className="p-3">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-accent-primary/10 text-accent-primary border border-accent-primary/20">
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono text-text-secondary">
+                          {log.target_type}: {log.target_id}
+                        </td>
+                        <td className="p-3 font-mono text-[11px] max-w-md truncate text-text-secondary">
+                          {JSON.stringify(log.details_parsed)}
+                        </td>
+                      </tr>
+                    ))}
+                    {auditLogs.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-text-secondary">
+                          No audit logs recorded yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Model Modal — using Radix Dialog directly to avoid overlay closing on Select portal click */}
-      <Dialog.Root open={isModelModalOpen} onOpenChange={setIsModelModalOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" />
-          <Dialog.Content
-            className="fixed z-[1001] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-card rounded-2xl border border-border shadow-xl p-6 space-y-5 focus:outline-none"
-            onPointerDownOutside={(e) => e.preventDefault()}
-            onInteractOutside={(e) => e.preventDefault()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <Dialog.Title className="text-lg font-bold text-foreground flex items-center gap-2">
-                <Bot className="size-5 text-primary" />
-                {editingModel.id ? 'Edit AI Model' : 'Register Global AI Model'}
-              </Dialog.Title>
-              <button
-                onClick={() => setIsModelModalOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+      {/* Provider Add/Edit Modal */}
+      <Dialog open={isProviderModalOpen} onOpenChange={setIsProviderModalOpen}>
+        <DialogContent className="sm:max-w-md bg-bg-card border-border-button">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">
+              {editingProvider.id ? 'Edit Global Provider' : 'Add Global AI Provider'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-text-secondary">
+              Configure provider credentials for the single Global RAGFlow Instance.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-text-secondary">Provider Preset</label>
+              <Select
+                value={editingProvider.provider_name || 'OpenAI'}
+                onValueChange={(val) => {
+                  const preset = PROVIDER_PRESETS.find((p) => p.name === val);
+                  setEditingProvider({
+                    ...editingProvider,
+                    provider_name: val,
+                    base_url: preset ? preset.baseUrl : editingProvider.base_url,
+                  });
+                }}
               >
-                <X className="size-4" />
-              </button>
+                <SelectTrigger className="bg-bg-base border-border-button text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROVIDER_PRESETS.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Form */}
-            <div className="space-y-3.5 text-sm">
-              {/* Quick Presets */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Provider Presets</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {PROVIDER_PRESETS.map((preset) => (
-                    <Button
-                      key={preset.name}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-7 px-2.5"
-                      onClick={() => {
-                        setEditingModel((prev) => ({
-                          ...prev,
-                          provider: preset.providerKey,
-                          base_url: preset.baseUrl,
-                          model_name: prev.model_name || preset.suggestedModel,
-                          model_type: prev.model_type || preset.type,
-                        }));
-                      }}
-                    >
-                      {preset.name}
-                    </Button>
-                  ))}
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-text-secondary">Base URL</label>
+              <Input
+                value={editingProvider.base_url || ''}
+                onChange={(e) => setEditingProvider({ ...editingProvider, base_url: e.target.value })}
+                placeholder="https://api.openai.com/v1"
+                className="bg-bg-base border-border-button text-xs font-mono"
+              />
+            </div>
 
-              {/* Provider */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Provider</label>
-                <Input
-                  value={editingModel.provider || ''}
-                  onChange={(e) => setEditingModel((prev) => ({ ...prev, provider: e.target.value }))}
-                  placeholder="e.g. OpenAI, DeepSeek, Google, Anthropic"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-text-secondary">API Key</label>
+              <Input
+                type="password"
+                value={editingProvider.api_key || ''}
+                onChange={(e) => setEditingProvider({ ...editingProvider, api_key: e.target.value })}
+                placeholder={editingProvider.id ? 'Leave blank to keep existing key' : 'Enter secret API key'}
+                className="bg-bg-base border-border-button text-xs font-mono"
+              />
+            </div>
 
-              {/* Model Name */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Model Name</label>
-                <Input
-                  value={editingModel.model_name || ''}
-                  onChange={(e) => setEditingModel((prev) => ({ ...prev, model_name: e.target.value }))}
-                  placeholder="e.g. gpt-4o, deepseek-chat, claude-sonnet"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-text-secondary">Organization ID (Optional)</label>
+              <Input
+                value={editingProvider.organization || ''}
+                onChange={(e) => setEditingProvider({ ...editingProvider, organization: e.target.value })}
+                placeholder="org-..."
+                className="bg-bg-base border-border-button text-xs font-mono"
+              />
+            </div>
+          </div>
 
-              {/* Model Type */}
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsProviderModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSaveProvider}>
+              Save Provider
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Model Add/Edit Modal */}
+      <Dialog open={isModelModalOpen} onOpenChange={setIsModelModalOpen}>
+        <DialogContent className="sm:max-w-lg bg-bg-card border-border-button">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">
+              {editingModel.id ? 'Edit Platform Model' : 'Add Platform AI Model'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-text-secondary">
+              Configure model parameters, pricing, and subscription access.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Model Type</label>
+                <label className="text-xs font-medium text-text-secondary">Provider</label>
                 <Select
-                  value={editingModel.model_type || 'CHAT'}
-                  onValueChange={(val) =>
-                    setEditingModel((prev) => ({ ...prev, model_type: val as AIModelItem['model_type'] }))
-                  }
+                  value={editingModel.provider || 'OpenAI'}
+                  onValueChange={(val) => setEditingModel({ ...editingModel, provider: val })}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select model type" />
+                  <SelectTrigger className="bg-bg-base border-border-button text-xs">
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent position="popper" className="z-[1100]">
-                    <SelectItem value="CHAT">💬 CHAT / LLM</SelectItem>
-                    <SelectItem value="EMBEDDING">🔢 EMBEDDING</SelectItem>
-                    <SelectItem value="RERANK">📊 RERANKER</SelectItem>
-                    <SelectItem value="IMAGE2TEXT">🖼️ VISION / OCR</SelectItem>
-                    <SelectItem value="SPEECH2TEXT">🎤 STT (Speech-to-Text)</SelectItem>
-                    <SelectItem value="TTS">🔊 TTS (Text-to-Speech)</SelectItem>
+                  <SelectContent>
+                    {providers.map((p) => (
+                      <SelectItem key={p.provider_name} value={p.provider_name}>
+                        {p.provider_name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Base URL */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Base URL <span className="font-normal normal-case">(optional)</span></label>
+                <label className="text-xs font-medium text-text-secondary">Model Type</label>
+                <Select
+                  value={editingModel.model_type || 'CHAT'}
+                  onValueChange={(val: any) => setEditingModel({ ...editingModel, model_type: val })}
+                >
+                  <SelectTrigger className="bg-bg-base border-border-button text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CHAT">CHAT</SelectItem>
+                    <SelectItem value="EMBEDDING">EMBEDDING</SelectItem>
+                    <SelectItem value="RERANK">RERANK</SelectItem>
+                    <SelectItem value="IMAGE2TEXT">IMAGE2TEXT</SelectItem>
+                    <SelectItem value="TTS">TTS</SelectItem>
+                    <SelectItem value="SPEECH2TEXT">SPEECH2TEXT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-text-secondary">Model Identifier / Name</label>
+              <Input
+                value={editingModel.model_name || ''}
+                onChange={(e) => setEditingModel({ ...editingModel, model_name: e.target.value })}
+                placeholder="gpt-4o, claude-3-5-sonnet-20241022, deepseek-chat..."
+                className="bg-bg-base border-border-button text-xs font-mono"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-text-secondary">Input Token Price ($ / 1M)</label>
                 <Input
-                  value={editingModel.base_url || ''}
-                  onChange={(e) => setEditingModel((prev) => ({ ...prev, base_url: e.target.value }))}
-                  placeholder="https://api.openai.com/v1"
+                  type="number"
+                  step="0.01"
+                  value={editingModel.input_token_price || 0}
+                  onChange={(e) => setEditingModel({ ...editingModel, input_token_price: parseFloat(e.target.value) || 0 })}
+                  className="bg-bg-base border-border-button text-xs font-mono"
                 />
               </div>
 
-              {/* API Key */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">API Key <span className="font-normal normal-case">(optional, stored encrypted)</span></label>
-                <div className="relative">
-                  <Input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={editingModel.api_key || ''}
-                    onChange={(e) => setEditingModel((prev) => ({ ...prev, api_key: e.target.value }))}
-                    placeholder="sk-..."
-                    className="pr-10 font-mono text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showApiKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-                {/* API Key Link Helper */}
-                {(() => {
-                  const linkUrl = getProviderApiKeyUrl(editingModel.provider || '');
-                  if (!linkUrl) return null;
-                  return (
-                    <div className="text-xs text-primary flex items-center gap-1 pt-1">
-                      <ExternalLink className="size-3 flex-shrink-0" />
-                      <span>Get Official API Key:</span>
-                      <a
-                        href={linkUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline font-mono hover:text-primary/80 truncate"
-                      >
-                        {linkUrl}
-                      </a>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Enabled Toggle */}
-              <div className="flex items-center justify-between pt-1 pb-1 border-t border-border/60">
-                <div>
-                  <span className="text-sm font-medium">Globally Enabled</span>
-                  <p className="text-xs text-muted-foreground">When disabled, this model won't be accessible by any plan.</p>
-                </div>
-                <Switch
-                  checked={editingModel.enabled ?? true}
-                  onCheckedChange={(val) => setEditingModel((prev) => ({ ...prev, enabled: val }))}
+                <label className="text-xs font-medium text-text-secondary">Output Token Price ($ / 1M)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editingModel.output_token_price || 0}
+                  onChange={(e) => setEditingModel({ ...editingModel, output_token_price: parseFloat(e.target.value) || 0 })}
+                  className="bg-bg-base border-border-button text-xs font-mono"
                 />
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Button variant="ghost" onClick={() => setIsModelModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveModel} className="gap-2">
-                <Save className="size-4" />
-                Save Model
-              </Button>
+            {/* Allowed Subscription Plans */}
+            <div className="space-y-2 pt-2 border-t border-border-button">
+              <label className="text-xs font-medium text-text-secondary">Authorized Subscription Plans</label>
+              <div className="flex gap-4">
+                {['free', 'plus', 'pro'].map((plan) => {
+                  const currentPlans = editingModel.allowed_plans || [];
+                  const isChecked = currentPlans.includes(plan);
+                  return (
+                    <label key={plan} className="flex items-center gap-2 cursor-pointer text-xs font-bold uppercase">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditingModel({ ...editingModel, allowed_plans: [...currentPlans, plan] });
+                          } else {
+                            setEditingModel({ ...editingModel, allowed_plans: currentPlans.filter((p) => p !== plan) });
+                          }
+                        }}
+                        className="rounded border-border-button text-accent-primary"
+                      />
+                      {plan}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsModelModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSaveModel}>
+              Save Model
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  </div>
-);
+  );
 }

@@ -1,3 +1,4 @@
+import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog';
 import { IconFontFill } from '@/components/icon-font-base';
 import { RAGFlowAvatar } from '@/components/ragflow-avatar';
 import ThemeSwitch from '@/components/theme-switch';
@@ -23,7 +24,7 @@ import {
   CreditCard,
   Key,
 } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHandleMenuClick } from './hooks';
 
@@ -91,6 +92,7 @@ export function SideBar() {
   const { handleMenuClick, active: activeItemKey } = useHandleMenuClick();
   const { version, fetchSystemVersion } = useFetchSystemVersion();
   const { t } = useTranslation();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   useEffect(() => {
     if (location.host !== Domain) {
       fetchSystemVersion();
@@ -156,12 +158,30 @@ export function SideBar() {
           variant="transparent"
           aria-label={t('setting.logout')}
           className="max-md:size-10 max-md:p-0 max-md:mx-auto max-md:justify-center"
-          onClick={() => logout()}
+          onClick={() => setIsLogoutModalOpen(true)}
         >
           <LucideLogOut className="size-[1em] md:hidden" />
           <span className="hidden md:inline">{t('setting.logout')}</span>
         </Button>
       </footer>
+
+      {isLogoutModalOpen && (
+        <ConfirmDeleteDialog
+          open={isLogoutModalOpen}
+          onOpenChange={setIsLogoutModalOpen}
+          title={t('setting.logoutConfirmTitle')}
+          content={{
+            title: t('setting.logoutConfirmContent'),
+          }}
+          okButtonText={t('setting.logoutConfirmOk')}
+          cancelButtonText={t('setting.logoutConfirmCancel')}
+          onOk={() => {
+            setIsLogoutModalOpen(false);
+            logout();
+          }}
+          onCancel={() => setIsLogoutModalOpen(false)}
+        />
+      )}
     </aside>
   );
 }

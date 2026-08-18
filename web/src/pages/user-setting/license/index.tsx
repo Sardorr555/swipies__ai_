@@ -13,8 +13,7 @@ import {
   Trash2, 
   Plus, 
   Loader2, 
-  CheckCircle2, 
-  AlertCircle 
+  CheckCircle2 
 } from 'lucide-react';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import { 

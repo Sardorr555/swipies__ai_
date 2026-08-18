@@ -98,34 +98,39 @@ class TenantLLMService(CommonService):
             try:
                 from api.db.services.tenant_model_provider_service import TenantModelProviderService
                 from api.db.services.tenant_model_instance_service import TenantModelInstanceService
-                admin_tenant_id = TenantModelProviderService._get_admin_tenant_id(tenant_id)
-                if admin_tenant_id and admin_tenant_id != tenant_id:
-                    admin_objs = cls.query(tenant_id=admin_tenant_id, llm_name=mdlnm)
-                    if not admin_objs and fid:
-                        admin_objs = cls.query(tenant_id=admin_tenant_id, llm_factory=fid)
-                    if admin_objs and admin_objs[0].api_key:
-                        ao = admin_objs[0]
-                        syn_tenant_llm = TenantLLM(
-                            tenant_id=tenant_id,
-                            llm_factory=ao.llm_factory,
-                            model_type=ao.model_type or (model_type_val if model_type_val else "CHAT"),
-                            llm_name=mdlnm,
-                            api_key=ao.api_key,
-                            api_base=ao.api_base or "",
-                            max_tokens=ao.max_tokens or 8192,
-                            status="1",
-                        )
-                        return syn_tenant_llm
+                admin_tenant_id = TenantModelProviderService._get_admin_tenant_id()
+                if admin_tenant_id:
+                    if admin_tenant_id != tenant_id:
+                        admin_objs = cls.query(tenant_id=admin_tenant_id, llm_name=mdlnm)
+                        if not admin_objs and fid:
+                            admin_objs = cls.query(tenant_id=admin_tenant_id, llm_factory=fid)
+                        if admin_objs and admin_objs[0].api_key:
+                            ao = admin_objs[0]
+                            syn_tenant_llm = TenantLLM(
+                                tenant_id=tenant_id,
+                                llm_factory=ao.llm_factory,
+                                model_type=ao.model_type or (model_type_val if model_type_val else "CHAT"),
+                                llm_name=mdlnm,
+                                api_key=ao.api_key,
+                                api_base=ao.api_base or "",
+                                max_tokens=ao.max_tokens or 8192,
+                                status="1",
+                            )
+                            return syn_tenant_llm
 
-                    if fid:
-                        p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(admin_tenant_id, fid, fallback_admin=False)
+                    target_factory = fid
+                    if not target_factory:
+                        _, target_factory = TenantLLMService.split_model_name_and_factory(mdlnm)
+                    
+                    if target_factory:
+                        p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(admin_tenant_id, target_factory, fallback_admin=False)
                         if p_obj:
                             inst = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
                             if inst and inst.api_key:
                                 extra_dict = json.loads(inst.extra) if inst.extra else {}
                                 syn_tenant_llm = TenantLLM(
                                     tenant_id=tenant_id,
-                                    llm_factory=fid,
+                                    llm_factory=target_factory,
                                     model_type=model_type_val if model_type_val else "CHAT",
                                     llm_name=mdlnm,
                                     api_key=inst.api_key,
@@ -228,24 +233,33 @@ class TenantLLMService(CommonService):
 
     @staticmethod
     def split_model_name_and_factory(model_name):
-        arr = model_name.split("@")
-        if len(arr) < 2:
+        if not model_name:
             return model_name, None
+        arr = model_name.split("@")
         if len(arr) == 3:
             # {pure_model_name}@{instance_name}@{provider_name}
             return arr[0], arr[2]
         if len(arr) > 3:
             return "@".join(arr[0:-2]), arr[-1]
+        if len(arr) == 2:
+            try:
+                model_factories = settings.FACTORY_LLM_INFOS
+                model_providers = set([f["name"] for f in model_factories])
+                if arr[-1] in model_providers:
+                    return arr[0], arr[-1]
+            except Exception:
+                pass
+            return arr[0], arr[1]
 
-        # model name must be xxx@yyy
+        # Model name has no @: auto-detect factory from FACTORY_LLM_INFOS
         try:
-            model_factories = settings.FACTORY_LLM_INFOS
-            model_providers = set([f["name"] for f in model_factories])
-            if arr[-1] not in model_providers:
-                return model_name, None
-            return arr[0], arr[-1]
+            for factory in settings.FACTORY_LLM_INFOS:
+                for llm in factory.get("llm", []):
+                    if llm.get("llm_name") == model_name:
+                        return model_name, factory.get("name")
         except Exception as e:
-            logging.exception(f"TenantLLMService.split_model_name_and_factory got exception: {e}")
+            logging.warning(f"TenantLLMService.split_model_name_and_factory factory lookup error: {e}")
+
         return model_name, None
 
     @classmethod

@@ -30,9 +30,7 @@ class TenantModelProviderService(CommonService):
     def _get_admin_tenant_id(cls, current_tenant_id=None):
         global _ADMIN_TENANT_ID_CACHE
         if _ADMIN_TENANT_ID_CACHE:
-            if _ADMIN_TENANT_ID_CACHE != current_tenant_id:
-                return _ADMIN_TENANT_ID_CACHE
-            return None
+            return _ADMIN_TENANT_ID_CACHE
 
         try:
             from api.db.db_models import User
@@ -42,8 +40,7 @@ class TenantModelProviderService(CommonService):
                 admin_user = User.get_or_none(User.is_superuser == True)
             if admin_user:
                 _ADMIN_TENANT_ID_CACHE = admin_user.id
-                if admin_user.id != current_tenant_id:
-                    return admin_user.id
+                return admin_user.id
         except Exception as e:
             logger.warning(f"_get_admin_tenant_id failed: {e}")
         return None
@@ -72,19 +69,18 @@ class TenantModelProviderService(CommonService):
     @classmethod
     @DB.connection_context()
     def get_by_tenant_id_and_provider_name(cls, tenant_id, provider_name, fallback_admin=True):
-        # PRO / Enterprise users with custom configured keys get custom instance
-        if cls._is_pro_or_enterprise(tenant_id):
-            custom_res = cls.model.get_or_none(
-                cls.model.tenant_id == tenant_id,
-                cls.model.provider_name == provider_name,
-            )
-            if custom_res:
-                return custom_res
+        # 1. Custom provider for tenant
+        res = cls.model.get_or_none(
+            cls.model.tenant_id == tenant_id,
+            cls.model.provider_name == provider_name,
+        )
+        if res:
+            return res
 
-        # Platform instance (system admin) for FREE/PLUS or unconfigured PRO users
+        # 2. Platform instance (system admin) if fallback_admin is True
         if fallback_admin:
-            admin_tenant_id = cls._get_admin_tenant_id(tenant_id)
-            if admin_tenant_id:
+            admin_tenant_id = cls._get_admin_tenant_id()
+            if admin_tenant_id and admin_tenant_id != tenant_id:
                 platform_provider = cls.model.get_or_none(
                     cls.model.tenant_id == admin_tenant_id,
                     cls.model.provider_name == provider_name,
@@ -92,10 +88,7 @@ class TenantModelProviderService(CommonService):
                 if platform_provider:
                     return platform_provider
 
-        return cls.model.get_or_none(
-            cls.model.tenant_id == tenant_id,
-            cls.model.provider_name == provider_name,
-        )
+        return None
 
     @classmethod
     @DB.connection_context()

@@ -265,7 +265,7 @@ function updateAuthStatus() {
       el.target = '_self';
     } else {
       el.textContent = T[savedLang].nav_cta;
-      el.href = 'login.html';
+      el.href = 'https://app.swipies.app';
       el.target = '_self';
     }
   });
@@ -277,7 +277,7 @@ function updateAuthStatus() {
       el.target = '_self';
     } else {
       el.textContent = T[savedLang].hero_cta1;
-      el.href = 'login.html';
+      el.href = 'https://app.swipies.app';
       el.target = '_self';
     }
   });

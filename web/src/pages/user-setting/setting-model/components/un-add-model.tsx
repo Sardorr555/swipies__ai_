@@ -192,7 +192,7 @@ export const AvailableModels: FC<{
               <Button
                 size="xs"
                 className="px-2 opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100"
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                   e.stopPropagation();
                   handleAddModel(model.name);
                 }}

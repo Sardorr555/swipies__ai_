@@ -43,7 +43,7 @@ const ModelProviders = () => {
     queryKey: ['userAllowedModels'],
     queryFn: async () => {
       const res = await getUserAllowedModels();
-      return res.data?.data;
+      return (res as any)?.data?.data ?? (res as any)?.data;
     },
   });
   // Retained special modals
@@ -250,12 +250,18 @@ const ModelProviders = () => {
     [showBedrockAddingModal, showSoMarkModal],
   );
 
+  const canAddCustom = useMemo(() => {
+    return Boolean(
+      allowedModelsRes?.is_superuser ||
+      allowedModelsRes?.can_add_custom ||
+      ['pro', 'enterprise'].includes((allowedModelsRes?.plan?.id || '').toLowerCase()) ||
+      allowedModelsRes?.plan?.allow_byok
+    );
+  }, [allowedModelsRes]);
+
   const handleAddModel = useCallback(
     (llmFactory: string) => {
-      const planId = (allowedModelsRes?.plan?.id || '').toLowerCase();
-      const isProOrEnterprise = ['pro', 'enterprise'].includes(planId);
-
-      if (!isProOrEnterprise) {
+      if (!canAddCustom) {
         setUpgradeModalVisible(true);
         return;
       }
@@ -270,24 +276,18 @@ const ModelProviders = () => {
         setProviderVisible(true);
       }
     },
-    [ModalMap, allowedModelsRes],
+    [ModalMap, canAddCustom],
   );
 
   // Open the ProviderModal in viewMode (read-only) for an existing
-  // instance so the user can edit its model list. The instance's
-  // `api_key`, `baseUrl` and `model_info` are passed as initial values;
-  // the list picker uses `model_info` to pre-check the already-added
-  // models.
+  // instance so the user can edit its model list.
   const handleEditInstance = useCallback(
     (
       providerName: string,
       instance: IProviderInstance,
       models: IInstanceModel[],
     ) => {
-      const planId = (allowedModelsRes?.plan?.id || '').toLowerCase();
-      const isProOrEnterprise = ['pro', 'enterprise'].includes(planId);
-
-      if (!isProOrEnterprise) {
+      if (!canAddCustom) {
         setUpgradeModalVisible(true);
         return;
       }
@@ -325,7 +325,7 @@ const ModelProviders = () => {
       setViewMode(true);
       setProviderVisible(true);
     },
-    [allowedModelsRes],
+    [canAddCustom],
   );
 
   // viewMode save handler: receives the list of selected models (or
@@ -437,47 +437,53 @@ const ModelProviders = () => {
       <SoMarkModal
         visible={somarkVisible}
         hideModal={hideSoMarkModal}
-        onOk={onSoMarkOk}
+        onOk={async (payload: any) => {
+          const ret = await onSoMarkOk(payload);
+          return typeof ret === 'boolean' ? ret : Boolean((ret as any)?.code === 0);
+        }}
         loading={somarkLoading}
         onVerify={onSoMarkVerifying}
       ></SoMarkModal>
 
-      {/* Pro Plan Upgrade Dialog */}
+      {/* Pro Plan Upgrade Dialog — Architectural Specification */}
       <Dialog open={upgradeModalVisible} onOpenChange={setUpgradeModalVisible}>
-        <DialogContent className="sm:max-w-md bg-bg-base border border-border-button shadow-2xl rounded-xl p-6">
-          <DialogHeader className="space-y-3 text-left">
+        <DialogContent className="sm:max-w-md bg-bg-base border border-border-button shadow-2xl rounded-2xl p-6">
+          <DialogHeader className="space-y-3 text-center sm:text-left">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-full bg-amber-500/15 text-amber-500">
-                <Zap className="size-6" />
+              <div className="p-3 rounded-xl bg-purple-500/15 text-purple-500 border border-purple-500/20">
+                <Sparkles className="size-6" />
               </div>
               <div>
                 <DialogTitle className="text-xl font-bold text-text-primary">
-                  Требуется подписка PRO
+                  Connect Your Own AI
                 </DialogTitle>
-                <DialogDescription className="text-sm text-text-secondary mt-0.5">
-                  Добавление кастомных AI-моделей по API
+                <DialogDescription className="text-xs text-text-secondary mt-0.5">
+                  Bring Your Own Key (BYOK) AI Integration
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          <div className="py-3 space-y-4">
-            <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs leading-relaxed text-text-primary">
-              Подключение собственных API-ключей и кастомных провайдеров (OpenAI, DeepSeek, Anthropic и др.) доступно начиная с тарифного плана <strong className="text-amber-500 font-semibold">PRO</strong>.
+          <div className="py-4 space-y-4">
+            <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs leading-relaxed text-text-primary">
+              Connect your own AI provider and use your own AI models through API.
+              <div className="mt-2 font-semibold text-purple-400">
+                This feature is available with the PRO subscription.
+              </div>
             </div>
 
-            <div className="space-y-2 text-xs text-text-secondary pt-1">
-              <div className="flex items-center gap-2">
+            <div className="space-y-2 text-xs text-text-secondary">
+              <div className="flex items-center gap-2.5">
                 <Check className="size-4 text-emerald-500 font-bold shrink-0" />
-                <span>Подключение любых сторонних API и моделей</span>
+                <span>Connect OpenAI, Anthropic, Google Gemini & custom endpoints</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <Check className="size-4 text-emerald-500 font-bold shrink-0" />
-                <span>Увеличенные месячные лимиты генерации токенов</span>
+                <span>Zero rate limits on personal model API keys</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <Check className="size-4 text-emerald-500 font-bold shrink-0" />
-                <span>Приоритетная скорость и приватные соединения</span>
+                <span>Highest priority generation and token bandwidth</span>
               </div>
             </div>
           </div>
@@ -486,19 +492,19 @@ const ModelProviders = () => {
             <Button
               variant="outline"
               onClick={() => setUpgradeModalVisible(false)}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto text-xs"
             >
-              Отмена
+              Maybe later
             </Button>
             <Button
               onClick={() => {
                 setUpgradeModalVisible(false);
-                navigate('/pricing');
+                navigate('/user-setting/subscription');
               }}
-              className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-medium gap-2 shadow"
+              className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-semibold gap-1.5 shadow-md"
             >
               <Zap className="size-4 fill-current" />
-              Перейти на PRO
+              Upgrade to PRO
             </Button>
           </DialogFooter>
         </DialogContent>

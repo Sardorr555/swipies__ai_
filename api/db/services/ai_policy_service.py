@@ -13,26 +13,30 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-
+import json
 import logging
 import uuid
-from datetime import datetime
-
+from datetime import datetime, timezone
 from peewee import fn
 
+from common.time_utils import current_timestamp
 from api.db.db_models import (
     DB,
     AIModel,
+    AIProvider,
     SubscriptionAIPolicy,
     SubscriptionPlan,
     Tenant,
     TokenUsageLog,
+    User,
     UserTokenLimit,
 )
 from api.db.services.common_service import CommonService
-from api.db.services.tenant_llm_service import TenantLLMService
-from api.db.services.user_service import TenantService, UserService
-from common.time_utils import current_timestamp
+from api.db.services.global_instance_service import GlobalInstanceService, GLOBAL_INSTANCE_ID
+from api.db.services.ai_audit_log_service import AIAuditLogService
+from api.utils.key_crypto import encrypt_api_key, decrypt_api_key, mask_api_key
+
+logger = logging.getLogger(__name__)
 
 
 class SubscriptionPlanService(CommonService):
@@ -41,6 +45,30 @@ class SubscriptionPlanService(CommonService):
 
 class AIModelService(CommonService):
     model = AIModel
+
+    @classmethod
+    @DB.connection_context()
+    def get_platform_models(cls) -> list[dict]:
+        models = list(cls.model.select().where(cls.model.is_global == True))
+        res = []
+        for m in models:
+            md = m.to_dict()
+            md["api_key_masked"] = mask_api_key(m.api_key)
+            del md["api_key"]
+            res.append(md)
+        return res
+
+    @classmethod
+    @DB.connection_context()
+    def get_user_byok_models(cls, user_id: str) -> list[dict]:
+        models = list(cls.model.select().where(cls.model.owner_user_id == user_id, cls.model.is_custom == True))
+        res = []
+        for m in models:
+            md = m.to_dict()
+            md["api_key_masked"] = mask_api_key(m.api_key)
+            del md["api_key"]
+            res.append(md)
+        return res
 
 
 class SubscriptionAIPolicyService(CommonService):
@@ -56,21 +84,42 @@ class TokenUsageLogService(CommonService):
 
 
 class AIPolicyManager:
-    @staticmethod
-    def get_current_period() -> str:
-        return datetime.now().strftime("%Y-%m")
+    """
+    Central Manager for the RAGFlow Single Global Instance:
+    - Global subscription policy resolution
+    - Central rate limiting and token accounting
+    - PRO BYOK model authorization and lifecycle
+    - Global model resolution and provider fallback
+    - Cost analytics
+    """
+
+    @classmethod
+    def get_current_period(cls) -> str:
+        return datetime.now(timezone.utc).strftime("%Y-%m")
+
+    @classmethod
+    def get_current_date_str(cls) -> str:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     @classmethod
     @DB.connection_context()
     def init_default_data(cls):
-        """Seed default plans, global models, and policies if they do not exist."""
+        """Seed Global Instance, default plans, platform models, and policies."""
         try:
-            # 1. Default Plans
+            # 1. Initialize Single Global Instance
+            GlobalInstanceService.get_global_instance()
+
+            # 2. Default Plans (FREE / PLUS / PRO)
             default_plans = [
                 {
                     "id": "free",
                     "name": "FREE",
-                    "monthly_token_limit": 100000,
+                    "daily_token_limit": 50000,
+                    "monthly_token_limit": 1000000,
+                    "daily_request_limit": 500,
+                    "monthly_request_limit": 10000,
+                    "requests_per_minute": 60,
+                    "max_tokens_per_request": 4096,
                     "limit_mode": "shared",
                     "max_storage_gb": 1.0,
                     "max_datasets": 2,
@@ -79,14 +128,22 @@ class AIPolicyManager:
                     "allow_custom_models": False,
                     "allow_custom_endpoints": False,
                     "allow_private_servers": False,
+                    "allow_byok": False,
+                    "max_byok_models": 0,
                     "default_llm_id": "openai/gpt-4o-mini",
                     "default_embd_id": "openai/text-embedding-3-small",
+                    "default_rerank_id": "BAAI/bge-reranker-v2-m3",
                     "status": "1",
                 },
                 {
                     "id": "plus",
                     "name": "PLUS",
-                    "monthly_token_limit": 1000000,
+                    "daily_token_limit": 500000,
+                    "monthly_token_limit": 10000000,
+                    "daily_request_limit": 5000,
+                    "monthly_request_limit": 100000,
+                    "requests_per_minute": 120,
+                    "max_tokens_per_request": 8192,
                     "limit_mode": "shared",
                     "max_storage_gb": 10.0,
                     "max_datasets": 10,
@@ -95,14 +152,22 @@ class AIPolicyManager:
                     "allow_custom_models": False,
                     "allow_custom_endpoints": False,
                     "allow_private_servers": False,
-                    "default_llm_id": "deepseek/deepseek-chat",
+                    "allow_byok": False,
+                    "max_byok_models": 0,
+                    "default_llm_id": "openai/gpt-4o",
                     "default_embd_id": "openai/text-embedding-3-small",
+                    "default_rerank_id": "BAAI/bge-reranker-v2-m3",
                     "status": "1",
                 },
                 {
                     "id": "pro",
                     "name": "PRO",
-                    "monthly_token_limit": 5000000,
+                    "daily_token_limit": 2000000,
+                    "monthly_token_limit": 50000000,
+                    "daily_request_limit": 20000,
+                    "monthly_request_limit": 500000,
+                    "requests_per_minute": 300,
+                    "max_tokens_per_request": 16384,
                     "limit_mode": "per_model",
                     "max_storage_gb": 50.0,
                     "max_datasets": 50,
@@ -111,8 +176,11 @@ class AIPolicyManager:
                     "allow_custom_models": True,
                     "allow_custom_endpoints": True,
                     "allow_private_servers": True,
-                    "default_llm_id": "deepseek/deepseek-chat",
+                    "allow_byok": True,
+                    "max_byok_models": 10,
+                    "default_llm_id": "anthropic/claude-3-5-sonnet-20241022",
                     "default_embd_id": "openai/text-embedding-3-large",
+                    "default_rerank_id": "BAAI/bge-reranker-v2-m3",
                     "status": "1",
                 },
             ]
@@ -121,27 +189,55 @@ class AIPolicyManager:
                 if not SubscriptionPlanService.query(id=plan["id"]):
                     SubscriptionPlanService.save(**plan)
 
-            # 2. Default Global Models
+            # 3. Default Global Providers
+            default_providers = [
+                {"id": "global_openai", "provider_name": "OpenAI", "base_url": "https://api.openai.com/v1", "status": "active"},
+                {"id": "global_anthropic", "provider_name": "Anthropic", "base_url": "https://api.anthropic.com/v1", "status": "active"},
+                {"id": "global_deepseek", "provider_name": "DeepSeek", "base_url": "https://api.deepseek.com/v1", "status": "active"},
+                {"id": "global_google", "provider_name": "Google", "base_url": "https://generativelanguage.googleapis.com", "status": "active"},
+                {"id": "global_baai", "provider_name": "BAAI", "base_url": "", "status": "active"},
+            ]
+            for p in default_providers:
+                if not AIProvider.select().where(AIProvider.id == p["id"]).count():
+                    AIProvider.create(
+                        id=p["id"],
+                        provider_name=p["provider_name"],
+                        base_url=p["base_url"],
+                        status=p["status"],
+                        is_global=True,
+                        global_instance_id=GLOBAL_INSTANCE_ID,
+                        create_time=current_timestamp(),
+                    )
+
+            # 4. Default Global Platform Models with Pricing ($/1M tokens)
             default_models = [
-                {
-                    "id": "openai/gpt-4o",
-                    "provider": "OpenAI",
-                    "model_name": "gpt-4o",
-                    "model_type": "CHAT",
-                    "base_url": "https://api.openai.com/v1",
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                },
                 {
                     "id": "openai/gpt-4o-mini",
                     "provider": "OpenAI",
                     "model_name": "gpt-4o-mini",
                     "model_type": "CHAT",
                     "base_url": "https://api.openai.com/v1",
+                    "input_token_price": 0.15,
+                    "output_token_price": 0.60,
+                    "max_tokens": 16384,
                     "enabled": True,
                     "is_global": True,
                     "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
+                },
+                {
+                    "id": "openai/gpt-4o",
+                    "provider": "OpenAI",
+                    "model_name": "gpt-4o",
+                    "model_type": "CHAT",
+                    "base_url": "https://api.openai.com/v1",
+                    "input_token_price": 2.50,
+                    "output_token_price": 10.00,
+                    "max_tokens": 16384,
+                    "enabled": True,
+                    "is_global": True,
+                    "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
                 },
                 {
                     "id": "deepseek/deepseek-chat",
@@ -149,9 +245,13 @@ class AIPolicyManager:
                     "model_name": "deepseek-chat",
                     "model_type": "CHAT",
                     "base_url": "https://api.deepseek.com/v1",
+                    "input_token_price": 0.27,
+                    "output_token_price": 1.10,
+                    "max_tokens": 8192,
                     "enabled": True,
                     "is_global": True,
                     "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
                 },
                 {
                     "id": "deepseek/deepseek-reasoner",
@@ -159,29 +259,69 @@ class AIPolicyManager:
                     "model_name": "deepseek-reasoner",
                     "model_type": "CHAT",
                     "base_url": "https://api.deepseek.com/v1",
+                    "input_token_price": 0.55,
+                    "output_token_price": 2.19,
+                    "max_tokens": 8192,
                     "enabled": True,
                     "is_global": True,
                     "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
                 },
                 {
-                    "id": "anthropic/claude-3-5-sonnet",
+                    "id": "anthropic/claude-3-5-sonnet-20241022",
                     "provider": "Anthropic",
                     "model_name": "claude-3-5-sonnet-20241022",
                     "model_type": "CHAT",
                     "base_url": "https://api.anthropic.com/v1",
+                    "input_token_price": 3.00,
+                    "output_token_price": 15.00,
+                    "max_tokens": 8192,
                     "enabled": True,
                     "is_global": True,
                     "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
                 },
                 {
-                    "id": "anthropic/claude-3-5-haiku",
+                    "id": "anthropic/claude-3-5-haiku-20241022",
                     "provider": "Anthropic",
                     "model_name": "claude-3-5-haiku-20241022",
                     "model_type": "CHAT",
                     "base_url": "https://api.anthropic.com/v1",
+                    "input_token_price": 0.80,
+                    "output_token_price": 4.00,
+                    "max_tokens": 8192,
                     "enabled": True,
                     "is_global": True,
                     "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
+                },
+                {
+                    "id": "google/gemini-1.5-pro",
+                    "provider": "Google",
+                    "model_name": "gemini-1.5-pro",
+                    "model_type": "CHAT",
+                    "base_url": "https://generativelanguage.googleapis.com",
+                    "input_token_price": 1.25,
+                    "output_token_price": 5.00,
+                    "max_tokens": 8192,
+                    "enabled": True,
+                    "is_global": True,
+                    "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
+                },
+                {
+                    "id": "google/gemini-1.5-flash",
+                    "provider": "Google",
+                    "model_name": "gemini-1.5-flash",
+                    "model_type": "CHAT",
+                    "base_url": "https://generativelanguage.googleapis.com",
+                    "input_token_price": 0.075,
+                    "output_token_price": 0.30,
+                    "max_tokens": 8192,
+                    "enabled": True,
+                    "is_global": True,
+                    "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
                 },
                 {
                     "id": "openai/text-embedding-3-small",
@@ -189,9 +329,13 @@ class AIPolicyManager:
                     "model_name": "text-embedding-3-small",
                     "model_type": "EMBEDDING",
                     "base_url": "https://api.openai.com/v1",
+                    "input_token_price": 0.02,
+                    "output_token_price": 0.0,
+                    "max_tokens": 8192,
                     "enabled": True,
                     "is_global": True,
                     "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
                 },
                 {
                     "id": "openai/text-embedding-3-large",
@@ -199,9 +343,13 @@ class AIPolicyManager:
                     "model_name": "text-embedding-3-large",
                     "model_type": "EMBEDDING",
                     "base_url": "https://api.openai.com/v1",
+                    "input_token_price": 0.13,
+                    "output_token_price": 0.0,
+                    "max_tokens": 8192,
                     "enabled": True,
                     "is_global": True,
                     "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
                 },
                 {
                     "id": "BAAI/bge-large-en-v1.5",
@@ -209,9 +357,13 @@ class AIPolicyManager:
                     "model_name": "bge-large-en-v1.5",
                     "model_type": "EMBEDDING",
                     "base_url": "",
+                    "input_token_price": 0.0,
+                    "output_token_price": 0.0,
+                    "max_tokens": 512,
                     "enabled": True,
                     "is_global": True,
                     "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
                 },
                 {
                     "id": "BAAI/bge-reranker-v2-m3",
@@ -219,9 +371,13 @@ class AIPolicyManager:
                     "model_name": "bge-reranker-v2-m3",
                     "model_type": "RERANK",
                     "base_url": "",
+                    "input_token_price": 0.0,
+                    "output_token_price": 0.0,
+                    "max_tokens": 512,
                     "enabled": True,
                     "is_global": True,
                     "is_custom": False,
+                    "global_instance_id": GLOBAL_INSTANCE_ID,
                 },
             ]
 
@@ -229,28 +385,38 @@ class AIPolicyManager:
                 if not AIModelService.query(id=m["id"]):
                     AIModelService.save(**m)
 
-            # 3. Default Plan Policies (Model availability & caps)
+            # 5. Default Plan Policies (FREE, PLUS, PRO)
             default_policies = [
                 # FREE
-                {"plan_id": "free", "model_id": "openai/gpt-4o-mini", "model_token_limit": 50000, "enabled": True},
-                {"plan_id": "free", "model_id": "openai/text-embedding-3-small", "model_token_limit": 50000, "enabled": True},
+                {"plan_id": "free", "model_id": "openai/gpt-4o-mini", "model_token_limit": 50000, "is_default_llm": True, "enabled": True},
+                {"plan_id": "free", "model_id": "google/gemini-1.5-flash", "model_token_limit": 50000, "enabled": True},
+                {"plan_id": "free", "model_id": "openai/text-embedding-3-small", "model_token_limit": 0, "is_default_embd": True, "enabled": True},
                 {"plan_id": "free", "model_id": "BAAI/bge-large-en-v1.5", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "free", "model_id": "BAAI/bge-reranker-v2-m3", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "free", "model_id": "BAAI/bge-reranker-v2-m3", "model_token_limit": 0, "is_default_rerank": True, "enabled": True},
                 # PLUS
-                {"plan_id": "plus", "model_id": "openai/gpt-4o-mini", "model_token_limit": 300000, "enabled": True},
-                {"plan_id": "plus", "model_id": "deepseek/deepseek-chat", "model_token_limit": 700000, "enabled": True},
-                {"plan_id": "plus", "model_id": "openai/text-embedding-3-small", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "plus", "model_id": "openai/gpt-4o-mini", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "plus", "model_id": "openai/gpt-4o", "model_token_limit": 1000000, "is_default_llm": True, "enabled": True},
+                {"plan_id": "plus", "model_id": "deepseek/deepseek-chat", "model_token_limit": 2000000, "enabled": True},
+                {"plan_id": "plus", "model_id": "google/gemini-1.5-pro", "model_token_limit": 1000000, "enabled": True},
+                {"plan_id": "plus", "model_id": "google/gemini-1.5-flash", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "plus", "model_id": "anthropic/claude-3-5-haiku-20241022", "model_token_limit": 1000000, "enabled": True},
+                {"plan_id": "plus", "model_id": "openai/text-embedding-3-small", "model_token_limit": 0, "is_default_embd": True, "enabled": True},
+                {"plan_id": "plus", "model_id": "openai/text-embedding-3-large", "model_token_limit": 0, "enabled": True},
                 {"plan_id": "plus", "model_id": "BAAI/bge-large-en-v1.5", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "plus", "model_id": "BAAI/bge-reranker-v2-m3", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "plus", "model_id": "BAAI/bge-reranker-v2-m3", "model_token_limit": 0, "is_default_rerank": True, "enabled": True},
                 # PRO
-                {"plan_id": "pro", "model_id": "openai/gpt-4o", "model_token_limit": 1000000, "enabled": True},
-                {"plan_id": "pro", "model_id": "openai/gpt-4o-mini", "model_token_limit": 1000000, "enabled": True},
-                {"plan_id": "pro", "model_id": "deepseek/deepseek-chat", "model_token_limit": 2000000, "enabled": True},
-                {"plan_id": "pro", "model_id": "deepseek/deepseek-reasoner", "model_token_limit": 1000000, "enabled": True},
+                {"plan_id": "pro", "model_id": "openai/gpt-4o-mini", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "pro", "model_id": "openai/gpt-4o", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "pro", "model_id": "deepseek/deepseek-chat", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "pro", "model_id": "deepseek/deepseek-reasoner", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "pro", "model_id": "anthropic/claude-3-5-sonnet-20241022", "model_token_limit": 0, "is_default_llm": True, "enabled": True},
+                {"plan_id": "pro", "model_id": "anthropic/claude-3-5-haiku-20241022", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "pro", "model_id": "google/gemini-1.5-pro", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "pro", "model_id": "google/gemini-1.5-flash", "model_token_limit": 0, "enabled": True},
                 {"plan_id": "pro", "model_id": "openai/text-embedding-3-small", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "openai/text-embedding-3-large", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "pro", "model_id": "openai/text-embedding-3-large", "model_token_limit": 0, "is_default_embd": True, "enabled": True},
                 {"plan_id": "pro", "model_id": "BAAI/bge-large-en-v1.5", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "BAAI/bge-reranker-v2-m3", "model_token_limit": 0, "enabled": True},
+                {"plan_id": "pro", "model_id": "BAAI/bge-reranker-v2-m3", "model_token_limit": 0, "is_default_rerank": True, "enabled": True},
             ]
 
             for pol in default_policies:
@@ -258,40 +424,51 @@ class AIPolicyManager:
                 if not SubscriptionAIPolicyService.query(id=pol_id):
                     SubscriptionAIPolicyService.save(id=pol_id, **pol)
 
+            logger.info("Successfully initialized Global Instance AI infrastructure, subscriptions, and models.")
         except Exception as e:
-            logging.exception(f"AIPolicyManager.init_default_data failed: {e}")
+            logger.exception("AIPolicyManager.init_default_data failed: %s", e)
 
     @classmethod
     @DB.connection_context()
-    def get_user_plan(cls, tenant_id: str) -> dict:
-        e, tenant = TenantService.get_by_id(tenant_id)
-        if not e or not tenant:
-            plan_type = "free"
-        else:
-            plan_type = (tenant.plan_type or "free").lower()
+    def get_user_plan(cls, tenant_id: str, user_id: str = None) -> dict:
+        """Resolve subscription plan for tenant or user (fallback to FREE)."""
+        plan_type = "free"
+        try:
+            target_id = user_id or tenant_id
+            if target_id:
+                user = User.get_or_none(User.id == target_id)
+                if user and getattr(user, "is_superuser", False):
+                    # Superuser enjoys unrestricted Pro capabilities
+                    pro_plan = SubscriptionPlanService.query(id="pro")
+                    if pro_plan:
+                        return pro_plan[0].to_dict()
+
+            if tenant_id:
+                tenant = Tenant.get_or_none(Tenant.id == tenant_id)
+                if tenant and getattr(tenant, "plan_type", None):
+                    plan_type = tenant.plan_type.lower()
+        except Exception as e:
+            logger.warning("Error fetching tenant plan: %s", e)
 
         plans = SubscriptionPlanService.query(id=plan_type)
-        if not plans:
-            # Fallback to free plan
-            plans = SubscriptionPlanService.query(id="free")
-            if not plans:
-                cls.init_default_data()
-                plans = SubscriptionPlanService.query(id="free")
-
         if plans:
             return plans[0].to_dict()
+
+        # Fallback to default free plan
         return {
-            "id": plan_type,
-            "name": plan_type.upper(),
+            "id": "free",
+            "name": "FREE",
+            "daily_token_limit": 50000,
             "monthly_token_limit": 1000000,
-            "limit_mode": "shared",
-            "max_storage_gb": 10.0,
-            "max_datasets": 10,
-            "max_agents": 10,
-            "allow_custom_providers": False,
-            "allow_custom_models": False,
-            "allow_custom_endpoints": False,
-            "allow_private_servers": False,
+            "daily_request_limit": 500,
+            "monthly_request_limit": 10000,
+            "requests_per_minute": 60,
+            "max_tokens_per_request": 4096,
+            "allow_byok": False,
+            "max_byok_models": 0,
+            "default_llm_id": "openai/gpt-4o-mini",
+            "default_embd_id": "openai/text-embedding-3-small",
+            "default_rerank_id": "BAAI/bge-reranker-v2-m3",
         }
 
     @classmethod
@@ -299,7 +476,6 @@ class AIPolicyManager:
     def get_tenant_total_tokens_used(cls, tenant_id: str, period: str = None) -> int:
         if not period:
             period = cls.get_current_period()
-
         res = (
             TokenUsageLog.select(fn.SUM(TokenUsageLog.total_tokens))
             .where(TokenUsageLog.tenant_id == tenant_id, TokenUsageLog.billing_period == period)
@@ -309,10 +485,37 @@ class AIPolicyManager:
 
     @classmethod
     @DB.connection_context()
+    def get_tenant_daily_tokens_used(cls, tenant_id: str, date_str: str = None) -> int:
+        if not date_str:
+            date_str = cls.get_current_date_str()
+        res = (
+            TokenUsageLog.select(fn.SUM(TokenUsageLog.total_tokens))
+            .where(TokenUsageLog.tenant_id == tenant_id, TokenUsageLog.date_str == date_str)
+            .scalar()
+        )
+        return int(res or 0)
+
+    @classmethod
+    @DB.connection_context()
+    def get_tenant_daily_requests_used(cls, tenant_id: str, date_str: str = None) -> int:
+        if not date_str:
+            date_str = cls.get_current_date_str()
+        return TokenUsageLog.select().where(TokenUsageLog.tenant_id == tenant_id, TokenUsageLog.date_str == date_str).count()
+
+    @classmethod
+    @DB.connection_context()
+    def get_tenant_monthly_requests_used(cls, tenant_id: str, period: str = None) -> int:
+        if not period:
+            period = cls.get_current_period()
+        return TokenUsageLog.select().where(TokenUsageLog.tenant_id == tenant_id, TokenUsageLog.billing_period == period).count()
+
+    @classmethod
+    @DB.connection_context()
     def get_tenant_model_tokens_used(cls, tenant_id: str, model_id: str, period: str = None) -> int:
         if not period:
             period = cls.get_current_period()
 
+        from api.db.services.tenant_llm_service import TenantLLMService
         mdl_name, fid = TenantLLMService.split_model_name_and_factory(model_id)
         res = (
             TokenUsageLog.select(fn.SUM(TokenUsageLog.total_tokens))
@@ -327,56 +530,110 @@ class AIPolicyManager:
 
     @classmethod
     @DB.connection_context()
-    def check_model_access(cls, tenant_id: str, model_name: str, model_type: str = None, user_id: str = None) -> tuple[bool, str, int]:
+    def check_model_access(
+        cls,
+        tenant_id: str,
+        model_name: str,
+        model_type: str = None,
+        user_id: str = None,
+    ) -> tuple[bool, str, int]:
         """
-        Validate model access based on subscription policy and token quotas.
+        Validate model access based on single Global Instance subscription policy and token quotas.
         Returns: (allowed: bool, message: str, status_code: int)
         """
         if not tenant_id:
             return True, "OK", 200
 
-        plan = cls.get_user_plan(tenant_id)
-        plan_id = plan["id"]
-        monthly_token_limit = plan["monthly_token_limit"]
+        target_user_id = user_id or tenant_id
+        is_super = False
+        if target_user_id:
+            u = User.get_or_none(User.id == target_user_id)
+            is_super = bool(u and getattr(u, "is_superuser", False))
 
-        # Check user-specific limit override if available
-        if user_id:
-            user_limits = UserTokenLimitService.query(user_id=user_id, enabled=True)
+        plan = cls.get_user_plan(tenant_id, target_user_id)
+        plan_id = plan["id"].lower()
+        monthly_token_limit = plan.get("monthly_token_limit", 1000000)
+        daily_token_limit = plan.get("daily_token_limit", 50000)
+        daily_request_limit = plan.get("daily_request_limit", 500)
+        monthly_request_limit = plan.get("monthly_request_limit", 10000)
+
+        # Check user-specific limit override if configured
+        if target_user_id:
+            user_limits = UserTokenLimitService.query(user_id=target_user_id, enabled=True)
             if user_limits and user_limits[0].monthly_token_limit > 0:
                 monthly_token_limit = user_limits[0].monthly_token_limit
 
-        # 1. Total monthly token limit check
-        used_tokens = cls.get_tenant_total_tokens_used(tenant_id)
-        if used_tokens >= monthly_token_limit:
-            msg = f"Monthly AI token limit reached. You have used: {used_tokens:,} / {monthly_token_limit:,} tokens. Upgrade your plan to continue using AI."
-            return False, msg, 429
+        if not is_super:
+            # 1. Total monthly token quota check
+            monthly_used = cls.get_tenant_total_tokens_used(tenant_id)
+            if monthly_token_limit > 0 and monthly_used >= monthly_token_limit:
+                msg = f"Monthly AI token limit reached ({monthly_used:,} / {monthly_token_limit:,}). Upgrade to PLUS or PRO to continue using AI."
+                return False, msg, 429
 
-        # Normalize model_id
-        mdl_name, fid = TenantLLMService.split_model_name_and_factory(model_name)
-        candidate_ids = [model_name, mdl_name]
+            # 2. Daily token quota check
+            daily_used = cls.get_tenant_daily_tokens_used(tenant_id)
+            if daily_token_limit > 0 and daily_used >= daily_token_limit:
+                msg = f"Daily AI token limit reached ({daily_used:,} / {daily_token_limit:,}). Upgrade your plan to increase limits."
+                return False, msg, 429
+
+            # 3. Daily request quota check
+            daily_req_count = cls.get_tenant_daily_requests_used(tenant_id)
+            if daily_request_limit > 0 and daily_req_count >= daily_request_limit:
+                msg = f"Daily AI request limit reached ({daily_req_count:,} / {daily_request_limit:,})."
+                return False, msg, 429
+
+        # Normalize model identifiers
+        from api.db.services.tenant_llm_service import TenantLLMService
+        pure_name, fid = TenantLLMService.split_model_name_and_factory(model_name)
+        candidate_ids = [model_name, pure_name]
         if fid:
-            candidate_ids.append(f"{fid}/{mdl_name}")
-            candidate_ids.append(f"{mdl_name}@{fid}")
+            candidate_ids.extend([f"{fid}/{pure_name}", f"{pure_name}@{fid}", f"{fid}/{model_name}"])
 
-        # Find global model definition if exists
+        # Check if requested model is a user-owned BYOK model
+        byok_model = None
+        for cid in candidate_ids:
+            found_byok = AIModel.get_or_none(AIModel.id == cid, AIModel.is_custom == True)
+            if found_byok:
+                byok_model = found_byok
+                break
+        if not byok_model:
+            byok_model = AIModel.get_or_none(AIModel.model_name == pure_name, AIModel.is_custom == True)
+
+        if byok_model:
+            # Enforce BYOK access rules
+            if not is_super:
+                if not plan.get("allow_byok", False) and plan_id not in ["pro", "enterprise"]:
+                    return False, "BYOK_NOT_AVAILABLE: Connect Your Own AI is available only with the PRO subscription.", 403
+
+                # Ownership check
+                if byok_model.owner_user_id and byok_model.owner_user_id != target_user_id and byok_model.owner_tenant_id != tenant_id:
+                    return False, "Access denied: This custom AI model belongs to another account.", 403
+
+                # Status check (e.g. locked after downgrade)
+                if byok_model.status == "locked_pro_required":
+                    return False, "LOCKED_PRO_REQUIRED: This custom AI model is locked because your PRO subscription expired. Upgrade to PRO to reactivate.", 403
+                if not byok_model.enabled or byok_model.status != "active":
+                    return False, f"Custom AI Model '{byok_model.model_name}' is currently disabled.", 403
+
+            return True, "OK", 200
+
+        # Platform Model Check
         ai_model = None
         for cid in candidate_ids:
-            models = AIModelService.query(id=cid)
+            models = AIModelService.query(id=cid, is_global=True)
             if models:
                 ai_model = models[0]
                 break
 
         if not ai_model:
-            # Check by model_name
-            models = AIModelService.query(model_name=mdl_name)
+            models = AIModelService.query(model_name=pure_name, is_global=True)
             if models:
                 ai_model = models[0]
 
-        # 2. Global model enabled check
         if ai_model and not ai_model.enabled:
-            return False, f"Model '{model_name}' is currently disabled by system administrator.", 403
+            return False, f"Model '{model_name}' is currently disabled by administrator.", 403
 
-        # 3. Check Subscription AI Policy for this plan and model
+        # Subscription policy check for platform model
         policy = None
         if ai_model:
             policies = SubscriptionAIPolicyService.query(plan_id=plan_id, model_id=ai_model.id, enabled=True)
@@ -390,35 +647,68 @@ class AIPolicyManager:
                     policy = policies[0]
                     break
 
-        # If model is not explicitly listed in policy:
-        if not policy:
-            # Check if it's a tenant custom model and if plan allows custom models
-            if not plan.get("allow_custom_models", False):
-                # If plan does not allow custom models and model is not in policy, reject
-                return False, f"Model '{model_name}' is not available on your {plan['name']} subscription plan.", 403
+        if not policy and not is_super:
+            return False, f"Model '{model_name}' is not included in your {plan['name']} subscription plan.", 403
 
-        # 4. Check per-model token limit if applicable
-        if policy and policy.model_token_limit > 0:
-            target_model_id = policy.model_id
-            model_used = cls.get_tenant_model_tokens_used(tenant_id, target_model_id)
-            if model_used >= policy.model_token_limit:
-                msg = f"Monthly token limit reached for model '{mdl_name}'. You have used: {model_used:,} / {policy.model_token_limit:,} tokens for this model. Upgrade your plan or switch models."
+        # Per-model token cap check
+        if policy and policy.model_token_limit > 0 and not is_super:
+            used_for_model = cls.get_tenant_model_tokens_used(tenant_id, policy.model_id)
+            if used_for_model >= policy.model_token_limit:
+                msg = f"Monthly token limit reached for model '{pure_name}' ({used_for_model:,} / {policy.model_token_limit:,})."
                 return False, msg, 429
 
         return True, "OK", 200
 
     @classmethod
     @DB.connection_context()
-    def can_add_custom_model(cls, tenant_id: str) -> tuple[bool, str]:
-        from api.db.services.user_service import UserService
-        user = UserService.query(id=tenant_id)
-        if user and getattr(user[0], "is_superuser", False):
+    def can_add_custom_model(cls, tenant_id_or_user_id: str) -> tuple[bool, str]:
+        """Server-side check: only PRO users (or superuser) can configure custom BYOK models."""
+        if not tenant_id_or_user_id:
+            return False, "Authentication required."
+        user = User.get_or_none(User.id == tenant_id_or_user_id)
+        if user and getattr(user, "is_superuser", False):
             return True, "OK"
-        plan = cls.get_user_plan(tenant_id)
+
+        plan = cls.get_user_plan(tenant_id_or_user_id)
         plan_id = (plan.get("id") or "").lower()
-        if plan_id not in ["pro", "enterprise"]:
-            return False, "Добавление собственных AI-моделей доступно только для подписки PRO. Пожалуйста, обновите тарифный план до Pro."
+        if plan_id not in ["pro", "enterprise"] and not plan.get("allow_byok", False):
+            return False, "Connect Your Own AI is available only with the PRO subscription."
+
+        # Check max custom models limit
+        max_models = plan.get("max_byok_models", 10)
+        current_count = AIModel.select().where(AIModel.owner_user_id == tenant_id_or_user_id, AIModel.is_custom == True).count()
+        if current_count >= max_models:
+            return False, f"Maximum custom AI models reached ({current_count}/{max_models})."
+
         return True, "OK"
+
+    @classmethod
+    @DB.connection_context()
+    def handle_subscription_downgrade(cls, user_id: str, new_plan_id: str):
+        """
+        When a user downgrades from PRO -> PLUS or FREE:
+        BYOK models are NOT deleted, but locked to status 'locked_pro_required'.
+        """
+        if new_plan_id.lower() in ["pro", "enterprise"]:
+            return
+        updated = (
+            AIModel.update(status="locked_pro_required")
+            .where(AIModel.owner_user_id == user_id, AIModel.is_custom == True)
+            .execute()
+        )
+        logger.info("Locked %d BYOK models for downgraded user %s", updated, user_id)
+
+    @classmethod
+    @DB.connection_context()
+    def handle_subscription_upgrade(cls, user_id: str, new_plan_id: str):
+        """When a user upgrades back to PRO: reactivates locked BYOK models."""
+        if new_plan_id.lower() in ["pro", "enterprise"]:
+            updated = (
+                AIModel.update(status="active")
+                .where(AIModel.owner_user_id == user_id, AIModel.is_custom == True, AIModel.status == "locked_pro_required")
+                .execute()
+            )
+            logger.info("Reactivated %d BYOK models for upgraded PRO user %s", updated, user_id)
 
     @classmethod
     @DB.connection_context()
@@ -431,12 +721,40 @@ class AIPolicyManager:
         input_tokens: int,
         output_tokens: int,
         total_tokens: int,
+        status: str = "SUCCESS",
+        provider_id: str = None,
     ):
-        if not total_tokens or total_tokens <= 0:
+        """
+        Central token accounting:
+        - Calculates estimated dollar cost from model pricing
+        - Stores usage log tied to GLOBAL_INSTANCE_ID
+        """
+        if not total_tokens and not input_tokens and not output_tokens:
             return
 
+        total_tokens = total_tokens or ((input_tokens or 0) + (output_tokens or 0))
         period = cls.get_current_period()
-        plan = cls.get_user_plan(tenant_id)
+        date_str = cls.get_current_date_str()
+        plan = cls.get_user_plan(tenant_id, user_id)
+
+        # Lookup pricing
+        input_price = 0.0
+        output_price = 0.0
+        resolved_provider = provider_id
+        try:
+            m = AIModel.get_or_none((AIModel.id == model_id) | (AIModel.model_name == model_id))
+            if m:
+                input_price = m.input_token_price or 0.0
+                output_price = m.output_token_price or 0.0
+                if not resolved_provider:
+                    resolved_provider = m.provider
+        except Exception:
+            pass
+
+        estimated_cost = round(
+            ((input_tokens or 0) * input_price + (output_tokens or 0) * output_price) / 1000000.0,
+            6,
+        )
 
         try:
             record_id = uuid.uuid4().hex
@@ -445,38 +763,49 @@ class AIPolicyManager:
                 user_id=user_id or tenant_id,
                 tenant_id=tenant_id,
                 subscription_id=plan["id"],
+                global_instance_id=GLOBAL_INSTANCE_ID,
                 model_id=model_id or "unknown",
+                provider_id=resolved_provider or "unknown",
                 model_type=model_type or "CHAT",
                 input_tokens=input_tokens or 0,
                 output_tokens=output_tokens or 0,
                 total_tokens=total_tokens,
+                estimated_cost=estimated_cost,
+                status=status,
                 billing_period=period,
+                date_str=date_str,
                 create_time=current_timestamp(),
             )
         except Exception as e:
-            logging.exception(f"AIPolicyManager.record_token_usage error: {e}")
+            logger.exception("AIPolicyManager.record_token_usage error: %s", e)
 
     @classmethod
     @DB.connection_context()
     def get_user_usage_summary(cls, tenant_id: str, user_id: str = None) -> dict:
+        """Returns the user's personal usage statistics and quota progress."""
         period = cls.get_current_period()
-        plan = cls.get_user_plan(tenant_id)
+        date_str = cls.get_current_date_str()
+        plan = cls.get_user_plan(tenant_id, user_id)
 
-        monthly_limit = plan["monthly_token_limit"]
+        monthly_limit = plan.get("monthly_token_limit", 1000000)
+        daily_limit = plan.get("daily_token_limit", 50000)
+
         if user_id:
             user_limits = UserTokenLimitService.query(user_id=user_id, enabled=True)
             if user_limits and user_limits[0].monthly_token_limit > 0:
                 monthly_limit = user_limits[0].monthly_token_limit
 
-        total_used = cls.get_tenant_total_tokens_used(tenant_id, period)
-        percentage = round((total_used / monthly_limit) * 100, 1) if monthly_limit > 0 else 0
+        monthly_used = cls.get_tenant_total_tokens_used(tenant_id, period)
+        daily_used = cls.get_tenant_daily_tokens_used(tenant_id, date_str)
+        percentage = round((monthly_used / monthly_limit) * 100, 1) if monthly_limit > 0 else 0
 
-        # Query breakdown by model
+        # Model breakdown for current billing period
         breakdown_query = (
             TokenUsageLog.select(
                 TokenUsageLog.model_id,
                 TokenUsageLog.model_type,
                 fn.SUM(TokenUsageLog.total_tokens).alias("tokens_used"),
+                fn.SUM(TokenUsageLog.estimated_cost).alias("cost"),
             )
             .where(TokenUsageLog.tenant_id == tenant_id, TokenUsageLog.billing_period == period)
             .group_by(TokenUsageLog.model_id, TokenUsageLog.model_type)
@@ -484,10 +813,13 @@ class AIPolicyManager:
         )
         breakdown = list(breakdown_query)
 
-        # Get allowed models list for plan
+        # Allowed models list
         policies = (
             SubscriptionAIPolicy.select(
-                SubscriptionAIPolicy.model_id, SubscriptionAIPolicy.model_token_limit, SubscriptionAIPolicy.enabled
+                SubscriptionAIPolicy.model_id,
+                SubscriptionAIPolicy.model_token_limit,
+                SubscriptionAIPolicy.is_default_llm,
+                SubscriptionAIPolicy.enabled,
             )
             .where(SubscriptionAIPolicy.plan_id == plan["id"], SubscriptionAIPolicy.enabled == True)
             .dicts()
@@ -496,9 +828,135 @@ class AIPolicyManager:
         return {
             "plan": plan,
             "period": period,
-            "total_used": total_used,
+            "date": date_str,
+            "monthly_used": monthly_used,
             "monthly_limit": monthly_limit,
+            "daily_used": daily_used,
+            "daily_limit": daily_limit,
             "percentage": percentage,
             "breakdown": breakdown,
             "allowed_models": list(policies),
+            "global_instance_id": GLOBAL_INSTANCE_ID,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def get_admin_analytics(cls, period: str = None) -> dict:
+        """
+        Calculates platform-wide AI usage, cost, and breakdown across subscriptions,
+        models, providers, and users for the single Global Instance.
+        """
+        if not period:
+            period = cls.get_current_period()
+
+        # Overall summary
+        summary_query = (
+            TokenUsageLog.select(
+                fn.COUNT(TokenUsageLog.id).alias("total_requests"),
+                fn.SUM(TokenUsageLog.input_tokens).alias("total_input_tokens"),
+                fn.SUM(TokenUsageLog.output_tokens).alias("total_output_tokens"),
+                fn.SUM(TokenUsageLog.total_tokens).alias("total_tokens"),
+                fn.SUM(TokenUsageLog.estimated_cost).alias("total_cost"),
+                fn.COUNT(fn.DISTINCT(TokenUsageLog.user_id)).alias("active_users"),
+            )
+            .where(TokenUsageLog.billing_period == period)
+            .dicts()
+        )
+        summary = summary_query[0] if summary_query else {}
+
+        # Breakdown by Subscription (FREE, PLUS, PRO)
+        by_plan = list(
+            TokenUsageLog.select(
+                TokenUsageLog.subscription_id,
+                fn.COUNT(TokenUsageLog.id).alias("requests"),
+                fn.SUM(TokenUsageLog.total_tokens).alias("tokens"),
+                fn.SUM(TokenUsageLog.estimated_cost).alias("cost"),
+            )
+            .where(TokenUsageLog.billing_period == period)
+            .group_by(TokenUsageLog.subscription_id)
+            .dicts()
+        )
+
+        # Breakdown by Model
+        by_model = list(
+            TokenUsageLog.select(
+                TokenUsageLog.model_id,
+                TokenUsageLog.model_type,
+                fn.COUNT(TokenUsageLog.id).alias("requests"),
+                fn.SUM(TokenUsageLog.input_tokens).alias("input_tokens"),
+                fn.SUM(TokenUsageLog.output_tokens).alias("output_tokens"),
+                fn.SUM(TokenUsageLog.total_tokens).alias("total_tokens"),
+                fn.SUM(TokenUsageLog.estimated_cost).alias("cost"),
+            )
+            .where(TokenUsageLog.billing_period == period)
+            .group_by(TokenUsageLog.model_id, TokenUsageLog.model_type)
+            .order_by(fn.SUM(TokenUsageLog.total_tokens).desc())
+            .limit(20)
+            .dicts()
+        )
+
+        # Breakdown by Provider
+        by_provider = list(
+            TokenUsageLog.select(
+                TokenUsageLog.provider_id,
+                fn.COUNT(TokenUsageLog.id).alias("requests"),
+                fn.SUM(TokenUsageLog.total_tokens).alias("tokens"),
+                fn.SUM(TokenUsageLog.estimated_cost).alias("cost"),
+            )
+            .where(TokenUsageLog.billing_period == period)
+            .group_by(TokenUsageLog.provider_id)
+            .dicts()
+        )
+
+        # Top Users by Consumption
+        top_users_query = list(
+            TokenUsageLog.select(
+                TokenUsageLog.user_id,
+                TokenUsageLog.subscription_id,
+                fn.COUNT(TokenUsageLog.id).alias("requests"),
+                fn.SUM(TokenUsageLog.total_tokens).alias("tokens"),
+                fn.SUM(TokenUsageLog.estimated_cost).alias("cost"),
+            )
+            .where(TokenUsageLog.billing_period == period)
+            .group_by(TokenUsageLog.user_id, TokenUsageLog.subscription_id)
+            .order_by(fn.SUM(TokenUsageLog.total_tokens).desc())
+            .limit(20)
+            .dicts()
+        )
+
+        # Join user details for top users
+        uids = [u["user_id"] for u in top_users_query if u.get("user_id")]
+        user_info_map = {}
+        if uids:
+            for usr in User.select(User.id, User.email, User.nickname).where(User.id.in_(uids)):
+                user_info_map[usr.id] = {"email": usr.email, "nickname": usr.nickname}
+
+        for u in top_users_query:
+            info = user_info_map.get(u["user_id"], {"email": u["user_id"], "nickname": u["user_id"]})
+            u["email"] = info["email"]
+            u["nickname"] = info["nickname"]
+
+        # BYOK Stats
+        byok_count = AIModel.select().where(AIModel.is_custom == True).count()
+        byok_active = AIModel.select().where(AIModel.is_custom == True, AIModel.status == "active").count()
+
+        return {
+            "period": period,
+            "global_instance_id": GLOBAL_INSTANCE_ID,
+            "summary": {
+                "total_requests": int(summary.get("total_requests") or 0),
+                "total_input_tokens": int(summary.get("total_input_tokens") or 0),
+                "total_output_tokens": int(summary.get("total_output_tokens") or 0),
+                "total_tokens": int(summary.get("total_tokens") or 0),
+                "total_cost": round(float(summary.get("total_cost") or 0.0), 4),
+                "active_users": int(summary.get("active_users") or 0),
+            },
+            "by_subscription": by_plan,
+            "by_model": by_model,
+            "by_provider": by_provider,
+            "top_users": top_users_query,
+            "byok_stats": {
+                "total_byok_models": byok_count,
+                "active_byok_models": byok_active,
+            },
         }

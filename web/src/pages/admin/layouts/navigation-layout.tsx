@@ -62,7 +62,7 @@ const AdminNavigationLayout = () => {
       },
       {
         path: Routes.AdminAIManagement,
-        name: 'AI Models & Policies',
+        name: 'AI Infrastructure',
         icon: <Bot className="size-[1em]" />,
       },
       {

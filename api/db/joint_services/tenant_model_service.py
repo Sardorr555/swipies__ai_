@@ -63,18 +63,24 @@ def _decode_api_key_config(raw_api_key: str) -> tuple[str, bool | None, str | No
         return raw_api_key, None, None
 
     try:
-        parsed = json.loads(raw_api_key)
+        from api.utils.key_crypto import decrypt_api_key
+        decrypted = decrypt_api_key(raw_api_key)
     except Exception:
-        return raw_api_key, None, None
+        decrypted = raw_api_key
+
+    try:
+        parsed = json.loads(decrypted)
+    except Exception:
+        return decrypted, None, None
 
     if not isinstance(parsed, dict):
-        return raw_api_key, None, None
+        return decrypted, None, None
 
     is_tools = bool(parsed["is_tools"]) if "is_tools" in parsed else None
     if set(parsed.keys()) <= {"api_key", "is_tools"}:
         return parsed.get("api_key", ""), is_tools, None
 
-    return parsed.get("api_key", raw_api_key), is_tools, raw_api_key
+    return parsed.get("api_key", decrypted), is_tools, decrypted
 
 
 def get_first_provider_model_name(tenant_id: str, provider_name: str, model_type: str | enum.Enum) -> str | None:
@@ -289,23 +295,23 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
                         region = extra_fields.get("region", "default")
                         target_factory_name = "siliconflow_intl" if (region == "intl" and provider_name.lower() == "siliconflow") else provider_name
                         fac_list = [f for f in settings.FACTORY_LLM_INFOS if f["name"] == target_factory_name]
+                        llm_info = None
                         if fac_list:
                             llm_list = [llm for llm in fac_list[0]["llm"] if llm["llm_name"] == pure_model_name]
                             if llm_list:
                                 llm_info = llm_list[0]
-                                if model_type_val in _factory_model_types(llm_info):
-                                    model_config = {
-                                        "llm_factory": provider_obj.provider_name,
-                                        "api_key": api_key,
-                                        "llm_name": llm_info["llm_name"],
-                                        "api_base": extra_fields.get("base_url", ""),
-                                        "model_type": model_type_val,
-                                        "is_tools": llm_info.get("is_tools", is_tool),
-                                        "max_tokens": llm_info.get("max_tokens") or 8192,
-                                    }
-                                    if api_key_payload is not None:
-                                        model_config["api_key_payload"] = api_key_payload
-                                    return model_config
+                        model_config = {
+                            "llm_factory": provider_obj.provider_name,
+                            "api_key": api_key,
+                            "llm_name": pure_model_name,
+                            "api_base": extra_fields.get("base_url", ""),
+                            "model_type": model_type_val,
+                            "is_tools": (llm_info.get("is_tools") if llm_info else is_tool),
+                            "max_tokens": (llm_info.get("max_tokens") if llm_info else 8192) or 8192,
+                        }
+                        if api_key_payload is not None:
+                            model_config["api_key_payload"] = api_key_payload
+                        return model_config
     except Exception as e:
         logger.warning(f"get_model_config_from_provider_instance provider instance lookup exception: {e}")
 
@@ -318,6 +324,39 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
             return fallback_cfg
     except Exception as fallback_e:
         logger.warning(f"TenantLLMService get_model_config fallback exception: {fallback_e}")
+
+    # 3. Safe Fallback for embedding models to guarantee dataset task continuity
+    if model_type_val == LLMType.EMBEDDING.value:
+        try:
+            any_embd = TenantLLMService.query(tenant_id=tenant_id, model_type=LLMType.EMBEDDING.value)
+            if not any_embd:
+                admin_id = TenantModelProviderService._get_admin_tenant_id()
+                if admin_id and admin_id != tenant_id:
+                    any_embd = TenantLLMService.query(tenant_id=admin_id, model_type=LLMType.EMBEDDING.value)
+            if any_embd and any_embd[0].api_key:
+                return {
+                    "llm_factory": any_embd[0].llm_factory,
+                    "api_key": any_embd[0].api_key,
+                    "llm_name": any_embd[0].llm_name,
+                    "api_base": any_embd[0].api_base,
+                    "model_type": LLMType.EMBEDDING.value,
+                    "is_tools": False,
+                    "max_tokens": any_embd[0].max_tokens or 8192,
+                }
+        except Exception as embd_e:
+            logger.warning(f"Embedding model query fallback exception: {embd_e}")
+
+        logger.warning(f"No configured API key found for requested embedding model '{model_name}'. Falling back to default embedding configuration.")
+        embedding_cfg = getattr(settings, "EMBEDDING_CFG", {})
+        return {
+            "llm_factory": "BAAI",
+            "api_key": getattr(embedding_cfg, "api_key", "") if isinstance(embedding_cfg, object) and not isinstance(embedding_cfg, dict) else (embedding_cfg.get("api_key", "") if isinstance(embedding_cfg, dict) else ""),
+            "llm_name": pure_model_name or "bge-small-en-v1.5",
+            "api_base": getattr(embedding_cfg, "base_url", "") if isinstance(embedding_cfg, object) and not isinstance(embedding_cfg, dict) else (embedding_cfg.get("base_url", "") if isinstance(embedding_cfg, dict) else ""),
+            "model_type": LLMType.EMBEDDING.value,
+            "is_tools": False,
+            "max_tokens": 512,
+        }
 
     raise LookupError(f"Provider {provider_name or 'unknown'} not found or not configured for model {model_name}.")
 
