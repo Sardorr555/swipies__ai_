@@ -16,6 +16,7 @@
 
 import json
 import logging
+from peewee import fn
 from quart import Blueprint, request
 
 from api.apps import current_user, login_required

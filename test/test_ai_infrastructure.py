@@ -169,6 +169,12 @@ def run_tests():
     assert "super_secret_password_999" not in str(parsed_details), "API key leaked into audit log!"
     print("   -> Audit Logging & secret sanitization verified OK")
 
+    print("8. Testing BYOK stats query with fn.COUNT & fn.DISTINCT...")
+    from peewee import fn
+    total_byok = AIModel.select().where(AIModel.is_custom == True).count()
+    unique_users = AIModel.select(fn.COUNT(fn.DISTINCT(AIModel.owner_user_id))).where(AIModel.is_custom == True).scalar() or 0
+    print(f"   -> BYOK stats query OK: total={total_byok}, unique_users={unique_users}")
+
     print("\n=======================================================")
     print(" ALL BACKEND INTEGRATION & ARCHITECTURE TESTS PASSED! ")
     print("=======================================================")
