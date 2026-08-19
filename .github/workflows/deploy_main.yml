@@ -71,18 +71,23 @@ jobs:
             fi
 
             echo "🛑 Stopping old containers..."
-            sudo docker compose down --remove-orphans || true
-            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-deepdoc swipies-gpu 2>/dev/null || true
+            sudo docker compose -f docker-compose.yml --profile "*" down --remove-orphans || true
+            sudo docker rm -f $(sudo docker ps -aq --filter "name=swipies-") 2>/dev/null || true
+            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-deepdoc swipies-gpu swipies-docs 2>/dev/null || true
             sudo docker network rm docker_ragflow 2>/dev/null || true
 
             echo "🧹 Pruning Docker BuildKit cache..."
             sudo docker builder prune -a -f || true
 
             echo "🐳 Building new Docker images..."
-            sudo docker compose build
+            sudo docker compose -f docker-compose.yml --profile cpu --profile elasticsearch build
+
+            echo "🛑 Ensuring clean state before stack start..."
+            sudo docker rm -f $(sudo docker ps -aq --filter "name=swipies-") 2>/dev/null || true
+            sudo docker network rm docker_ragflow 2>/dev/null || true
 
             echo "🚀 Starting Docker stack..."
-            sudo docker compose up -d --remove-orphans
+            sudo docker compose -f docker-compose.yml --profile cpu --profile elasticsearch up -d --remove-orphans --force-recreate
 
             echo "⏳ Waiting for RAGFlow Python API server to be ready..."
             for i in {1..40}; do
