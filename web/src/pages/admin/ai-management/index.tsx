@@ -321,7 +321,7 @@ export default function AIManagementPage() {
       message.error('Provider name is required');
       return;
     }
-    if (!editingProvider.api_key) {
+    if (!editingProvider.api_key && !editingProvider.id) {
       message.error('API Key is required to verify connection');
       return;
     }

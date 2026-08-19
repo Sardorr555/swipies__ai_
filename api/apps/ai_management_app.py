@@ -145,13 +145,18 @@ async def admin_verify_provider():
 
     try:
         req = await get_request_json()
-        if not req or not req.get("provider_name") or not req.get("api_key"):
-            return get_data_error_result(message="provider_name and api_key are required for verification.")
-
         provider_name = req.get("provider_name")
-        raw_key = req.get("api_key")
+        raw_key = req.get("api_key", "")
         base_url = req.get("base_url", "")
         extra_params = req.get("extra", {})
+
+        if not raw_key:
+            existing = AIProviderService.model.get_or_none(AIProviderService.model.provider_name == provider_name, AIProviderService.model.is_global == True)
+            if existing and existing.api_key:
+                raw_key = existing.api_key
+
+        if not raw_key:
+            return get_data_error_result(message="API key is required for verification.")
 
         success, message, models = await AIProviderService.async_verify_provider_connection(
             provider_name=provider_name,

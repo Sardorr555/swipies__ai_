@@ -123,14 +123,40 @@ class TenantModelProviderService(CommonService):
                         p_obj = cls.model.get_or_none(cls.model.id == p_id)
                     if p_obj:
                         from api.db.services.tenant_model_instance_service import TenantModelInstanceService
+                        from api.db.services.tenant_model_service import TenantModelService
+                        from common.settings import FACTORY_LLM_INFOS
+                        from common.constants import ActiveStatusEnum
+
                         inst = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
                         if not inst:
-                            TenantModelInstanceService.create_instance(
+                            inst = TenantModelInstanceService.create_instance(
                                 provider_id=p_obj.id,
                                 instance_name="default",
                                 api_key=decrypt_api_key(gp.api_key),
                                 extra=json.dumps({"base_url": gp.base_url or ""}),
                             )
+                        if inst:
+                            fac_entry = next((f for f in (FACTORY_LLM_INFOS or []) if f.get("name", "").lower() == gp.provider_name.lower()), None)
+                            if fac_entry and fac_entry.get("llm"):
+                                for llm in fac_entry["llm"]:
+                                    m_name = llm.get("llm_name") or llm.get("name", "")
+                                    m_types = llm.get("model_type", ["chat"])
+                                    if not isinstance(m_types, list):
+                                        m_types = [m_types]
+                                    for m_type in m_types:
+                                        m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(
+                                            p_obj.id, inst.id, m_type, m_name
+                                        )
+                                        if not m_obj:
+                                            TenantModelService.insert(
+                                                id=get_uuid(),
+                                                model_name=m_name,
+                                                provider_id=p_obj.id,
+                                                instance_id=inst.id,
+                                                model_type=m_type,
+                                                extra=json.dumps({"max_tokens": llm.get("max_tokens", 8192) or 8192}),
+                                                status=ActiveStatusEnum.ACTIVE.value,
+                                            )
                         return p_obj
             except Exception as gp_err:
                 logger.warning(f"Fallback to AIProvider in TenantModelProviderService error: {gp_err}")

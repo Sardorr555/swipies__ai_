@@ -65,6 +65,9 @@ class AIProviderService(CommonService):
         if not raw_api_key:
             return False, "API key is required for verification.", []
 
+        if isinstance(raw_api_key, str):
+            raw_api_key = raw_api_key.strip()
+
         if raw_api_key.startswith("enc:v1:"):
             try:
                 raw_api_key = decrypt_api_key(raw_api_key)
@@ -78,6 +81,23 @@ class AIProviderService(CommonService):
         from api.apps.services.provider_api_service import verify_api_key
         from common.settings import FACTORY_LLM_INFOS
 
+        target_factory_name = "siliconflow_intl" if (region == "intl" and provider_name.lower() == "siliconflow") else provider_name
+        fac_entry = next((f for f in (FACTORY_LLM_INFOS or []) if f.get("name") == target_factory_name), None)
+        if not fac_entry:
+            fac_entry = next((f for f in (FACTORY_LLM_INFOS or []) if f.get("name", "").lower() == provider_name.lower()), None)
+
+        discovered_models = []
+        if fac_entry and fac_entry.get("llm"):
+            for llm in fac_entry["llm"]:
+                m_type = llm.get("model_type", "chat")
+                if isinstance(m_type, list):
+                    m_type = m_type[0] if m_type else "chat"
+                discovered_models.append({
+                    "model_name": llm.get("llm_name") or llm.get("name", ""),
+                    "model_type": str(m_type).upper(),
+                    "max_tokens": llm.get("max_tokens", 8192) or 8192,
+                })
+
         success, msg = await verify_api_key(
             provider_id_or_name=provider_name,
             api_key=raw_api_key,
@@ -85,23 +105,6 @@ class AIProviderService(CommonService):
             region=region,
             model_info=model_info,
         )
-
-        discovered_models = []
-        if success:
-            target_factory_name = "siliconflow_intl" if (region == "intl" and provider_name.lower() == "siliconflow") else provider_name
-            fac_entry = next((f for f in (FACTORY_LLM_INFOS or []) if f.get("name") == target_factory_name), None)
-            if not fac_entry:
-                fac_entry = next((f for f in (FACTORY_LLM_INFOS or []) if f.get("name", "").lower() == provider_name.lower()), None)
-            if fac_entry and fac_entry.get("llm"):
-                for llm in fac_entry["llm"]:
-                    m_type = llm.get("model_type", "chat")
-                    if isinstance(m_type, list):
-                        m_type = m_type[0] if m_type else "chat"
-                    discovered_models.append({
-                        "model_name": llm.get("llm_name") or llm.get("name", ""),
-                        "model_type": str(m_type).upper(),
-                        "max_tokens": llm.get("max_tokens", 8192) or 8192,
-                    })
 
         return success, msg, discovered_models
 
@@ -219,14 +222,23 @@ class AIProviderService(CommonService):
 
                             for m_type in m_types:
                                 # 1. TenantLLM for admin
-                                TenantLLMService.filter_update(
+                                if not TenantLLMService.filter_update(
                                     [
                                         TenantLLMService.model.tenant_id == admin_tenant_id,
                                         TenantLLMService.model.llm_factory == provider_name,
                                         TenantLLMService.model.llm_name == m_name,
                                     ],
                                     {"api_key": enc_key, "api_base": base_url, "max_tokens": max_tok},
-                                )
+                                ):
+                                    TenantLLMService.save(
+                                        tenant_id=admin_tenant_id,
+                                        llm_factory=provider_name,
+                                        llm_name=m_name,
+                                        model_type=m_type,
+                                        api_key=enc_key,
+                                        api_base=base_url,
+                                        max_tokens=max_tok,
+                                    )
 
                                 # 2. TenantModel
                                 m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(
