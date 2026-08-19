@@ -184,9 +184,10 @@ async def set_api_key():
 
         # Sync to TenantModelProvider & TenantModelInstance & TenantModel
         try:
+            from common.misc_utils import get_uuid
             p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
             if not p_obj:
-                TenantModelProviderService.insert(tenant_id=current_user.id, provider_name=factory)
+                TenantModelProviderService.insert(id=get_uuid(), tenant_id=current_user.id, provider_name=factory)
                 p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
             if p_obj:
                 inst_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
@@ -197,7 +198,7 @@ async def set_api_key():
 
                 m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(p_obj.id, inst_obj.id, llm.model_type, llm.llm_name)
                 if not m_obj:
-                    TenantModelService.insert(model_name=llm.llm_name, provider_id=p_obj.id, instance_id=inst_obj.id, model_type=llm.model_type, extra=json.dumps({"max_tokens": llm.max_tokens}))
+                    TenantModelService.insert(id=get_uuid(), model_name=llm.llm_name, provider_id=p_obj.id, instance_id=inst_obj.id, model_type=llm.model_type, extra=json.dumps({"max_tokens": llm.max_tokens}))
         except Exception as sync_e:
             logging.warning(f"set_api_key provider instance sync warning: {sync_e}")
 
@@ -469,9 +470,10 @@ async def add_llm():
 
     # Sync to TenantModelProvider & TenantModelInstance & TenantModel
     try:
+        from common.misc_utils import get_uuid
         p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
         if not p_obj:
-            TenantModelProviderService.insert(tenant_id=current_user.id, provider_name=factory)
+            TenantModelProviderService.insert(id=get_uuid(), tenant_id=current_user.id, provider_name=factory)
             p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
         if p_obj:
             inst_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
@@ -482,7 +484,7 @@ async def add_llm():
 
             m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(p_obj.id, inst_obj.id, llm["model_type"], llm["llm_name"])
             if not m_obj:
-                TenantModelService.insert(model_name=llm["llm_name"], provider_id=p_obj.id, instance_id=inst_obj.id, model_type=llm["model_type"], extra=json.dumps({"max_tokens": llm.get("max_tokens", 8192)}))
+                TenantModelService.insert(id=get_uuid(), model_name=llm["llm_name"], provider_id=p_obj.id, instance_id=inst_obj.id, model_type=llm["model_type"], extra=json.dumps({"max_tokens": llm.get("max_tokens", 8192)}))
     except Exception as sync_e:
         logging.warning(f"add_llm provider instance sync warning: {sync_e}")
 

@@ -358,6 +358,45 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
             "max_tokens": 512,
         }
 
+    # 4. Ultimate Fallback to AIModel and AIProvider (Single Global Instance storage)
+    try:
+        from api.db.db_models import AIModel, AIProvider
+        from api.utils.key_crypto import decrypt_api_key
+
+        aim = AIModel.get_or_none(AIModel.model_name == pure_model_name)
+        if not aim:
+            aim = AIModel.get_or_none(AIModel.id == model_name)
+        if aim and aim.api_key:
+            return {
+                "llm_factory": aim.provider,
+                "api_key": decrypt_api_key(aim.api_key),
+                "llm_name": aim.model_name,
+                "api_base": aim.base_url or "",
+                "model_type": aim.model_type,
+                "is_tools": True,
+                "max_tokens": aim.max_tokens or 8192,
+            }
+
+        if provider_name:
+            aip = AIProvider.get_or_none(AIProvider.provider_name == provider_name, AIProvider.is_global == True)
+            if not aip:
+                for cand in AIProvider.select().where(AIProvider.is_global == True):
+                    if cand.provider_name.lower() == provider_name.lower():
+                        aip = cand
+                        break
+            if aip and aip.api_key:
+                return {
+                    "llm_factory": aip.provider_name,
+                    "api_key": decrypt_api_key(aip.api_key),
+                    "llm_name": pure_model_name or model_name,
+                    "api_base": aip.base_url or "",
+                    "model_type": model_type_val,
+                    "is_tools": True,
+                    "max_tokens": 8192,
+                }
+    except Exception as aip_e:
+        logger.warning(f"AIModel / AIProvider ultimate fallback error: {aip_e}")
+
     raise LookupError(f"Provider {provider_name or 'unknown'} not found or not configured for model {model_name}.")
 
 

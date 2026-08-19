@@ -70,6 +70,7 @@ import {
   getAdminUserLimit,
   saveAdminModel,
   saveAdminProvider,
+  verifyAdminProvider,
   setAdminUserLimit,
   updateAdminInstance,
   updateAdminPlan,
@@ -103,6 +104,8 @@ export default function AIManagementPage() {
 
   // Modals
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
+  const [verifyingProvider, setVerifyingProvider] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ success: boolean; message: string; available_models: any[]; count: number } | null>(null);
   const [editingProvider, setEditingProvider] = useState<Partial<AIProviderItem> & { api_key?: string }>({
     provider_name: 'OpenAI',
     base_url: 'https://api.openai.com/v1',
@@ -270,6 +273,8 @@ export default function AIManagementPage() {
       organization: '',
       status: 'active',
     });
+    setVerifyResult(null);
+    setVerifyingProvider(false);
     setIsProviderModalOpen(true);
   };
 
@@ -282,7 +287,43 @@ export default function AIManagementPage() {
       status: p.status,
       api_key: '', // Left blank unless updated
     });
+    setVerifyResult(null);
+    setVerifyingProvider(false);
     setIsProviderModalOpen(true);
+  };
+
+  const handleVerifyProvider = async () => {
+    if (!editingProvider.provider_name) {
+      message.error('Provider name is required');
+      return;
+    }
+    if (!editingProvider.api_key) {
+      message.error('API Key is required to verify connection');
+      return;
+    }
+    setVerifyingProvider(true);
+    setVerifyResult(null);
+    try {
+      const res = await verifyAdminProvider({
+        provider_name: editingProvider.provider_name,
+        api_key: editingProvider.api_key,
+        base_url: editingProvider.base_url,
+      });
+      if (res.data?.code === 0 && res.data?.data) {
+        setVerifyResult(res.data.data);
+        if (res.data.data.success) {
+          message.success(`Verified successfully! ${res.data.data.count} models detected.`);
+        } else {
+          message.error(res.data.data.message || 'Connection verification failed');
+        }
+      } else {
+        message.error(res.data?.message || 'Verification failed');
+      }
+    } catch (e: any) {
+      message.error(e?.message || 'Verification request failed');
+    } finally {
+      setVerifyingProvider(false);
+    }
   };
 
   const handleSaveProvider = async () => {
@@ -293,9 +334,11 @@ export default function AIManagementPage() {
     try {
       const res = await saveAdminProvider(editingProvider);
       if (res.data?.code === 0) {
-        message.success('Provider saved successfully');
+        message.success(`Provider '${editingProvider.provider_name}' saved and models synchronized!`);
         setIsProviderModalOpen(false);
         fetchProviders();
+        fetchModels();
+        fetchPolicies(selectedPlanId);
         fetchInstanceStats();
       } else {
         message.error(res.data?.message || 'Failed to save provider');
@@ -1288,15 +1331,61 @@ export default function AIManagementPage() {
                 className="bg-bg-base border-border-button text-xs font-mono"
               />
             </div>
+
+            {/* Verification Results Panel */}
+            {verifyResult && (
+              <div
+                className={`p-3 rounded-lg border text-xs space-y-2 ${
+                  verifyResult.success
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-semibold">
+                  {verifyResult.success ? <CheckCircle2 className="size-4 shrink-0" /> : <AlertCircle className="size-4 shrink-0" />}
+                  <span>{verifyResult.message}</span>
+                </div>
+                {verifyResult.success && verifyResult.available_models && verifyResult.available_models.length > 0 && (
+                  <div className="pt-1 border-t border-emerald-500/20">
+                    <div className="text-[11px] font-medium mb-1">
+                      Discovered & Connected Models ({verifyResult.count}):
+                    </div>
+                    <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                      {verifyResult.available_models.map((m: any) => (
+                        <span
+                          key={m.model_name}
+                          className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-mono"
+                        >
+                          {m.model_name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setIsProviderModalOpen(false)}>
-              Cancel
+          <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={verifyingProvider || !editingProvider.api_key}
+              onClick={handleVerifyProvider}
+              className="flex items-center gap-1.5 text-xs"
+            >
+              {verifyingProvider ? <RefreshCw className="size-3.5 animate-spin" /> : <Zap className="size-3.5 text-amber-500" />}
+              {verifyingProvider ? 'Verifying...' : 'Test Connection'}
             </Button>
-            <Button size="sm" onClick={handleSaveProvider}>
-              Save Provider
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsProviderModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSaveProvider}>
+                Save Provider
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

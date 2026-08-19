@@ -69,11 +69,19 @@ class TenantModelProviderService(CommonService):
     @classmethod
     @DB.connection_context()
     def get_by_tenant_id_and_provider_name(cls, tenant_id, provider_name, fallback_admin=True):
+        if not provider_name:
+            return None
+
         # 1. Custom provider for tenant
         res = cls.model.get_or_none(
             cls.model.tenant_id == tenant_id,
             cls.model.provider_name == provider_name,
         )
+        if not res:
+            for p in cls.model.select().where(cls.model.tenant_id == tenant_id):
+                if p.provider_name.lower() == provider_name.lower():
+                    res = p
+                    break
         if res:
             return res
 
@@ -85,8 +93,47 @@ class TenantModelProviderService(CommonService):
                     cls.model.tenant_id == admin_tenant_id,
                     cls.model.provider_name == provider_name,
                 )
+                if not platform_provider:
+                    for ap in cls.model.select().where(cls.model.tenant_id == admin_tenant_id):
+                        if ap.provider_name.lower() == provider_name.lower():
+                            platform_provider = ap
+                            break
                 if platform_provider:
                     return platform_provider
+
+            # 3. Fallback to Global AIProvider table
+            try:
+                from api.db.db_models import AIProvider
+                from common.misc_utils import get_uuid
+                from api.utils.key_crypto import decrypt_api_key
+                import json
+
+                gp = AIProvider.get_or_none(AIProvider.provider_name == provider_name, AIProvider.is_global == True)
+                if not gp:
+                    for g in AIProvider.select().where(AIProvider.is_global == True):
+                        if g.provider_name.lower() == provider_name.lower():
+                            gp = g
+                            break
+                if gp and gp.api_key:
+                    target_tenant = admin_tenant_id or tenant_id
+                    p_obj = cls.model.get_or_none(cls.model.tenant_id == target_tenant, cls.model.provider_name == gp.provider_name)
+                    if not p_obj:
+                        p_id = get_uuid()
+                        cls.insert(id=p_id, tenant_id=target_tenant, provider_name=gp.provider_name)
+                        p_obj = cls.model.get_or_none(cls.model.id == p_id)
+                    if p_obj:
+                        from api.db.services.tenant_model_instance_service import TenantModelInstanceService
+                        inst = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
+                        if not inst:
+                            TenantModelInstanceService.create_instance(
+                                provider_id=p_obj.id,
+                                instance_name="default",
+                                api_key=decrypt_api_key(gp.api_key),
+                                extra=json.dumps({"base_url": gp.base_url or ""}),
+                            )
+                        return p_obj
+            except Exception as gp_err:
+                logger.warning(f"Fallback to AIProvider in TenantModelProviderService error: {gp_err}")
 
         return None
 

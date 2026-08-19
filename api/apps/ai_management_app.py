@@ -116,6 +116,41 @@ async def admin_get_providers():
         return get_data_error_result(message=str(e))
 
 
+@manager.route("/providers/verify", methods=["POST"])  # noqa: F821
+@login_required
+async def admin_verify_provider():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        req = await get_request_json()
+        if not req or not req.get("provider_name") or not req.get("api_key"):
+            return get_data_error_result(message="provider_name and api_key are required for verification.")
+
+        provider_name = req.get("provider_name")
+        raw_key = req.get("api_key")
+        base_url = req.get("base_url", "")
+        extra_params = req.get("extra", {})
+
+        success, message, models = await AIProviderService.async_verify_provider_connection(
+            provider_name=provider_name,
+            raw_api_key=raw_key,
+            base_url=base_url,
+            extra_params=extra_params,
+        )
+
+        return get_json_result(data={
+            "success": success,
+            "message": message,
+            "available_models": models,
+            "count": len(models),
+        })
+    except Exception as e:
+        logging.exception("admin_verify_provider error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
 @manager.route("/providers", methods=["POST"])  # noqa: F821
 @login_required
 async def admin_save_provider():
