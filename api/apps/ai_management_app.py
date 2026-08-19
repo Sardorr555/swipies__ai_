@@ -116,6 +116,26 @@ async def admin_get_providers():
         return get_data_error_result(message=str(e))
 
 
+@manager.route("/providers/available", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_get_available_providers():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        from api.apps.services.provider_api_service import list_providers
+        from api.db.services.tenant_model_provider_service import TenantModelProviderService
+        admin_tenant_id = TenantModelProviderService._get_admin_tenant_id() or current_user.id
+        success, providers = list_providers(admin_tenant_id, all_available=True)
+        if success:
+            return get_json_result(data=providers)
+        return get_data_error_result(message="Failed to list system providers")
+    except Exception as e:
+        logging.exception("admin_get_available_providers error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
 @manager.route("/providers/verify", methods=["POST"])  # noqa: F821
 @login_required
 async def admin_verify_provider():

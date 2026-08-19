@@ -14,10 +14,11 @@
 #  limitations under the License.
 #
 
-import asyncio
 import json
 import logging
 from common.time_utils import current_timestamp
+from common.misc_utils import get_uuid
+from common.constants import ActiveStatusEnum
 from api.db.db_models import DB, AIProvider
 from api.db.services.common_service import CommonService
 from api.db.services.global_instance_service import GLOBAL_INSTANCE_ID
@@ -58,123 +59,60 @@ class AIProviderService(CommonService):
         cls, provider_name: str, raw_api_key: str, base_url: str = "", extra_params: dict = None
     ) -> tuple[bool, str, list[dict]]:
         """
-        Verify API Key connectivity with provider using RAGFlow's LLM testers,
+        Verify API Key using RAGFlow's core provider_api_service.verify_api_key,
         and dynamically discover supported models for that provider.
         """
         if not raw_api_key:
             return False, "API key is required for verification.", []
 
-        # If encrypted, decrypt first
         if raw_api_key.startswith("enc:v1:"):
             try:
                 raw_api_key = decrypt_api_key(raw_api_key)
             except Exception as de:
                 return False, f"Decryption error: {de}", []
 
-        from rag.llm import ChatModel, EmbeddingModel, RerankModel
-        from api.db.services.llm_service import LLMService
-        from common.constants import LLMType
+        extra_params = extra_params or {}
+        region = extra_params.get("region", "default")
+        model_info = extra_params.get("model_info", None)
 
-        source_llms = list(LLMService.query(fid=provider_name))
-        if not source_llms:
-            from common import settings
-            fac_list = [f for f in (getattr(settings, "FACTORY_LLM_INFOS", []) or []) if f.get("name") == provider_name]
-            if fac_list and fac_list[0].get("llm"):
-                source_llms = [type("MockLLM", (), item)() for item in fac_list[0]["llm"]]
+        from api.apps.services.provider_api_service import verify_api_key
+        from common.settings import FACTORY_LLM_INFOS
 
-        if not source_llms:
-            return False, f"No model configurations found for provider '{provider_name}'.", []
+        success, msg = await verify_api_key(
+            provider_id_or_name=provider_name,
+            api_key=raw_api_key,
+            base_url=base_url,
+            region=region,
+            model_info=model_info,
+        )
 
-        chat_passed = False
-        embd_passed = False
-        rerank_passed = False
-        passed_models = []
-        error_msgs = []
-        timeout_sec = 12
+        discovered_models = []
+        if success:
+            target_factory_name = "siliconflow_intl" if (region == "intl" and provider_name.lower() == "siliconflow") else provider_name
+            fac_entry = next((f for f in (FACTORY_LLM_INFOS or []) if f.get("name") == target_factory_name), None)
+            if not fac_entry:
+                fac_entry = next((f for f in (FACTORY_LLM_INFOS or []) if f.get("name", "").lower() == provider_name.lower()), None)
+            if fac_entry and fac_entry.get("llm"):
+                for llm in fac_entry["llm"]:
+                    m_type = llm.get("model_type", "chat")
+                    if isinstance(m_type, list):
+                        m_type = m_type[0] if m_type else "chat"
+                    discovered_models.append({
+                        "model_name": llm.get("llm_name") or llm.get("name", ""),
+                        "model_type": str(m_type).upper(),
+                        "max_tokens": llm.get("max_tokens", 8192) or 8192,
+                    })
 
-        for llm in source_llms:
-            m_name = getattr(llm, "llm_name", "")
-            m_type = getattr(llm, "model_type", "")
-            if not m_name:
-                continue
-
-            if not chat_passed and m_type in [LLMType.CHAT.value, "CHAT"]:
-                if provider_name in ChatModel:
-                    try:
-                        mdl = ChatModel[provider_name](raw_api_key, m_name, base_url=base_url, **(extra_params or {}))
-
-                        async def check_chat():
-                            async for chunk in mdl.async_chat_streamly(
-                                None,
-                                [{"role": "user", "content": "Hi"}],
-                                {"temperature": 0.5},
-                            ):
-                                if chunk and isinstance(chunk, str) and chunk.find("**ERROR**") < 0:
-                                    return True
-                            return False
-
-                        res = await asyncio.wait_for(check_chat(), timeout=timeout_sec)
-                        if res:
-                            chat_passed = True
-                            passed_models.append(m_name)
-                    except Exception as ce:
-                        error_msgs.append(f"Chat ({m_name}): {ce}")
-
-            elif not embd_passed and m_type in [LLMType.EMBEDDING.value, "EMBEDDING"]:
-                if provider_name in EmbeddingModel:
-                    try:
-                        mdl = EmbeddingModel[provider_name](raw_api_key, m_name, base_url=base_url)
-                        arr, tc = await asyncio.wait_for(
-                            asyncio.to_thread(mdl.encode, ["Test connection"]),
-                            timeout=timeout_sec,
-                        )
-                        if len(arr) > 0 and len(arr[0]) > 0:
-                            embd_passed = True
-                            passed_models.append(m_name)
-                    except Exception as ee:
-                        error_msgs.append(f"Embedding ({m_name}): {ee}")
-
-            elif not rerank_passed and m_type in [LLMType.RERANK.value, "RERANK"]:
-                if provider_name in RerankModel:
-                    try:
-                        mdl = RerankModel[provider_name](raw_api_key, m_name, base_url=base_url)
-                        arr, tc = await asyncio.wait_for(
-                            asyncio.to_thread(mdl.similarity, "Hi", ["Hello"]),
-                            timeout=timeout_sec,
-                        )
-                        if len(arr) > 0:
-                            rerank_passed = True
-                            passed_models.append(m_name)
-                    except Exception as re:
-                        error_msgs.append(f"Rerank ({m_name}): {re}")
-
-            if chat_passed or embd_passed or rerank_passed:
-                break
-
-        # If any test passed, return discovered models
-        if chat_passed or embd_passed or rerank_passed:
-            discovered_models = []
-            for llm in source_llms:
-                discovered_models.append({
-                    "model_name": getattr(llm, "llm_name", ""),
-                    "model_type": getattr(llm, "model_type", "CHAT"),
-                    "max_tokens": getattr(llm, "max_tokens", 8192) or 8192,
-                })
-            return True, "API connection verified successfully.", discovered_models
-
-        err_detail = "; ".join(error_msgs) if error_msgs else f"Failed to connect to provider '{provider_name}'."
-        return False, err_detail, []
+        return success, msg, discovered_models
 
     @classmethod
     @DB.connection_context()
     def save_global_provider(cls, data: dict, admin_user_id: str = "system") -> dict:
         """
         Create or update a global AI provider with encrypted API key.
-        Automatically syncs to TenantModelProvider / TenantModelInstance and populates
-        only the verified/connected models into AIModel & TenantModel!
+        Uses core provider instance architecture and dynamically populates
+        only verified models into AIModel & TenantModel.
         """
-        from common.misc_utils import get_uuid
-
         provider_name = data.get("provider_name")
         if not provider_name:
             raise ValueError("provider_name is required")
@@ -241,8 +179,8 @@ class AIProviderService(CommonService):
             from api.db.services.tenant_model_instance_service import TenantModelInstanceService
             from api.db.services.tenant_model_service import TenantModelService
             from api.db.services.tenant_llm_service import TenantLLMService
-            from api.db.services.llm_service import LLMService
             from api.db.services.ai_policy_service import AIModelService, SubscriptionAIPolicyService
+            from common.settings import FACTORY_LLM_INFOS
 
             admin_tenant_id = TenantModelProviderService._get_admin_tenant_id()
             if admin_tenant_id:
@@ -266,64 +204,57 @@ class AIProviderService(CommonService):
                     else:
                         TenantModelInstanceService.filter_update(
                             [TenantModelInstanceService.model.id == inst_obj.id],
-                            {"api_key": decrypted_key, "extra": json.dumps(extra_data)},
+                            {"api_key": decrypted_key, "extra": json.dumps(extra_data), "status": ActiveStatusEnum.ACTIVE.value},
                         )
 
-                    # If API key is configured, dynamically populate and activate all models for this provider
-                    if enc_key:
-                        source_llms = list(LLMService.query(fid=provider_name))
-                        for llm in source_llms:
-                            m_name = getattr(llm, "llm_name", "")
-                            m_type = getattr(llm, "model_type", "CHAT")
-                            max_tok = getattr(llm, "max_tokens", 8192) or 8192
+                    # Populate models from FACTORY_LLM_INFOS for this provider
+                    fac_entry = next((f for f in (FACTORY_LLM_INFOS or []) if f.get("name") == provider_name or f.get("name", "").lower() == provider_name.lower()), None)
+                    if fac_entry and fac_entry.get("llm") and decrypted_key:
+                        for llm in fac_entry["llm"]:
+                            m_name = llm.get("llm_name") or llm.get("name", "")
+                            raw_types = llm.get("model_type", ["chat"])
+                            m_types = raw_types if isinstance(raw_types, list) else [raw_types]
+                            max_tok = llm.get("max_tokens", 8192) or 8192
                             m_id = f"{provider_name.lower()}/{m_name}"
 
-                            # 1. Register in TenantLLM for admin tenant
-                            if not TenantLLMService.filter_update(
-                                [
-                                    TenantLLMService.model.tenant_id == admin_tenant_id,
-                                    TenantLLMService.model.llm_factory == provider_name,
-                                    TenantLLMService.model.llm_name == m_name,
-                                ],
-                                {"api_key": enc_key, "api_base": base_url, "max_tokens": max_tok},
-                            ):
-                                TenantLLMService.save(
-                                    tenant_id=admin_tenant_id,
-                                    llm_factory=provider_name,
-                                    llm_name=m_name,
-                                    model_type=m_type,
-                                    api_key=enc_key,
-                                    api_base=base_url,
-                                    max_tokens=max_tok,
+                            for m_type in m_types:
+                                # 1. TenantLLM for admin
+                                TenantLLMService.filter_update(
+                                    [
+                                        TenantLLMService.model.tenant_id == admin_tenant_id,
+                                        TenantLLMService.model.llm_factory == provider_name,
+                                        TenantLLMService.model.llm_name == m_name,
+                                    ],
+                                    {"api_key": enc_key, "api_base": base_url, "max_tokens": max_tok},
                                 )
 
-                            # 2. Register in TenantModel
-                            m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(
-                                p_obj.id, inst_obj.id, m_type, m_name
-                            )
-                            if not m_obj:
-                                TenantModelService.insert(
-                                    id=get_uuid(),
-                                    model_name=m_name,
-                                    provider_id=p_obj.id,
-                                    instance_id=inst_obj.id,
-                                    model_type=m_type,
-                                    extra=json.dumps({"max_tokens": max_tok}),
-                                    status="active",
+                                # 2. TenantModel
+                                m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(
+                                    p_obj.id, inst_obj.id, m_type, m_name
                                 )
-                            else:
-                                TenantModelService.filter_update(
-                                    [TenantModelService.model.id == m_obj.id],
-                                    {"status": "active"},
-                                )
+                                if not m_obj:
+                                    TenantModelService.insert(
+                                        id=get_uuid(),
+                                        model_name=m_name,
+                                        provider_id=p_obj.id,
+                                        instance_id=inst_obj.id,
+                                        model_type=m_type,
+                                        extra=json.dumps({"max_tokens": max_tok}),
+                                        status=ActiveStatusEnum.ACTIVE.value,
+                                    )
+                                else:
+                                    TenantModelService.filter_update(
+                                        [TenantModelService.model.id == m_obj.id],
+                                        {"status": ActiveStatusEnum.ACTIVE.value},
+                                    )
 
-                            # 3. Register in AIModel table
+                            # 3. AIModel table
                             existing_aimodel = AIModelService.query(id=m_id)
                             aimodel_data = {
                                 "id": m_id,
                                 "provider": provider_name,
                                 "model_name": m_name,
-                                "model_type": m_type,
+                                "model_type": str(m_types[0]).upper() if m_types else "CHAT",
                                 "base_url": base_url,
                                 "api_key": enc_key,
                                 "max_tokens": max_tok,
@@ -340,7 +271,7 @@ class AIProviderService(CommonService):
                                 aimodel_data["create_time"] = now
                                 AIModelService.save(**aimodel_data)
 
-                            # 4. Default Policies for FREE, PLUS, PRO plans
+                            # 4. Access Policies for FREE, PLUS, PRO
                             for plan_id in ["free", "plus", "pro"]:
                                 pol_id = f"{plan_id}_{m_id}"
                                 if not SubscriptionAIPolicyService.query(id=pol_id):

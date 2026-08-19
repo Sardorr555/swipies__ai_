@@ -62,6 +62,7 @@ import {
   getAdminAnalytics,
   getAdminAuditLogs,
   getAdminByokStats,
+  getAdminAvailableProviders,
   getAdminInstance,
   getAdminModels,
   getAdminPlans,
@@ -101,6 +102,7 @@ export default function AIManagementPage() {
   const [auditLogs, setAuditLogs] = useState<AIAuditLogItem[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
   const [byokStats, setByokStats] = useState<{ total_byok_models: number; active_byok_models: number; locked_byok_models: number; byok_users_count: number } | null>(null);
+  const [availableProviders, setAvailableProviders] = useState<{ name: string; model_types: string[]; url: Record<string, string> }[]>([]);
 
   // Modals
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
@@ -130,6 +132,16 @@ export default function AIManagementPage() {
     allowed_plans: ['plus', 'pro'],
   });
 
+  const providerOptions = useMemo(() => {
+    if (availableProviders && availableProviders.length > 0) {
+      return availableProviders.map((p) => ({
+        name: p.name,
+        baseUrl: p.url?.default || '',
+      }));
+    }
+    return PROVIDER_PRESETS;
+  }, [availableProviders]);
+
   // User Limit Override
   const [targetUserId, setTargetUserId] = useState('');
   const [userLimitValue, setUserLimitValue] = useState<number>(0);
@@ -146,6 +158,7 @@ export default function AIManagementPage() {
       await Promise.all([
         fetchInstanceStats(),
         fetchProviders(),
+        fetchAvailableProviders(),
         fetchModels(),
         fetchPlans(),
         fetchPolicies(selectedPlanId),
@@ -157,6 +170,17 @@ export default function AIManagementPage() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableProviders = async () => {
+    try {
+      const res = await getAdminAvailableProviders();
+      if (res.data?.code === 0 && res.data?.data) {
+        setAvailableProviders(res.data.data);
+      }
+    } catch (e) {
+      console.error('fetchAvailableProviders failed', e);
     }
   };
 
@@ -1280,19 +1304,19 @@ export default function AIManagementPage() {
               <Select
                 value={editingProvider.provider_name || 'OpenAI'}
                 onValueChange={(val) => {
-                  const preset = PROVIDER_PRESETS.find((p) => p.name === val);
+                  const preset = providerOptions.find((p) => p.name === val);
                   setEditingProvider({
                     ...editingProvider,
                     provider_name: val,
-                    base_url: preset ? preset.baseUrl : editingProvider.base_url,
+                    base_url: preset?.baseUrl || editingProvider.base_url,
                   });
                 }}
               >
                 <SelectTrigger className="bg-bg-base border-border-button text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {PROVIDER_PRESETS.map((p) => (
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  {providerOptions.map((p) => (
                     <SelectItem key={p.name} value={p.name}>
                       {p.name}
                     </SelectItem>

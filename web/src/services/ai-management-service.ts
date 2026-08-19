@@ -165,6 +165,11 @@ export const updateAdminInstance = (data: Partial<GlobalInstanceStats>) =>
 export const getAdminProviders = () =>
   request.get<ResponseData<AIProviderItem[]>>('/v1/admin/ai/providers');
 
+export const getAdminAvailableProviders = () =>
+  request.get<ResponseData<{ name: string; model_types: string[]; url: Record<string, string> }[]>>(
+    '/v1/admin/ai/providers/available'
+  );
+
 export const verifyAdminProvider = (data: { provider_name: string; api_key: string; base_url?: string; extra?: any }) =>
   request.post<ResponseData<{ success: boolean; message: string; available_models: any[]; count: number }>>(
     '/v1/admin/ai/providers/verify',
