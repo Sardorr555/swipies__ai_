@@ -89,10 +89,44 @@ async def admin_update_global_instance():
         if not req:
             return get_data_error_result(message="Request payload is empty.")
 
-        updated_inst = GlobalInstanceService.update_global_instance(req, admin_user_id=current_user.id)
+        GlobalInstanceService.update_global_instance(req, admin_user_id=current_user.id)
         return get_json_result(data=GlobalInstanceService.get_instance_stats())
     except Exception as e:
         logging.exception("admin_update_global_instance error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/defaults", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_get_default_models():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        stats = GlobalInstanceService.get_instance_stats()
+        return get_json_result(data=stats)
+    except Exception as e:
+        logging.exception("admin_get_default_models error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/defaults", methods=["PUT"])  # noqa: F821
+@login_required
+async def admin_update_default_models():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        req = await get_request_json()
+        if not req:
+            return get_data_error_result(message="Request payload is empty.")
+
+        GlobalInstanceService.update_global_instance(req, admin_user_id=current_user.id)
+        return get_json_result(data=GlobalInstanceService.get_instance_stats())
+    except Exception as e:
+        logging.exception("admin_update_default_models error: %s", e)
         return get_data_error_result(message=str(e))
 
 

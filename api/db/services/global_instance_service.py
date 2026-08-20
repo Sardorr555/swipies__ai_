@@ -80,7 +80,8 @@ class GlobalInstanceService(CommonService):
     @DB.connection_context()
     def update_global_instance(cls, updates: dict, admin_user_id: str = "system") -> GlobalRagflowInstance:
         """
-        Updates settings on the Global RAGFlow Instance and logs the change to AIAuditLog.
+        Updates settings on the Global RAGFlow Instance, synchronizes tenant defaults
+        and in-memory settings, and logs the change to AIAuditLog.
         """
         inst = cls.get_global_instance()
         old_data = inst.to_dict()
@@ -99,11 +100,81 @@ class GlobalInstanceService(CommonService):
             "byok_request_limit",
             "extra",
         }
-        
+
+        # Normalize extra JSON field for extended defaults
+        extra_data = inst.extra or {}
+        if isinstance(extra_data, str):
+            try:
+                extra_data = json.loads(extra_data)
+            except Exception:
+                extra_data = {}
+
+        if "default_chat_model" in updates:
+            updates["default_free_model_id"] = updates["default_chat_model"]
+            extra_data["default_chat_model"] = updates["default_chat_model"]
+
+        if "default_image2text_model" in updates or "default_img2txt_id" in updates:
+            img_val = updates.get("default_image2text_model") or updates.get("default_img2txt_id")
+            extra_data["default_image2text_model"] = img_val
+            extra_data["default_img2txt_id"] = img_val
+
+        if "default_asr_model" in updates or "default_asr_id" in updates:
+            asr_val = updates.get("default_asr_model") or updates.get("default_asr_id")
+            extra_data["default_asr_model"] = asr_val
+            extra_data["default_asr_id"] = asr_val
+
+        if "default_tts_model" in updates or "default_tts_id" in updates:
+            tts_val = updates.get("default_tts_model") or updates.get("default_tts_id")
+            extra_data["default_tts_model"] = tts_val
+            extra_data["default_tts_id"] = tts_val
+
+        updates["extra"] = extra_data
+
         filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
         filtered_updates["update_time"] = current_timestamp()
 
         cls.model.update(**filtered_updates).where(cls.model.id == GLOBAL_INSTANCE_ID).execute()
+
+        # Synchronize Tenant model defaults across database and in-memory settings
+        try:
+            from common import settings
+            from api.db.db_models import Tenant
+            tenant_updates = {}
+
+            chat_m = updates.get("default_free_model_id") or updates.get("default_chat_model")
+            if chat_m:
+                tenant_updates["llm_id"] = chat_m
+                settings.CHAT_MDL = chat_m
+
+            embd_m = updates.get("default_embd_id")
+            if embd_m:
+                tenant_updates["embd_id"] = embd_m
+                settings.EMBEDDING_MDL = embd_m
+
+            rerank_m = updates.get("default_rerank_id")
+            if rerank_m:
+                tenant_updates["rerank_id"] = rerank_m
+                settings.RERANK_MDL = rerank_m
+
+            img_m = extra_data.get("default_image2text_model")
+            if img_m:
+                tenant_updates["img2txt_id"] = img_m
+                settings.IMAGE2TEXT_MDL = img_m
+
+            asr_m = extra_data.get("default_asr_model")
+            if asr_m:
+                tenant_updates["asr_id"] = asr_m
+                settings.ASR_MDL = asr_m
+
+            tts_m = extra_data.get("default_tts_model")
+            if tts_m:
+                tenant_updates["tts_id"] = tts_m
+
+            if tenant_updates:
+                Tenant.update(**tenant_updates).execute()
+                logger.info("Synchronized tenant default models: %s", tenant_updates)
+        except Exception as sync_err:
+            logger.warning("Tenant defaults synchronization warning: %s", sync_err)
         
         # Log to audit log
         try:
@@ -125,7 +196,7 @@ class GlobalInstanceService(CommonService):
     @DB.connection_context()
     def get_instance_stats(cls) -> dict:
         """
-        Returns full statistics for the Global RAGFlow Instance.
+        Returns full statistics and default models for the Global RAGFlow Instance.
         """
         inst = cls.get_global_instance()
         
@@ -133,6 +204,13 @@ class GlobalInstanceService(CommonService):
         total_models = AIModel.select().where(AIModel.is_global == True, AIModel.enabled == True).count()
         total_providers = AIProvider.select().where(AIProvider.is_global == True, AIProvider.status == "active").count()
         byok_connections = AIModel.select().where(AIModel.is_custom == True).count()
+
+        extra_data = inst.extra or {}
+        if isinstance(extra_data, str):
+            try:
+                extra_data = json.loads(extra_data)
+            except Exception:
+                extra_data = {}
         
         return {
             "instance_id": GLOBAL_INSTANCE_ID,
@@ -142,11 +220,15 @@ class GlobalInstanceService(CommonService):
             "total_models": total_models,
             "total_providers": total_providers,
             "byok_connections": byok_connections,
+            "default_chat_model": extra_data.get("default_chat_model") or inst.default_free_model_id,
             "default_free_model_id": inst.default_free_model_id,
             "default_plus_model_id": inst.default_plus_model_id,
             "default_pro_model_id": inst.default_pro_model_id,
             "default_embd_id": inst.default_embd_id,
             "default_rerank_id": inst.default_rerank_id,
+            "default_image2text_model": extra_data.get("default_image2text_model", ""),
+            "default_asr_model": extra_data.get("default_asr_model", ""),
+            "default_tts_model": extra_data.get("default_tts_model", ""),
             "byok_enabled": inst.byok_enabled,
             "max_byok_models": inst.max_byok_models,
             "byok_token_limit": inst.byok_token_limit,

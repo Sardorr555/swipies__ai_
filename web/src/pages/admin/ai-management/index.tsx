@@ -142,6 +142,26 @@ export default function AIManagementPage() {
     return PROVIDER_PRESETS;
   }, [availableProviders]);
 
+  const chatModels = useMemo(() => {
+    return models.filter((m) => m.model_type === 'CHAT' || !m.model_type);
+  }, [models]);
+
+  const embeddingModels = useMemo(() => {
+    return models.filter((m) => m.model_type === 'EMBEDDING');
+  }, [models]);
+
+  const rerankModels = useMemo(() => {
+    return models.filter((m) => m.model_type === 'RERANK');
+  }, [models]);
+
+  const visionModels = useMemo(() => {
+    return models.filter((m) => m.model_type === 'IMAGE2TEXT' || m.model_type === 'CHAT');
+  }, [models]);
+
+  const asrModels = useMemo(() => {
+    return models.filter((m) => m.model_type === 'SPEECH2TEXT');
+  }, [models]);
+
   // User Limit Override
   const [targetUserId, setTargetUserId] = useState('');
   const [userLimitValue, setUserLimitValue] = useState<number>(0);
@@ -337,6 +357,12 @@ export default function AIManagementPage() {
         setVerifyResult(res.data.data);
         if (res.data.data.success) {
           message.success(`Verified successfully! ${res.data.data.count} models detected.`);
+          if (res.data.data.available_models) {
+            setEditingProvider((prev) => ({
+              ...prev,
+              available_models: res.data.data.available_models,
+            }));
+          }
         } else {
           message.error(res.data.data.message || 'Connection verification failed');
         }
@@ -654,70 +680,167 @@ export default function AIManagementPage() {
         <TabsContent value="instance" className="space-y-5 pt-2">
           {/* Global Defaults Card */}
           <Card className="bg-bg-card border-border-button">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Globe className="size-4 text-accent-primary" /> Default Global Models
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Configure default models resolved for FREE, PLUS, and PRO subscription plans. Changes take effect platform-wide immediately.
-              </CardDescription>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Globe className="size-4 text-accent-primary" /> Default System AI Models
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Centralized system defaults for Chat, Embeddings, Reranking, Vision, and Subscription Tiers. Applied across all user chats, knowledgebases, and assistants.
+                  </CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={fetchInstanceStats}>
+                  <RefreshCw className="size-3.5 mr-1" /> Reload Defaults
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-secondary">Default Free Model</label>
-                <Select
-                  value={instanceStats?.default_free_model_id || 'openai/gpt-4o-mini'}
-                  onValueChange={(val) => handleUpdateGlobalDefaults('default_free_model_id', val)}
-                >
-                  <SelectTrigger className="bg-bg-base border-border-button">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {models.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.model_name} ({m.provider})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <CardContent className="space-y-4">
+              {/* Primary System Capabilities */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-3.5 rounded-lg bg-bg-base/60 border border-border-button/60">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                    <Bot className="size-3.5 text-blue-500" /> Default Chat Model
+                  </label>
+                  <Select
+                    value={instanceStats?.default_chat_model || instanceStats?.default_free_model_id || ''}
+                    onValueChange={(val) => handleUpdateGlobalDefaults('default_chat_model', val)}
+                  >
+                    <SelectTrigger className="bg-bg-card border-border-button text-xs">
+                      <SelectValue placeholder="Select Default Chat Model" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {chatModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.model_name} ({m.provider})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                    <Database className="size-3.5 text-purple-500" /> Default Embedding Model
+                  </label>
+                  <Select
+                    value={instanceStats?.default_embd_id || ''}
+                    onValueChange={(val) => handleUpdateGlobalDefaults('default_embd_id', val)}
+                  >
+                    <SelectTrigger className="bg-bg-card border-border-button text-xs">
+                      <SelectValue placeholder="Select Embedding Model" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {embeddingModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.model_name} ({m.provider})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                    <Layers className="size-3.5 text-amber-500" /> Default Rerank Model
+                  </label>
+                  <Select
+                    value={instanceStats?.default_rerank_id || ''}
+                    onValueChange={(val) => handleUpdateGlobalDefaults('default_rerank_id', val)}
+                  >
+                    <SelectTrigger className="bg-bg-card border-border-button text-xs">
+                      <SelectValue placeholder="Select Rerank Model" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {rerankModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.model_name} ({m.provider})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                    <Sparkles className="size-3.5 text-emerald-500" /> Default Vision / Multimodal
+                  </label>
+                  <Select
+                    value={instanceStats?.default_image2text_model || ''}
+                    onValueChange={(val) => handleUpdateGlobalDefaults('default_image2text_model', val)}
+                  >
+                    <SelectTrigger className="bg-bg-card border-border-button text-xs">
+                      <SelectValue placeholder="Select Vision Model" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {visionModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.model_name} ({m.provider})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-secondary">Default Plus Model</label>
-                <Select
-                  value={instanceStats?.default_plus_model_id || 'openai/gpt-4o'}
-                  onValueChange={(val) => handleUpdateGlobalDefaults('default_plus_model_id', val)}
-                >
-                  <SelectTrigger className="bg-bg-base border-border-button">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {models.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.model_name} ({m.provider})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Plan Tier Defaults */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-text-secondary">Free Plan Default Model</label>
+                  <Select
+                    value={instanceStats?.default_free_model_id || ''}
+                    onValueChange={(val) => handleUpdateGlobalDefaults('default_free_model_id', val)}
+                  >
+                    <SelectTrigger className="bg-bg-base border-border-button text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {chatModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.model_name} ({m.provider})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-secondary">Default Pro Model</label>
-                <Select
-                  value={instanceStats?.default_pro_model_id || 'anthropic/claude-3-5-sonnet-20241022'}
-                  onValueChange={(val) => handleUpdateGlobalDefaults('default_pro_model_id', val)}
-                >
-                  <SelectTrigger className="bg-bg-base border-border-button">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {models.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.model_name} ({m.provider})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-text-secondary">Plus Plan Default Model</label>
+                  <Select
+                    value={instanceStats?.default_plus_model_id || ''}
+                    onValueChange={(val) => handleUpdateGlobalDefaults('default_plus_model_id', val)}
+                  >
+                    <SelectTrigger className="bg-bg-base border-border-button text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {chatModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.model_name} ({m.provider})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-text-secondary">Pro Plan Default Model</label>
+                  <Select
+                    value={instanceStats?.default_pro_model_id || ''}
+                    onValueChange={(val) => handleUpdateGlobalDefaults('default_pro_model_id', val)}
+                  >
+                    <SelectTrigger className="bg-bg-base border-border-button text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {chatModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.model_name} ({m.provider})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>

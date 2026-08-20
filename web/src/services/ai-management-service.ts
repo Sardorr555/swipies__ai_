@@ -14,17 +14,33 @@ export interface GlobalInstanceStats {
   total_models: number;
   total_providers: number;
   byok_connections: number;
+  default_chat_model?: string;
   default_free_model_id?: string;
   default_plus_model_id?: string;
   default_pro_model_id?: string;
   default_embd_id?: string;
   default_rerank_id?: string;
+  default_image2text_model?: string;
+  default_asr_model?: string;
+  default_tts_model?: string;
   byok_enabled: boolean;
   max_byok_models: number;
   byok_token_limit: number;
   byok_request_limit: number;
   create_time?: number;
   update_time?: number;
+}
+
+export interface SystemDefaultModels {
+  default_chat_model?: string;
+  default_free_model_id?: string;
+  default_plus_model_id?: string;
+  default_pro_model_id?: string;
+  default_embd_id?: string;
+  default_rerank_id?: string;
+  default_image2text_model?: string;
+  default_asr_model?: string;
+  default_tts_model?: string;
 }
 
 export interface AIProviderItem {
@@ -154,12 +170,18 @@ export interface AIAuditLogItem {
   create_time: number;
 }
 
-// Global Instance
+// Global Instance & System Default Models
 export const getAdminInstance = () =>
   request.get<ResponseData<GlobalInstanceStats>>('/v1/admin/ai/instance');
 
 export const updateAdminInstance = (data: Partial<GlobalInstanceStats>) =>
   request.put<ResponseData<GlobalInstanceStats>>('/v1/admin/ai/instance', { data });
+
+export const getAdminDefaultModels = () =>
+  request.get<ResponseData<SystemDefaultModels>>('/v1/admin/ai/defaults');
+
+export const updateAdminDefaultModels = (data: SystemDefaultModels) =>
+  request.put<ResponseData<GlobalInstanceStats>>('/v1/admin/ai/defaults', { data });
 
 // Providers
 export const getAdminProviders = () =>
