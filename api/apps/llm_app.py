@@ -585,10 +585,39 @@ def my_llms():
                 logging.warning(f"my_llms include_details global fallback exception: {e}")
         else:
             res = {}
-            for o in TenantLLMService.get_my_llms(current_user.id):
-                if o["llm_factory"] not in res:
-                    res[o["llm_factory"]] = {"tags": o["tags"], "llm": []}
-                res[o["llm_factory"]]["llm"].append({"id": o["id"], "type": o["model_type"], "name": o["llm_name"], "used_token": o["used_tokens"], "status": o["status"]})
+            objs = TenantLLMService.get_my_llms(current_user.id)
+            existing_models = set()
+            for o in objs:
+                factory = o.get("llm_factory")
+                if factory not in res:
+                    res[factory] = {"tags": o.get("tags"), "llm": []}
+                res[factory]["llm"].append({"id": o["id"], "type": o["model_type"], "name": o["llm_name"], "used_token": o.get("used_tokens", 0), "status": o.get("status", "1")})
+                existing_models.add((factory, o["llm_name"]))
+
+            # Fallback to Admin-registered global AIModels
+            try:
+                from api.db.services.ai_policy_service import AIModelService
+                from api.db.services.llm_service import LLMFactoriesService
+                factories = LLMFactoriesService.query(status=StatusEnum.VALID.value)
+                factories_dict = {f.name: f.tags for f in factories}
+                global_models = AIModelService.get_platform_models()
+                for gm in global_models:
+                    gm_provider = gm.get("provider", "")
+                    gm_name = gm.get("model_name", "")
+                    if (gm_provider, gm_name) not in existing_models:
+                        if gm_provider not in res:
+                            res[gm_provider] = {"tags": factories_dict.get(gm_provider), "llm": []}
+                        res[gm_provider]["llm"].append(
+                            {
+                                "id": gm.get("id", f"{gm_provider}/{gm_name}"),
+                                "type": gm.get("model_type", "CHAT"),
+                                "name": gm_name,
+                                "used_token": 0,
+                                "status": "1",
+                            }
+                        )
+            except Exception as e:
+                logging.warning(f"my_llms fallback exception: {e}")
 
         return get_json_result(data=res)
     except Exception as e:

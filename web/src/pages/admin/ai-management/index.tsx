@@ -17,6 +17,7 @@ import {
   Key,
   Layers,
   Lock,
+  Mic,
   Plus,
   RefreshCw,
   Save,
@@ -29,6 +30,7 @@ import {
   Unlock,
   UserCheck,
   Users,
+  Volume2,
   X,
   Zap,
 } from 'lucide-react';
@@ -160,6 +162,10 @@ export default function AIManagementPage() {
 
   const asrModels = useMemo(() => {
     return models.filter((m) => m.model_type === 'SPEECH2TEXT');
+  }, [models]);
+
+  const ttsModels = useMemo(() => {
+    return models.filter((m) => m.model_type === 'TTS' || m.model_type === 'TEXT2SPEECH');
   }, [models]);
 
   // User Limit Override
@@ -696,8 +702,8 @@ export default function AIManagementPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Primary System Capabilities */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-3.5 rounded-lg bg-bg-base/60 border border-border-button/60">
+              {/* Primary System Capabilities (Chat, Embedding, Rerank, Vision, Audio/ASR, TTS) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-3.5 rounded-lg bg-bg-base/60 border border-border-button/60">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
                     <Bot className="size-3.5 text-blue-500" /> Default Chat Model
@@ -789,6 +795,56 @@ export default function AIManagementPage() {
                         <div className="p-2 text-xs text-text-secondary text-center">No vision models connected via API key</div>
                       ) : (
                         visionModels.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.model_name} ({m.provider})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                    <Mic className="size-3.5 text-rose-500" /> Default Audio / Speech2Text (STT / ASR)
+                  </label>
+                  <Select
+                    value={instanceStats?.default_asr_model || ''}
+                    onValueChange={(val) => handleUpdateGlobalDefaults('default_asr_model', val)}
+                  >
+                    <SelectTrigger className="bg-bg-card border-border-button text-xs">
+                      <SelectValue placeholder={asrModels.length > 0 ? "Select Speech2Text Model" : "Optional / None"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {asrModels.length === 0 ? (
+                        <div className="p-2 text-xs text-text-secondary text-center">No speech-to-text models connected via API key</div>
+                      ) : (
+                        asrModels.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.model_name} ({m.provider})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                    <Volume2 className="size-3.5 text-cyan-500" /> Default Text-to-Speech (TTS)
+                  </label>
+                  <Select
+                    value={instanceStats?.default_tts_model || ''}
+                    onValueChange={(val) => handleUpdateGlobalDefaults('default_tts_model', val)}
+                  >
+                    <SelectTrigger className="bg-bg-card border-border-button text-xs">
+                      <SelectValue placeholder={ttsModels.length > 0 ? "Select TTS Model" : "Optional / None"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {ttsModels.length === 0 ? (
+                        <div className="p-2 text-xs text-text-secondary text-center">No text-to-speech models connected via API key</div>
+                      ) : (
+                        ttsModels.map((m) => (
                           <SelectItem key={m.id} value={m.id}>
                             {m.model_name} ({m.provider})
                           </SelectItem>

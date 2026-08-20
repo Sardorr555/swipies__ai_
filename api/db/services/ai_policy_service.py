@@ -49,6 +49,9 @@ class AIModelService(CommonService):
     @classmethod
     @DB.connection_context()
     def get_platform_models(cls) -> list[dict]:
+        from common.settings import FACTORY_LLM_INFOS
+        from common.time_utils import current_timestamp
+
         # Fetch active providers with valid configured API keys
         active_providers = {
             p.provider_name.lower(): p
@@ -59,6 +62,78 @@ class AIModelService(CommonService):
                 AIProvider.api_key != "",
             )
         }
+
+        # Purge placeholder/garbage models like "open ai models" or "openai models"
+        placeholder_models = cls.model.select().where(
+            cls.model.is_global == True,
+            (cls.model.model_name.contains("open ai models") | 
+             cls.model.model_name.contains("openai models") |
+             cls.model.model_name.contains("placeholder"))
+        )
+        for pm in placeholder_models:
+            pm.delete_instance()
+
+        now = current_timestamp()
+
+        # For every active provider with an API key, ensure all capabilities are present in AIModel
+        for prov_lower, p_obj in active_providers.items():
+            prov_name = p_obj.provider_name
+            count = cls.model.select().where(
+                cls.model.is_global == True,
+                cls.model.provider == prov_name,
+                cls.model.enabled == True,
+            ).count()
+
+            if count == 0:
+                fac_entry = next(
+                    (f for f in (FACTORY_LLM_INFOS or []) if f.get("name", "").lower() == prov_lower),
+                    None,
+                )
+                if fac_entry and fac_entry.get("llm"):
+                    for llm in fac_entry["llm"]:
+                        m_name = llm.get("llm_name") or llm.get("name", "")
+                        if not m_name:
+                            continue
+                        raw_types = llm.get("model_type", ["chat"])
+                        m_types = raw_types if isinstance(raw_types, list) else [raw_types]
+                        max_tok = llm.get("max_tokens", 8192) or 8192
+
+                        for mt in m_types:
+                            norm_type = str(mt).upper()
+                            if "EMBED" in norm_type:
+                                norm_type = "EMBEDDING"
+                            elif "RERANK" in norm_type or "RE-RANK" in norm_type:
+                                norm_type = "RERANK"
+                            elif "IMAGE2TEXT" in norm_type or "VISION" in norm_type:
+                                norm_type = "IMAGE2TEXT"
+                            elif "SPEECH2TEXT" in norm_type or "ASR" in norm_type or "AUDIO" in norm_type:
+                                norm_type = "SPEECH2TEXT"
+                            elif "TTS" in norm_type or "TEXT2SPEECH" in norm_type:
+                                norm_type = "TTS"
+                            else:
+                                norm_type = "CHAT"
+
+                            m_id = f"{prov_lower}/{m_name}" if norm_type == "CHAT" else f"{prov_lower}/{m_name}_{norm_type.lower()}"
+
+                            if not cls.model.select().where(cls.model.id == m_id).count():
+                                cls.model.create(
+                                    id=m_id,
+                                    provider=prov_name,
+                                    model_name=m_name,
+                                    model_type=norm_type,
+                                    base_url=p_obj.base_url or "",
+                                    api_key=p_obj.api_key or "",
+                                    max_tokens=max_tok,
+                                    input_token_price=0.0,
+                                    output_token_price=0.0,
+                                    enabled=True,
+                                    is_global=True,
+                                    is_custom=False,
+                                    global_instance_id=GLOBAL_INSTANCE_ID,
+                                    status="active",
+                                    create_time=now,
+                                    update_time=now,
+                                )
 
         models = list(cls.model.select().where(cls.model.is_global == True, cls.model.enabled == True))
         res = []
