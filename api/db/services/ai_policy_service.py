@@ -49,13 +49,29 @@ class AIModelService(CommonService):
     @classmethod
     @DB.connection_context()
     def get_platform_models(cls) -> list[dict]:
-        models = list(cls.model.select().where(cls.model.is_global == True))
+        # Fetch active providers with valid configured API keys
+        active_providers = {
+            p.provider_name.lower(): p
+            for p in AIProvider.select().where(
+                AIProvider.is_global == True,
+                AIProvider.status == "active",
+                AIProvider.api_key.is_null(False),
+                AIProvider.api_key != "",
+            )
+        }
+
+        models = list(cls.model.select().where(cls.model.is_global == True, cls.model.enabled == True))
         res = []
         for m in models:
-            md = m.to_dict()
-            md["api_key_masked"] = mask_api_key(m.api_key)
-            del md["api_key"]
-            res.append(md)
+            prov_key = (m.provider or "").lower()
+            # Only include models that have a direct key or whose provider is authenticated
+            if prov_key in active_providers or (m.api_key and len(m.api_key.strip()) > 0):
+                md = m.to_dict()
+                prov_obj = active_providers.get(prov_key)
+                effective_key = m.api_key or (prov_obj.api_key if prov_obj else "")
+                md["api_key_masked"] = mask_api_key(effective_key)
+                del md["api_key"]
+                res.append(md)
         return res
 
     @classmethod
@@ -178,9 +194,9 @@ class AIPolicyManager:
                     "allow_private_servers": True,
                     "allow_byok": True,
                     "max_byok_models": 10,
-                    "default_llm_id": "anthropic/claude-3-5-sonnet-20241022",
-                    "default_embd_id": "openai/text-embedding-3-large",
-                    "default_rerank_id": "BAAI/bge-reranker-v2-m3",
+                    "default_llm_id": None,
+                    "default_embd_id": None,
+                    "default_rerank_id": None,
                     "status": "1",
                 },
             ]
@@ -194,8 +210,7 @@ class AIPolicyManager:
                 {"id": "global_openai", "provider_name": "OpenAI", "base_url": "https://api.openai.com/v1", "status": "active"},
                 {"id": "global_anthropic", "provider_name": "Anthropic", "base_url": "https://api.anthropic.com/v1", "status": "active"},
                 {"id": "global_deepseek", "provider_name": "DeepSeek", "base_url": "https://api.deepseek.com/v1", "status": "active"},
-                {"id": "global_google", "provider_name": "Google", "base_url": "https://generativelanguage.googleapis.com", "status": "active"},
-                {"id": "global_baai", "provider_name": "BAAI", "base_url": "", "status": "active"},
+                {"id": "global_gemini", "provider_name": "Gemini", "base_url": "https://generativelanguage.googleapis.com", "status": "active"},
             ]
             for p in default_providers:
                 if not AIProvider.select().where(AIProvider.id == p["id"]).count():
@@ -209,222 +224,24 @@ class AIPolicyManager:
                         create_time=current_timestamp(),
                     )
 
-            # 4. Default Global Platform Models with Pricing ($/1M tokens)
-            default_models = [
-                {
-                    "id": "openai/gpt-4o-mini",
-                    "provider": "OpenAI",
-                    "model_name": "gpt-4o-mini",
-                    "model_type": "CHAT",
-                    "base_url": "https://api.openai.com/v1",
-                    "input_token_price": 0.15,
-                    "output_token_price": 0.60,
-                    "max_tokens": 16384,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "openai/gpt-4o",
-                    "provider": "OpenAI",
-                    "model_name": "gpt-4o",
-                    "model_type": "CHAT",
-                    "base_url": "https://api.openai.com/v1",
-                    "input_token_price": 2.50,
-                    "output_token_price": 10.00,
-                    "max_tokens": 16384,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "deepseek/deepseek-chat",
-                    "provider": "DeepSeek",
-                    "model_name": "deepseek-chat",
-                    "model_type": "CHAT",
-                    "base_url": "https://api.deepseek.com/v1",
-                    "input_token_price": 0.27,
-                    "output_token_price": 1.10,
-                    "max_tokens": 8192,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "deepseek/deepseek-reasoner",
-                    "provider": "DeepSeek",
-                    "model_name": "deepseek-reasoner",
-                    "model_type": "CHAT",
-                    "base_url": "https://api.deepseek.com/v1",
-                    "input_token_price": 0.55,
-                    "output_token_price": 2.19,
-                    "max_tokens": 8192,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "anthropic/claude-3-5-sonnet-20241022",
-                    "provider": "Anthropic",
-                    "model_name": "claude-3-5-sonnet-20241022",
-                    "model_type": "CHAT",
-                    "base_url": "https://api.anthropic.com/v1",
-                    "input_token_price": 3.00,
-                    "output_token_price": 15.00,
-                    "max_tokens": 8192,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "anthropic/claude-3-5-haiku-20241022",
-                    "provider": "Anthropic",
-                    "model_name": "claude-3-5-haiku-20241022",
-                    "model_type": "CHAT",
-                    "base_url": "https://api.anthropic.com/v1",
-                    "input_token_price": 0.80,
-                    "output_token_price": 4.00,
-                    "max_tokens": 8192,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "google/gemini-1.5-pro",
-                    "provider": "Google",
-                    "model_name": "gemini-1.5-pro",
-                    "model_type": "CHAT",
-                    "base_url": "https://generativelanguage.googleapis.com",
-                    "input_token_price": 1.25,
-                    "output_token_price": 5.00,
-                    "max_tokens": 8192,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "google/gemini-1.5-flash",
-                    "provider": "Google",
-                    "model_name": "gemini-1.5-flash",
-                    "model_type": "CHAT",
-                    "base_url": "https://generativelanguage.googleapis.com",
-                    "input_token_price": 0.075,
-                    "output_token_price": 0.30,
-                    "max_tokens": 8192,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "openai/text-embedding-3-small",
-                    "provider": "OpenAI",
-                    "model_name": "text-embedding-3-small",
-                    "model_type": "EMBEDDING",
-                    "base_url": "https://api.openai.com/v1",
-                    "input_token_price": 0.02,
-                    "output_token_price": 0.0,
-                    "max_tokens": 8192,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "openai/text-embedding-3-large",
-                    "provider": "OpenAI",
-                    "model_name": "text-embedding-3-large",
-                    "model_type": "EMBEDDING",
-                    "base_url": "https://api.openai.com/v1",
-                    "input_token_price": 0.13,
-                    "output_token_price": 0.0,
-                    "max_tokens": 8192,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "BAAI/bge-large-en-v1.5",
-                    "provider": "BAAI",
-                    "model_name": "bge-large-en-v1.5",
-                    "model_type": "EMBEDDING",
-                    "base_url": "",
-                    "input_token_price": 0.0,
-                    "output_token_price": 0.0,
-                    "max_tokens": 512,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-                {
-                    "id": "BAAI/bge-reranker-v2-m3",
-                    "provider": "BAAI",
-                    "model_name": "bge-reranker-v2-m3",
-                    "model_type": "RERANK",
-                    "base_url": "",
-                    "input_token_price": 0.0,
-                    "output_token_price": 0.0,
-                    "max_tokens": 512,
-                    "enabled": True,
-                    "is_global": True,
-                    "is_custom": False,
-                    "global_instance_id": GLOBAL_INSTANCE_ID,
-                },
-            ]
+            # Clean up dummy models that have no API key and no provider key
+            active_provider_names = {
+                p.provider_name.lower()
+                for p in AIProvider.select().where(
+                    AIProvider.is_global == True,
+                    AIProvider.api_key.is_null(False),
+                    AIProvider.api_key != ""
+                )
+            }
+            dummy_models = AIModel.select().where(
+                AIModel.is_global == True,
+                (AIModel.api_key.is_null(True) | (AIModel.api_key == "")),
+            )
+            for dm in dummy_models:
+                if (dm.provider or "").lower() not in active_provider_names:
+                    dm.delete_instance()
 
-            for m in default_models:
-                if not AIModelService.query(id=m["id"]):
-                    AIModelService.save(**m)
-
-            # 5. Default Plan Policies (FREE, PLUS, PRO)
-            default_policies = [
-                # FREE
-                {"plan_id": "free", "model_id": "openai/gpt-4o-mini", "model_token_limit": 50000, "is_default_llm": True, "enabled": True},
-                {"plan_id": "free", "model_id": "google/gemini-1.5-flash", "model_token_limit": 50000, "enabled": True},
-                {"plan_id": "free", "model_id": "openai/text-embedding-3-small", "model_token_limit": 0, "is_default_embd": True, "enabled": True},
-                {"plan_id": "free", "model_id": "BAAI/bge-large-en-v1.5", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "free", "model_id": "BAAI/bge-reranker-v2-m3", "model_token_limit": 0, "is_default_rerank": True, "enabled": True},
-                # PLUS
-                {"plan_id": "plus", "model_id": "openai/gpt-4o-mini", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "plus", "model_id": "openai/gpt-4o", "model_token_limit": 1000000, "is_default_llm": True, "enabled": True},
-                {"plan_id": "plus", "model_id": "deepseek/deepseek-chat", "model_token_limit": 2000000, "enabled": True},
-                {"plan_id": "plus", "model_id": "google/gemini-1.5-pro", "model_token_limit": 1000000, "enabled": True},
-                {"plan_id": "plus", "model_id": "google/gemini-1.5-flash", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "plus", "model_id": "anthropic/claude-3-5-haiku-20241022", "model_token_limit": 1000000, "enabled": True},
-                {"plan_id": "plus", "model_id": "openai/text-embedding-3-small", "model_token_limit": 0, "is_default_embd": True, "enabled": True},
-                {"plan_id": "plus", "model_id": "openai/text-embedding-3-large", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "plus", "model_id": "BAAI/bge-large-en-v1.5", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "plus", "model_id": "BAAI/bge-reranker-v2-m3", "model_token_limit": 0, "is_default_rerank": True, "enabled": True},
-                # PRO
-                {"plan_id": "pro", "model_id": "openai/gpt-4o-mini", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "openai/gpt-4o", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "deepseek/deepseek-chat", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "deepseek/deepseek-reasoner", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "anthropic/claude-3-5-sonnet-20241022", "model_token_limit": 0, "is_default_llm": True, "enabled": True},
-                {"plan_id": "pro", "model_id": "anthropic/claude-3-5-haiku-20241022", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "google/gemini-1.5-pro", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "google/gemini-1.5-flash", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "openai/text-embedding-3-small", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "openai/text-embedding-3-large", "model_token_limit": 0, "is_default_embd": True, "enabled": True},
-                {"plan_id": "pro", "model_id": "BAAI/bge-large-en-v1.5", "model_token_limit": 0, "enabled": True},
-                {"plan_id": "pro", "model_id": "BAAI/bge-reranker-v2-m3", "model_token_limit": 0, "is_default_rerank": True, "enabled": True},
-            ]
-
-            for pol in default_policies:
-                pol_id = f"{pol['plan_id']}_{pol['model_id']}"
-                if not SubscriptionAIPolicyService.query(id=pol_id):
-                    SubscriptionAIPolicyService.save(id=pol_id, **pol)
-
-            logger.info("Successfully initialized Global Instance AI infrastructure, subscriptions, and models.")
+            logger.info("Successfully initialized Global Instance AI infrastructure.")
         except Exception as e:
             logger.exception("AIPolicyManager.init_default_data failed: %s", e)
 

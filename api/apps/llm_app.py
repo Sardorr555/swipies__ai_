@@ -557,24 +557,26 @@ def my_llms():
                     }
                 )
 
-            # Fallback to Admin-registered global AIModels if user has no custom override
+            # Fallback to Admin-registered global AIModels if user has no custom override (only verified active providers)
             try:
                 from api.db.services.ai_policy_service import AIModelService
-                global_models = AIModelService.query(enabled=True)
+                global_models = AIModelService.get_platform_models()
                 existing_models = {(o.llm_factory, o.llm_name) for o in objs}
                 factories_dict = {f.name: f.tags for f in factories}
                 for gm in global_models:
-                    if (gm.provider, gm.model_name) not in existing_models:
-                        if gm.provider not in res:
-                            res[gm.provider] = {"tags": factories_dict.get(gm.provider), "llm": []}
-                        res[gm.provider]["llm"].append(
+                    gm_provider = gm.get("provider", "")
+                    gm_name = gm.get("model_name", "")
+                    if (gm_provider, gm_name) not in existing_models:
+                        if gm_provider not in res:
+                            res[gm_provider] = {"tags": factories_dict.get(gm_provider), "llm": []}
+                        res[gm_provider]["llm"].append(
                             {
-                                "id": gm.id,
-                                "type": gm.model_type,
-                                "name": gm.model_name,
+                                "id": gm.get("id", f"{gm_provider}/{gm_name}"),
+                                "type": gm.get("model_type", "CHAT"),
+                                "name": gm_name,
                                 "used_token": 0,
-                                "api_base": gm.base_url or "",
-                                "max_tokens": 8192,
+                                "api_base": gm.get("base_url", "") or "",
+                                "max_tokens": gm.get("max_tokens", 8192) or 8192,
                                 "status": "1",
                                 "is_tools": True,
                             }

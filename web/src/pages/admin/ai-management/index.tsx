@@ -707,14 +707,18 @@ export default function AIManagementPage() {
                     onValueChange={(val) => handleUpdateGlobalDefaults('default_chat_model', val)}
                   >
                     <SelectTrigger className="bg-bg-card border-border-button text-xs">
-                      <SelectValue placeholder="Select Default Chat Model" />
+                      <SelectValue placeholder={chatModels.length > 0 ? "Select Default Chat Model" : "No active API models (add provider key)"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60 overflow-y-auto">
-                      {chatModels.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.model_name} ({m.provider})
-                        </SelectItem>
-                      ))}
+                      {chatModels.length === 0 ? (
+                        <div className="p-2 text-xs text-text-secondary text-center">No chat models connected via API key</div>
+                      ) : (
+                        chatModels.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.model_name} ({m.provider})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -728,14 +732,18 @@ export default function AIManagementPage() {
                     onValueChange={(val) => handleUpdateGlobalDefaults('default_embd_id', val)}
                   >
                     <SelectTrigger className="bg-bg-card border-border-button text-xs">
-                      <SelectValue placeholder="Select Embedding Model" />
+                      <SelectValue placeholder={embeddingModels.length > 0 ? "Select Embedding Model" : "No active API models (add provider key)"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60 overflow-y-auto">
-                      {embeddingModels.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.model_name} ({m.provider})
-                        </SelectItem>
-                      ))}
+                      {embeddingModels.length === 0 ? (
+                        <div className="p-2 text-xs text-text-secondary text-center">No embedding models connected via API key</div>
+                      ) : (
+                        embeddingModels.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.model_name} ({m.provider})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -749,14 +757,18 @@ export default function AIManagementPage() {
                     onValueChange={(val) => handleUpdateGlobalDefaults('default_rerank_id', val)}
                   >
                     <SelectTrigger className="bg-bg-card border-border-button text-xs">
-                      <SelectValue placeholder="Select Rerank Model" />
+                      <SelectValue placeholder={rerankModels.length > 0 ? "Select Rerank Model" : "Optional / None"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60 overflow-y-auto">
-                      {rerankModels.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.model_name} ({m.provider})
-                        </SelectItem>
-                      ))}
+                      {rerankModels.length === 0 ? (
+                        <div className="p-2 text-xs text-text-secondary text-center">No rerank models connected via API key</div>
+                      ) : (
+                        rerankModels.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.model_name} ({m.provider})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -770,14 +782,18 @@ export default function AIManagementPage() {
                     onValueChange={(val) => handleUpdateGlobalDefaults('default_image2text_model', val)}
                   >
                     <SelectTrigger className="bg-bg-card border-border-button text-xs">
-                      <SelectValue placeholder="Select Vision Model" />
+                      <SelectValue placeholder={visionModels.length > 0 ? "Select Vision Model" : "Optional / None"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60 overflow-y-auto">
-                      {visionModels.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.model_name} ({m.provider})
-                        </SelectItem>
-                      ))}
+                      {visionModels.length === 0 ? (
+                        <div className="p-2 text-xs text-text-secondary text-center">No vision models connected via API key</div>
+                      ) : (
+                        visionModels.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.model_name} ({m.provider})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -792,7 +808,7 @@ export default function AIManagementPage() {
                     onValueChange={(val) => handleUpdateGlobalDefaults('default_free_model_id', val)}
                   >
                     <SelectTrigger className="bg-bg-base border-border-button text-xs">
-                      <SelectValue />
+                      <SelectValue placeholder={chatModels.length > 0 ? "Select Model for Free Plan" : "No active API models"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60 overflow-y-auto">
                       {chatModels.map((m) => (
@@ -811,7 +827,7 @@ export default function AIManagementPage() {
                     onValueChange={(val) => handleUpdateGlobalDefaults('default_plus_model_id', val)}
                   >
                     <SelectTrigger className="bg-bg-base border-border-button text-xs">
-                      <SelectValue />
+                      <SelectValue placeholder={chatModels.length > 0 ? "Select Model for Plus Plan" : "No active API models"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60 overflow-y-auto">
                       {chatModels.map((m) => (
@@ -830,7 +846,7 @@ export default function AIManagementPage() {
                     onValueChange={(val) => handleUpdateGlobalDefaults('default_pro_model_id', val)}
                   >
                     <SelectTrigger className="bg-bg-base border-border-button text-xs">
-                      <SelectValue />
+                      <SelectValue placeholder={chatModels.length > 0 ? "Select Model for Pro Plan" : "No active API models"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60 overflow-y-auto">
                       {chatModels.map((m) => (
