@@ -500,43 +500,106 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
 
 
 def get_api_key(tenant_id: str, model_name: str):
-    _, instance_name, provider_name = split_model_name(model_name)
+    if not model_name:
+        raise LookupError("Model name is required.")
+    pure_model_name, instance_name, provider_name = split_model_name(model_name)
 
     if not provider_name:
-        raise LookupError("Provider name is required.")
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
-    if not provider_obj:
-        raise LookupError(f"Provider {provider_name} not found.")
-    instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
-    return instance_obj.api_key
+        from api.db.services.tenant_llm_service import TenantLLMService
+        _, fid = TenantLLMService.split_model_name_and_factory(pure_model_name)
+        if fid:
+            provider_name = fid
+
+    if provider_name:
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+        if provider_obj:
+            try:
+                instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
+                if instance_obj and instance_obj.api_key:
+                    return instance_obj.api_key
+            except Exception:
+                pass
+
+    # Check AIProvider / AIModel
+    try:
+        from api.db.db_models import AIModel, AIProvider
+        if provider_name:
+            for p in AIProvider.select().where(AIProvider.is_global == True, AIProvider.status == "active"):
+                if p.provider_name.lower() == provider_name.lower() and p.api_key:
+                    return p.api_key
+        aim = AIModel.get_or_none(AIModel.id == model_name) or AIModel.get_or_none(AIModel.model_name == pure_model_name)
+        if aim and aim.api_key:
+            return aim.api_key
+    except Exception:
+        pass
+
+    raise LookupError(f"Provider {provider_name or 'unknown'} not found.")
 
 
 def get_model_type_by_name(tenant_id: str, model_name: str):
+    if not model_name:
+        return ["chat"]
+
     pure_model_name, instance_name, provider_name = split_model_name(model_name)
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
-    if not provider_obj:
-        raise LookupError(f"Provider {provider_name} not found for model {model_name}.")
-    instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
-    model_objs = TenantModelService.get_by_provider_id_and_instance_id_and_model_name(provider_obj.id, instance_obj.id, pure_model_name)
-    types_in_json = []
-    if not model_objs:
-        extra_fields = json.loads(instance_obj.extra) if instance_obj.extra else {}
-        region = extra_fields.get("region", "default")
-        if region == "intl" and provider_name.lower() == "siliconflow":
-            target_factory_name = "siliconflow_intl"
-        else:
-            target_factory_name = provider_name
-        fac_list = [f for f in settings.FACTORY_LLM_INFOS if f["name"] == target_factory_name]
-        if not fac_list:
-            raise LookupError(f"Model provider config not found: {provider_name}")
-        llm_list = [llm for llm in fac_list[0]["llm"] if llm["llm_name"] == pure_model_name]
-        if not llm_list:
-            raise LookupError(f"Model {pure_model_name} not found for model {model_name}.")
-        types_in_json = _factory_model_types(llm_list[0])
-    return list(
-        set(types_in_json + [model_obj.model_type for model_obj in model_objs if model_obj.status != ActiveStatusEnum.UNSUPPORTED.value])
-        - {model_obj.model_type for model_obj in model_objs if model_obj.status == ActiveStatusEnum.UNSUPPORTED.value}
-    )
+
+    # 1. Try finding via Provider Instance
+    try:
+        if not provider_name:
+            from api.db.services.tenant_llm_service import TenantLLMService
+            _, fid = TenantLLMService.split_model_name_and_factory(pure_model_name)
+            if fid:
+                provider_name = fid
+
+        if provider_name:
+            provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+            if provider_obj:
+                instance_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(provider_obj.id, instance_name)
+                if not instance_obj:
+                    active_instances = [inst for inst in TenantModelInstanceService.get_all_by_provider_id(provider_obj.id) if inst.status == ActiveStatusEnum.ACTIVE.value]
+                    if active_instances:
+                        instance_obj = active_instances[0]
+                if instance_obj:
+                    model_objs = TenantModelService.get_by_provider_id_and_instance_id_and_model_name(provider_obj.id, instance_obj.id, pure_model_name)
+                    if model_objs:
+                        valid_types = [m.model_type for m in model_objs if m.status != ActiveStatusEnum.UNSUPPORTED.value]
+                        if valid_types:
+                            return valid_types
+    except Exception as e:
+        logger.warning(f"get_model_type_by_name tenant instance lookup error: {e}")
+
+    # 2. Check AIModel
+    try:
+        from api.db.db_models import AIModel
+        candidate_ids = [model_name, pure_model_name, f"{provider_name.lower()}/{pure_model_name}" if provider_name else ""]
+        for cid in candidate_ids:
+            if cid:
+                aim = AIModel.get_or_none(AIModel.id == cid)
+                if aim and aim.model_type:
+                    return [aim.model_type.lower()]
+        aim = AIModel.get_or_none(AIModel.model_name == pure_model_name)
+        if aim and aim.model_type:
+            return [aim.model_type.lower()]
+    except Exception as e:
+        logger.warning(f"get_model_type_by_name AIModel lookup error: {e}")
+
+    # 3. Check FACTORY_LLM_INFOS
+    try:
+        target_factory_name = provider_name
+        fac_list = [f for f in settings.FACTORY_LLM_INFOS if f["name"].lower() == (target_factory_name or "").lower()]
+        if fac_list:
+            llm_list = [llm for llm in fac_list[0]["llm"] if llm["llm_name"] == pure_model_name]
+            if llm_list:
+                return _factory_model_types(llm_list[0])
+        # Search all factories
+        for f in settings.FACTORY_LLM_INFOS:
+            for llm in f.get("llm", []):
+                if llm.get("llm_name") == pure_model_name:
+                    return _factory_model_types(llm)
+    except Exception as e:
+        logger.warning(f"get_model_type_by_name FACTORY_LLM_INFOS error: {e}")
+
+    # Safe default to ["chat"]
+    return ["chat"]
 
 
 def delete_models_by_instance_ids(instance_ids: list[str]):
