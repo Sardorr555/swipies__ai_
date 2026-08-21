@@ -576,15 +576,45 @@ def rollback_user_registration(user_id):
 def user_register(user_id, user):
     user["id"] = user_id
     user["is_superuser"] = False
+
+    # Retrieve current active global defaults from GlobalRagflowInstance if available
+    llm_id = settings.CHAT_MDL
+    embd_id = settings.EMBEDDING_MDL
+    asr_id = settings.ASR_MDL
+    img2txt_id = settings.IMAGE2TEXT_MDL
+    rerank_id = settings.RERANK_MDL
+    tts_id = getattr(settings, "TTS_MDL", "")
+
+    try:
+        from api.db.services.global_instance_service import GlobalInstanceService
+        g_stats = GlobalInstanceService.get_instance_stats()
+        if g_stats.get("default_chat_model"):
+            llm_id = g_stats.get("default_chat_model")
+        elif g_stats.get("default_free_model_id"):
+            llm_id = g_stats.get("default_free_model_id")
+        if g_stats.get("default_embd_id"):
+            embd_id = g_stats.get("default_embd_id")
+        if g_stats.get("default_rerank_id"):
+            rerank_id = g_stats.get("default_rerank_id")
+        if g_stats.get("default_image2text_model"):
+            img2txt_id = g_stats.get("default_image2text_model")
+        if g_stats.get("default_asr_model"):
+            asr_id = g_stats.get("default_asr_model")
+        if g_stats.get("default_tts_model"):
+            tts_id = g_stats.get("default_tts_model")
+    except Exception as e:
+        logger.warning(f"user_register get_instance_stats fallback error: {e}")
+
     tenant = {
         "id": user_id,
         "name": user["nickname"] + "‘s Kingdom",
-        "llm_id": settings.CHAT_MDL,
-        "embd_id": settings.EMBEDDING_MDL,
-        "asr_id": settings.ASR_MDL,
+        "llm_id": llm_id,
+        "embd_id": embd_id,
+        "asr_id": asr_id,
         "parser_ids": settings.PARSERS,
-        "img2txt_id": settings.IMAGE2TEXT_MDL,
-        "rerank_id": settings.RERANK_MDL,
+        "img2txt_id": img2txt_id,
+        "rerank_id": rerank_id,
+        "tts_id": tts_id,
         "plan_type": "free",
     }
     usr_tenant = {

@@ -166,34 +166,95 @@ def ensure_paddleocr_from_env(tenant_id: str) -> str | None:
 
 def get_tenant_default_model_by_type(tenant_id: str, model_type: str | enum.Enum):
     exist, tenant = TenantService.get_by_id(tenant_id)
-    if not exist:
-        raise LookupError("Tenant not found")
     model_type_val = model_type if isinstance(model_type, str) else model_type.value
     model_name: str = ""
-    match model_type_val:
-        case LLMType.EMBEDDING.value:
-            model_name = tenant.embd_id
-        case LLMType.SPEECH2TEXT.value:
-            model_name = tenant.asr_id
-        case LLMType.IMAGE2TEXT.value:
-            model_name = tenant.img2txt_id
-        case LLMType.CHAT.value:
-            model_name = tenant.llm_id
-        case LLMType.RERANK.value:
-            model_name = tenant.rerank_id
-        case LLMType.TTS.value:
-            model_name = tenant.tts_id
-        case LLMType.OCR.value:
-            raise Exception("OCR model name is required")
-        case _:
-            raise Exception(f"Unknown model type {model_type}")
+    if exist and tenant:
+        match model_type_val:
+            case LLMType.EMBEDDING.value:
+                model_name = tenant.embd_id
+            case LLMType.SPEECH2TEXT.value:
+                model_name = tenant.asr_id
+            case LLMType.IMAGE2TEXT.value:
+                model_name = tenant.img2txt_id
+            case LLMType.CHAT.value:
+                model_name = tenant.llm_id
+            case LLMType.RERANK.value:
+                model_name = tenant.rerank_id
+            case LLMType.TTS.value:
+                model_name = tenant.tts_id
+            case LLMType.OCR.value:
+                model_name = getattr(tenant, "ocr_id", "")
+
+    # If tenant has no model_name or if it's empty, get from GlobalInstanceService
     if not model_name:
-        raise Exception(f"No default {model_type} model is set.")
-    return get_model_config_from_provider_instance(tenant_id, model_type, model_name)
+        try:
+            from api.db.services.global_instance_service import GlobalInstanceService
+            g_stats = GlobalInstanceService.get_instance_stats()
+            match model_type_val:
+                case LLMType.CHAT.value:
+                    model_name = g_stats.get("default_chat_model") or g_stats.get("default_free_model_id")
+                case LLMType.EMBEDDING.value:
+                    model_name = g_stats.get("default_embd_id")
+                case LLMType.RERANK.value:
+                    model_name = g_stats.get("default_rerank_id")
+                case LLMType.IMAGE2TEXT.value:
+                    model_name = g_stats.get("default_image2text_model")
+                case LLMType.SPEECH2TEXT.value:
+                    model_name = g_stats.get("default_asr_model")
+                case LLMType.TTS.value:
+                    model_name = g_stats.get("default_tts_model")
+        except Exception as ge:
+            logger.warning(f"GlobalInstanceService fallback error: {ge}")
+
+    if not model_name:
+        # Check first available verified platform model
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            p_models = AIModelService.get_platform_models()
+            matched = [
+                m for m in p_models
+                if m.get("model_type", "").upper() == model_type_val.upper()
+                or (model_type_val == LLMType.CHAT.value and m.get("model_type", "").upper() in ["CHAT", "IMAGE2TEXT"])
+            ]
+            if matched:
+                model_name = matched[0].get("id") or matched[0].get("model_name")
+        except Exception as pe:
+            logger.warning(f"AIModelService platform models fallback error: {pe}")
+
+    if not model_name:
+        raise Exception(f"No active or configured {model_type} model is available. Please configure an API key in Admin -> AI Management.")
+
+    try:
+        return get_model_config_from_provider_instance(tenant_id, model_type, model_name)
+    except Exception as exc:
+        # If the specific model failed to resolve, try resolving any active verified platform model of this type
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            p_models = AIModelService.get_platform_models()
+            matched = [
+                m for m in p_models
+                if m.get("model_type", "").upper() == model_type_val.upper()
+                or (model_type_val == LLMType.CHAT.value and m.get("model_type", "").upper() in ["CHAT", "IMAGE2TEXT"])
+            ]
+            if matched:
+                alt_model = matched[0].get("id") or matched[0].get("model_name")
+                logger.warning(f"Model '{model_name}' failed to resolve ({exc}). Falling back to active verified model '{alt_model}'.")
+                return get_model_config_from_provider_instance(tenant_id, model_type, alt_model)
+        except Exception:
+            pass
+        raise exc
 
 
 def split_model_name(model_name: str):
     # Parse model_name: {model_name} or {model_name}@{factory_name} or {model_name}@{instance_name}@{factory_name}
+    # Or {provider}/{model_name}
+    if not model_name:
+        return "", "", ""
+
+    if "/" in model_name and "@" not in model_name:
+        parts = model_name.split("/", 1)
+        return parts[1], "default", parts[0]
+
     parts = model_name.split("@")
     if len(parts) == 1:
         pure_model_name = parts[0]
@@ -325,7 +386,55 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
     except Exception as fallback_e:
         logger.warning(f"TenantLLMService get_model_config fallback exception: {fallback_e}")
 
-    # 3. Safe Fallback for embedding models to guarantee dataset task continuity
+    # 3. Fallback to AIModel and AIProvider (Single Global Instance storage)
+    try:
+        from api.db.db_models import AIModel, AIProvider
+        from api.utils.key_crypto import decrypt_api_key
+
+        candidate_ids = [model_name, pure_model_name]
+        if provider_name:
+            candidate_ids.extend([f"{provider_name.lower()}/{pure_model_name}", f"{provider_name}/{pure_model_name}"])
+
+        aim = None
+        for cid in candidate_ids:
+            aim = AIModel.get_or_none(AIModel.id == cid)
+            if aim:
+                break
+        if not aim:
+            aim = AIModel.get_or_none(AIModel.model_name == pure_model_name)
+
+        if aim and aim.api_key and len(aim.api_key.strip()) > 0:
+            return {
+                "llm_factory": aim.provider,
+                "api_key": decrypt_api_key(aim.api_key),
+                "llm_name": aim.model_name,
+                "api_base": aim.base_url or "",
+                "model_type": aim.model_type,
+                "is_tools": True,
+                "max_tokens": aim.max_tokens or 8192,
+            }
+
+        # Check AIProvider directly
+        aip = None
+        if provider_name:
+            for cand in AIProvider.select().where(AIProvider.is_global == True, AIProvider.status == "active"):
+                if cand.provider_name.lower() == provider_name.lower():
+                    aip = cand
+                    break
+        if aip and aip.api_key and len(aip.api_key.strip()) > 0:
+            return {
+                "llm_factory": aip.provider_name,
+                "api_key": decrypt_api_key(aip.api_key),
+                "llm_name": pure_model_name or model_name,
+                "api_base": aip.base_url or "",
+                "model_type": model_type_val,
+                "is_tools": True,
+                "max_tokens": 8192,
+            }
+    except Exception as aip_e:
+        logger.warning(f"AIModel / AIProvider direct lookup error: {aip_e}")
+
+    # 4. Safe Auto-Fallback for embedding models
     if model_type_val == LLMType.EMBEDDING.value:
         try:
             any_embd = TenantLLMService.query(tenant_id=tenant_id, model_type=LLMType.EMBEDDING.value)
@@ -358,44 +467,34 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
             "max_tokens": 512,
         }
 
-    # 4. Ultimate Fallback to AIModel and AIProvider (Single Global Instance storage)
+    # 5. Ultimate Fallback to ANY active platform model for this type
     try:
-        from api.db.db_models import AIModel, AIProvider
+        from api.db.services.ai_policy_service import AIModelService
         from api.utils.key_crypto import decrypt_api_key
-
-        aim = AIModel.get_or_none(AIModel.model_name == pure_model_name)
-        if not aim:
-            aim = AIModel.get_or_none(AIModel.id == model_name)
-        if aim and aim.api_key:
-            return {
-                "llm_factory": aim.provider,
-                "api_key": decrypt_api_key(aim.api_key),
-                "llm_name": aim.model_name,
-                "api_base": aim.base_url or "",
-                "model_type": aim.model_type,
-                "is_tools": True,
-                "max_tokens": aim.max_tokens or 8192,
-            }
-
-        if provider_name:
-            aip = AIProvider.get_or_none(AIProvider.provider_name == provider_name, AIProvider.is_global == True)
-            if not aip:
-                for cand in AIProvider.select().where(AIProvider.is_global == True):
-                    if cand.provider_name.lower() == provider_name.lower():
-                        aip = cand
-                        break
-            if aip and aip.api_key:
+        p_models = AIModelService.get_platform_models()
+        matched = [
+            m for m in p_models
+            if m.get("model_type", "").upper() == model_type_val.upper()
+            or (model_type_val == LLMType.CHAT.value and m.get("model_type", "").upper() in ["CHAT", "IMAGE2TEXT"])
+        ]
+        if matched:
+            selected = matched[0]
+            # Fetch raw model for key decryption
+            from api.db.db_models import AIModel
+            raw_m = AIModel.get_or_none(AIModel.id == selected["id"])
+            if raw_m and raw_m.api_key:
+                logger.warning(f"Requested model '{model_name}' has no active API key. Auto-falling back to active platform model '{raw_m.model_name}'.")
                 return {
-                    "llm_factory": aip.provider_name,
-                    "api_key": decrypt_api_key(aip.api_key),
-                    "llm_name": pure_model_name or model_name,
-                    "api_base": aip.base_url or "",
-                    "model_type": model_type_val,
+                    "llm_factory": raw_m.provider,
+                    "api_key": decrypt_api_key(raw_m.api_key),
+                    "llm_name": raw_m.model_name,
+                    "api_base": raw_m.base_url or "",
+                    "model_type": raw_m.model_type,
                     "is_tools": True,
-                    "max_tokens": 8192,
+                    "max_tokens": raw_m.max_tokens or 8192,
                 }
-    except Exception as aip_e:
-        logger.warning(f"AIModel / AIProvider ultimate fallback error: {aip_e}")
+    except Exception as ultimate_e:
+        logger.warning(f"Ultimate active platform model fallback error: {ultimate_e}")
 
     raise LookupError(f"Provider {provider_name or 'unknown'} not found or not configured for model {model_name}.")
 

@@ -142,18 +142,26 @@ class TenantLLMService(CommonService):
             except Exception as e:
                 logging.warning(f"TenantLLMService.get_api_key admin fallback exception: {e}")
 
-            # 2. Fallback to global Admin-registered AIModel if tenant has no custom API key
+            # 2. Fallback to global Admin-registered AIModel / AIProvider if tenant has no custom API key
             try:
+                from api.db.db_models import AIProvider
                 from api.db.services.ai_policy_service import AIModelService
-                global_models = AIModelService.query(model_name=mdlnm, enabled=True)
-                if not global_models and fid:
-                    global_models = AIModelService.query(provider=fid, model_name=mdlnm, enabled=True)
-                if not global_models:
-                    cid = f"{fid}/{mdlnm}".lower() if fid else mdlnm.lower()
-                    global_models = AIModelService.query(id=cid, enabled=True)
+                candidate_ids = [mdlnm]
+                if fid:
+                    candidate_ids.extend([f"{fid.lower()}/{mdlnm}", f"{fid}/{mdlnm}", f"{mdlnm}@{fid}"])
 
-                if global_models and global_models[0].api_key:
-                    gm = global_models[0]
+                gm = None
+                for cid in candidate_ids:
+                    global_models = AIModelService.query(id=cid, enabled=True)
+                    if global_models and global_models[0].api_key:
+                        gm = global_models[0]
+                        break
+                if not gm:
+                    global_models = AIModelService.query(model_name=mdlnm, enabled=True)
+                    if global_models and global_models[0].api_key:
+                        gm = global_models[0]
+
+                if gm and gm.api_key:
                     syn_tenant_llm = TenantLLM(
                         tenant_id=tenant_id,
                         llm_factory=gm.provider,
@@ -165,6 +173,22 @@ class TenantLLMService(CommonService):
                         status="1",
                     )
                     return syn_tenant_llm
+
+                # Direct AIProvider check
+                if fid:
+                    for cand in AIProvider.select().where(AIProvider.is_global == True, AIProvider.status == "active"):
+                        if cand.provider_name.lower() == fid.lower() and cand.api_key:
+                            syn_tenant_llm = TenantLLM(
+                                tenant_id=tenant_id,
+                                llm_factory=cand.provider_name,
+                                model_type=model_type_val if model_type_val else "CHAT",
+                                llm_name=mdlnm,
+                                api_key=cand.api_key,
+                                api_base=cand.base_url or "",
+                                max_tokens=8192,
+                                status="1",
+                            )
+                            return syn_tenant_llm
             except Exception as e:
                 logging.warning(f"TenantLLMService.get_api_key global fallback exception: {e}")
 
@@ -235,6 +259,11 @@ class TenantLLMService(CommonService):
     def split_model_name_and_factory(model_name):
         if not model_name:
             return model_name, None
+
+        if "/" in model_name and "@" not in model_name:
+            parts = model_name.split("/", 1)
+            return parts[1], parts[0]
+
         arr = model_name.split("@")
         if len(arr) == 3:
             # {pure_model_name}@{instance_name}@{provider_name}

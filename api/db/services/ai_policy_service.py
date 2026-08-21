@@ -525,22 +525,53 @@ class AIPolicyManager:
         if ai_model and not ai_model.enabled:
             return False, f"Model '{model_name}' is currently disabled by administrator.", 403
 
+        # Always allow system default models configured by admin
+        try:
+            from api.db.services.global_instance_service import GlobalInstanceService
+            g_inst = GlobalInstanceService.get_instance_stats()
+            system_default_models = {
+                g_inst.get("default_chat_model"),
+                g_inst.get("default_free_model_id"),
+                g_inst.get("default_plus_model_id"),
+                g_inst.get("default_pro_model_id"),
+                g_inst.get("default_embd_id"),
+                g_inst.get("default_rerank_id"),
+                g_inst.get("default_image2text_model"),
+                g_inst.get("default_asr_model"),
+                g_inst.get("default_tts_model"),
+            }
+            system_default_models.discard(None)
+            system_default_models.discard("")
+            if any(cid in system_default_models for cid in candidate_ids) or pure_name in system_default_models:
+                return True, "OK", 200
+        except Exception:
+            pass
+
         # Subscription policy check for platform model
         policy = None
         if ai_model:
-            policies = SubscriptionAIPolicyService.query(plan_id=plan_id, model_id=ai_model.id, enabled=True)
+            policies = SubscriptionAIPolicyService.query(plan_id=plan_id, model_id=ai_model.id)
             if policies:
                 policy = policies[0]
 
         if not policy:
             for cid in candidate_ids:
-                policies = SubscriptionAIPolicyService.query(plan_id=plan_id, model_id=cid, enabled=True)
+                policies = SubscriptionAIPolicyService.query(plan_id=plan_id, model_id=cid)
                 if policies:
                     policy = policies[0]
                     break
 
-        if not policy and not is_super:
-            return False, f"Model '{model_name}' is not included in your {plan['name']} subscription plan.", 403
+        if policy is not None:
+            if not policy.enabled and not is_super:
+                return False, f"Model '{model_name}' is not authorized for your {plan['name']} subscription plan.", 403
+        else:
+            if ai_model and ai_model.allowed_plans:
+                try:
+                    allowed_plans = ai_model.allowed_plans if isinstance(ai_model.allowed_plans, list) else json.loads(ai_model.allowed_plans)
+                    if plan_id not in [p.lower() for p in allowed_plans] and not is_super:
+                        return False, f"Model '{model_name}' is not included in your {plan['name']} subscription plan.", 403
+                except Exception:
+                    pass
 
         # Per-model token cap check
         if policy and policy.model_token_limit > 0 and not is_super:

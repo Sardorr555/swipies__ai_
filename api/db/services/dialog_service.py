@@ -292,13 +292,17 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
     image_attachments = []
     image_files = []
 
-    if dialog.llm_id:
-        llm_types = get_model_type_by_name(dialog.tenant_id, dialog.llm_id)
-        if "chat" in llm_types:
-            model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
+    try:
+        if dialog.llm_id:
+            llm_types = get_model_type_by_name(dialog.tenant_id, dialog.llm_id)
+            if "chat" in llm_types:
+                model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
+            else:
+                model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.IMAGE2TEXT, dialog.llm_id)
         else:
-            model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.IMAGE2TEXT, dialog.llm_id)
-    else:
+            model_config = get_tenant_default_model_by_type(dialog.tenant_id, LLMType.CHAT)
+    except Exception as e:
+        logger.warning(f"Failed to load configured dialog LLM '{dialog.llm_id}': {e}. Falling back to tenant/global default.")
         model_config = get_tenant_default_model_by_type(dialog.tenant_id, LLMType.CHAT)
 
     chat_mdl = LLMBundle(dialog.tenant_id, model_config, langfuse_session_id=session_id)
@@ -355,9 +359,13 @@ def get_models(dialog, trace_context=None, langfuse_session_id=None):
         if not embd_mdl:
             raise LookupError("Embedding model(%s) not found" % embedding_list[0])
 
-    if dialog.llm_id:
-        chat_model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
-    else:
+    try:
+        if dialog.llm_id:
+            chat_model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
+        else:
+            chat_model_config = get_tenant_default_model_by_type(dialog.tenant_id, LLMType.CHAT)
+    except Exception as e:
+        logger.warning(f"Failed to load configured dialog LLM '{dialog.llm_id}': {e}. Falling back to tenant/global default.")
         chat_model_config = get_tenant_default_model_by_type(dialog.tenant_id, LLMType.CHAT)
 
     chat_mdl = LLMBundle(dialog.tenant_id, chat_model_config, trace_context=trace_context, langfuse_session_id=langfuse_session_id)
@@ -554,13 +562,17 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
         return
 
     chat_start_ts = timer()
-    if dialog.llm_id:
-        llm_types = get_model_type_by_name(dialog.tenant_id, dialog.llm_id)
-        if "chat" in llm_types:
-            llm_model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
+    try:
+        if dialog.llm_id:
+            llm_types = get_model_type_by_name(dialog.tenant_id, dialog.llm_id)
+            if "chat" in llm_types:
+                llm_model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
+            else:
+                llm_model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.IMAGE2TEXT, dialog.llm_id)
         else:
-            llm_model_config = get_model_config_from_provider_instance(dialog.tenant_id, LLMType.IMAGE2TEXT, dialog.llm_id)
-    else:
+            llm_model_config = get_tenant_default_model_by_type(dialog.tenant_id, LLMType.CHAT)
+    except Exception as e:
+        logger.warning(f"Failed to load configured dialog LLM '{dialog.llm_id}': {e}. Falling back to tenant/global default.")
         llm_model_config = get_tenant_default_model_by_type(dialog.tenant_id, LLMType.CHAT)
 
     factory = llm_model_config.get("llm_factory", "") if llm_model_config else ""
