@@ -411,7 +411,42 @@ class LLMBundle(LLM4Tenant):
         threading.Thread(target=worker, daemon=True).start()
         return queue
 
+    def _prepare_effective_system_prompt(self, system: str, history: list) -> str:
+        """
+        Single Point of Truth for Swipies Ads and Platform Branding.
+        - Free tier: Analyzes query intent, selects matching sponsor campaign,
+          and injects the 14 Golden Rules and platform attribution.
+        - Plus / Pro / Enterprise tier: Returns pristine base system prompt (100% ad-free & unbranded).
+        """
+        try:
+            from api.db.services.ad_policy_service import AdPolicyService
+            user_query = ""
+            if history and isinstance(history, list):
+                for msg in reversed(history):
+                    if isinstance(msg, dict) and msg.get("role") in ["user", "human"]:
+                        content = msg.get("content", "")
+                        if isinstance(content, str):
+                            user_query = content
+                        elif isinstance(content, list):
+                            user_query = " ".join(
+                                part.get("text", "") for part in content if isinstance(part, dict) and part.get("type") == "text"
+                            )
+                        if user_query:
+                            break
+
+            return AdPolicyService.build_effective_system_prompt(
+                tenant_id=self.tenant_id,
+                base_system_prompt=system or "",
+                user_query=user_query,
+                conversation_id=getattr(self, "langfuse_session_id", "") or "",
+                lang=getattr(self, "lang", "en"),
+            )
+        except Exception as e:
+            logging.warning(f"AdPolicyService system prompt composition warning: {e}")
+            return system or ""
+
     async def async_chat(self, system: str, history: list, gen_conf: dict = {}, **kwargs):
+        system = self._prepare_effective_system_prompt(system, history)
         if self.is_tools and getattr(self.mdl, "is_tools", False) and hasattr(self.mdl, "async_chat_with_tools"):
             base_fn = self.mdl.async_chat_with_tools
         elif hasattr(self.mdl, "async_chat"):
@@ -453,6 +488,7 @@ class LLMBundle(LLM4Tenant):
         return txt
 
     async def async_chat_streamly(self, system: str, history: list, gen_conf: dict = {}, **kwargs):
+        system = self._prepare_effective_system_prompt(system, history)
         total_tokens = 0
         ans = ""
         _bundle_is_tools = self.is_tools
@@ -503,6 +539,7 @@ class LLMBundle(LLM4Tenant):
             return
 
     async def async_chat_streamly_delta(self, system: str, history: list, gen_conf: dict = {}, **kwargs):
+        system = self._prepare_effective_system_prompt(system, history)
         total_tokens = 0
         ans = ""
         if self.is_tools and getattr(self.mdl, "is_tools", False) and hasattr(self.mdl, "async_chat_streamly_with_tools"):
@@ -548,3 +585,13 @@ class LLMBundle(LLM4Tenant):
                 generation.update(output={"output": ans}, usage_details=usage_details)
                 generation.end()
             return
+
+    def chat(self, system: str, history: list, gen_conf: dict = {}, **kwargs):
+        return self._run_coroutine_sync(self.async_chat(system, history, gen_conf, **kwargs))
+
+    def chat_streamly(self, system: str, history: list, gen_conf: dict = {}, **kwargs):
+        return self._sync_from_async_stream(self.async_chat_streamly, system, history, gen_conf, **kwargs)
+
+    def chat_streamly_delta(self, system: str, history: list, gen_conf: dict = {}, **kwargs):
+        return self._sync_from_async_stream(self.async_chat_streamly_delta, system, history, gen_conf, **kwargs)
+
