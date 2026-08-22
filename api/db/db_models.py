@@ -726,6 +726,8 @@ class User(DataBaseModel, AuthUser):
     login_channel = CharField(null=True, help_text="from which user login", index=True)
     status = CharField(max_length=1, null=True, help_text="is it validate(0: wasted, 1: validate)", default="1", index=True)
     is_superuser = BooleanField(null=True, help_text="is root", default=False, index=True)
+    is_onboarded = BooleanField(null=True, help_text="is onboarding survey completed", default=False, index=True)
+    onboarding_info = TextField(null=True, help_text="onboarding survey responses")
 
     def __str__(self):
         return self.email
@@ -743,6 +745,7 @@ class User(DataBaseModel, AuthUser):
         result = {k: v for k, v in self.to_dict().items() if k not in self.SENSITIVE_FIELDS}
         if for_self:
             result["email"] = self.email
+            result["access_token"] = self.access_token
         logging.debug("User %s serialized safely, filtered fields: %s", self.id, self.SENSITIVE_FIELDS)
         return result
 
@@ -1494,131 +1497,156 @@ class TenantModelGroupMapping(DataBaseModel):
         primary_key = CompositeKey("group_id", "provider_id", "instance_id", "model_id")
 
 
-class KnowledgeEntity(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    tenant_id = CharField(max_length=32, null=False, index=True)
-    name = CharField(max_length=255, null=False, index=True)
-    entity_type = CharField(max_length=64, null=False, index=True, help_text="Person|Project|Tech|Doc|Org|Customer|Decision")
-    description = TextField(null=True)
-    canonical_id = CharField(max_length=32, null=True, index=True)
-    attributes = JSONField(null=True, default=dict)
-    confidence_score = FloatField(default=1.0)
+class GlobalRagflowInstance(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True, default="GLOBAL")
+    name = CharField(max_length=128, default="Global RAGFlow Instance")
+    status = CharField(max_length=32, default="ACTIVE")
+    default_free_model_id = CharField(max_length=128, null=True, default="openai/gpt-4o-mini")
+    default_plus_model_id = CharField(max_length=128, null=True, default="openai/gpt-4o")
+    default_pro_model_id = CharField(max_length=128, null=True, default="anthropic/claude-3-5-sonnet-20241022")
+    default_embd_id = CharField(max_length=128, null=True, default="openai/text-embedding-3-small")
+    default_rerank_id = CharField(max_length=128, null=True, default="BAAI/bge-reranker-v2-m3")
+    byok_enabled = BooleanField(default=True)
+    max_byok_models = IntegerField(default=10)
+    byok_token_limit = BigIntegerField(default=50000000)
+    byok_request_limit = IntegerField(default=100000)
+    extra = JSONField(null=True, default=dict)
+    create_time = BigIntegerField(null=True)
+    update_time = BigIntegerField(null=True)
 
     class Meta:
-        db_table = "knowledge_entity"
+        db_table = "global_ragflow_instance"
 
 
-class EntityAlias(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    tenant_id = CharField(max_length=32, null=False, index=True)
-    alias_name = CharField(max_length=255, null=False, index=True)
-    entity_id = CharField(max_length=32, null=False, index=True)
-    source_type = CharField(max_length=64, null=True)
-
-    class Meta:
-        db_table = "entity_alias"
-
-
-class KnowledgeRelation(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    tenant_id = CharField(max_length=32, null=False, index=True)
-    src_entity_id = CharField(max_length=32, null=False, index=True)
-    predicate = CharField(max_length=64, null=False, index=True, help_text="OWNS|USES|CREATED|DISCUSSED|FIXES|EXPERT_IN")
-    dst_entity_id = CharField(max_length=32, null=False, index=True)
-    weight = FloatField(default=1.0)
-    confidence_score = FloatField(default=1.0)
-    conversation_id = CharField(max_length=32, null=True, index=True)
-    document_id = CharField(max_length=32, null=True, index=True)
-    source_snippet = TextField(null=True)
+class AIProvider(DataBaseModel):
+    id = CharField(max_length=64, primary_key=True)
+    provider_name = CharField(max_length=128, null=False, index=True)
+    base_url = CharField(max_length=255, null=True)
+    api_key = TextField(null=True)
+    organization = CharField(max_length=128, null=True)
+    api_version = CharField(max_length=64, null=True)
+    status = CharField(max_length=32, default="active")
+    is_global = BooleanField(default=True, index=True)
+    owner_user_id = CharField(max_length=32, null=True, index=True)
+    global_instance_id = CharField(max_length=32, default="GLOBAL", index=True)
+    extra = JSONField(null=True, default=dict)
+    create_time = BigIntegerField(null=True)
+    update_time = BigIntegerField(null=True)
 
     class Meta:
-        db_table = "knowledge_relation"
+        db_table = "ai_provider"
 
 
-class ConversationMetadata(DataBaseModel):
+class SubscriptionPlan(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
-    conversation_id = CharField(max_length=32, null=False, unique=True)
-    tenant_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=100, null=False, index=True)
+    daily_token_limit = BigIntegerField(default=50000, help_text="Daily token limit")
+    monthly_token_limit = BigIntegerField(default=1000000, help_text="Monthly token limit")
+    daily_request_limit = IntegerField(default=500, help_text="Daily request limit")
+    monthly_request_limit = IntegerField(default=10000, help_text="Monthly request limit")
+    requests_per_minute = IntegerField(default=60, help_text="Rate limit per minute")
+    max_tokens_per_request = IntegerField(default=4096, help_text="Max tokens per request")
+    limit_mode = CharField(max_length=32, default="shared", help_text="shared or per_model")
+    max_storage_gb = FloatField(default=5.0)
+    max_datasets = IntegerField(default=5)
+    max_agents = IntegerField(default=5)
+    allow_custom_providers = BooleanField(default=False)
+    allow_custom_models = BooleanField(default=False)
+    allow_custom_endpoints = BooleanField(default=False)
+    allow_private_servers = BooleanField(default=False)
+    allow_byok = BooleanField(default=False)
+    max_byok_models = IntegerField(default=0)
+    default_llm_id = CharField(max_length=128, null=True)
+    default_embd_id = CharField(max_length=128, null=True)
+    default_rerank_id = CharField(max_length=128, null=True)
+    status = CharField(max_length=1, default="1", index=True)
+
+    class Meta:
+        db_table = "subscription_plan"
+
+
+class AIModel(DataBaseModel):
+    id = CharField(max_length=128, primary_key=True)
+    provider = CharField(max_length=128, null=False, index=True)
+    model_name = CharField(max_length=128, null=False, index=True)
+    model_type = CharField(max_length=32, null=False, index=True)
+    base_url = CharField(max_length=255, null=True)
+    api_key = TextField(null=True)
+    input_token_price = FloatField(default=0.0, help_text="USD per 1M input tokens")
+    output_token_price = FloatField(default=0.0, help_text="USD per 1M output tokens")
+    max_tokens = IntegerField(default=8192)
+    enabled = BooleanField(default=True, index=True)
+    is_global = BooleanField(default=True, index=True)
+    is_custom = BooleanField(default=False, index=True)
+    owner_user_id = CharField(max_length=32, null=True, index=True)
+    owner_tenant_id = CharField(max_length=32, null=True, index=True)
+    status = CharField(max_length=32, default="active", index=True)
+    global_instance_id = CharField(max_length=32, default="GLOBAL", index=True)
+    extra = JSONField(null=True, default=dict)
+    create_time = BigIntegerField(null=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ai_model"
+
+
+class SubscriptionAIPolicy(DataBaseModel):
+    id = CharField(max_length=128, primary_key=True)
+    plan_id = CharField(max_length=32, null=False, index=True)
+    model_id = CharField(max_length=128, null=False, index=True)
+    model_token_limit = BigIntegerField(default=0, help_text="0 means unlimited up to plan total limit")
+    is_default_llm = BooleanField(default=False)
+    is_default_embd = BooleanField(default=False)
+    is_default_rerank = BooleanField(default=False)
+    enabled = BooleanField(default=True, index=True)
+
+    class Meta:
+        db_table = "subscription_ai_policy"
+
+
+class UserTokenLimit(DataBaseModel):
+    user_id = CharField(max_length=32, primary_key=True)
+    monthly_token_limit = BigIntegerField(default=0, help_text="0 means fallback to plan limit")
+    enabled = BooleanField(default=True)
+
+    class Meta:
+        db_table = "user_token_limit"
+
+
+class TokenUsageLog(DataBaseModel):
+    id = CharField(max_length=64, primary_key=True)
     user_id = CharField(max_length=32, null=False, index=True)
-    department = CharField(max_length=128, null=True)
-    project_id = CharField(max_length=32, null=True, index=True)
-    topics = JSONField(null=True, default=list)
-    tags = JSONField(null=True, default=list)
-    summary = TextField(null=True)
-    decisions_json = JSONField(null=True, default=list)
-    action_items_json = JSONField(null=True, default=list)
-    unresolved_questions = JSONField(null=True, default=list)
-    referenced_doc_ids = JSONField(null=True, default=list)
-    models_used = JSONField(null=True, default=list)
-    agents_involved = JSONField(null=True, default=list)
-    language = CharField(max_length=16, null=True, default="en")
-    duration_seconds = IntegerField(default=0)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    subscription_id = CharField(max_length=32, null=True, index=True)
+    global_instance_id = CharField(max_length=32, default="GLOBAL", index=True)
+    model_id = CharField(max_length=128, null=False, index=True)
+    provider_id = CharField(max_length=128, null=True, index=True)
+    model_type = CharField(max_length=32, null=False, index=True)
+    input_tokens = IntegerField(default=0)
+    output_tokens = IntegerField(default=0)
+    total_tokens = IntegerField(default=0)
+    estimated_cost = FloatField(default=0.0)
+    status = CharField(max_length=32, default="SUCCESS", index=True)
+    billing_period = CharField(max_length=7, null=False, index=True)
+    date_str = CharField(max_length=10, null=True, index=True)
+    create_time = BigIntegerField(null=True, index=True)
 
     class Meta:
-        db_table = "conversation_metadata"
+        db_table = "token_usage_log"
 
 
-class ExpertiseProfile(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    tenant_id = CharField(max_length=32, null=False, index=True)
+class AIAuditLog(DataBaseModel):
+    id = CharField(max_length=64, primary_key=True)
     user_id = CharField(max_length=32, null=False, index=True)
-    domain_topic = CharField(max_length=128, null=False, index=True)
-    confidence_score = FloatField(default=0.0)
-    depth_level = CharField(max_length=32, default="Intermediate")
-    contribution_count = IntegerField(default=1)
-    evidence_summary = TextField(null=True)
-    last_active_at = BigIntegerField(null=False)
+    action = CharField(max_length=128, null=False, index=True)
+    target_type = CharField(max_length=64, null=False)
+    target_id = CharField(max_length=128, null=True)
+    details = TextField(null=True, help_text="Sanitized action details JSON")
+    create_time = BigIntegerField(null=False, index=True)
 
     class Meta:
-        db_table = "expertise_profile"
+        db_table = "ai_audit_log"
 
-
-class SummaryRegistry(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    tenant_id = CharField(max_length=32, null=False, index=True)
-    summary_type = CharField(max_length=32, null=False, index=True, help_text="Daily|Weekly|Monthly|Project|Customer|Department")
-    target_id = CharField(max_length=64, null=False, index=True)
-    title = CharField(max_length=255, null=False)
-    content = TextField(null=False)
-    key_decisions = JSONField(null=True, default=list)
-    key_risks = JSONField(null=True, default=list)
-    trending_topics = JSONField(null=True, default=list)
-    period_start = BigIntegerField(null=False)
-    period_end = BigIntegerField(null=False)
-
-    class Meta:
-        db_table = "summary_registry"
-
-
-class EILAuditLog(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    tenant_id = CharField(max_length=32, null=False, index=True)
-    operator_id = CharField(max_length=32, null=False, index=True)
-    action = CharField(max_length=64, null=False, index=True)
-    resource_type = CharField(max_length=64, null=False)
-    resource_id = CharField(max_length=64, null=True)
-    details = JSONField(null=True, default=dict)
-    ip_address = CharField(max_length=45, null=True)
-
-    class Meta:
-        db_table = "eil_audit_log"
-
-
-class UserOnboarding(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    user_id = CharField(max_length=32, null=False, index=True)
-    tenant_id = CharField(max_length=32, null=True, index=True)
-    purpose = CharField(max_length=255, null=True, help_text="Why registered / primary use case")
-    intended_use = TextField(null=True, help_text="Detailed description of planned use")
-    company_name = CharField(max_length=255, null=True, help_text="Current or past company")
-    company_size = CharField(max_length=64, null=True, help_text="Team or company size")
-    industry = CharField(max_length=128, null=True, help_text="Industry sector")
-    role = CharField(max_length=128, null=True, help_text="Job title or role")
-    platform_goals = TextField(null=True, help_text="Key problems platform should solve")
-    completed = BooleanField(default=True, index=True)
-
-    class Meta:
-        db_table = "user_onboarding"
 
 
 def alter_db_add_column(migrator, table_name, column_name, column_type):
@@ -1941,6 +1969,26 @@ def migrate_db():
     alter_db_column_type(migrator, "document", "size", BigIntegerField(default=0, index=True))
     alter_db_column_type(migrator, "file", "size", BigIntegerField(default=0, index=True))
     alter_db_add_column(migrator, "tenant", "ocr_id", CharField(max_length=128, null=True, help_text="default ocr model ID", index=True))
+    alter_db_add_column(migrator, "user", "is_onboarded", BooleanField(null=True, help_text="is onboarding survey completed", default=False, index=True))
+    alter_db_add_column(migrator, "user", "onboarding_info", TextField(null=True, help_text="onboarding survey responses"))
+    try:
+        DB.execute_sql("ALTER TABLE user ADD COLUMN is_onboarded TINYINT(1) DEFAULT 0;")
+    except Exception:
+        pass
+    try:
+        DB.execute_sql("ALTER TABLE user ADD COLUMN onboarding_info TEXT;")
+    except Exception:
+        pass
+    try:
+        admin_email = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io")
+        if not admin_email or not admin_email.strip():
+            admin_email = "admin@ragflow.io"
+        admin_email = admin_email.strip().lower()
+        DB.execute_sql(f"UPDATE user SET is_superuser = 0 WHERE LOWER(email) != '{admin_email}';")
+        DB.execute_sql(f"UPDATE user SET is_superuser = 1 WHERE LOWER(email) = '{admin_email}';")
+        DB.execute_sql("UPDATE user_tenant SET role = 'owner' WHERE tenant_id = user_id AND role = 'normal';")
+    except Exception:
+        pass
     alter_db_column_type(migrator, "chat_channel", "status", IntegerField(default=1, index=True))
     alter_db_rename_column(migrator, "chat_channel", "dialog_id", "chat_id")
     # Drop both the explicit "idx_*" name from later migrations AND the
@@ -1989,6 +2037,36 @@ def migrate_db():
     alter_db_add_column(migrator, "license_key", "create_date", DateTimeField(null=True, index=True))
     alter_db_add_column(migrator, "license_key", "update_time", BigIntegerField(null=True, index=True))
     alter_db_add_column(migrator, "license_key", "update_date", DateTimeField(null=True, index=True))
+
+    # Add AI infrastructure columns
+    alter_db_add_column(migrator, "subscription_plan", "daily_token_limit", BigIntegerField(default=50000, help_text="Daily token limit"))
+    alter_db_add_column(migrator, "subscription_plan", "daily_request_limit", IntegerField(default=500, help_text="Daily request limit"))
+    alter_db_add_column(migrator, "subscription_plan", "monthly_request_limit", IntegerField(default=10000, help_text="Monthly request limit"))
+    alter_db_add_column(migrator, "subscription_plan", "requests_per_minute", IntegerField(default=60, help_text="Rate limit per minute"))
+    alter_db_add_column(migrator, "subscription_plan", "max_tokens_per_request", IntegerField(default=4096, help_text="Max tokens per request"))
+    alter_db_add_column(migrator, "subscription_plan", "allow_byok", BooleanField(default=False))
+    alter_db_add_column(migrator, "subscription_plan", "max_byok_models", IntegerField(default=0))
+    alter_db_add_column(migrator, "subscription_plan", "default_rerank_id", CharField(max_length=128, null=True))
+
+    alter_db_add_column(migrator, "ai_model", "input_token_price", FloatField(default=0.0, help_text="USD per 1M input tokens"))
+    alter_db_add_column(migrator, "ai_model", "output_token_price", FloatField(default=0.0, help_text="USD per 1M output tokens"))
+    alter_db_add_column(migrator, "ai_model", "max_tokens", IntegerField(default=8192))
+    alter_db_add_column(migrator, "ai_model", "owner_user_id", CharField(max_length=32, null=True, index=True))
+    alter_db_add_column(migrator, "ai_model", "owner_tenant_id", CharField(max_length=32, null=True, index=True))
+    alter_db_add_column(migrator, "ai_model", "status", CharField(max_length=32, default="active", index=True))
+    alter_db_add_column(migrator, "ai_model", "global_instance_id", CharField(max_length=32, default="GLOBAL", index=True))
+    alter_db_add_column(migrator, "ai_model", "extra", JSONField(null=True, default=dict))
+    alter_db_add_column(migrator, "ai_model", "create_time", BigIntegerField(null=True))
+    alter_db_add_column(migrator, "ai_model", "update_time", BigIntegerField(null=True))
+
+    alter_db_add_column(migrator, "subscription_ai_policy", "is_default_rerank", BooleanField(default=False))
+
+    alter_db_add_column(migrator, "token_usage_log", "global_instance_id", CharField(max_length=32, default="GLOBAL", index=True))
+    alter_db_add_column(migrator, "token_usage_log", "provider_id", CharField(max_length=128, null=True, index=True))
+    alter_db_add_column(migrator, "token_usage_log", "estimated_cost", FloatField(default=0.0))
+    alter_db_add_column(migrator, "token_usage_log", "status", CharField(max_length=32, default="SUCCESS", index=True))
+    alter_db_add_column(migrator, "token_usage_log", "date_str", CharField(max_length=10, null=True, index=True))
+    alter_db_add_column(migrator, "token_usage_log", "create_time", BigIntegerField(null=True, index=True))
 
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails

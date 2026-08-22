@@ -149,17 +149,17 @@ user_default_llm:
 #   switch: false
 #   component: false
 #   dataset: false
-# smtp:
-#   mail_server: ""
-#   mail_port: 465
-#   mail_use_ssl: true
-#   mail_use_tls: false
-#   mail_username: ""
-#   mail_password: ""
-#   mail_default_sender:
-#     - "RAGFlow" # display name
-#     - "" # sender email address
-#   mail_frontend_url: "https://your-frontend.example.com"
+smtp:
+  mail_server: "smtp.resend.com"
+  mail_port: 465
+  mail_use_ssl: true
+  mail_use_tls: false
+  mail_username: "resend"
+  mail_password: "re_ehsSs9YJ_7nu25RSCSRP3tNCJRJSS5h7y"
+  mail_default_sender:
+    - "Swipies AI"
+    - "noreply@swipies.app"
+  mail_frontend_url: "https://swipies.app"
 # tcadp_config:
 #  secret_id: 'tencent_secret_id'
 #  secret_key: 'tencent_secret_key'

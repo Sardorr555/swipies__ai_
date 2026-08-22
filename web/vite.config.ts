@@ -29,12 +29,12 @@ const inspectorBabelPlugin = (): import('vite').Plugin => ({
 type MinifyValue = boolean | 'esbuild' | 'terser';
 
 function resolveMinify(value: string | undefined): MinifyValue {
-  if (value === undefined) return 'terser';
+  if (value === undefined) return 'esbuild';
   const lower = value.toLowerCase();
   if (lower === 'false') return false;
   if (lower === 'esbuild') return 'esbuild';
   if (lower === 'terser') return 'terser';
-  return 'terser';
+  return 'esbuild';
 }
 
 // https://vitejs.dev/config/
@@ -293,9 +293,9 @@ export default defineConfig(({ mode }) => {
           comments: false, // Delete comments
         },
       },
-      sourcemap: env.VITE_BUILD_SOURCEMAP !== 'false',
+      sourcemap: env.VITE_BUILD_SOURCEMAP === 'true',
       cssCodeSplit: true,
-      target: 'es2015',
+      target: 'es2020',
     },
     esbuild: {
       tsconfigRaw: {

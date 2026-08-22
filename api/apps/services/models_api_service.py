@@ -46,6 +46,24 @@ MODEL_TAG_TO_TYPE = {
 }
 
 
+def normalize_model_type(m_type: str) -> str:
+    if not m_type:
+        return "chat"
+    t = str(m_type).lower()
+    mapping = {
+        "chat": "chat",
+        "embedding": "embedding",
+        "rerank": "rerank",
+        "vision": "image2text",
+        "image2text": "image2text",
+        "asr": "speech2text",
+        "speech2text": "speech2text",
+        "tts": "tts",
+        "ocr": "ocr",
+    }
+    return mapping.get(t, t)
+
+
 def _to_int(v, default=500):
     try:
         return int(v)
@@ -114,6 +132,20 @@ def _get_model_info(tenant_id: str, default_model: str, model_type: str):
     # Check if the provider exists for the tenant
     provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
     if not provider_obj:
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            global_models = AIModelService.query(enabled=True)
+            for gm in global_models:
+                if gm.provider == provider_name and gm.model_name == model_name:
+                    return {
+                        "model_provider": provider_name,
+                        "model_instance": instance_name or "default",
+                        "model_name": model_name,
+                        "model_type": normalize_model_type(gm.model_type or model_type),
+                        "enable": True,
+                    }
+        except Exception:
+            pass
         logging.warning(f"Provider '{provider_name}' not found for tenant '{tenant_id}'")
         return None
 
@@ -197,6 +229,14 @@ def _check_model_available(tenant_id: str, provider_name: str, instance_name: st
     # Check provider
     provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
     if not provider_obj:
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            global_models = AIModelService.query(enabled=True)
+            for gm in global_models:
+                if gm.provider == provider_name and gm.model_name == model_name:
+                    return True, None
+        except Exception:
+            pass
         return False, f"Provider '{provider_name}' not found"
 
     # Check instance
@@ -236,7 +276,8 @@ def list_tenant_default_models(tenant_id: str):
 
     For each model type (chat, embedding, rerank, asr, vision, tts, ocr),
     reads the composite model ID string from the Tenant record and resolves
-    it into provider/instance/name components.
+    it into provider/instance/name components. Auto-assigns global Admin models
+    if tenant default is unconfigured.
 
     :param tenant_id: tenant ID
     :return: (success, result_or_error_message)
@@ -250,7 +291,21 @@ def list_tenant_default_models(tenant_id: str):
     for model_type, field_name in MODEL_TYPE_TO_FIELD.items():
         default_model = getattr(tenant, field_name, None)
         if not default_model:
+            # Fallback to Admin-registered global models if default is unconfigured
+            try:
+                from api.db.services.ai_policy_service import AIModelService
+                global_models = AIModelService.query(enabled=True)
+                for gm in global_models:
+                    if normalize_model_type(gm.model_type) == model_type:
+                        default_model = f"{gm.model_name}@default@{gm.provider}"
+                        TenantService.update_by_id(tenant_id, {field_name: default_model})
+                        break
+            except Exception:
+                pass
+
+        if not default_model:
             continue
+
         model_info = _get_model_info(tenant_id, default_model, model_type)
         if model_info:
             models.append(model_info)
@@ -297,6 +352,31 @@ def set_tenant_default_models(tenant_id: str, model_provider: str, model_instanc
     return True, "success"
 
 
+def _is_instance_connected_with_key(factory_name: str, instance_record) -> bool:
+    LOCAL_PROVIDERS = {"builtin", "ollama", "localai", "xinference", "vllm", "mineru", "paddleocr", "opendataloader", "somark"}
+    if factory_name.lower() in LOCAL_PROVIDERS:
+        return True
+
+    if not instance_record or not instance_record.api_key:
+        return False
+
+    raw_key = instance_record.api_key.strip()
+    if not raw_key or raw_key == "{}" or raw_key == '{"api_key": ""}':
+        return False
+
+    try:
+        parsed = json.loads(raw_key)
+        if isinstance(parsed, dict):
+            key = parsed.get("api_key", "").strip()
+            if not key and len(parsed.keys()) <= 1:
+                return False
+            return True
+    except Exception:
+        pass
+
+    return len(raw_key) > 0
+
+
 def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
     """
     List all added models for a tenant.
@@ -317,23 +397,21 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
         model_type_filter = model_type_filter.lower()
 
     providers = TenantModelProviderService.get_by_tenant_id(tenant_id)
-    if not providers:
-        return True, []
-
-    provider_ids = [provider.id for provider in providers]
-    instances = TenantModelInstanceService.get_by_provider_ids(provider_ids)
-    if not instances:
-        return True, []
+    provider_ids = [provider.id for provider in providers] if providers else []
+    instances = TenantModelInstanceService.get_by_provider_ids(provider_ids) if provider_ids else []
+    
     provider_instance_map: dict = {}
-    provider_info_map = {provider.id: provider for provider in providers}
+    provider_info_map = {provider.id: provider for provider in (providers or [])}
     for provider_instance_record in instances:
         provider_name = provider_info_map[provider_instance_record.provider_id].provider_name if provider_info_map.get(provider_instance_record.provider_id) else ""
+        if not _is_instance_connected_with_key(provider_name, provider_instance_record):
+            continue
         if provider_instance_map.get(provider_name):
             provider_instance_map[provider_name].append(provider_instance_record)
         else:
             provider_instance_map[provider_name] = [provider_instance_record]
 
-    model_records = TenantModelService.get_models_by_provider_ids_and_instance_ids(provider_ids, list({instance.id for instance in instances}))
+    model_records = TenantModelService.get_models_by_provider_ids_and_instance_ids(provider_ids, list({instance.id for instance in instances})) if (provider_ids and instances) else []
     target_type_records = [record for record in model_records if record.model_type == model_type_filter] if model_type_filter else model_records
     model_record_map = {}
     for model in target_type_records:
@@ -345,7 +423,7 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
 
     added_models = []
     model_key_in_factory = []
-    provider_names = [provider.provider_name for provider in providers]
+    provider_names = [provider.provider_name for provider in (providers or [])]
     factory_rank_mapping = {factory["name"]: -_to_int(factory.get("rank", "500")) for factory in FACTORY_LLM_INFOS}
     for factory in FACTORY_LLM_INFOS:
         if factory["name"] not in provider_names:
@@ -370,7 +448,7 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
                     continue
 
                 added_models.append({
-                    "model_type": model_types,
+                    "model_type": [normalize_model_type(mt) for mt in model_types],
                     "name": llm["llm_name"],
                     "provider_id": factory_instance.provider_id,
                     "provider_name": provider_info_map[factory_instance.provider_id].provider_name if provider_info_map.get(factory_instance.provider_id) else "",
@@ -391,7 +469,7 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
                 continue
 
             added_models.append({
-                "model_type": model_types,
+                "model_type": [normalize_model_type(mt) for mt in model_types],
                 "name": model_name,
                 "provider_id": provider_id,
                 "provider_name": provider_info_map[provider_id].provider_name if provider_info_map.get(provider_id) else "",
@@ -418,6 +496,31 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
                     "instance_name": "default",
                 })
 
-    added_models.sort(key=lambda x: (factory_rank_mapping.get(x["provider_name"]), x["provider_name"], x["instance_name"]))
+    # Include Admin-registered global AI models ONLY IF provider has connected API key or model has api_key
+    try:
+        from api.db.services.ai_policy_service import AIModelService
+        global_models = AIModelService.query(enabled=True)
+        existing_model_keys = {(m["provider_name"], m["name"]) for m in added_models}
+        for gm in global_models:
+            if (gm.provider, gm.model_name) not in existing_model_keys:
+                # Check if provider has active key
+                if not (gm.api_key and gm.api_key.strip()) and gm.provider not in provider_instance_map:
+                    continue
+                gm_type = normalize_model_type(gm.model_type)
+                if model_type_filter and normalize_model_type(model_type_filter) != gm_type:
+                    continue
+                added_models.append({
+                    "model_type": [gm_type],
+                    "name": gm.model_name,
+                    "provider_id": "",
+                    "provider_name": gm.provider,
+                    "instance_id": "",
+                    "instance_name": "default"
+                })
+    except Exception as e:
+        logging.warning(f"list_tenant_added_models global models fallback exception: {e}")
+
+    added_models.sort(key=lambda x: (factory_rank_mapping.get(x["provider_name"], 0), x["provider_name"], x["instance_name"]))
 
     return True, added_models
+

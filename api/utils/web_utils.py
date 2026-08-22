@@ -17,11 +17,15 @@
 import base64
 import json
 import re
+import os
+import logging
+import threading
+import asyncio
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.header import Header
 from common import settings
-from quart import render_template_string
+from jinja2 import Template
 from api.utils.email_templates import EMAIL_TEMPLATES
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -219,23 +223,119 @@ def get_float(req: dict, key: str, default: float | int = 10.0) -> float:
 
 
 async def send_email_html(to_email: str, subject: str, template_key: str, **context):
-    body = await render_template_string(EMAIL_TEMPLATES.get(template_key), **context)
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = f"{settings.MAIL_DEFAULT_SENDER[0]} <{settings.MAIL_DEFAULT_SENDER[1]}>"
-    msg["To"] = to_email
+    try:
+        tmpl = EMAIL_TEMPLATES.get(template_key)
+        if not tmpl:
+            logging.error("Email template '%s' not found.", template_key)
+            return False
 
-    smtp = aiosmtplib.SMTP(
-        hostname=settings.MAIL_SERVER,
-        port=settings.MAIL_PORT,
-        use_tls=True,
-        timeout=10,
-    )
+        body = Template(tmpl).render(**context)
+        msg = MIMEText(body, "html", "utf-8")
+        msg["Subject"] = Header(subject, "utf-8")
 
-    await smtp.connect()
-    await smtp.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-    await smtp.send_message(msg)
-    await smtp.quit()
+        # Base SMTP settings from settings module & env vars
+        server = os.environ.get("SMTP_SERVER", settings.MAIL_SERVER)
+        port_env = os.environ.get("SMTP_PORT", "")
+        port = int(port_env) if port_env.isdigit() else (settings.MAIL_PORT or 587)
+        username = os.environ.get("SMTP_USERNAME", settings.MAIL_USERNAME)
+        password = os.environ.get("SMTP_PASSWORD", settings.MAIL_PASSWORD)
+        use_ssl = getattr(settings, "MAIL_USE_SSL", False)
+        use_tls = getattr(settings, "MAIL_USE_TLS", True)
+        sender_env = os.environ.get("SMTP_SENDER", "")
+        sender = ("Swipies AI", sender_env) if sender_env else getattr(settings, "MAIL_DEFAULT_SENDER", ())
+
+        # Try override from SystemSettings DB table if available
+        try:
+            from api.db.services.system_settings_service import SystemSettingsService
+            def get_sys_val(key, default=""):
+                objs = SystemSettingsService.get_by_name(key)
+                return objs[0].value if objs and objs[0].value else default
+
+            server = get_sys_val("smtp.server", server) or get_sys_val("mail_server", server)
+            port_val = get_sys_val("smtp.port", "") or get_sys_val("mail_port", "")
+            if port_val:
+                try:
+                    port = int(port_val)
+                except ValueError:
+                    pass
+            username = get_sys_val("smtp.username", username) or get_sys_val("mail_username", username)
+            password = get_sys_val("smtp.password", password) or get_sys_val("mail_password", password)
+            sender_val = get_sys_val("smtp.sender", "") or get_sys_val("mail_sender", "")
+            if sender_val:
+                sender = ("Swipies AI", sender_val)
+        except Exception:
+            pass
+
+        code_info = context.get("code")
+        if code_info:
+            logging.info("=== [ACTIVATION CODE FOR %s]: %s ===", to_email, code_info)
+
+        # Resend API Key fallback
+        resend_key = os.environ.get("RESEND_API_KEY", "re_ehsSs9YJ_7nu25RSCSRP3tNCJRJSS5h7y")
+        active_key = password if (password and str(password).startswith("re_")) else resend_key
+
+        # High-performance Resend HTTP API Dispatcher (Always executes if Resend Key is available)
+        if active_key:
+            resend_api_url = "https://api.resend.com/emails"
+            headers = {
+                "Authorization": f"Bearer {active_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "from": "Swipies AI <noreply@swipies.app>",
+                "to": [to_email],
+                "subject": subject,
+                "html": body,
+            }
+            try:
+                import requests
+                resp = requests.post(resend_api_url, json=payload, headers=headers, timeout=10)
+                logging.info("Resend API response [%s]: %s", resp.status_code, resp.text)
+                if resp.status_code in (200, 201):
+                    logging.info("Email successfully dispatched to %s via Resend API", to_email)
+                    return True
+                else:
+                    logging.warning("Resend API primary sender notice: %s. Trying onboarding fallback...", resp.text)
+                    payload["from"] = "Swipies AI <onboarding@resend.dev>"
+                    resp_fb = requests.post(resend_api_url, json=payload, headers=headers, timeout=10)
+                    logging.info("Resend API fallback response [%s]: %s", resp_fb.status_code, resp_fb.text)
+                    if resp_fb.status_code in (200, 201):
+                        logging.info("Email successfully dispatched to %s via Resend API (onboarding fallback)", to_email)
+                        return True
+                    else:
+                        logging.error("Resend API fallback notice: %s", resp_fb.text)
+            except Exception as resend_err:
+                logging.error("Resend API request exception: %s", resend_err)
+
+        msg["From"] = f"{sender_name} <{sender_addr}>"
+        msg["To"] = to_email
+
+        is_ssl = (port == 465) or (use_ssl and not use_tls)
+
+        smtp = aiosmtplib.SMTP(
+            hostname=server,
+            port=port,
+            use_tls=is_ssl,
+            timeout=5,
+        )
+
+        await smtp.connect()
+        if not is_ssl and (use_tls or port == 587):
+            try:
+                await smtp.starttls()
+            except Exception as tls_err:
+                logging.warning("SMTP STARTTLS notice: %s", tls_err)
+
+        if username and password:
+            await smtp.login(username, password)
+
+        await smtp.send_message(msg)
+        await smtp.quit()
+        logging.info("Email successfully dispatched to %s", to_email)
+        return True
+    except Exception as err:
+        logging.error("Failed to send email to %s: %s", to_email, err)
+        return False
 
 
 async def send_invite_email(to_email, invite_url, tenant_id, inviter):
@@ -261,6 +361,16 @@ def otp_keys(email: str):
     )
 
 
+def activation_keys(email: str):
+    email = (email or "").strip().lower()
+    return (
+        f"act_code:{email}",
+        f"act_attempts:{email}",
+        f"act_last_sent:{email}",
+        f"act_lock:{email}",
+    )
+
+
 def hash_code(code: str, salt: bytes) -> str:
     import hashlib
     import hmac
@@ -270,3 +380,21 @@ def hash_code(code: str, salt: bytes) -> str:
 
 def captcha_key(email: str) -> str:
     return f"captcha:{email}"
+
+
+def dispatch_email_bg(to_email: str, subject: str, template_key: str, **context):
+    """Dispatch email in a daemon thread so it runs reliably in WSGI/Flask context."""
+    def _worker():
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(
+                send_email_html(to_email, subject, template_key, **context)
+            )
+            loop.close()
+        except Exception as err:
+            logging.error("Failed to deliver background email to %s: %s", to_email, err)
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+

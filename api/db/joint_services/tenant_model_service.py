@@ -63,18 +63,24 @@ def _decode_api_key_config(raw_api_key: str) -> tuple[str, bool | None, str | No
         return raw_api_key, None, None
 
     try:
-        parsed = json.loads(raw_api_key)
+        from api.utils.key_crypto import decrypt_api_key
+        decrypted = decrypt_api_key(raw_api_key)
     except Exception:
-        return raw_api_key, None, None
+        decrypted = raw_api_key
+
+    try:
+        parsed = json.loads(decrypted)
+    except Exception:
+        return decrypted, None, None
 
     if not isinstance(parsed, dict):
-        return raw_api_key, None, None
+        return decrypted, None, None
 
     is_tools = bool(parsed["is_tools"]) if "is_tools" in parsed else None
     if set(parsed.keys()) <= {"api_key", "is_tools"}:
         return parsed.get("api_key", ""), is_tools, None
 
-    return parsed.get("api_key", raw_api_key), is_tools, raw_api_key
+    return parsed.get("api_key", decrypted), is_tools, decrypted
 
 
 def get_first_provider_model_name(tenant_id: str, provider_name: str, model_type: str | enum.Enum) -> str | None:
@@ -107,10 +113,10 @@ def _ensure_ocr_provider_from_env(tenant_id: str, provider_name: str, model_name
     if not config:
         return None
 
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name, fallback_admin=False)
     if not provider_obj:
         TenantModelProviderService.insert(tenant_id=tenant_id, provider_name=provider_name)
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name, fallback_admin=False)
 
     api_key = json.dumps(config)
     instance_obj = TenantModelInstanceService.get_by_provider_id_and_api_key(provider_obj.id, api_key)
@@ -160,34 +166,95 @@ def ensure_paddleocr_from_env(tenant_id: str) -> str | None:
 
 def get_tenant_default_model_by_type(tenant_id: str, model_type: str | enum.Enum):
     exist, tenant = TenantService.get_by_id(tenant_id)
-    if not exist:
-        raise LookupError("Tenant not found")
     model_type_val = model_type if isinstance(model_type, str) else model_type.value
     model_name: str = ""
-    match model_type_val:
-        case LLMType.EMBEDDING.value:
-            model_name = tenant.embd_id
-        case LLMType.SPEECH2TEXT.value:
-            model_name = tenant.asr_id
-        case LLMType.IMAGE2TEXT.value:
-            model_name = tenant.img2txt_id
-        case LLMType.CHAT.value:
-            model_name = tenant.llm_id
-        case LLMType.RERANK.value:
-            model_name = tenant.rerank_id
-        case LLMType.TTS.value:
-            model_name = tenant.tts_id
-        case LLMType.OCR.value:
-            raise Exception("OCR model name is required")
-        case _:
-            raise Exception(f"Unknown model type {model_type}")
+    if exist and tenant:
+        match model_type_val:
+            case LLMType.EMBEDDING.value:
+                model_name = tenant.embd_id
+            case LLMType.SPEECH2TEXT.value:
+                model_name = tenant.asr_id
+            case LLMType.IMAGE2TEXT.value:
+                model_name = tenant.img2txt_id
+            case LLMType.CHAT.value:
+                model_name = tenant.llm_id
+            case LLMType.RERANK.value:
+                model_name = tenant.rerank_id
+            case LLMType.TTS.value:
+                model_name = tenant.tts_id
+            case LLMType.OCR.value:
+                model_name = getattr(tenant, "ocr_id", "")
+
+    # If tenant has no model_name or if it's empty, get from GlobalInstanceService
     if not model_name:
-        raise Exception(f"No default {model_type} model is set.")
-    return get_model_config_from_provider_instance(tenant_id, model_type, model_name)
+        try:
+            from api.db.services.global_instance_service import GlobalInstanceService
+            g_stats = GlobalInstanceService.get_instance_stats()
+            match model_type_val:
+                case LLMType.CHAT.value:
+                    model_name = g_stats.get("default_chat_model") or g_stats.get("default_free_model_id")
+                case LLMType.EMBEDDING.value:
+                    model_name = g_stats.get("default_embd_id")
+                case LLMType.RERANK.value:
+                    model_name = g_stats.get("default_rerank_id")
+                case LLMType.IMAGE2TEXT.value:
+                    model_name = g_stats.get("default_image2text_model")
+                case LLMType.SPEECH2TEXT.value:
+                    model_name = g_stats.get("default_asr_model")
+                case LLMType.TTS.value:
+                    model_name = g_stats.get("default_tts_model")
+        except Exception as ge:
+            logger.warning(f"GlobalInstanceService fallback error: {ge}")
+
+    if not model_name:
+        # Check first available verified platform model
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            p_models = AIModelService.get_platform_models()
+            matched = [
+                m for m in p_models
+                if m.get("model_type", "").upper() == model_type_val.upper()
+                or (model_type_val == LLMType.CHAT.value and m.get("model_type", "").upper() in ["CHAT", "IMAGE2TEXT"])
+            ]
+            if matched:
+                model_name = matched[0].get("id") or matched[0].get("model_name")
+        except Exception as pe:
+            logger.warning(f"AIModelService platform models fallback error: {pe}")
+
+    if not model_name:
+        raise Exception(f"No active or configured {model_type} model is available. Please configure an API key in Admin -> AI Management.")
+
+    try:
+        return get_model_config_from_provider_instance(tenant_id, model_type, model_name)
+    except Exception as exc:
+        # If the specific model failed to resolve, try resolving any active verified platform model of this type
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            p_models = AIModelService.get_platform_models()
+            matched = [
+                m for m in p_models
+                if m.get("model_type", "").upper() == model_type_val.upper()
+                or (model_type_val == LLMType.CHAT.value and m.get("model_type", "").upper() in ["CHAT", "IMAGE2TEXT"])
+            ]
+            if matched:
+                alt_model = matched[0].get("id") or matched[0].get("model_name")
+                logger.warning(f"Model '{model_name}' failed to resolve ({exc}). Falling back to active verified model '{alt_model}'.")
+                return get_model_config_from_provider_instance(tenant_id, model_type, alt_model)
+        except Exception:
+            pass
+        raise exc
 
 
 def split_model_name(model_name: str):
     # Parse model_name: {model_name} or {model_name}@{factory_name} or {model_name}@{instance_name}@{factory_name}
+    # Or {provider}/{model_name}
+    if not model_name:
+        return "", "", ""
+
+    if "/" in model_name and "@" not in model_name:
+        parts = model_name.split("/", 1)
+        return parts[1], "default", parts[0]
+
     parts = model_name.split("@")
     if len(parts) == 1:
         pure_model_name = parts[0]
@@ -245,112 +312,294 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
             "model_type": LLMType.EMBEDDING.value,
         }
 
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
-    if not provider_obj:
-        raise LookupError(f"Provider {provider_name} not found for model {model_name}.")
-    instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
-    model_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(provider_obj.id, instance_obj.id, model_type_val, pure_model_name)
+    # 1. Try finding via Provider Instance architecture
+    try:
+        if not provider_name:
+            from api.db.services.tenant_llm_service import TenantLLMService
+            _, fid = TenantLLMService.split_model_name_and_factory(pure_model_name)
+            if fid:
+                provider_name = fid
 
-    api_key, is_tool, api_key_payload = _decode_api_key_config(instance_obj.api_key)
-    extra_fields = json.loads(instance_obj.extra) if instance_obj.extra else {}
+        if provider_name:
+            provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+            if provider_obj:
+                instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
+                if instance_obj:
+                    model_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(provider_obj.id, instance_obj.id, model_type_val, pure_model_name)
+                    api_key, is_tool, api_key_payload = _decode_api_key_config(instance_obj.api_key)
+                    extra_fields = json.loads(instance_obj.extra) if instance_obj.extra else {}
 
-    if model_obj:
-        if model_obj.status == ActiveStatusEnum.INACTIVE.value:
-            raise LookupError(f"Model {model_name} is disabled.")
-        if model_obj.status == ActiveStatusEnum.UNSUPPORTED.value:
-            raise LookupError(f"Model {model_name} cannot be used as {model_type_val} model.")
+                    if model_obj:
+                        if model_obj.status == ActiveStatusEnum.INACTIVE.value:
+                            raise LookupError(f"Model {model_name} is disabled.")
+                        if model_obj.status == ActiveStatusEnum.UNSUPPORTED.value:
+                            raise LookupError(f"Model {model_name} cannot be used as {model_type_val} model.")
 
-        model_extra = json.loads(model_obj.extra) if model_obj.extra else {}
-        llm_info = _lookup_factory_llm_info(provider_obj.provider_name, pure_model_name, extra_fields)
-        if "max_tokens" in model_extra:
-            max_tokens = model_extra["max_tokens"]
-        else:
-            max_tokens = (llm_info or {}).get("max_tokens", 8192)
-        model_config = {
-            "llm_factory": provider_obj.provider_name,
-            "api_key": api_key,
-            "llm_name": model_obj.model_name,
-            "api_base": extra_fields.get("base_url", ""),
-            "model_type": model_obj.model_type,
-            "is_tools": model_extra.get("is_tools", is_tool),
-            "max_tokens": max_tokens,
+                        model_extra = json.loads(model_obj.extra) if model_obj.extra else {}
+                        llm_info = _lookup_factory_llm_info(provider_obj.provider_name, pure_model_name, extra_fields)
+                        max_tokens = model_extra.get("max_tokens", (llm_info or {}).get("max_tokens", 8192))
+                        model_config = {
+                            "llm_factory": provider_obj.provider_name,
+                            "api_key": api_key,
+                            "llm_name": model_obj.model_name,
+                            "api_base": extra_fields.get("base_url", ""),
+                            "model_type": model_obj.model_type,
+                            "is_tools": model_extra.get("is_tools", is_tool),
+                            "max_tokens": max_tokens,
+                        }
+                        if provider_name.lower() == "somark":
+                            model_config["extra"] = model_extra
+                        if api_key_payload is not None:
+                            model_config["api_key_payload"] = api_key_payload
+                        return model_config
+                    else:
+                        region = extra_fields.get("region", "default")
+                        target_factory_name = "siliconflow_intl" if (region == "intl" and provider_name.lower() == "siliconflow") else provider_name
+                        fac_list = [f for f in settings.FACTORY_LLM_INFOS if f["name"] == target_factory_name]
+                        llm_info = None
+                        if fac_list:
+                            llm_list = [llm for llm in fac_list[0]["llm"] if llm["llm_name"] == pure_model_name]
+                            if llm_list:
+                                llm_info = llm_list[0]
+                        model_config = {
+                            "llm_factory": provider_obj.provider_name,
+                            "api_key": api_key,
+                            "llm_name": pure_model_name,
+                            "api_base": extra_fields.get("base_url", ""),
+                            "model_type": model_type_val,
+                            "is_tools": (llm_info.get("is_tools") if llm_info else is_tool),
+                            "max_tokens": (llm_info.get("max_tokens") if llm_info else 8192) or 8192,
+                        }
+                        if api_key_payload is not None:
+                            model_config["api_key_payload"] = api_key_payload
+                        return model_config
+    except Exception as e:
+        logger.warning(f"get_model_config_from_provider_instance provider instance lookup exception: {e}")
+
+    # 2. Fallback to TenantLLMService & AIModelService
+    from api.db.services.tenant_llm_service import TenantLLMService
+    try:
+        target_name = f"{pure_model_name}@{provider_name}" if (pure_model_name and provider_name) else (pure_model_name or model_name)
+        fallback_cfg = TenantLLMService.get_model_config(tenant_id, model_type_val, target_name)
+        if fallback_cfg:
+            return fallback_cfg
+    except Exception as fallback_e:
+        logger.warning(f"TenantLLMService get_model_config fallback exception: {fallback_e}")
+
+    # 3. Fallback to AIModel and AIProvider (Single Global Instance storage)
+    try:
+        from api.db.db_models import AIModel, AIProvider
+        from api.utils.key_crypto import decrypt_api_key
+
+        candidate_ids = [model_name, pure_model_name]
+        if provider_name:
+            candidate_ids.extend([f"{provider_name.lower()}/{pure_model_name}", f"{provider_name}/{pure_model_name}"])
+
+        aim = None
+        for cid in candidate_ids:
+            aim = AIModel.get_or_none(AIModel.id == cid)
+            if aim:
+                break
+        if not aim:
+            aim = AIModel.get_or_none(AIModel.model_name == pure_model_name)
+
+        if aim and aim.api_key and len(aim.api_key.strip()) > 0:
+            return {
+                "llm_factory": aim.provider,
+                "api_key": decrypt_api_key(aim.api_key),
+                "llm_name": aim.model_name,
+                "api_base": aim.base_url or "",
+                "model_type": aim.model_type,
+                "is_tools": True,
+                "max_tokens": aim.max_tokens or 8192,
+            }
+
+        # Check AIProvider directly
+        aip = None
+        if provider_name:
+            for cand in AIProvider.select().where(AIProvider.is_global == True, AIProvider.status == "active"):
+                if cand.provider_name.lower() == provider_name.lower():
+                    aip = cand
+                    break
+        if aip and aip.api_key and len(aip.api_key.strip()) > 0:
+            return {
+                "llm_factory": aip.provider_name,
+                "api_key": decrypt_api_key(aip.api_key),
+                "llm_name": pure_model_name or model_name,
+                "api_base": aip.base_url or "",
+                "model_type": model_type_val,
+                "is_tools": True,
+                "max_tokens": 8192,
+            }
+    except Exception as aip_e:
+        logger.warning(f"AIModel / AIProvider direct lookup error: {aip_e}")
+
+    # 4. Safe Auto-Fallback for embedding models
+    if model_type_val == LLMType.EMBEDDING.value:
+        try:
+            any_embd = TenantLLMService.query(tenant_id=tenant_id, model_type=LLMType.EMBEDDING.value)
+            if not any_embd:
+                admin_id = TenantModelProviderService._get_admin_tenant_id()
+                if admin_id and admin_id != tenant_id:
+                    any_embd = TenantLLMService.query(tenant_id=admin_id, model_type=LLMType.EMBEDDING.value)
+            if any_embd and any_embd[0].api_key:
+                return {
+                    "llm_factory": any_embd[0].llm_factory,
+                    "api_key": any_embd[0].api_key,
+                    "llm_name": any_embd[0].llm_name,
+                    "api_base": any_embd[0].api_base,
+                    "model_type": LLMType.EMBEDDING.value,
+                    "is_tools": False,
+                    "max_tokens": any_embd[0].max_tokens or 8192,
+                }
+        except Exception as embd_e:
+            logger.warning(f"Embedding model query fallback exception: {embd_e}")
+
+        logger.warning(f"No configured API key found for requested embedding model '{model_name}'. Falling back to default embedding configuration.")
+        embedding_cfg = getattr(settings, "EMBEDDING_CFG", {})
+        return {
+            "llm_factory": "BAAI",
+            "api_key": getattr(embedding_cfg, "api_key", "") if isinstance(embedding_cfg, object) and not isinstance(embedding_cfg, dict) else (embedding_cfg.get("api_key", "") if isinstance(embedding_cfg, dict) else ""),
+            "llm_name": pure_model_name or "bge-small-en-v1.5",
+            "api_base": getattr(embedding_cfg, "base_url", "") if isinstance(embedding_cfg, object) and not isinstance(embedding_cfg, dict) else (embedding_cfg.get("base_url", "") if isinstance(embedding_cfg, dict) else ""),
+            "model_type": LLMType.EMBEDDING.value,
+            "is_tools": False,
+            "max_tokens": 512,
         }
-        if provider_name.lower() == "somark":
-            # SoMark/OCR factories read parser config (somark_*, parse_method, ...)
-            # from model_config["extra"]; see tenant_llm_service.LLMBundle OCR path.
-            model_config["extra"] = model_extra
 
-        if api_key_payload is not None:
-            model_config["api_key_payload"] = api_key_payload
+    # 5. Ultimate Fallback to ANY active platform model for this type
+    try:
+        from api.db.services.ai_policy_service import AIModelService
+        from api.utils.key_crypto import decrypt_api_key
+        p_models = AIModelService.get_platform_models()
+        matched = [
+            m for m in p_models
+            if m.get("model_type", "").upper() == model_type_val.upper()
+            or (model_type_val == LLMType.CHAT.value and m.get("model_type", "").upper() in ["CHAT", "IMAGE2TEXT"])
+        ]
+        if matched:
+            selected = matched[0]
+            # Fetch raw model for key decryption
+            from api.db.db_models import AIModel
+            raw_m = AIModel.get_or_none(AIModel.id == selected["id"])
+            if raw_m and raw_m.api_key:
+                logger.warning(f"Requested model '{model_name}' has no active API key. Auto-falling back to active platform model '{raw_m.model_name}'.")
+                return {
+                    "llm_factory": raw_m.provider,
+                    "api_key": decrypt_api_key(raw_m.api_key),
+                    "llm_name": raw_m.model_name,
+                    "api_base": raw_m.base_url or "",
+                    "model_type": raw_m.model_type,
+                    "is_tools": True,
+                    "max_tokens": raw_m.max_tokens or 8192,
+                }
+    except Exception as ultimate_e:
+        logger.warning(f"Ultimate active platform model fallback error: {ultimate_e}")
 
-        return model_config
-    else:
-        region = extra_fields.get("region", "default")
-        if region == "intl" and provider_name.lower() == "siliconflow":
-            target_factory_name = "siliconflow_intl"
-        else:
-            target_factory_name = provider_name
-        fac_list = [f for f in settings.FACTORY_LLM_INFOS if f["name"] == target_factory_name]
-        if not fac_list:
-            raise LookupError(f"Model provider config not found: {provider_name}")
-        llm_list = [llm for llm in fac_list[0]["llm"] if llm["llm_name"] == pure_model_name]
-        if not llm_list:
-            raise LookupError(f"Instance {instance_name} not found for model {model_name}.")
-        llm_info = llm_list[0]
-        if model_type_val not in _factory_model_types(llm_info):
-            raise LookupError(f"Model {model_name} is not a {model_type_val} model.")
-        model_config = {
-            "llm_factory": provider_obj.provider_name,
-            "api_key": api_key,
-            "llm_name": llm_info["llm_name"],
-            "api_base": extra_fields.get("base_url", ""),
-            "model_type": model_type_val,
-            "is_tools": llm_info.get("is_tools", is_tool),
-            "max_tokens": llm_info.get("max_tokens") or 8192,
-        }
-        if api_key_payload is not None:
-            model_config["api_key_payload"] = api_key_payload
-        return model_config
+    raise LookupError(f"Provider {provider_name or 'unknown'} not found or not configured for model {model_name}.")
 
 
 def get_api_key(tenant_id: str, model_name: str):
-    _, instance_name, provider_name = split_model_name(model_name)
+    if not model_name:
+        raise LookupError("Model name is required.")
+    pure_model_name, instance_name, provider_name = split_model_name(model_name)
 
     if not provider_name:
-        raise LookupError("Provider name is required.")
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
-    if not provider_obj:
-        raise LookupError(f"Provider {provider_name} not found.")
-    instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
-    return instance_obj.api_key
+        from api.db.services.tenant_llm_service import TenantLLMService
+        _, fid = TenantLLMService.split_model_name_and_factory(pure_model_name)
+        if fid:
+            provider_name = fid
+
+    if provider_name:
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+        if provider_obj:
+            try:
+                instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
+                if instance_obj and instance_obj.api_key:
+                    return instance_obj.api_key
+            except Exception:
+                pass
+
+    # Check AIProvider / AIModel
+    try:
+        from api.db.db_models import AIModel, AIProvider
+        if provider_name:
+            for p in AIProvider.select().where(AIProvider.is_global == True, AIProvider.status == "active"):
+                if p.provider_name.lower() == provider_name.lower() and p.api_key:
+                    return p.api_key
+        aim = AIModel.get_or_none(AIModel.id == model_name) or AIModel.get_or_none(AIModel.model_name == pure_model_name)
+        if aim and aim.api_key:
+            return aim.api_key
+    except Exception:
+        pass
+
+    raise LookupError(f"Provider {provider_name or 'unknown'} not found.")
 
 
 def get_model_type_by_name(tenant_id: str, model_name: str):
+    if not model_name:
+        return ["chat"]
+
     pure_model_name, instance_name, provider_name = split_model_name(model_name)
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
-    if not provider_obj:
-        raise LookupError(f"Provider {provider_name} not found for model {model_name}.")
-    instance_obj = _resolve_instance_for_model(provider_obj, instance_name, model_name)
-    model_objs = TenantModelService.get_by_provider_id_and_instance_id_and_model_name(provider_obj.id, instance_obj.id, pure_model_name)
-    types_in_json = []
-    if not model_objs:
-        extra_fields = json.loads(instance_obj.extra) if instance_obj.extra else {}
-        region = extra_fields.get("region", "default")
-        if region == "intl" and provider_name.lower() == "siliconflow":
-            target_factory_name = "siliconflow_intl"
-        else:
-            target_factory_name = provider_name
-        fac_list = [f for f in settings.FACTORY_LLM_INFOS if f["name"] == target_factory_name]
-        if not fac_list:
-            raise LookupError(f"Model provider config not found: {provider_name}")
-        llm_list = [llm for llm in fac_list[0]["llm"] if llm["llm_name"] == pure_model_name]
-        if not llm_list:
-            raise LookupError(f"Model {pure_model_name} not found for model {model_name}.")
-        types_in_json = _factory_model_types(llm_list[0])
-    return list(
-        set(types_in_json + [model_obj.model_type for model_obj in model_objs if model_obj.status != ActiveStatusEnum.UNSUPPORTED.value])
-        - {model_obj.model_type for model_obj in model_objs if model_obj.status == ActiveStatusEnum.UNSUPPORTED.value}
-    )
+
+    # 1. Try finding via Provider Instance
+    try:
+        if not provider_name:
+            from api.db.services.tenant_llm_service import TenantLLMService
+            _, fid = TenantLLMService.split_model_name_and_factory(pure_model_name)
+            if fid:
+                provider_name = fid
+
+        if provider_name:
+            provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+            if provider_obj:
+                instance_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(provider_obj.id, instance_name)
+                if not instance_obj:
+                    active_instances = [inst for inst in TenantModelInstanceService.get_all_by_provider_id(provider_obj.id) if inst.status == ActiveStatusEnum.ACTIVE.value]
+                    if active_instances:
+                        instance_obj = active_instances[0]
+                if instance_obj:
+                    model_objs = TenantModelService.get_by_provider_id_and_instance_id_and_model_name(provider_obj.id, instance_obj.id, pure_model_name)
+                    if model_objs:
+                        valid_types = [m.model_type for m in model_objs if m.status != ActiveStatusEnum.UNSUPPORTED.value]
+                        if valid_types:
+                            return valid_types
+    except Exception as e:
+        logger.warning(f"get_model_type_by_name tenant instance lookup error: {e}")
+
+    # 2. Check AIModel
+    try:
+        from api.db.db_models import AIModel
+        candidate_ids = [model_name, pure_model_name, f"{provider_name.lower()}/{pure_model_name}" if provider_name else ""]
+        for cid in candidate_ids:
+            if cid:
+                aim = AIModel.get_or_none(AIModel.id == cid)
+                if aim and aim.model_type:
+                    return [aim.model_type.lower()]
+        aim = AIModel.get_or_none(AIModel.model_name == pure_model_name)
+        if aim and aim.model_type:
+            return [aim.model_type.lower()]
+    except Exception as e:
+        logger.warning(f"get_model_type_by_name AIModel lookup error: {e}")
+
+    # 3. Check FACTORY_LLM_INFOS
+    try:
+        target_factory_name = provider_name
+        fac_list = [f for f in settings.FACTORY_LLM_INFOS if f["name"].lower() == (target_factory_name or "").lower()]
+        if fac_list:
+            llm_list = [llm for llm in fac_list[0]["llm"] if llm["llm_name"] == pure_model_name]
+            if llm_list:
+                return _factory_model_types(llm_list[0])
+        # Search all factories
+        for f in settings.FACTORY_LLM_INFOS:
+            for llm in f.get("llm", []):
+                if llm.get("llm_name") == pure_model_name:
+                    return _factory_model_types(llm)
+    except Exception as e:
+        logger.warning(f"get_model_type_by_name FACTORY_LLM_INFOS error: {e}")
+
+    # Safe default to ["chat"]
+    return ["chat"]
 
 
 def delete_models_by_instance_ids(instance_ids: list[str]):

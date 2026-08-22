@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkragflow_docs||=[]).push([[2634],{192(r,s,u){u.r(s),u.d(s,{default:()=>t});u(6540);var e=u(6347),o=u(4848);function t(){return(0,o.jsx)(e.rd,{to:"/docs/category/user-guides"})}}}]);

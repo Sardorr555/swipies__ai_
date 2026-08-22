@@ -107,7 +107,7 @@ document.getElementById('app-sections').innerHTML = `
 <li>${icons.check}<span data-i18n="starter_f3">Standard support</span></li>
 <li>${icons.check}<span data-i18n="starter_f4">Managed infrastructure</span></li>
 </ul>
-<a href="https://api.swipies.app/login" target="_blank" class="btn-secondary" style="display:inline-block;text-align:center" data-i18n="starter_cta">Start Building</a>
+<a href="https://app.swipies.app/login" target="_blank" class="btn-secondary" style="display:inline-block;text-align:center" data-i18n="starter_cta">Start Building</a>
 </div>
 <div class="price-card">
 <div class="price-name" data-i18n="license">Self-Hosted License</div>
@@ -121,7 +121,7 @@ document.getElementById('app-sections').innerHTML = `
 <li>${icons.check}<span data-i18n="license_f5">Offline / Air-gapped mode</span></li>
 <li>${icons.check}<span data-i18n="license_f6">Regular updates</span></li>
 </ul>
-<a href="https://api.swipies.app/login" target="_blank" class="btn-primary" style="display:inline-block;text-align:center" data-i18n="license_cta">Purchase Key</a>
+<a href="https://app.swipies.app/login" target="_blank" class="btn-primary" style="display:inline-block;text-align:center" data-i18n="license_cta">Purchase Key</a>
 </div>
 <div class="price-card featured">
 <div class="price-name" data-i18n="enterprise">Enterprise</div>
@@ -191,7 +191,7 @@ document.getElementById('app-sections').innerHTML = `
 <div class="container">
 <h2 data-i18n="fcta_h">Ready to Bring AI Inside Your Infrastructure?</h2>
 <p data-i18n="fcta_p">Deploy enterprise-grade AI on your servers. Your data stays yours.</p>
-<a href="https://api.swipies.app/login" target="_blank" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
+<a href="https://app.swipies.app/login" target="_blank" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
 </div>
 </div>
 
@@ -261,11 +261,11 @@ function updateAuthStatus() {
   document.querySelectorAll('[data-i18n="nav_cta"]').forEach(el => {
     if (isLoggedIn) {
       el.textContent = consoleTexts[savedLang] || 'Console';
-      el.href = 'https://api.swipies.app/';
+      el.href = 'https://app.swipies.app/';
       el.target = '_self';
     } else {
       el.textContent = T[savedLang].nav_cta;
-      el.href = 'login.html';
+      el.href = 'https://app.swipies.app';
       el.target = '_self';
     }
   });
@@ -273,11 +273,11 @@ function updateAuthStatus() {
   document.querySelectorAll('[data-i18n="hero_cta1"]').forEach(el => {
     if (isLoggedIn) {
       el.textContent = consoleTexts[savedLang] || 'Console';
-      el.href = 'https://api.swipies.app/';
+      el.href = 'https://app.swipies.app/';
       el.target = '_self';
     } else {
       el.textContent = T[savedLang].hero_cta1;
-      el.href = 'login.html';
+      el.href = 'https://app.swipies.app';
       el.target = '_self';
     }
   });
@@ -285,10 +285,10 @@ function updateAuthStatus() {
   const starterBtn = document.querySelector('[data-i18n="starter_cta"]');
   if (starterBtn) {
     if (isLoggedIn) {
-      starterBtn.href = 'https://api.swipies.app/pricing?plan=plus';
+      starterBtn.href = 'https://app.swipies.app/pricing?plan=plus';
       starterBtn.target = '_self';
     } else {
-      starterBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dplus';
+      starterBtn.href = 'https://app.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dplus';
       starterBtn.target = '_self';
     }
   }
@@ -296,10 +296,10 @@ function updateAuthStatus() {
   const licenseBtn = document.querySelector('[data-i18n="license_cta"]');
   if (licenseBtn) {
     if (isLoggedIn) {
-      licenseBtn.href = 'https://api.swipies.app/pricing?plan=license';
+      licenseBtn.href = 'https://app.swipies.app/pricing?plan=license';
       licenseBtn.target = '_self';
     } else {
-      licenseBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dlicense';
+      licenseBtn.href = 'https://app.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dlicense';
       licenseBtn.target = '_self';
     }
   }
@@ -344,7 +344,7 @@ mobileMenu.innerHTML = navLinks.innerHTML;
 
 // Add Try Demo CTA button to mobile menu bottom
 const mobileCta = document.createElement('a');
-mobileCta.href = 'https://api.swipies.app/login';
+mobileCta.href = 'https://app.swipies.app/login';
 mobileCta.target = '_blank';
 mobileCta.className = 'btn-primary';
 mobileCta.style.textAlign = 'center';
@@ -404,19 +404,47 @@ window.handleSubmit = function(event) {
   if (!isValid) return false;
   
   const submitBtn = event.target.querySelector('button[type="submit"]');
-  
   submitBtn.disabled = true;
-  submitBtn.style.background = 'var(--green)';
-  submitBtn.style.color = '#fff';
-  submitBtn.textContent = currentLang === 'en' ? 'Success! Message Sent' : currentLang === 'ru' ? 'Успешно отправлено!' : 'Muvaffaqiyatli yuborildi!';
+  submitBtn.style.background = 'var(--border2)';
+  submitBtn.textContent = 'Sending...';
   
-  setTimeout(() => {
-    document.getElementById('contactForm').reset();
-    submitBtn.disabled = false;
-    submitBtn.style.background = 'var(--accent)';
-    submitBtn.style.color = 'var(--bg)';
-    setLanguage(currentLang);
-  }, 3000);
+  fetch('/api/leads', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      company: company.value.trim(),
+      name: name.value.trim(),
+      email: email.value.trim(),
+      phone: phone.value.trim(),
+      message: msg.value.trim()
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    submitBtn.style.background = 'var(--green)';
+    submitBtn.style.color = '#fff';
+    submitBtn.textContent = currentLang === 'en' ? 'Success! Message Sent' : currentLang === 'ru' ? 'Успешно отправлено!' : 'Muvaffaqiyatli yuborildi!';
+    
+    setTimeout(() => {
+      document.getElementById('contactForm').reset();
+      submitBtn.disabled = false;
+      submitBtn.style.background = 'var(--accent)';
+      submitBtn.style.color = 'var(--bg)';
+      setLanguage(currentLang);
+    }, 3000);
+  })
+  .catch(err => {
+    console.error('Submission error:', err);
+    submitBtn.style.background = 'var(--red)';
+    submitBtn.textContent = 'Error. Try again';
+    setTimeout(() => {
+      submitBtn.disabled = false;
+      submitBtn.style.background = 'var(--accent)';
+      submitBtn.textContent = T[currentLang].form_submit || 'Send Message';
+    }, 3000);
+  });
   
   return false;
 };
@@ -454,6 +482,67 @@ window.addEventListener('scroll', () => {
   }
 });
 
+/* ===== COOKIE CONSENT & VISITOR TRACKING ===== */
+function getVisitorId() {
+  let vId = localStorage.getItem('swipies_visitor_id');
+  if (!vId) {
+    vId = 'v_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+    localStorage.setItem('swipies_visitor_id', vId);
+  }
+  return vId;
+}
+
+function trackVisitor(consentStatus) {
+  try {
+    const payload = {
+      visitor_id: getVisitorId(),
+      screen_res: window.screen ? `${window.screen.width}x${window.screen.height}` : '',
+      language: navigator.language || navigator.userLanguage || 'en',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+      page_url: window.location.href,
+      referrer: document.referrer || 'Direct',
+      cookie_consent: consentStatus || 'accepted',
+      user_agent: navigator.userAgent
+    };
+
+    fetch('/api/visitors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(err => console.error('[Telemetry] Visitor tracking error:', err));
+  } catch (err) {
+    console.error('[Telemetry] Error preparing visitor data:', err);
+  }
+}
+
+window.handleCookieConsent = function(choice) {
+  localStorage.setItem('swipies_cookie_consent', choice);
+  const banner = document.getElementById('cookieBanner');
+  if (banner) {
+    banner.classList.remove('show');
+    setTimeout(() => { banner.style.display = 'none'; }, 350);
+  }
+  trackVisitor(choice);
+};
+
+function initCookieBanner() {
+  const consent = localStorage.getItem('swipies_cookie_consent');
+  const banner = document.getElementById('cookieBanner');
+
+  if (!consent) {
+    // New visitor: show cookie banner after short delay
+    setTimeout(() => {
+      if (banner) {
+        banner.style.display = 'block';
+        setTimeout(() => banner.classList.add('show'), 50);
+      }
+    }, 1000);
+  } else {
+    // Returning visitor with existing decision: automatically log visit
+    trackVisitor(consent);
+  }
+}
+
 /* ===== INITIALIZE ===== */
 document.addEventListener('DOMContentLoaded', () => {
   const savedLang = localStorage.getItem('swipies_lang') || 'en';
@@ -463,4 +552,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const hero = document.getElementById('hero');
     if (hero) hero.classList.add('visible');
   }, 100);
+
+  initCookieBanner();
 });
+
+

@@ -81,6 +81,7 @@ import useCreateUserForm from './forms/user-form';
 import {
   createUser,
   deleteUser,
+  getOnboardingStats,
   grantSuperuser,
   listRoles,
   listUsers,
@@ -89,6 +90,7 @@ import {
   updateUserRole,
   updateUserStatus,
 } from '@/services/admin-service';
+import { LucideCheckCircle, LucideHelpCircle, LucideUsers } from 'lucide-react';
 
 import {
   createColumnFilterFn,
@@ -119,6 +121,161 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'active', label: 'admin.active' },
   { value: 'inactive', label: 'admin.inactive' },
 ];
+
+function OnboardingStatsBanner() {
+  const { data: statsResponse } = useQuery({
+    queryKey: ['admin/onboardingStats'],
+    queryFn: async () => (await getOnboardingStats()).data?.data,
+    retry: false,
+  });
+
+  if (!statsResponse) return null;
+
+  const {
+    total_users = 0,
+    completed_count = 0,
+    skipped_count = 0,
+    completion_rate = 0,
+    goals = {},
+    roles = {},
+    team_sizes = {},
+  } = statsResponse;
+
+  const goalLabels: Record<string, string> = {
+    work: '💼 Business Automation',
+    ai_agents: '🤖 Custom AI Agents & RAG',
+    study: '🎓 Study & Research',
+    productivity: '✨ Personal Productivity',
+    exploring: '🔍 Exploring Features',
+  };
+
+  const roleLabels: Record<string, string> = {
+    developer: '💻 Software Engineer',
+    founder: '🚀 Founder / CEO',
+    pm: '📊 Product / Project Manager',
+    marketing: '🎯 Marketing / Sales',
+    student: '🎓 Student / Researcher',
+    other: '🛠️ Other / Freelancer',
+  };
+
+  const teamLabels: Record<string, string> = {
+    '1': '👤 Solo (1)',
+    '2_10': '👥 Small (2–10)',
+    '11_50': '🏢 Mid-size (11–50)',
+    '50_plus': '🏙️ Enterprise (50+)',
+  };
+
+  return (
+    <div className="mx-6 mb-6 p-6 rounded-2xl bg-slate-900/90 border border-slate-800 backdrop-blur-md text-slate-100 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold flex items-center gap-2 text-white">
+            📊 Onboarding Survey Statistics / Статистика Опросника
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Post-registration survey data & user professional background insights
+          </p>
+        </div>
+        <Badge variant="outline" className="text-teal-400 border-teal-500/30 bg-teal-500/10 text-xs px-3 py-1">
+          {completion_rate}% Completion Rate
+        </Badge>
+      </div>
+
+      {/* Top Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/50 flex items-center justify-between">
+          <div>
+            <div className="text-xs text-slate-400">Total Registered Users</div>
+            <div className="text-2xl font-bold text-white mt-1">{total_users}</div>
+          </div>
+          <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <LucideUsers className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/50 flex items-center justify-between">
+          <div>
+            <div className="text-xs text-slate-400">Completed Survey</div>
+            <div className="text-2xl font-bold text-teal-400 mt-1">{completed_count}</div>
+          </div>
+          <div className="p-3 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20">
+            <LucideCheckCircle className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/50 flex items-center justify-between">
+          <div>
+            <div className="text-xs text-slate-400">Skipped Survey</div>
+            <div className="text-2xl font-bold text-amber-400 mt-1">{skipped_count}</div>
+          </div>
+          <div className="p-3 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <LucideHelpCircle className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed Breakdown Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+        {/* Goals Breakdown */}
+        <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800">
+          <div className="font-semibold text-slate-200 mb-3 flex items-center gap-1.5">
+            🎯 Primary Goals (Цели)
+          </div>
+          <div className="space-y-2">
+            {Object.keys(goals).length === 0 ? (
+              <span className="text-slate-500 italic">No responses yet</span>
+            ) : (
+              Object.entries(goals).map(([k, count]) => (
+                <div key={k} className="flex items-center justify-between text-slate-300">
+                  <span className="truncate max-w-[170px]">{goalLabels[k] || k}</span>
+                  <span className="font-bold text-teal-400">{count as any}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Roles Breakdown */}
+        <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800">
+          <div className="font-semibold text-slate-200 mb-3 flex items-center gap-1.5">
+            💼 User Roles (Должности)
+          </div>
+          <div className="space-y-2">
+            {Object.keys(roles).length === 0 ? (
+              <span className="text-slate-500 italic">No responses yet</span>
+            ) : (
+              Object.entries(roles).map(([k, count]) => (
+                <div key={k} className="flex items-center justify-between text-slate-300">
+                  <span className="truncate max-w-[170px]">{roleLabels[k] || k}</span>
+                  <span className="font-bold text-cyan-400">{count as any}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Team Sizes Breakdown */}
+        <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800">
+          <div className="font-semibold text-slate-200 mb-3 flex items-center gap-1.5">
+            👥 Team Sizes (Команда)
+          </div>
+          <div className="space-y-2">
+            {Object.keys(team_sizes).length === 0 ? (
+              <span className="text-slate-500 italic">No responses yet</span>
+            ) : (
+              Object.entries(team_sizes).map(([k, count]) => (
+                <div key={k} className="flex items-center justify-between text-slate-300">
+                  <span className="truncate max-w-[170px]">{teamLabels[k] || k}</span>
+                  <span className="font-bold text-purple-400">{count as any}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AdminUserManagement() {
   const [{ userInfo }] = useContext(CurrentUserInfoContext);
@@ -599,6 +756,8 @@ function AdminUserManagement() {
               </Button>
             </div>
           </CardHeader>
+
+          <OnboardingStatsBanner />
 
           <CardContent>
             <Table>

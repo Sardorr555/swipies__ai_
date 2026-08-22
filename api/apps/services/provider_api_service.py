@@ -137,7 +137,7 @@ def add_provider(tenant_id: str, provider_name: str):
     if existing:
         return False, f"Provider {provider_name} already exists"
 
-    TenantModelProviderService.insert(tenant_id=tenant_id, provider_name=provider_name)
+    TenantModelProviderService.insert(id=get_uuid(), tenant_id=tenant_id, provider_name=provider_name)
     return True, "success"
 
 
@@ -407,7 +407,12 @@ async def verify_api_key(provider_id_or_name: str, api_key: str | dict, base_url
 
     factory_info = [f for f in FACTORY_LLM_INFOS if f["name"] == target_factory_name]
     if not factory_info:
+        factory_info = [f for f in FACTORY_LLM_INFOS if f["name"].lower() == target_factory_name.lower()]
+    if not factory_info:
         return False, f"Provider '{provider_id_or_name}' not found"
+
+    provider_name = factory_info[0]["name"]
+    target_factory_name = provider_name
 
     factory_llms = factory_info[0]["llm"]
     if not factory_llms:
@@ -784,7 +789,7 @@ def add_model_to_instance(tenant_id: str, provider_id_or_name: str, instance_id_
                 extra_fields["ocr_config"] = extra
             else:
                 extra_fields.update(extra)
-        TenantModelService.insert(model_name=model_name, provider_id=provider_obj.id, instance_id=instance_obj.id, model_type=_type, extra=json.dumps(extra_fields))
+        TenantModelService.insert(id=get_uuid(), model_name=model_name, provider_id=provider_obj.id, instance_id=instance_obj.id, model_type=_type, extra=json.dumps(extra_fields))
 
     return True, "success"
 

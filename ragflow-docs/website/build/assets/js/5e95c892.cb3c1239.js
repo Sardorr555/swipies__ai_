@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkragflow_docs||=[]).push([[9647],{7121(e,r,s){s.r(r),s.d(r,{default:()=>d});s(6540);var a=s(4164),c=s(7559),u=s(5500),l=s(2831),o=s(1656),t=s(4848);function d(e){return(0,t.jsx)(u.e3,{className:(0,a.A)(c.G.wrapper.docsPages),children:(0,t.jsx)(o.A,{children:(0,l.v)(e.route.routes)})})}}}]);

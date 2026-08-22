@@ -1938,16 +1938,23 @@
             "url": "https://api.deepseek.com/v1",
             "llm": [
                 {
-                    "llm_name": "deepseek-v4-flash",
-                    "tags": "LLM,CHAT,",
-                    "max_tokens": 1000000,
+                    "llm_name": "deepseek-chat",
+                    "tags": "LLM,CHAT",
+                    "max_tokens": 64000,
                     "model_type": "chat",
                     "is_tools": true
                 },
                 {
-                    "llm_name": "deepseek-v4-pro",
-                    "tags": "LLM,CHAT,",
-                    "max_tokens": 1000000,
+                    "llm_name": "deepseek-reasoner",
+                    "tags": "LLM,CHAT",
+                    "max_tokens": 64000,
+                    "model_type": "chat",
+                    "is_tools": true
+                },
+                {
+                    "llm_name": "deepseek-coder",
+                    "tags": "LLM,CHAT",
+                    "max_tokens": 64000,
                     "model_type": "chat",
                     "is_tools": true
                 }
@@ -2384,17 +2391,7 @@
             "rank": "997",
             "llm": [
                 {
-                    "llm_name": "gemini-3-pro-preview",
-                    "tags": "LLM,1M,IMAGE2TEXT",
-                    "max_tokens": 1048576,
-                    "model_type": [
-                        "image2text",
-                        "chat"
-                    ],
-                    "is_tools": true
-                },
-                {
-                    "llm_name": "gemini-2.5-flash",
+                    "llm_name": "gemini-1.5-flash",
                     "tags": "LLM,1024K,IMAGE2TEXT",
                     "max_tokens": 1048576,
                     "model_type": [
@@ -2404,19 +2401,9 @@
                     "is_tools": true
                 },
                 {
-                    "llm_name": "gemini-2.5-pro",
-                    "tags": "LLM,IMAGE2TEXT,1024K",
-                    "max_tokens": 1048576,
-                    "model_type": [
-                        "image2text",
-                        "chat"
-                    ],
-                    "is_tools": true
-                },
-                {
-                    "llm_name": "gemini-2.5-flash-lite",
-                    "tags": "LLM,1024K,IMAGE2TEXT",
-                    "max_tokens": 1048576,
+                    "llm_name": "gemini-1.5-pro",
+                    "tags": "LLM,2048K,IMAGE2TEXT",
+                    "max_tokens": 2097152,
                     "model_type": [
                         "image2text",
                         "chat"
@@ -2425,7 +2412,7 @@
                 },
                 {
                     "llm_name": "gemini-2.0-flash",
-                    "tags": "LLM,1024K",
+                    "tags": "LLM,1024K,IMAGE2TEXT",
                     "max_tokens": 1048576,
                     "model_type": [
                         "image2text",
@@ -2435,7 +2422,7 @@
                 },
                 {
                     "llm_name": "gemini-2.0-flash-lite",
-                    "tags": "LLM,1024K",
+                    "tags": "LLM,1024K,IMAGE2TEXT",
                     "max_tokens": 1048576,
                     "model_type": [
                         "image2text",
@@ -2444,7 +2431,14 @@
                     "is_tools": true
                 },
                 {
-                    "llm_name": "gemini-embedding-001",
+                    "llm_name": "gemini-1.0-pro",
+                    "tags": "LLM,32K",
+                    "max_tokens": 32768,
+                    "model_type": "chat",
+                    "is_tools": true
+                },
+                {
+                    "llm_name": "text-embedding-004",
                     "tags": "TEXT EMBEDDING",
                     "max_tokens": 2048,
                     "model_type": "embedding"

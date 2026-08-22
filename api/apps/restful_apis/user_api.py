@@ -13,6 +13,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+import asyncio
+import json
 import logging
 import string
 import os
@@ -48,12 +50,14 @@ from rag.utils.redis_conn import REDIS_CONN
 from api.apps import login_required, current_user, login_user, logout_user
 from api.utils.web_utils import (
     send_email_html,
+    dispatch_email_bg,
     OTP_LENGTH,
     OTP_TTL_SECONDS,
     ATTEMPT_LIMIT,
     ATTEMPT_LOCK_SECONDS,
     RESEND_COOLDOWN_SECONDS,
     otp_keys,
+    activation_keys,
     hash_code,
     captcha_key,
 )
@@ -117,11 +121,11 @@ async def login():
     user = UserService.query_user(email, password)
 
     if user and hasattr(user, "is_active") and user.is_active == "0":
-        logging.warning("Login failed: disabled account for user_id=%s", user.id)
+        logging.warning("Login failed: unactivated or disabled account for user_id=%s", user.id)
         return get_json_result(
-            data=False,
+            data={"email": email, "requires_activation": True},
             code=RetCode.FORBIDDEN,
-            message="This account has been disabled, please contact the administrator!",
+            message="Your account is not activated yet. Please enter the 6-digit code sent to your email.",
         )
     elif user:
         user.access_token = get_uuid()
@@ -507,6 +511,29 @@ async def user_profile():
     return get_json_result(data=user_data)
 
 
+@manager.route("/users/me/onboarding", methods=["POST"])  # noqa: F821
+@login_required
+async def save_onboarding_responses():
+    """
+    Save user onboarding survey choices.
+    """
+    req = await get_request_json()
+    try:
+        update_dict = {
+            "is_onboarded": True,
+            "onboarding_info": json.dumps(req) if isinstance(req, dict) else str(req),
+        }
+        UserService.update_by_id(current_user.id, update_dict)
+        return get_json_result(data=True, message="Onboarding responses saved successfully.")
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(
+            data=False,
+            message=f"Failed to save onboarding survey: {str(e)}",
+            code=RetCode.EXCEPTION_ERROR,
+        )
+
+
 @manager.route("/users/me/referrals", methods=["GET"])  # noqa: F821
 @login_required
 async def get_my_referrals():
@@ -554,15 +581,47 @@ def rollback_user_registration(user_id):
 
 def user_register(user_id, user):
     user["id"] = user_id
+    user["is_superuser"] = False
+
+    # Retrieve current active global defaults from GlobalRagflowInstance if available
+    llm_id = settings.CHAT_MDL
+    embd_id = settings.EMBEDDING_MDL
+    asr_id = settings.ASR_MDL
+    img2txt_id = settings.IMAGE2TEXT_MDL
+    rerank_id = settings.RERANK_MDL
+    tts_id = getattr(settings, "TTS_MDL", "")
+
+    try:
+        from api.db.services.global_instance_service import GlobalInstanceService
+        g_stats = GlobalInstanceService.get_instance_stats()
+        if g_stats.get("default_chat_model"):
+            llm_id = g_stats.get("default_chat_model")
+        elif g_stats.get("default_free_model_id"):
+            llm_id = g_stats.get("default_free_model_id")
+        if g_stats.get("default_embd_id"):
+            embd_id = g_stats.get("default_embd_id")
+        if g_stats.get("default_rerank_id"):
+            rerank_id = g_stats.get("default_rerank_id")
+        if g_stats.get("default_image2text_model"):
+            img2txt_id = g_stats.get("default_image2text_model")
+        if g_stats.get("default_asr_model"):
+            asr_id = g_stats.get("default_asr_model")
+        if g_stats.get("default_tts_model"):
+            tts_id = g_stats.get("default_tts_model")
+    except Exception as e:
+        logger.warning(f"user_register get_instance_stats fallback error: {e}")
+
     tenant = {
         "id": user_id,
         "name": user["nickname"] + "‘s Kingdom",
-        "llm_id": settings.CHAT_MDL,
-        "embd_id": settings.EMBEDDING_MDL,
-        "asr_id": settings.ASR_MDL,
+        "llm_id": llm_id,
+        "embd_id": embd_id,
+        "asr_id": asr_id,
         "parser_ids": settings.PARSERS,
-        "img2txt_id": settings.IMAGE2TEXT_MDL,
-        "rerank_id": settings.RERANK_MDL,
+        "img2txt_id": img2txt_id,
+        "rerank_id": rerank_id,
+        "tts_id": tts_id,
+        "plan_type": "free",
     }
     usr_tenant = {
         "tenant_id": user_id,
@@ -673,15 +732,37 @@ async def user_add():
             resolved_referrer_id = referrers[0].id
 
 
+    raw_password = decrypt(req["password"])
+    if not raw_password or len(raw_password) < 8:
+        return get_json_result(
+            data=False,
+            message="Password must be at least 8 characters long!",
+            code=RetCode.OPERATING_ERROR,
+        )
+    if not re.search(r"[A-Za-z]", raw_password) or not re.search(r"[0-9]", raw_password):
+        return get_json_result(
+            data=False,
+            message="Password must contain at least one letter and one number!",
+            code=RetCode.OPERATING_ERROR,
+        )
+    if raw_password.lower() in {"123456", "12345678", "123456789", "password", "qwerty", "12345", "1234567"}:
+        return get_json_result(
+            data=False,
+            message="Password is too common and weak. Please choose a stronger password!",
+            code=RetCode.OPERATING_ERROR,
+        )
+
     user_dict = {
         "access_token": get_uuid(),
         "email": email_address,
         "nickname": nickname,
         "phone": req.get("phone"),
-        "password": decrypt(req["password"]),
+        "password": raw_password,
         "login_channel": "password",
         "last_login_time": get_format_time(),
         "is_superuser": False,
+        "is_active": "0",
+        "status": "0",
         "referred_by_id": resolved_referrer_id
     }
 
@@ -693,11 +774,33 @@ async def user_add():
         if len(users) > 1:
             raise Exception(f"Same email: {email_address} exists!")
         user = users[0]
-        login_user(user)
-        return await construct_response(
-            data=user.to_safe_dict(for_self=True),
-            auth=user.get_id(),
-            message=f"{nickname}, welcome aboard!",
+
+        # Generate 6-digit numeric activation code
+        code = "".join(secrets.choice(string.digits) for _ in range(6))
+        salt = os.urandom(16)
+        code_hash = hash_code(code, salt)
+
+        k_code, k_attempts, k_last, k_lock = activation_keys(email_address)
+        now = int(time.time())
+        REDIS_CONN.set(k_code, f"{code_hash}:{salt.hex()}", OTP_TTL_SECONDS)
+        REDIS_CONN.set(k_attempts, 0, OTP_TTL_SECONDS)
+        REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
+        REDIS_CONN.delete(k_lock)
+
+        # Dispatch activation email in non-blocking background thread
+        dispatch_email_bg(
+            to_email=email_address,
+            subject="Activate Your Swipies AI Account",
+            template_key="activation_code",
+            code=code,
+            nickname=nickname,
+            ttl_min=OTP_TTL_SECONDS // 60,
+        )
+
+        return get_json_result(
+            data={"email": email_address, "requires_activation": True},
+            code=RetCode.SUCCESS,
+            message="Registration successful! An activation code has been sent to your email address.",
         )
     except Exception as e:
         rollback_user_registration(user_id)
@@ -707,6 +810,135 @@ async def user_add():
             message=f"User registration failure, error: {str(e)}",
             code=RetCode.EXCEPTION_ERROR,
         )
+
+
+@manager.route("/auth/activate", methods=["POST"])  # noqa: F821
+async def activate_account():
+    """
+    POST /auth/activate
+    Activate account using email and 6-digit activation code sent via email.
+    """
+    req = await get_request_json()
+    email = (req.get("email") or "").strip().lower()
+    code = (req.get("code") or "").strip()
+
+    if not email or not code:
+        return get_json_result(data=False, code=RetCode.ARGUMENT_ERROR, message="Email and activation code are required")
+
+    users = UserService.query(email=email)
+    if not users:
+        return get_json_result(data=False, code=RetCode.DATA_ERROR, message="Account with this email does not exist")
+
+    user = users[0]
+    if hasattr(user, "is_active") and user.is_active == "1" and getattr(user, "status", "1") == "1":
+        return get_json_result(data=True, code=RetCode.SUCCESS, message="Account is already activated! Please log in.")
+
+    k_code, k_attempts, k_last, k_lock = activation_keys(email)
+    if REDIS_CONN.get(k_lock):
+        return get_json_result(data=False, code=RetCode.NOT_EFFECTIVE, message="Too many failed attempts. Please wait 30 minutes before trying again.")
+
+    stored = REDIS_CONN.get(k_code)
+    if not stored:
+        return get_json_result(data=False, code=RetCode.NOT_EFFECTIVE, message="Activation code has expired or is invalid. Please request a new code.")
+
+    try:
+        stored_hash, salt_hex = str(stored).split(":", 1)
+        salt = bytes.fromhex(salt_hex)
+    except Exception:
+        return get_json_result(data=False, code=RetCode.EXCEPTION_ERROR, message="Activation code verification failed")
+
+    calc = hash_code(code, salt)
+    if calc != stored_hash:
+        try:
+            attempts = int(REDIS_CONN.get(k_attempts) or 0) + 1
+        except Exception:
+            attempts = 1
+        REDIS_CONN.set(k_attempts, attempts, OTP_TTL_SECONDS)
+        if attempts >= ATTEMPT_LIMIT:
+            REDIS_CONN.set(k_lock, int(time.time()), ATTEMPT_LOCK_SECONDS)
+        return get_json_result(data=False, code=RetCode.AUTHENTICATION_ERROR, message="Invalid activation code.")
+
+    # Success: consume activation keys & activate user
+    REDIS_CONN.delete(k_code)
+    REDIS_CONN.delete(k_attempts)
+    REDIS_CONN.delete(k_last)
+    REDIS_CONN.delete(k_lock)
+
+    admin_email = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io")
+    is_super = True if email.lower() == admin_email.lower() else False
+    UserService.update_by_id(user.id, {"is_active": "1", "status": "1", "is_superuser": is_super})
+
+    updated_users = UserService.query(email=email)
+    if updated_users:
+        user = updated_users[0]
+
+    user.access_token = get_uuid()
+    login_user(user)
+    user.last_login_time = get_format_time()
+    user.update_time = current_timestamp()
+    user.update_date = datetime_format(datetime.now())
+    user.save()
+
+    logging.info("Account activated successfully for user_id=%s, email=%s", user.id, email)
+    return await construct_response(
+        data=user.to_safe_dict(for_self=True),
+        auth=user.get_id(),
+        message="Account activated successfully! Welcome to Swipies AI.",
+    )
+
+
+@manager.route("/auth/activate/resend", methods=["POST"])  # noqa: F821
+async def resend_activation_code():
+    """
+    POST /auth/activate/resend
+    Resend 6-digit activation code to user's email.
+    """
+    req = await get_request_json()
+    email = (req.get("email") or "").strip().lower()
+
+    if not email:
+        return get_json_result(data=False, code=RetCode.ARGUMENT_ERROR, message="Email is required")
+
+    users = UserService.query(email=email)
+    if not users:
+        return get_json_result(data=False, code=RetCode.DATA_ERROR, message="Account with this email does not exist")
+
+    user = users[0]
+    if hasattr(user, "is_active") and user.is_active == "1" and getattr(user, "status", "1") == "1":
+        return get_json_result(data=True, code=RetCode.SUCCESS, message="Account is already activated!")
+
+    k_code, k_attempts, k_last, k_lock = activation_keys(email)
+    now = int(time.time())
+    last_ts = REDIS_CONN.get(k_last)
+    if last_ts:
+        try:
+            elapsed = now - int(last_ts)
+        except Exception:
+            elapsed = RESEND_COOLDOWN_SECONDS
+        remaining = RESEND_COOLDOWN_SECONDS - elapsed
+        if remaining > 0:
+            return get_json_result(data=False, code=RetCode.NOT_EFFECTIVE, message=f"Please wait {remaining} seconds before resending code.")
+
+    code = "".join(secrets.choice(string.digits) for _ in range(6))
+    salt = os.urandom(16)
+    code_hash = hash_code(code, salt)
+
+    REDIS_CONN.set(k_code, f"{code_hash}:{salt.hex()}", OTP_TTL_SECONDS)
+    REDIS_CONN.set(k_attempts, 0, OTP_TTL_SECONDS)
+    REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
+    REDIS_CONN.delete(k_lock)
+
+    # Dispatch activation email in non-blocking background thread
+    dispatch_email_bg(
+        to_email=email,
+        subject="Activate Your Swipies AI Account",
+        template_key="activation_code",
+        code=code,
+        nickname=user.nickname,
+        ttl_min=OTP_TTL_SECONDS // 60,
+    )
+
+    return get_json_result(data=True, code=RetCode.SUCCESS, message="New activation code sent to your email.")
 
 
 @manager.route("/users/me/models", methods=["GET"])  # noqa: F821
@@ -1239,77 +1471,77 @@ async def admin_yandex_analytics_query():
         )
 
 
-@manager.route("/user/onboarding", methods=["POST"])  # noqa: F821
+@manager.route("/admin/onboarding/stats", methods=["GET"])  # noqa: F821
 @login_required
-async def submit_user_onboarding():
-    """
-    Submit onboarding survey responses for newly registered user.
-    ---
-    tags:
-      - User
-    security:
-      - ApiKeyAuth: []
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          properties:
-            purpose:
-              type: string
-              description: Primary purpose/reason for registering.
-            intended_use:
-              type: string
-              description: Detailed planned usage description.
-            company_name:
-              type: string
-              description: Current or past company name.
-            company_size:
-              type: string
-              description: Size of company or team.
-            industry:
-              type: string
-              description: Industry domain.
-            role:
-              type: string
-              description: Job title or role.
-            platform_goals:
-              type: string
-              description: Platform goals and problems to solve.
-    responses:
-      200:
-        description: Survey submitted successfully.
-    """
-    req = await get_request_json() or {}
-    tenant_id = getattr(current_user, "tenant_id", None) or current_user.id
-    success, msg, data = UserOnboardingService.submit_onboarding(
-        user_id=current_user.id,
-        tenant_id=tenant_id,
-        data_dict=req
-    )
-    if not success:
-        return get_json_result(data=False, message=msg, code=RetCode.OPERATING_ERROR)
-    return get_json_result(data=data, message=msg)
+async def admin_onboarding_stats():
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="Unauthorized access",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
 
+    try:
+        users = UserService.query()
+        total_users = len(users)
+        completed_count = 0
+        skipped_count = 0
 
-@manager.route("/user/onboarding", methods=["GET"])  # noqa: F821
-@login_required
-async def get_user_onboarding():
-    """
-    Get onboarding survey status and answers for current user.
-    ---
-    tags:
-      - User
-    security:
-      - ApiKeyAuth: []
-    responses:
-      200:
-        description: Survey details and status returned.
-    """
-    data = UserOnboardingService.get_user_onboarding(current_user.id)
-    completed = UserOnboardingService.is_user_onboarded(current_user.id)
-    return get_json_result(data={"completed": completed, "survey": data})
+        goals = {}
+        roles = {}
+        team_sizes = {}
+        industries = {}
+
+        for u in users:
+            info_raw = getattr(u, "onboarding_info", None)
+            is_onboarded = getattr(u, "is_onboarded", False)
+
+            if is_onboarded or info_raw:
+                completed_count += 1
+                if info_raw:
+                    try:
+                        info = json.loads(info_raw) if isinstance(info_raw, str) else info_raw
+                        if isinstance(info, dict):
+                            if info.get("skipped"):
+                                skipped_count += 1
+
+                            purpose = info.get("purpose")
+                            if purpose:
+                                goals[purpose] = goals.get(purpose, 0) + 1
+
+                            role = info.get("role")
+                            if role:
+                                roles[role] = roles.get(role, 0) + 1
+
+                            team_size = info.get("team_size")
+                            if team_size:
+                                team_sizes[team_size] = team_sizes.get(team_size, 0) + 1
+
+                            industry = info.get("industry")
+                            if industry:
+                                industries[industry] = industries.get(industry, 0) + 1
+                    except Exception:
+                        pass
+
+        stats_data = {
+            "total_users": total_users,
+            "completed_count": completed_count,
+            "skipped_count": skipped_count,
+            "completion_rate": round((completed_count / total_users * 100), 1) if total_users > 0 else 0,
+            "goals": goals,
+            "roles": roles,
+            "team_sizes": team_sizes,
+            "industries": industries,
+        }
+
+        return get_json_result(data=stats_data)
+    except Exception as e:
+        logging.exception(e)
+        return get_json_result(
+            data=False,
+            message=str(e),
+            code=RetCode.EXCEPTION_ERROR,
+        )
 
 
 

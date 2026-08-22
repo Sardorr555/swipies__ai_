@@ -8,6 +8,8 @@ export default {
   login: `${restAPIv1}/auth/login`,
   logout: `${restAPIv1}/auth/logout`,
   register: `${restAPIv1}/users`,
+  activateAccount: `${restAPIv1}/auth/activate`,
+  resendActivationCode: `${restAPIv1}/auth/activate/resend`,
   setting: `${restAPIv1}/users/me`,
   userInfo: `${restAPIv1}/users/me`,
   tenantInfo: `${restAPIv1}/users/me/models`,

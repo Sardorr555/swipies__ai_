@@ -17,12 +17,35 @@ import SystemSetting from './components/system-setting';
 import { AvailableModels } from './components/un-add-model';
 import { UsedModel } from './components/used-model';
 import { useSubmitBedrock, useSubmitSoMark, useVerifySettings } from './hooks';
+import { useQuery } from '@tanstack/react-query';
+import { getUserAllowedModels } from '@/services/ai-management-service';
+import { useNavigate } from 'react-router';
+import { Zap, Sparkles, Check } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import BedrockModal from './modal/bedrock-modal';
 import ProviderModal, { IViewModeOkPayload } from './modal/provider-modal';
 import SoMarkModal from './modal/somark-modal';
 import { splitProviderPayload } from './payload-utils';
 
 const ModelProviders = () => {
+  const navigate = useNavigate();
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+
+  const { data: allowedModelsRes } = useQuery({
+    queryKey: ['userAllowedModels'],
+    queryFn: async () => {
+      const res = await getUserAllowedModels();
+      return (res as any)?.data?.data ?? (res as any)?.data;
+    },
+  });
   // Retained special modals
   const {
     bedrockAddingLoading,
@@ -227,8 +250,22 @@ const ModelProviders = () => {
     [showBedrockAddingModal, showSoMarkModal],
   );
 
+  const canAddCustom = useMemo(() => {
+    return Boolean(
+      allowedModelsRes?.is_superuser ||
+      allowedModelsRes?.can_add_custom ||
+      ['pro', 'enterprise'].includes((allowedModelsRes?.plan?.id || '').toLowerCase()) ||
+      allowedModelsRes?.plan?.allow_byok
+    );
+  }, [allowedModelsRes]);
+
   const handleAddModel = useCallback(
     (llmFactory: string) => {
+      if (!canAddCustom) {
+        setUpgradeModalVisible(true);
+        return;
+      }
+
       if (isLocalLlmFactory(llmFactory)) {
         setCurrentLlmFactory(llmFactory);
         setProviderVisible(true);
@@ -239,20 +276,22 @@ const ModelProviders = () => {
         setProviderVisible(true);
       }
     },
-    [ModalMap],
+    [ModalMap, canAddCustom],
   );
 
   // Open the ProviderModal in viewMode (read-only) for an existing
-  // instance so the user can edit its model list. The instance's
-  // `api_key`, `baseUrl` and `model_info` are passed as initial values;
-  // the list picker uses `model_info` to pre-check the already-added
-  // models.
+  // instance so the user can edit its model list.
   const handleEditInstance = useCallback(
     (
       providerName: string,
       instance: IProviderInstance,
       models: IInstanceModel[],
     ) => {
+      if (!canAddCustom) {
+        setUpgradeModalVisible(true);
+        return;
+      }
+
       setCurrentLlmFactory(providerName);
       const modelInfos: IModelInfo[] = models.map((m) => ({
         model_name: m.name,
@@ -286,7 +325,7 @@ const ModelProviders = () => {
       setViewMode(true);
       setProviderVisible(true);
     },
-    [],
+    [canAddCustom],
   );
 
   // viewMode save handler: receives the list of selected models (or
@@ -398,10 +437,78 @@ const ModelProviders = () => {
       <SoMarkModal
         visible={somarkVisible}
         hideModal={hideSoMarkModal}
-        onOk={onSoMarkOk}
+        onOk={async (payload: any) => {
+          const ret = await onSoMarkOk(payload);
+          return typeof ret === 'boolean' ? ret : Boolean((ret as any)?.code === 0);
+        }}
         loading={somarkLoading}
         onVerify={onSoMarkVerifying}
       ></SoMarkModal>
+
+      {/* Pro Plan Upgrade Dialog — Architectural Specification */}
+      <Dialog open={upgradeModalVisible} onOpenChange={setUpgradeModalVisible}>
+        <DialogContent className="sm:max-w-md bg-bg-base border border-border-button shadow-2xl rounded-2xl p-6">
+          <DialogHeader className="space-y-3 text-center sm:text-left">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-purple-500/15 text-purple-500 border border-purple-500/20">
+                <Sparkles className="size-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-text-primary">
+                  Connect Your Own AI
+                </DialogTitle>
+                <DialogDescription className="text-xs text-text-secondary mt-0.5">
+                  Bring Your Own Key (BYOK) AI Integration
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs leading-relaxed text-text-primary">
+              Connect your own AI provider and use your own AI models through API.
+              <div className="mt-2 font-semibold text-purple-400">
+                This feature is available with the PRO subscription.
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs text-text-secondary">
+              <div className="flex items-center gap-2.5">
+                <Check className="size-4 text-emerald-500 font-bold shrink-0" />
+                <span>Connect OpenAI, Anthropic, Google Gemini & custom endpoints</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Check className="size-4 text-emerald-500 font-bold shrink-0" />
+                <span>Zero rate limits on personal model API keys</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Check className="size-4 text-emerald-500 font-bold shrink-0" />
+                <span>Highest priority generation and token bandwidth</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setUpgradeModalVisible(false)}
+              className="w-full sm:w-auto text-xs"
+            >
+              Maybe later
+            </Button>
+            <Button
+              onClick={() => {
+                setUpgradeModalVisible(false);
+                navigate('/user-setting/subscription');
+              }}
+              className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-semibold gap-1.5 shadow-md"
+            >
+              <Zap className="size-4 fill-current" />
+              Upgrade to PRO
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

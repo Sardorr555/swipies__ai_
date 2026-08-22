@@ -3,7 +3,7 @@ name: Deploy Swipies Website
 on:
   push:
     branches:
-      - swipies_25 
+      - swipies_25
 
 jobs:
   deploy:
@@ -13,31 +13,59 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to server (with git pull)
+      - name: Deploy to server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
+            set -e
             echo "=== DEPLOY STARTED ==="
 
+            # ── 1. Pull latest code ──────────────────────────────────────────
             cd ~/landing_swipies
-        
-            echo "Pull latest changes from swipies_25"
             git fetch origin swipies_25
-            git checkout -B swipies_25 FETCH_HEAD
+            git checkout -f -B swipies_25 FETCH_HEAD
             git reset --hard FETCH_HEAD
-        
-            echo "Copying files to web root /var/www/html"
+
+            # ── 2. Install Flask & Dependencies ──────────────────────────────────────
+            sudo apt-get install -y python3-flask python3-pip 2>/dev/null || true
+            sudo pip3 install flask google-auth requests --break-system-packages --quiet 2>/dev/null || true
+
+            # ── 3. Copy static files to web root ─────────────────────────────
             sudo mkdir -p /var/www/html
             sudo cp -r ~/landing_swipies/. /var/www/html/
-            
-            echo "Set permissions on web root"
             sudo chown -R www-data:www-data /var/www/html
             sudo chmod -R 755 /var/www/html
-        
-            echo "Restart Nginx"
-            sudo systemctl restart nginx
-        
+
+            # ── 4. Install & restart Flask API service ───────────────────────
+            # Service runs from ~/landing_swipies (not /var/www/html) so the
+            # ubuntu user has full write access for the SQLite database
+            sudo cp ~/landing_swipies/swipies-api.service /etc/systemd/system/swipies-api.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable swipies-api
+            sudo systemctl restart swipies-api
+            sleep 2
+            echo "Flask API status:"
+            sudo systemctl status swipies-api --no-pager || true
+
+            # ── 5. Write Nginx config (proxy + /admin redirect) ──────────────
+            sudo python3 ~/landing_swipies/setup_nginx.py
+
+            echo "=== NGINX SITES ENABLED ==="
+            ls -la /etc/nginx/sites-enabled/ || true
+            for f in /etc/nginx/sites-enabled/*; do
+              if [ -f "$f" ]; then
+                echo "--- Content of $f ---"
+                cat "$f"
+              fi
+            done
+
+            echo "=== SYSTEMD SERVICES ==="
+            systemctl list-units --type=service --state=running || true
+
+            # ── 6. Test & reload Nginx ────────────────────────────────────────
+            sudo nginx -t && sudo systemctl reload nginx
+
             echo "=== DEPLOY FINISHED ==="

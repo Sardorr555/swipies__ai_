@@ -1,0 +1,15 @@
+[Unit]
+Description=Swipies Landing API (Flask)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/landing_swipies
+ExecStart=/usr/bin/python3 /home/ubuntu/landing_swipies/api.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

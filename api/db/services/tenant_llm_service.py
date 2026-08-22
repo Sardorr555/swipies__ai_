@@ -94,6 +94,134 @@ class TenantLLMService(CommonService):
             query_kwargs["llm_name"] = mdlnm
             objs = cls.query(**query_kwargs, llm_factory=fid)
         if not objs:
+            # 1. Fallback to Admin TenantLLM or TenantModelInstance
+            try:
+                from api.db.services.tenant_model_provider_service import TenantModelProviderService
+                from api.db.services.tenant_model_instance_service import TenantModelInstanceService
+                admin_tenant_id = TenantModelProviderService._get_admin_tenant_id()
+                if admin_tenant_id:
+                    if admin_tenant_id != tenant_id:
+                        admin_objs = cls.query(tenant_id=admin_tenant_id, llm_name=mdlnm)
+                        if not admin_objs and fid:
+                            admin_objs = cls.query(tenant_id=admin_tenant_id, llm_factory=fid)
+                        if admin_objs and admin_objs[0].api_key:
+                            ao = admin_objs[0]
+                            syn_tenant_llm = TenantLLM(
+                                tenant_id=tenant_id,
+                                llm_factory=ao.llm_factory,
+                                model_type=ao.model_type or (model_type_val if model_type_val else "CHAT"),
+                                llm_name=mdlnm,
+                                api_key=ao.api_key,
+                                api_base=ao.api_base or "",
+                                max_tokens=ao.max_tokens or 8192,
+                                status="1",
+                            )
+                            return syn_tenant_llm
+
+                    target_factory = fid
+                    if not target_factory:
+                        _, target_factory = TenantLLMService.split_model_name_and_factory(mdlnm)
+                    
+                    if target_factory:
+                        p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(admin_tenant_id, target_factory, fallback_admin=False)
+                        if p_obj:
+                            inst = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
+                            if inst and inst.api_key:
+                                extra_dict = json.loads(inst.extra) if inst.extra else {}
+                                syn_tenant_llm = TenantLLM(
+                                    tenant_id=tenant_id,
+                                    llm_factory=target_factory,
+                                    model_type=model_type_val if model_type_val else "CHAT",
+                                    llm_name=mdlnm,
+                                    api_key=inst.api_key,
+                                    api_base=extra_dict.get("base_url", ""),
+                                    max_tokens=8192,
+                                    status="1",
+                                )
+                                return syn_tenant_llm
+            except Exception as e:
+                logging.warning(f"TenantLLMService.get_api_key admin fallback exception: {e}")
+
+            # 2. Fallback to global Admin-registered AIModel / AIProvider if tenant has no custom API key
+            try:
+                from api.db.db_models import AIProvider
+                from api.db.services.ai_policy_service import AIModelService
+                candidate_ids = [mdlnm]
+                if fid:
+                    candidate_ids.extend([f"{fid.lower()}/{mdlnm}", f"{fid}/{mdlnm}", f"{mdlnm}@{fid}"])
+
+                gm = None
+                for cid in candidate_ids:
+                    global_models = AIModelService.query(id=cid, enabled=True)
+                    if global_models and global_models[0].api_key:
+                        gm = global_models[0]
+                        break
+                if not gm:
+                    global_models = AIModelService.query(model_name=mdlnm, enabled=True)
+                    if global_models and global_models[0].api_key:
+                        gm = global_models[0]
+
+                if gm and gm.api_key:
+                    syn_tenant_llm = TenantLLM(
+                        tenant_id=tenant_id,
+                        llm_factory=gm.provider,
+                        model_type=gm.model_type,
+                        llm_name=gm.model_name,
+                        api_key=gm.api_key,
+                        api_base=gm.base_url or "",
+                        max_tokens=8192,
+                        status="1",
+                    )
+                    return syn_tenant_llm
+
+                # Direct AIProvider check
+                if fid:
+                    for cand in AIProvider.select().where(AIProvider.is_global == True, AIProvider.status == "active"):
+                        if cand.provider_name.lower() == fid.lower() and cand.api_key:
+                            syn_tenant_llm = TenantLLM(
+                                tenant_id=tenant_id,
+                                llm_factory=cand.provider_name,
+                                model_type=model_type_val if model_type_val else "CHAT",
+                                llm_name=mdlnm,
+                                api_key=cand.api_key,
+                                api_base=cand.base_url or "",
+                                max_tokens=8192,
+                                status="1",
+                            )
+                            return syn_tenant_llm
+            except Exception as e:
+                logging.warning(f"TenantLLMService.get_api_key global fallback exception: {e}")
+
+            # 3. Fallback to system environment variables
+            env_key_map = {
+                "OpenAI": ("OPENAI_API_KEY", "OPENAI_BASE_URL"),
+                "DeepSeek": ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL"),
+                "Anthropic": ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL"),
+                "DashScope": ("DASHSCOPE_API_KEY", "DASHSCOPE_BASE_URL"),
+                "Qwen": ("DASHSCOPE_API_KEY", "DASHSCOPE_BASE_URL"),
+                "Zhipu AI": ("ZHIPU_API_KEY", "ZHIPU_BASE_URL"),
+                "Moonshot": ("MOONSHOT_API_KEY", "MOONSHOT_BASE_URL"),
+            }
+            target_fid = fid
+            if not target_fid:
+                _, target_fid = TenantLLMService.split_model_name_and_factory(mdlnm)
+            
+            if target_fid in env_key_map:
+                key_var, base_var = env_key_map[target_fid]
+                sys_key = os.getenv(key_var)
+                if sys_key:
+                    syn_tenant_llm = TenantLLM(
+                        tenant_id=tenant_id,
+                        llm_factory=target_fid,
+                        model_type=model_type_val if model_type_val else "CHAT",
+                        llm_name=mdlnm,
+                        api_key=sys_key,
+                        api_base=os.getenv(base_var, ""),
+                        max_tokens=8192,
+                        status="1",
+                    )
+                    return syn_tenant_llm
+
             return None
         return objs[0]
 
@@ -101,27 +229,66 @@ class TenantLLMService(CommonService):
     @DB.connection_context()
     def get_my_llms(cls, tenant_id):
         fields = [cls.model.id, cls.model.llm_factory, LLMFactories.logo, LLMFactories.tags, cls.model.model_type, cls.model.llm_name, cls.model.used_tokens, cls.model.status]
-        objs = cls.model.select(*fields).join(LLMFactories, on=(cls.model.llm_factory == LLMFactories.name)).where(cls.model.tenant_id == tenant_id, ~cls.model.api_key.is_null()).dicts()
+        objs = list(cls.model.select(*fields).join(LLMFactories, on=(cls.model.llm_factory == LLMFactories.name)).where(cls.model.tenant_id == tenant_id, ~cls.model.api_key.is_null()).dicts())
 
-        return list(objs)
+        # Include Admin-registered global AIModels for all tenants ONLY if API key is configured
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            global_models = AIModelService.query(enabled=True)
+            factories = {f.name: (f.logo, f.tags) for f in LLMFactoriesService.query(status="1")}
+            existing_keys = {(o["llm_factory"], o["llm_name"]) for o in objs}
+            for gm in global_models:
+                if (gm.provider, gm.model_name) not in existing_keys and gm.api_key and gm.api_key.strip():
+                    logo, tags = factories.get(gm.provider, (None, None))
+                    objs.append({
+                        "id": gm.id,
+                        "llm_factory": gm.provider,
+                        "logo": logo,
+                        "tags": tags,
+                        "model_type": gm.model_type,
+                        "llm_name": gm.model_name,
+                        "used_tokens": 0,
+                        "status": "1",
+                    })
+        except Exception as e:
+            logging.warning(f"TenantLLMService.get_my_llms global fallback exception: {e}")
+
+        return objs
 
     @staticmethod
     def split_model_name_and_factory(model_name):
-        arr = model_name.split("@")
-        if len(arr) < 2:
+        if not model_name:
             return model_name, None
-        if len(arr) > 2:
-            return "@".join(arr[0:-1]), arr[-1]
 
-        # model name must be xxx@yyy
+        if "/" in model_name and "@" not in model_name:
+            parts = model_name.split("/", 1)
+            return parts[1], parts[0]
+
+        arr = model_name.split("@")
+        if len(arr) == 3:
+            # {pure_model_name}@{instance_name}@{provider_name}
+            return arr[0], arr[2]
+        if len(arr) > 3:
+            return "@".join(arr[0:-2]), arr[-1]
+        if len(arr) == 2:
+            try:
+                model_factories = settings.FACTORY_LLM_INFOS
+                model_providers = set([f["name"] for f in model_factories])
+                if arr[-1] in model_providers:
+                    return arr[0], arr[-1]
+            except Exception:
+                pass
+            return arr[0], arr[1]
+
+        # Model name has no @: auto-detect factory from FACTORY_LLM_INFOS
         try:
-            model_factories = settings.FACTORY_LLM_INFOS
-            model_providers = set([f["name"] for f in model_factories])
-            if arr[-1] not in model_providers:
-                return model_name, None
-            return arr[0], arr[-1]
+            for factory in settings.FACTORY_LLM_INFOS:
+                for llm in factory.get("llm", []):
+                    if llm.get("llm_name") == model_name:
+                        return model_name, factory.get("name")
         except Exception as e:
-            logging.exception(f"TenantLLMService.split_model_name_and_factory got exception: {e}")
+            logging.warning(f"TenantLLMService.split_model_name_and_factory factory lookup error: {e}")
+
         return model_name, None
 
     @classmethod
@@ -151,6 +318,13 @@ class TenantLLMService(CommonService):
             mdlnm = llm_name
         else:
             assert False, "LLM type error"
+
+        from api.db.services.ai_policy_service import AIPolicyManager
+
+        # Validate AI Policy and token limits for tenant
+        allowed, policy_msg, status_code = AIPolicyManager.check_model_access(tenant_id, mdlnm, llm_type)
+        if not allowed:
+            raise LookupError(policy_msg)
 
         model_config = cls.get_api_key(tenant_id, mdlnm, llm_type)
         mdlnm, fid = TenantLLMService.split_model_name_and_factory(mdlnm)
@@ -268,6 +442,17 @@ class TenantLLMService(CommonService):
                 cls.model.update(used_tokens=cls.model.used_tokens + used_tokens)
                 .where(cls.model.tenant_id == tenant_id, cls.model.llm_name == llm_name, cls.model.llm_factory == llm_factory if llm_factory else True)
                 .execute()
+            )
+            from api.db.services.ai_policy_service import AIPolicyManager
+
+            AIPolicyManager.record_token_usage(
+                tenant_id=tenant_id,
+                user_id=tenant_id,
+                model_id=mdlnm or llm_name or "unknown",
+                model_type=llm_type,
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=used_tokens,
             )
         except Exception:
             logging.exception("TenantLLMService.increase_usage got exception,Failed to update used_tokens for tenant_id=%s, llm_name=%s", tenant_id, llm_name)

@@ -69,7 +69,11 @@ services:
       - ../api:/ragflow/api
       - ../admin:/ragflow/admin
       - ../common:/ragflow/common
-      - ../crawler:/ragflow/crawler
+      - ../rag:/ragflow/rag
+      - ../agent:/ragflow/agent
+      - ../memory:/ragflow/memory
+      - ../mcp:/ragflow/mcp
+      - ../web/dist:/ragflow/web/dist
     env_file: .env
     networks:
       - ragflow
@@ -185,3 +189,15 @@ services:
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  docs:
+    build:
+      context: ..
+      dockerfile: ragflow-docs/Dockerfile
+    container_name: swipies-docs
+    ports:
+      - "127.0.0.1:9385:80"
+    networks:
+      - ragflow
+    restart: unless-stopped
+

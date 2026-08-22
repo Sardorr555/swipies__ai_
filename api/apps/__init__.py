@@ -365,6 +365,11 @@ def register_page(page_path):
     url_prefix = f"/api/{API_VERSION}" if restful_api_path in path else f"/{API_VERSION}/{page_name}"
 
     app.register_blueprint(page.manager, url_prefix=url_prefix)
+    if hasattr(page, "__init_app__"):
+        try:
+            page.__init_app__(app)
+        except Exception as e:
+            logging.exception(f"__init_app__ failed for {module_name}: {e}")
     return url_prefix
 
 

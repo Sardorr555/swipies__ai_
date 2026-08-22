@@ -1,0 +1,1210 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-release_notes" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.10.2">
+<title data-rh="true">Releases | Swipies AI Documentation</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://docs.swipies.app/docs/release_notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Releases | Swipies AI Documentation"><meta data-rh="true" name="description" content="Key features, improvements and bug fixes in the latest releases."><meta data-rh="true" property="og:description" content="Key features, improvements and bug fixes in the latest releases."><link data-rh="true" rel="icon" href="/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://docs.swipies.app/docs/release_notes"><link data-rh="true" rel="alternate" href="https://docs.swipies.app/docs/release_notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://docs.swipies.app/docs/release_notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Releases","item":"https://docs.swipies.app/docs/release_notes"}]}</script><link rel="stylesheet" href="/assets/css/styles.bfe00560.css">
+<script src="/assets/js/runtime~main.c1a8e449.js" defer="defer"></script>
+<script src="/assets/js/main.856f6ec5.js" defer="defer"></script>
+</head>
+<body>
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||"light"),document.documentElement.setAttribute("data-theme-choice",t||"light")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/"><div class="navbar__logo"><img src="/img/logo.svg" alt="Swipies Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/img/logo.svg" alt="Swipies Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div><b class="navbar__title text--truncate">Swipies AI Docs</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docs/release_notes">User Guides</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://app.swipies.app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/docs/release_notes"><span class="linkLabel_WmDU">Releases</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" href="/docs/category/basics"><span class="categoryLinkLabel_W154">Basics</span></a><button aria-label="Expand sidebar category &#x27;Basics&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/"><span class="linkLabel_WmDU">Quickstart</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" href="/docs/category/user-guides"><span class="categoryLinkLabel_W154">User guides</span></a><button aria-label="Expand sidebar category &#x27;User guides&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" href="/docs/category/administrator-guides"><span class="categoryLinkLabel_W154">Administrator guides</span></a><button aria-label="Expand sidebar category &#x27;Administrator guides&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" href="/docs/category/developer-guides"><span class="categoryLinkLabel_W154">Developer guides</span></a><button aria-label="Expand sidebar category &#x27;Developer guides&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" href="/docs/category/references"><span class="categoryLinkLabel_W154">References</span></a><button aria-label="Expand sidebar category &#x27;References&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/faq"><span class="linkLabel_WmDU">FAQs</span></a></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Releases</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Releases</h1></header>
+<p>Key features, improvements and bug fixes in the latest releases.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0263">v0.26.3<a href="#v0263" class="hash-link" aria-label="Direct link to v0.26.3" title="Direct link to v0.26.3" translate="no">​</a></h2>
+<p>Released on July 2, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features">New features<a href="#new-features" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Data source connector: Introduces Google BigQuery as a data source connector for document ingestion and incremental syncing. <a href="https://github.com/infiniflow/ragflow/pull/15871" target="_blank" rel="noopener noreferrer" class="">#15871</a></li>
+<li class="">MCP: Adds two MCP tools <code>ragflow_list_datasets</code> and <code>ragflow_list_chats</code> to the RAGFlow MCP server. <a href="https://github.com/infiniflow/ragflow/pull/15384" target="_blank" rel="noopener noreferrer" class="">#15384</a></li>
+<li class="">File ingestion<!-- -->
+<ul>
+<li class="">Integrates the layout-aware SoMark OCR parser into the system for extracting and indexing complex document elements like tables and figures. <a href="https://github.com/infiniflow/ragflow/pull/16482" target="_blank" rel="noopener noreferrer" class="">#16482</a></li>
+<li class="">API: Exposes the <a class="" href="/docs/http_api_reference#ingest-documents">Ingest documents</a> endpoint for processing documents using a customized pipeline. <a href="https://github.com/infiniflow/ragflow/pull/16395" target="_blank" rel="noopener noreferrer" class="">#16395</a></li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements">Improvements<a href="#improvements" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Backend: Introduces partial success handling for batch document uploads, ensuring that a single failed file no longer causes the entire batch to be discarded. <a href="https://github.com/infiniflow/ragflow/pull/16438" target="_blank" rel="noopener noreferrer" class="">#16438</a></li>
+<li class="">UI/UX: Refactors the global header to dynamically switch between a full desktop navigation bar and a mobile-friendly side drawer based on available screen space, resolving overlapping issues and significantly improving the mobile user experience. <a href="https://github.com/infiniflow/ragflow/pull/15984" target="_blank" rel="noopener noreferrer" class="">#15984</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes">Bug fixes<a href="#bug-fixes" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class="">After setting up the Ollama provider, the system returned the error: &#x27;Failed to access model(name) using this api key&#x27;. <a href="https://github.com/infiniflow/ragflow/pull/16519" target="_blank" rel="noopener noreferrer" class="">#16519</a></li>
+<li class="">Deleting a user/assistant chat message pair mistakenly removed the previous conversation turn&#x27;s reference due to an index misalignment. <a href="https://github.com/infiniflow/ragflow/pull/16436" target="_blank" rel="noopener noreferrer" class="">#16436</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0262">v0.26.2<a href="#v0262" class="hash-link" aria-label="Direct link to v0.26.2" title="Direct link to v0.26.2" translate="no">​</a></h2>
+<p>Released on June 29, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-1">New features<a href="#new-features-1" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Chat channels:<!-- -->
+<ul>
+<li class="">Integrates WhatsApp via a QR code scan. <a href="https://github.com/infiniflow/ragflow/pull/16238" target="_blank" rel="noopener noreferrer" class="">#16238</a></li>
+<li class="">Integrates DingTalk via bot API credentials. <a href="https://github.com/infiniflow/ragflow/pull/16183" target="_blank" rel="noopener noreferrer" class="">#16183</a></li>
+<li class="">Integrates WeCom via WebSocket connection. <a href="https://github.com/infiniflow/ragflow/pull/16175" target="_blank" rel="noopener noreferrer" class="">#16175</a></li>
+</ul>
+</li>
+<li class="">File parsing: Adds fallback logic for PP-OCRv6 and similar text recognition models, and integrates image parsing within the PaddleOCR pipeline. <a href="https://github.com/infiniflow/ragflow/pull/16150" target="_blank" rel="noopener noreferrer" class="">#16150</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-1">Improvements<a href="#improvements-1" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Datasets<!-- -->
+<ul>
+<li class="">Adds an edge-case check to the file ingestion logic to safely link empty folders to a dataset. <a href="https://github.com/infiniflow/ragflow/pull/16296" target="_blank" rel="noopener noreferrer" class="">#16296</a></li>
+<li class="">Adds pagination to the <code>get_flatted_meta_by_kbs()</code> method to prevent CRUD failures relating to datasets with more than 10,000 documents. <a href="https://github.com/infiniflow/ragflow/pull/16095" target="_blank" rel="noopener noreferrer" class="">#16095</a></li>
+</ul>
+</li>
+<li class="">Chat channels: Ensures end-user conversation histories persist across restarts but still separate when a channel is bound to a new dialog. <a href="https://github.com/infiniflow/ragflow/pull/16274" target="_blank" rel="noopener noreferrer" class="">#16274</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="i18n">i18n<a href="#i18n" class="hash-link" aria-label="Direct link to i18n" title="Direct link to i18n" translate="no">​</a></h3>
+<ul>
+<li class="">Expands i18n coverage and refines translations for the Korean UI. <a href="https://github.com/infiniflow/ragflow/pull/16203" target="_blank" rel="noopener noreferrer" class="">#16203</a>；</li>
+<li class="">Adds missing French translations for chat channels, username validation, and model editing. <a href="https://github.com/infiniflow/ragflow/pull/16217" target="_blank" rel="noopener noreferrer" class="">#16217</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes-1">Bug fixes<a href="#bug-fixes-1" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class="">File parsing:<!-- -->
+<ul>
+<li class="">A <code>ValueError</code> was raised during <code>.docx</code> parsing on &#x27;Heading&#x27; styles. <a href="https://github.com/infiniflow/ragflow/pull/16284" target="_blank" rel="noopener noreferrer" class="">#16284</a></li>
+<li class="">Tables in <code>.docx</code> files were silently removed by the laws document parser. <a href="https://github.com/infiniflow/ragflow/pull/16155" target="_blank" rel="noopener noreferrer" class="">#16155</a></li>
+<li class="">Lone Markdown headers were separated from their subsequent sections when a DeepDoc delimiter was set. <a href="https://github.com/infiniflow/ragflow/pull/16109" target="_blank" rel="noopener noreferrer" class="">#16109</a></li>
+<li class="">Markdown tables appeared twice in chunk results, once as a standalone chunk and again within a regular text chunk. <a href="https://github.com/infiniflow/ragflow/pull/16143" target="_blank" rel="noopener noreferrer" class="">#16143</a></li>
+</ul>
+</li>
+<li class="">MCP<!-- -->
+<ul>
+<li class="">The MCP server hung indefinitely when encountering empty document pages; the final page of documents was silently dropped due to flawed pagination. <a href="https://github.com/infiniflow/ragflow/pull/16285" target="_blank" rel="noopener noreferrer" class="">#16285</a></li>
+<li class="">The MCP connection and dataset discovery process failed because the server&#x27;s hardcoded fetch limit exceeded the introduced <code>page_size</code> restriction. <a href="https://github.com/infiniflow/ragflow/pull/16148" target="_blank" rel="noopener noreferrer" class="">#16148</a></li>
+</ul>
+</li>
+<li class="">Dataflow<!-- -->
+<ul>
+<li class="">Restores the dataflow rerun endpoint and ensures the ingestion response includes the DSL payload to reliably render the timeline and parser views. <a href="https://github.com/infiniflow/ragflow/pull/16292" target="_blank" rel="noopener noreferrer" class="">#16292</a></li>
+<li class="">Restores dataflow parser defaults and returns the actual SSE payload, ensuring pipeline runs correctly surface message IDs and log updates. <a href="https://github.com/infiniflow/ragflow/pull/16290" target="_blank" rel="noopener noreferrer" class="">#16290</a></li>
+</ul>
+</li>
+<li class="">LLM: Failed to use the new <code>gemini-3.5-flash</code> model via the Google Cloud (Vertex AI) provider using <code>eu</code> or <code>us</code> region endpoint. This is resolved by explicitly routing multi-region requests to the required <code>aiplatform.&lt;region&gt;.rep.googleapis.com</code> domains instead of the synthesized <code>&lt;region&gt;-aiplatform.googleapis.com</code> hosts. <a href="https://github.com/infiniflow/ragflow/pull/15990" target="_blank" rel="noopener noreferrer" class="">#15990</a></li>
+<li class="">UI/UX: The metadata add modal sent empty values to the backend. <a href="https://github.com/infiniflow/ragflow/pull/15229" target="_blank" rel="noopener noreferrer" class="">#15229</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0261">v0.26.1<a href="#v0261" class="hash-link" aria-label="Direct link to v0.26.1" title="Direct link to v0.26.1" translate="no">​</a></h2>
+<p>Released on June 17, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-2">New features<a href="#new-features-2" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Model providers</strong>: Allows users to modify the model type of existing model configurations. <a href="https://github.com/infiniflow/ragflow/pull/16029" target="_blank" rel="noopener noreferrer" class="">#16029</a></li>
+<li class=""><strong>Chat channels</strong>: Enables users to deploy RAGFlow assistants as chatbots within external messaging platforms like Discord and Feishu. <a href="https://github.com/infiniflow/ragflow/pull/15850" target="_blank" rel="noopener noreferrer" class="">#15850</a></li>
+<li class=""><strong>Observability</strong>: Groups multi-turn chat traces by session within Langfuse to facilitate conversation debugging and replay. <a href="https://github.com/infiniflow/ragflow/pull/15679" target="_blank" rel="noopener noreferrer" class="">#15679</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="i18n-1">i18n<a href="#i18n-1" class="hash-link" aria-label="Direct link to i18n" title="Direct link to i18n" translate="no">​</a></h3>
+<ul>
+<li class="">Adds ~70 missing translation keys for the French UI. <a href="https://github.com/infiniflow/ragflow/pull/15983" target="_blank" rel="noopener noreferrer" class="">#15983</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes-2">Bug fixes<a href="#bug-fixes-2" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Model provider</strong>: Fixes inaccurate token billing, corrects embedding truncation limits to prevent indexing failures, and refactors error handling to surface root error causes. <a href="https://github.com/infiniflow/ragflow/pull/15424" target="_blank" rel="noopener noreferrer" class="">#15424</a></li>
+<li class=""><strong>API</strong>: Adds a legacy mode to the <code>/chat/completions</code> endpoint to restore the v0.23.0 style <code>&lt;think&gt;</code> output for backward compatibility. <a href="https://github.com/infiniflow/ragflow/pull/16014" target="_blank" rel="noopener noreferrer" class="">#16014</a> See also <a class="" href="/docs/http_api_reference#converse-with-chat-assistant">Converse with chat assistant</a>.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0260">v0.26.0<a href="#v0260" class="hash-link" aria-label="Direct link to v0.26.0" title="Direct link to v0.26.0" translate="no">​</a></h2>
+<p>Released on June 11, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-3">New features<a href="#new-features-3" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Model providers</strong>
+<ul>
+<li class="">Implements auto-populated model lists for multiple providers, eliminating the need to type model names manually. This feature currently supports: Ollama, OpenRouter, vLLM, OpenAI-API-Compatible, LM-Studio, VolcEngine, Xinference, LocalAI, BaiduYiyan, GPUStack, and Fish Audio.</li>
+<li class="">Allows configuring multiple API keys for the same model provider. <a href="https://github.com/infiniflow/ragflow/pull/14595" target="_blank" rel="noopener noreferrer" class="">#14595</a></li>
+<li class="">Dynamically populates model selection dropdowns in the UI by fetching the currently available models directly from remote model providers. <a href="https://github.com/infiniflow/ragflow/pull/15711" target="_blank" rel="noopener noreferrer" class="">#15711</a></li>
+</ul>
+</li>
+<li class=""><strong>Data source connectors</strong>: Implements new data source connectors for Outlook, OneDrive, Microsoft Teams, Slack, SharePoint, Salesforce, and Azure Blob Storage. <a href="https://github.com/infiniflow/ragflow/pull/15333" target="_blank" rel="noopener noreferrer" class="">#15333</a><a href="https://github.com/infiniflow/ragflow/pull/15330" target="_blank" rel="noopener noreferrer" class="">#15330</a><a href="https://github.com/infiniflow/ragflow/pull/15332" target="_blank" rel="noopener noreferrer" class="">#15332</a><a href="https://github.com/infiniflow/ragflow/pull/15188" target="_blank" rel="noopener noreferrer" class="">#15188</a><a href="https://github.com/infiniflow/ragflow/pull/15190" target="_blank" rel="noopener noreferrer" class="">#15190</a><a href="https://github.com/infiniflow/ragflow/pull/15462" target="_blank" rel="noopener noreferrer" class="">#15462</a><a href="https://github.com/infiniflow/ragflow/pull/15466" target="_blank" rel="noopener noreferrer" class="">#15466</a></li>
+<li class=""><strong>Dataset</strong> - Implements a checkpoint and resume feature for community extraction and entity resolution, the most expensive and time-consuming parts of the GraphRAG indexing pipeline. <a href="https://github.com/infiniflow/ragflow/issues/15518" target="_blank" rel="noopener noreferrer" class="">#15518</a><a href="https://github.com/infiniflow/ragflow/pull/15523" target="_blank" rel="noopener noreferrer" class="">#15523</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-2">Improvements<a href="#improvements-2" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Removes <code>&lt;think&gt;</code> text buffering to ensure reasoning-capable models feel faster and more transparent during interactions. <a href="https://github.com/infiniflow/ragflow/pull/15891" target="_blank" rel="noopener noreferrer" class="">#15891</a></li>
+<li class="">Marks MySQL migrations as applied. <a href="https://github.com/infiniflow/ragflow/pull/15504" target="_blank" rel="noopener noreferrer" class="">#15504</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="model-support">Model Support<a href="#model-support" class="hash-link" aria-label="Direct link to Model Support" title="Direct link to Model Support" translate="no">​</a></h3>
+<ul>
+<li class="">Four new SiliconFlow models <a href="https://github.com/infiniflow/ragflow/pull/15383" target="_blank" rel="noopener noreferrer" class="">#15383</a></li>
+<li class="">MiniMax-M3 model <a href="https://github.com/infiniflow/ragflow/pull/15513" target="_blank" rel="noopener noreferrer" class="">#15513</a></li>
+<li class="">Latest Anthropic models <a href="https://github.com/infiniflow/ragflow/pull/15516" target="_blank" rel="noopener noreferrer" class="">#15516</a></li>
+<li class="">Voyage 4 model family <a href="https://github.com/infiniflow/ragflow/pull/15516" target="_blank" rel="noopener noreferrer" class="">#15516</a></li>
+<li class="">Cohere model list. <a href="https://github.com/infiniflow/ragflow/pull/15576" target="_blank" rel="noopener noreferrer" class="">#15576</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="i18n-2">i18n<a href="#i18n-2" class="hash-link" aria-label="Direct link to i18n" title="Direct link to i18n" translate="no">​</a></h3>
+<ul>
+<li class="">Completes Korean translation. <a href="https://github.com/infiniflow/ragflow/pull/15863" target="_blank" rel="noopener noreferrer" class="">#15863</a></li>
+<li class="">Completes Italian translation. <a href="https://github.com/infiniflow/ragflow/pull/15729" target="_blank" rel="noopener noreferrer" class="">#15729</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes-3">Bug fixes<a href="#bug-fixes-3" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class="">The thinking mode of MiniMax models was not correctly enabled. <a href="https://github.com/infiniflow/ragflow/pull/15496" target="_blank" rel="noopener noreferrer" class="">#15496</a></li>
+<li class="">Infinite loops were triggered when the thinking mode was enabled for Qwen3.5 and Qwen3.6 models. <a href="https://github.com/infiniflow/ragflow/pull/15101" target="_blank" rel="noopener noreferrer" class="">#15101</a></li>
+<li class="">Streamed answers were being duplicated when using the OpenAI-compatible chat completions API endpoint. <a href="https://github.com/infiniflow/ragflow/issues/15286" target="_blank" rel="noopener noreferrer" class="">#15286</a><a href="https://github.com/infiniflow/ragflow/pull/15443" target="_blank" rel="noopener noreferrer" class="">#15443</a></li>
+<li class="">Serialization errors were caused during chat completions when invalid numeric scores like <code>NaN</code> (Not-a-Number) or <code>Inf</code> (Infinity) were passed to the JSON encoder. <a href="https://github.com/infiniflow/ragflow/issues/15245" target="_blank" rel="noopener noreferrer" class="">#15245</a><a href="https://github.com/infiniflow/ragflow/pull/15266" target="_blank" rel="noopener noreferrer" class="">#15266</a></li>
+<li class="">Chat completions using LiteLLM providers were failing because unrecognized internal configuration parameters were not being filtered out before reaching the external APIs. <a href="https://github.com/infiniflow/ragflow/issues/15427" target="_blank" rel="noopener noreferrer" class="">#15427</a><a href="https://github.com/infiniflow/ragflow/pull/15432" target="_blank" rel="noopener noreferrer" class="">#15432</a></li>
+<li class="">The OpenAI-compatible chat completions API was defaulting to streamed responses. <a href="https://github.com/infiniflow/ragflow/issues/15356" target="_blank" rel="noopener noreferrer" class="">#15356</a><a href="https://github.com/infiniflow/ragflow/pull/15394" target="_blank" rel="noopener noreferrer" class="">#15394</a></li>
+<li class="">Empty <code>AND</code> results were incorrectly dropped during metadata filtering. <a href="https://github.com/infiniflow/ragflow/pull/15477" target="_blank" rel="noopener noreferrer" class="">#15477</a></li>
+<li class="">Repetitive page chrome, such as headers and footers, was incorrectly extracted as main text by the MinerU parser. <a href="https://github.com/infiniflow/ragflow/issues/15335" target="_blank" rel="noopener noreferrer" class="">#15335</a><a href="https://github.com/infiniflow/ragflow/pull/15387" target="_blank" rel="noopener noreferrer" class="">#15387</a></li>
+<li class="">English chart titles were missing during document extraction in the DeepDoc module. <a href="https://github.com/infiniflow/ragflow/pull/15481" target="_blank" rel="noopener noreferrer" class="">#15481</a></li>
+<li class="">Empty outputs were returned by the TitleChunker for <code>json</code> and <code>chunks</code> upstream formats <a href="https://github.com/infiniflow/ragflow/pull/14247" target="_blank" rel="noopener noreferrer" class="">#14247</a><a href="https://github.com/infiniflow/ragflow/pull/15396" target="_blank" rel="noopener noreferrer" class="">#15396</a></li>
+<li class="">An error message was missing when a .tsv file upload attempt failed. <a href="https://github.com/infiniflow/ragflow/pull/15284" target="_blank" rel="noopener noreferrer" class="">#15284</a></li>
+<li class="">API tokens missing beta values caused token retrieval errors. <a href="https://github.com/infiniflow/ragflow/pull/15405" target="_blank" rel="noopener noreferrer" class="">#15405</a></li>
+<li class="">Caps the maximum page size to fix system crashes or slowdowns from large queries. <a href="https://github.com/infiniflow/ragflow/pull/15292" target="_blank" rel="noopener noreferrer" class="">#15292</a></li>
+<li class="">Client errors were caused by the OpenAI-compatible chat completion API incorrectly defaulting to streamed responses. <a href="https://github.com/infiniflow/ragflow/issues/15356" target="_blank" rel="noopener noreferrer" class="">#15356</a><a href="https://github.com/infiniflow/ragflow/pull/15394" target="_blank" rel="noopener noreferrer" class="">#15394</a></li>
+<li class="">HTTP 500 internal server errors were triggered instead of standard 4xx client errors when users attempted to download missing files from the storage backend. <a href="https://github.com/infiniflow/ragflow/issues/15369" target="_blank" rel="noopener noreferrer" class="">#15369</a><a href="https://github.com/infiniflow/ragflow/pull/15371" target="_blank" rel="noopener noreferrer" class="">#15371</a></li>
+<li class="">GraphRAG entity ranking was broken. <a href="https://github.com/infiniflow/ragflow/issues/15795" target="_blank" rel="noopener noreferrer" class="">#15795</a><a href="https://github.com/infiniflow/ragflow/pull/15797" target="_blank" rel="noopener noreferrer" class="">#15797</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0256">v0.25.6<a href="#v0256" class="hash-link" aria-label="Direct link to v0.25.6" title="Direct link to v0.25.6" translate="no">​</a></h2>
+<p>Released on May 26, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-4">New features<a href="#new-features-4" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Agent: Adds a <strong>Browser</strong> component that enables AI to autonomously navigate and interact with web pages. <a href="https://github.com/infiniflow/ragflow/pull/14888" target="_blank" rel="noopener noreferrer" class="">#14888</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-3">Improvements<a href="#improvements-3" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">RAG: Stabilizes RAPTOR&#x27;s AHC mode (Ψ-RAG), which was introduced in v0.25.3 to resolve previous semantic loss by building individual document trees and then merging them hierarchically. This new approach significantly accelerates index construction and outperforms the legacy GMM mode in Recall@5 and average F1. Users retain the option to switch between the two modes. <a href="https://github.com/infiniflow/ragflow/issues/14674" target="_blank" rel="noopener noreferrer" class="">#14674</a><a href="https://github.com/infiniflow/ragflow/pull/14679" target="_blank" rel="noopener noreferrer" class="">#14679</a></li>
+<li class="">Agent: Introduces lightweight <code>@tool</code> decorator to streamline Python function registration process for chat models. <a href="https://github.com/infiniflow/ragflow/pull/15047" target="_blank" rel="noopener noreferrer" class="">#15047</a></li>
+<li class="">Agent: Enables agent messages to display base64-encoded images. <a href="https://github.com/infiniflow/ragflow/pull/15212" target="_blank" rel="noopener noreferrer" class="">#15212</a></li>
+<li class="">Agent: Exposes <strong>Doc Generator</strong> component&#x27;s file metadata as discrete variables. <a href="https://github.com/infiniflow/ragflow/pull/15080" target="_blank" rel="noopener noreferrer" class="">#15080</a></li>
+<li class="">Agent: Allows developers to pass <code>chat_template_kwargs</code> to agent chat completion endpoint. <a href="https://github.com/infiniflow/ragflow/issues/14182" target="_blank" rel="noopener noreferrer" class="">#14182</a><a href="https://github.com/infiniflow/ragflow/pull/14542" target="_blank" rel="noopener noreferrer" class="">#14542</a> See also <a class="" href="/docs/http_api_reference#converse-with-agent">Converse with agent</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes-4">Bug fixes<a href="#bug-fixes-4" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class="">Fixes <code>/chat/completions</code> to allow sending only latest message in API payload and removes requirement to transmit full conversation history. <a href="https://github.com/infiniflow/ragflow/pull/15197" target="_blank" rel="noopener noreferrer" class="">#15197</a> See also <a class="" href="/docs/http_api_reference#converse-with-chat-assistant">Converse with chat assistant</a>.</li>
+<li class="">Weight assigned to vector similarity was not properly applied during the retrieval phase. <a href="https://github.com/infiniflow/ragflow/pull/15108" target="_blank" rel="noopener noreferrer" class="">#15108</a></li>
+<li class="">Users were unable to save parser configurations on the dataset configuration page. <a href="https://github.com/infiniflow/ragflow/issues/15175" target="_blank" rel="noopener noreferrer" class="">#15175</a><a href="https://github.com/infiniflow/ragflow/pull/15177" target="_blank" rel="noopener noreferrer" class="">#15177</a></li>
+<li class="">Log text on a data source&#x27;s details page was truncated. <a href="https://github.com/infiniflow/ragflow/pull/15056" target="_blank" rel="noopener noreferrer" class="">#15056</a></li>
+<li class="">An unresponsive &quot;Status&quot; filter on the document list page prevented users from filtering or managing uploaded documents by their parsing status. <a href="https://github.com/infiniflow/ragflow/issues/15170" target="_blank" rel="noopener noreferrer" class="">#15170</a><a href="https://github.com/infiniflow/ragflow/pull/15216" target="_blank" rel="noopener noreferrer" class="">#15216</a></li>
+<li class="">Calling <code>GET /agents/&lt;agent_id&gt;/sessions/&lt;session_id&gt;</code> with a missing or invalid session ID caused a server error. <a href="https://github.com/infiniflow/ragflow/issues/14989" target="_blank" rel="noopener noreferrer" class="">#14989</a><a href="https://github.com/infiniflow/ragflow/pull/15011" target="_blank" rel="noopener noreferrer" class="">#15011</a></li>
+<li class="">RAG: RAPTOR construction process halted when using the <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a> document engine. <a href="https://github.com/infiniflow/ragflow/pull/14998" target="_blank" rel="noopener noreferrer" class="">#14998</a></li>
+<li class="">The system failed to correctly parse structured content returned by Mistral reasoning models. <a href="https://github.com/infiniflow/ragflow/pull/14805" target="_blank" rel="noopener noreferrer" class="">#14805</a></li>
+<li class="">The <strong>Parser</strong> component in an ingestion pipeline incorrectly retained raw HTML tags in its text output. <a href="https://github.com/infiniflow/ragflow/issues/14831" target="_blank" rel="noopener noreferrer" class="">#14831</a><a href="https://github.com/infiniflow/ragflow/pull/14920" target="_blank" rel="noopener noreferrer" class="">#14920</a></li>
+<li class="">The table parser incorrectly extracted or attached metadata during document processing. <a href="https://github.com/infiniflow/ragflow/pull/15127" target="_blank" rel="noopener noreferrer" class="">#15127</a></li>
+<li class="">Asynchronous background tasks and nested event loops were not properly handled, causing backend instability. <a href="https://github.com/infiniflow/ragflow/issues/14755" target="_blank" rel="noopener noreferrer" class="">#14755</a><a href="https://github.com/infiniflow/ragflow/pull/14761" target="_blank" rel="noopener noreferrer" class="">#14761</a></li>
+<li class="">Prompt variables configured in the <strong>Agent</strong> component disappeared after being entered. <a href="https://github.com/infiniflow/ragflow/pull/15218" target="_blank" rel="noopener noreferrer" class="">#15218</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="i18n-3">i18n<a href="#i18n-3" class="hash-link" aria-label="Direct link to i18n" title="Direct link to i18n" translate="no">​</a></h3>
+<ul>
+<li class="">Fully translates the interface into French with the addition of roughly 1,400 localization keys. <a href="https://github.com/infiniflow/ragflow/pull/15192" target="_blank" rel="noopener noreferrer" class="">#15192</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0255">v0.25.5<a href="#v0255" class="hash-link" aria-label="Direct link to v0.25.5" title="Direct link to v0.25.5" translate="no">​</a></h2>
+<p>Released on May 20, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-5">New features<a href="#new-features-5" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Introduces local and SSH provider options for sandbox environment settings within the admin interface, allowing administrators to configure execution environments without editing environment variables. <a href="https://github.com/infiniflow/ragflow/pull/15039" target="_blank" rel="noopener noreferrer" class="">#15039</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-4">Improvements<a href="#improvements-4" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Elasticsearch: Accelerates the retrieval process by removing unnecessary vector fetches during the main search phase, reducing latency by 50–100%. <a href="https://github.com/infiniflow/ragflow/pull/14970" target="_blank" rel="noopener noreferrer" class="">#14970</a></li>
+<li class="">Pushes metadata filters down to the <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a> document engine, significantly improving retrieval performance. <a href="https://github.com/infiniflow/ragflow/pull/14974" target="_blank" rel="noopener noreferrer" class="">#14974</a></li>
+<li class="">Introduces Redis-based caching for Text-to-Speech model outputs, eliminating redundant API calls for identical text to reduce latency and save provider quota. <a href="https://github.com/infiniflow/ragflow/pull/14851" target="_blank" rel="noopener noreferrer" class="">#14851</a></li>
+<li class="">Reduces server startup time by 5-9 seconds and saves roughly 200MB of memory by replacing heavy module-level imports with lazy runtime loading. <a href="https://github.com/infiniflow/ragflow/pull/14973" target="_blank" rel="noopener noreferrer" class="">#14973</a></li>
+<li class="">Optimizes the connector dashboard. <a href="https://github.com/infiniflow/ragflow/pull/14979" target="_blank" rel="noopener noreferrer" class="">#14979</a></li>
+<li class="">Increases minimum supported Python version to 3.13. <a href="https://github.com/infiniflow/ragflow/pull/14767" target="_blank" rel="noopener noreferrer" class="">#14767</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes-5">Bug fixes<a href="#bug-fixes-5" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class="">Atomic database updates: Wraps document and dataset chunk counter updates in atomic database transactions to prevent data drift. <a href="https://github.com/infiniflow/ragflow/issues/14866" target="_blank" rel="noopener noreferrer" class="">#14866</a><a href="https://github.com/infiniflow/ragflow/pull/14867" target="_blank" rel="noopener noreferrer" class="">#14867</a></li>
+<li class="">Data source: the GitHub data source connector was failing to sync any content by default. <a href="https://github.com/infiniflow/ragflow/issues/13975" target="_blank" rel="noopener noreferrer" class="">#13975</a><a href="https://github.com/infiniflow/ragflow/pull/14062" target="_blank" rel="noopener noreferrer" class="">#14062</a></li>
+<li class="">The Tongyi-Qianwen text embedding models were hitting the wrong API endpoints when configured with international or Chinese regional URLs. <a href="https://github.com/infiniflow/ragflow/pull/14784" target="_blank" rel="noopener noreferrer" class="">#14784</a></li>
+<li class="">Agent: Fully aggregates message content, reference data, and structured outputs across all generated events to fix incomplete responses in the non-streaming <code>/api/v1/agentbots/&lt;agent_id&gt;/completions</code> endpoint. <a href="https://github.com/infiniflow/ragflow/issues/13384" target="_blank" rel="noopener noreferrer" class="">#13384</a><a href="https://github.com/infiniflow/ragflow/pull/14848" target="_blank" rel="noopener noreferrer" class="">#14848</a></li>
+<li class="">Prevents the <strong>Retrieval</strong> component&#x27;s manual metadata filters from getting stuck on the first loop&#x27;s value by making a temporary copy of the filter settings to preserve the original placeholder.<a href="https://github.com/infiniflow/ragflow/issues/12582" target="_blank" rel="noopener noreferrer" class="">#12582</a><a href="https://github.com/infiniflow/ragflow/pull/14849" target="_blank" rel="noopener noreferrer" class="">#14849</a></li>
+<li class="">Agent: Fixed MCP tool name duplication.<a href="https://github.com/infiniflow/ragflow/pull/14217" target="_blank" rel="noopener noreferrer" class="">#14217</a></li>
+<li class="">Agent: top_k passing issues <a href="https://github.com/infiniflow/ragflow/pull/14760" target="_blank" rel="noopener noreferrer" class="">#14760</a></li>
+<li class="">Chat file attachment loss. <a href="https://github.com/infiniflow/ragflow/pull/13993" target="_blank" rel="noopener noreferrer" class="">#13993</a></li>
+<li class="">IMAP synchronization process crashed when multiple email addresses or quoted commas were detected in &quot;From&quot; header. <a href="https://github.com/infiniflow/ragflow/issues/14963" target="_blank" rel="noopener noreferrer" class="">#14963</a><a href="https://github.com/infiniflow/ragflow/issues/14964" target="_blank" rel="noopener noreferrer" class="">#14964</a><a href="https://github.com/infiniflow/ragflow/pull/15006" target="_blank" rel="noopener noreferrer" class="">#15006</a></li>
+<li class="">Langfuse integration failed to track token consumption. <a href="https://github.com/infiniflow/ragflow/issues/9837" target="_blank" rel="noopener noreferrer" class="">#9837</a><a href="https://github.com/infiniflow/ragflow/pull/13294" target="_blank" rel="noopener noreferrer" class="">#13294</a></li>
+<li class="">Enhances the stability and fault tolerance of the reranking module by implementing network timeouts, crash-prevention safeguards, and specific provider bug fixes. <a href="https://github.com/infiniflow/ragflow/pull/14264" target="_blank" rel="noopener noreferrer" class="">#14264</a></li>
+<li class="">Increases minimum supported Nginx to 1.31.0. <a href="https://github.com/infiniflow/ragflow/issues/14928" target="_blank" rel="noopener noreferrer" class="">#14928</a><a href="https://github.com/infiniflow/ragflow/pull/15007" target="_blank" rel="noopener noreferrer" class="">#15007</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0254">v0.25.4<a href="#v0254" class="hash-link" aria-label="Direct link to v0.25.4" title="Direct link to v0.25.4" translate="no">​</a></h2>
+<p>Released on May 14, 2026</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-6">New features<a href="#new-features-6" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Introduces a generic RESTful API connector, enabling configurable data ingestion from niche or enterprise-specific platforms into RAGFlow. <a href="https://github.com/infiniflow/ragflow/pull/13545" target="_blank" rel="noopener noreferrer" class="">#13545</a></li>
+<li class="">Agent: Implements tag management to help users categorize, filter, and sort their Agent apps. <a href="https://github.com/infiniflow/ragflow/pull/14799" target="_blank" rel="noopener noreferrer" class="">#14799</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-5">Improvements<a href="#improvements-5" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Adds widget customization and persistence, allowing users to tailor their chat interface and ensure their settings are retained across sessions. <a href="https://github.com/infiniflow/ragflow/pull/14603" target="_blank" rel="noopener noreferrer" class="">#14603</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="model-support-1">Model support<a href="#model-support-1" class="hash-link" aria-label="Direct link to Model support" title="Direct link to Model support" translate="no">​</a></h3>
+<ul>
+<li class="">Adds gpt-5.4-mini and gpt-5.4-nano to the OpenAI model list <a href="https://github.com/infiniflow/ragflow/pull/14908" target="_blank" rel="noopener noreferrer" class="">#14908</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes-6">Bug fixes<a href="#bug-fixes-6" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class="">Corrects the API endpoint for downloading original files from a specified dataset. <a href="https://github.com/infiniflow/ragflow/pull/14910" target="_blank" rel="noopener noreferrer" class="">#14910</a> See also <a class="" href="/docs/http_api_reference#download-document">Download document</a>.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0253">v0.25.3<a href="#v0253" class="hash-link" aria-label="Direct link to v0.25.3" title="Direct link to v0.25.3" translate="no">​</a></h2>
+<p>Released on May 13, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-7">New features<a href="#new-features-7" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Enables assigning specific roles like content, metadata, and primary key, to table columns. <a href="https://github.com/infiniflow/ragflow/pull/13710" target="_blank" rel="noopener noreferrer" class="">#13710</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-6">Improvements<a href="#improvements-6" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">S3 connector: Implements ETag-based incremental synchronization for S3 data sources, drastically reducing sync time and AWS egress costs for users with massive-volumn S3-based datasets. <a href="https://github.com/infiniflow/ragflow/issues/14628" target="_blank" rel="noopener noreferrer" class="">#14628</a><a href="https://github.com/infiniflow/ragflow/pull/14677" target="_blank" rel="noopener noreferrer" class="">#14677</a></li>
+<li class="">API refactoring and security<!-- -->
+<ul>
+<li class="">Continues the transition of web APIs to RESTful conventions, ensuring backward compatibility for all legacy endpoints.</li>
+<li class="">Binds the <code>user_id</code> in <code>POST /api/v1/messages</code> to the authenticated JWT principal. <a href="https://github.com/infiniflow/ragflow/pull/14745" target="_blank" rel="noopener noreferrer" class="">#14745</a></li>
+<li class="">Secures the sandbox executor against dynamic and indirect code execution bypasses. <a href="https://github.com/infiniflow/ragflow/pull/14690" target="_blank" rel="noopener noreferrer" class="">#14690</a></li>
+<li class="">Enforces HTTP request timeouts across the LLM integration layer. <a href="https://github.com/infiniflow/ragflow/pull/14313" target="_blank" rel="noopener noreferrer" class="">#14313</a></li>
+</ul>
+</li>
+<li class="">Refactors thread pool lifecycle management in <code>file_service.py</code> and <code>task_executor.py</code> for more efficient, lightweight resource handling. <a href="https://github.com/infiniflow/ragflow/pull/14668" target="_blank" rel="noopener noreferrer" class="">#14668</a></li>
+<li class="">Agent: Enables the <strong>Code</strong> component to output and display file-based attachments, such as charts and images, directly in the chat. <a href="https://github.com/infiniflow/ragflow/pull/14787" target="_blank" rel="noopener noreferrer" class="">#14787</a></li>
+<li class="">Reduces ingestion server boot time. <a href="https://github.com/infiniflow/ragflow/pull/14894" target="_blank" rel="noopener noreferrer" class="">#14894</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes-7">Bug fixes<a href="#bug-fixes-7" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class="">Images in multi-sheet Excel workbooks were not scoped by sheet, causing images to be incorrectly attributed across different worksheets. <a href="https://github.com/infiniflow/ragflow/pull/14120" target="_blank" rel="noopener noreferrer" class="">#14120</a></li>
+<li class="">Agent: Splits the <strong>Message</strong> component output into distinct &#x27;waiting&#x27; and &#x27;message&#x27; states when nested inside an <strong>Iteration</strong> component alongside a <strong>Wait</strong> component. <a href="https://github.com/infiniflow/ragflow/pull/14839" target="_blank" rel="noopener noreferrer" class="">#14839</a></li>
+<li class="">Agent: The <strong>Iteration</strong> component failed to correctly pass array elements to its child components due to a naming mismatch between the expected <code>IterationItem</code> alias and the runtime <code>item</code> variable. <a href="https://github.com/infiniflow/ragflow/pull/14146" target="_blank" rel="noopener noreferrer" class="">#14146</a></li>
+<li class="">Agent: Template strings in tool-type components like <strong>Email</strong> and <strong>Invoke</strong> failed to interpolate; <code>{{variable}}</code> placeholders were passed through as raw text. <a href="https://github.com/infiniflow/ragflow/pull/14601" target="_blank" rel="noopener noreferrer" class="">#14601</a></li>
+<li class="">Volcengine (Doubao/Ark) endpoints were not visible in the provider list. <a href="https://github.com/infiniflow/ragflow/pull/14702" target="_blank" rel="noopener noreferrer" class="">#14702</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0252">v0.25.2<a href="#v0252" class="hash-link" aria-label="Direct link to v0.25.2" title="Direct link to v0.25.2" translate="no">​</a></h2>
+<p>Released on May 11, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-7">Improvements<a href="#improvements-7" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">API refactoring and unification: Continues the transition of web APIs to RESTful conventions, ensuring backward compatibility for all legacy endpoints.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="data-source">Data source<a href="#data-source" class="hash-link" aria-label="Direct link to Data source" title="Direct link to Data source" translate="no">​</a></h3>
+<ul>
+<li class="">Introduces a lightweight snapshot mechanism for synchronizing deleted files across eight data sources—including Moodle, DingTalk AI Table, and RSS—ensuring a faithful reflection of all remote data sources. <a href="https://github.com/infiniflow/ragflow/issues/14362" target="_blank" rel="noopener noreferrer" class="">#14362</a><a href="https://github.com/infiniflow/ragflow/pull/14499" target="_blank" rel="noopener noreferrer" class="">#14499</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes-8">Bug fixes<a href="#bug-fixes-8" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class="">Metadata visibility issues during v0.24.0 to v0.25.0 upgrades.</li>
+<li class="">Duplicate chat output.</li>
+<li class="">Metadata filtering was handled in-memory instead of leveraging Elasticsearch, incurring performance bottlenecks. <a href="https://github.com/infiniflow/ragflow/pull/14576" target="_blank" rel="noopener noreferrer" class="">#14576</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0251">v0.25.1<a href="#v0251" class="hash-link" aria-label="Direct link to v0.25.1" title="Direct link to v0.25.1" translate="no">​</a></h2>
+<p>Released on April 29, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-8">Improvements<a href="#improvements-8" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">API refactoring and unification: Standardizes web APIs to RESTful conventions across all endpoints, unifying document creation and indexing flows while maintaining backward compatibility.</li>
+<li class="">Parsing optimizations: Adds <a href="https://github.com/opendataloader-project/opendataloader-pdf" target="_blank" rel="noopener noreferrer" class="">OpenDataLoader</a> PDF parser backend. <a href="https://github.com/infiniflow/ragflow/pull/14097" target="_blank" rel="noopener noreferrer" class="">#14097</a></li>
+<li class="">Introduces lazy loading and chunked parsing for large PDFs (&gt;50 pages), significantly reducing memory footprint. <a href="https://github.com/infiniflow/ragflow/pull/14385" target="_blank" rel="noopener noreferrer" class="">#14385</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="data-source-1">Data source<a href="#data-source-1" class="hash-link" aria-label="Direct link to Data source" title="Direct link to Data source" translate="no">​</a></h3>
+<p>Enables synchronizing deleted files in Bitbucket, Gmail, Google Drive, and Airtable. <a href="https://github.com/infiniflow/ragflow/issues/14362" target="_blank" rel="noopener noreferrer" class="">#14362</a></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="model-support-2">Model support<a href="#model-support-2" class="hash-link" aria-label="Direct link to Model support" title="Direct link to Model support" translate="no">​</a></h3>
+<ul>
+<li class="">DeepSeek v4</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="model-providers">Model providers<a href="#model-providers" class="hash-link" aria-label="Direct link to Model providers" title="Direct link to Model providers" translate="no">​</a></h3>
+<ul>
+<li class="">UCloud</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bug-fixes-9">Bug fixes<a href="#bug-fixes-9" class="hash-link" aria-label="Direct link to Bug fixes" title="Direct link to Bug fixes" translate="no">​</a></h3>
+<ul>
+<li class="">Metadata visibility issues during v0.24.0 to v0.25.0 upgrades.</li>
+<li class="">Duplicate chat output.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0250">v0.25.0<a href="#v0250" class="hash-link" aria-label="Direct link to v0.25.0" title="Direct link to v0.25.0" translate="no">​</a></h2>
+<p>Released on April 21, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-8">New features<a href="#new-features-8" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Agent<!-- -->
+<ul>
+<li class="">Introduces seven prebuilt ingestion pipeline templates.</li>
+<li class="">Agent apps can be published.</li>
+<li class="">Supports sandbox code execution and chart generation.</li>
+<li class="">Adds a beginner&#x27;s data analytics Agent template.</li>
+</ul>
+</li>
+<li class="">Memory: Supports user-level memory storage and retrieval.</li>
+<li class="">New UI language: Arabic (implemented a Right-to-Left layout), Bulgarian, and Turkish.</li>
+<li class="">Ecosystem integration: RAGFlow datasets are accessible via OpenClaw.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-9">Improvements<a href="#improvements-9" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Optimizes Docx parsing by supporting image lazy-loading, reducing memory footprint.</li>
+<li class="">Optimizes Chat, Agent, and Search embedded dialog pages for mobile compatibility.</li>
+<li class="">Underlying system &amp; infrastructure optimization:<!-- -->
+<ul>
+<li class="">Bumps RAGFlow&#x27;s document engine, Elasticsearch to 9.x.</li>
+<li class="">Switches the default object storage container to <code>pgsty/minio</code> due to the deprecation of the official MinIO images.</li>
+<li class="">Adds database migration scripts; see <a href="https://github.com/infiniflow/ragflow/tree/74b44e1aa3ecd6687b3aa4ef731d0187720c3cb5/tools/scripts" target="_blank" rel="noopener noreferrer" class="">this readme</a> for further details.</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="model-support-3">Model support<a href="#model-support-3" class="hash-link" aria-label="Direct link to Model support" title="Direct link to Model support" translate="no">​</a></h3>
+<ul>
+<li class="">MiniMax-M2.7 series</li>
+<li class="">Perplexity embedding model (pplx-embed)</li>
+<li class="">Tongyi rerank model</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-model-providers">New model providers<a href="#new-model-providers" class="hash-link" aria-label="Direct link to New model providers" title="Direct link to New model providers" translate="no">​</a></h3>
+<ul>
+<li class="">avian.io</li>
+<li class="">ragcon.ai</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="data-sources">Data sources<a href="#data-sources" class="hash-link" aria-label="Direct link to Data sources" title="Direct link to Data sources" translate="no">​</a></h3>
+<ul>
+<li class="">Seafile</li>
+<li class="">RSS</li>
+<li class="">DingTalk AI Table</li>
+<li class="">GitHub: Enables synchronization for deleted files.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0240">v0.24.0<a href="#v0240" class="hash-link" aria-label="Direct link to v0.24.0" title="Direct link to v0.24.0" translate="no">​</a></h2>
+<p>Released on February 10, 2026.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-9">New features<a href="#new-features-9" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Memory<!-- -->
+<ul>
+<li class="">Introduces memory management APIs (HTTP and Python).</li>
+<li class="">Outputs Memory extraction log to the console.</li>
+</ul>
+</li>
+<li class="">Dataset<!-- -->
+<ul>
+<li class="">Supports batch metadata management.</li>
+<li class="">Renames &quot;ToC (Table of Contents)&quot; to &quot;PageIndex&quot;. See <a class="" href="/docs/enable_table_of_contents">here</a>.</li>
+</ul>
+</li>
+<li class="">Agent<!-- -->
+<ul>
+<li class="">Launches a new Chat-like Agent conversation management interface that retains sessions and dialogue history.</li>
+<li class="">Introduces a multi-Sandbox mechanism supporting local gVisor and Alibaba Cloud, with compatibility for mainstream Sandbox APIs (configurable in the Admin page).</li>
+</ul>
+</li>
+<li class="">Chat<!-- -->
+<ul>
+<li class="">Adds a new &quot;Thinking&quot; mode and removes the previous &quot;Reasoning&quot; configuration option.</li>
+<li class="">Optimizes retrieval strategies for deep-research scenarios, enhancing recall accuracy.</li>
+</ul>
+</li>
+<li class="">Admin<!-- -->
+<ul>
+<li class="">Supports multiple Admin accounts.</li>
+</ul>
+</li>
+<li class="">Model configuration center<!-- -->
+<ul>
+<li class="">Adds model connection test for new models.</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="mysql-alternative">MySQL alternative<a href="#mysql-alternative" class="hash-link" aria-label="Direct link to MySQL alternative" title="Direct link to MySQL alternative" translate="no">​</a></h3>
+<ul>
+<li class="">Supports OceanBase as an alternative to MySQL.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="model-support-4">Model support<a href="#model-support-4" class="hash-link" aria-label="Direct link to Model support" title="Direct link to Model support" translate="no">​</a></h3>
+<ul>
+<li class="">Kimi 2.5</li>
+<li class="">Stepfun 3</li>
+<li class="">doubao-embedding-vision</li>
+<li class="">PaddleOCR-VL</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="data-sources-1">Data sources<a href="#data-sources-1" class="hash-link" aria-label="Direct link to Data sources" title="Direct link to Data sources" translate="no">​</a></h3>
+<ul>
+<li class="">Zendesk</li>
+<li class="">Bitbucket</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes">API changes<a href="#api-changes" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-api">HTTP API<a href="#http-api" class="hash-link" aria-label="Direct link to HTTP API" title="Direct link to HTTP API" translate="no">​</a></h4>
+<p><a class="" href="/docs/http_api_reference#memory-management">Memory management API</a></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="python-api">Python API<a href="#python-api" class="hash-link" aria-label="Direct link to Python API" title="Direct link to Python API" translate="no">​</a></h4>
+<p><a class="" href="/docs/python_api_reference#memory-management">Memory management API</a></p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0231">v0.23.1<a href="#v0231" class="hash-link" aria-label="Direct link to v0.23.1" title="Direct link to v0.23.1" translate="no">​</a></h2>
+<p>Released on December 31, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-10">Improvements<a href="#improvements-10" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Memory: Enhances the stability of memory extraction when all memory types are selected.</li>
+<li class="">RAG: Refines the context window extraction strategy for images and tables.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues">Fixed issues<a href="#fixed-issues" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<ul>
+<li class="">Memory:<!-- -->
+<ul>
+<li class="">The RAGFlow server failed to start if an empty memory object existed.</li>
+<li class="">Unable to delete a newly created empty Memory.</li>
+</ul>
+</li>
+<li class="">RAG: MDX file parsing was not supported.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="data-sources-2">Data sources<a href="#data-sources-2" class="hash-link" aria-label="Direct link to Data sources" title="Direct link to Data sources" translate="no">​</a></h3>
+<ul>
+<li class="">GitHub</li>
+<li class="">Gitlab</li>
+<li class="">Asana</li>
+<li class="">IMAP</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0230">v0.23.0<a href="#v0230" class="hash-link" aria-label="Direct link to v0.23.0" title="Direct link to v0.23.0" translate="no">​</a></h2>
+<p>Released on December 27, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-10">New features<a href="#new-features-10" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Memory<!-- -->
+<ul>
+<li class="">Implements a <strong>Memory</strong> interface for managing memory.</li>
+<li class="">Supports configuring context via the <strong>Retrieval</strong> or <strong>Message</strong> component.</li>
+</ul>
+</li>
+<li class="">Agent<!-- -->
+<ul>
+<li class="">Improves the <strong>Agent</strong> component&#x27;s performance by refactoring the underlying architecture.</li>
+<li class="">The <strong>Agent</strong> component can now output structured data for use in downstream components.</li>
+<li class="">Supports using webhook to trigger agent execution.</li>
+<li class="">Supports voice input/output.</li>
+<li class="">Supports configuring multiple <strong>Retrieval</strong> components per <strong>Agent</strong> component.</li>
+</ul>
+</li>
+<li class="">Ingestion pipeline<!-- -->
+<ul>
+<li class="">Supports extracting table of contents in the <strong>Transformer</strong> component to improve long-context RAG performance.</li>
+</ul>
+</li>
+<li class="">Dataset<!-- -->
+<ul>
+<li class="">Supports configuring context window for images and tables.</li>
+<li class="">Introduces parent-child chunking strategy.</li>
+<li class="">Supports auto-generation of metadata during file parsing.</li>
+</ul>
+</li>
+<li class="">Chat: Supports voice input.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-11">Improvements<a href="#improvements-11" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">RAG: Accelerates GraphRAG generation significantly.</li>
+<li class="">Bumps RAGFlow&#x27;s document engine, <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a> to v0.6.15 (backward compatible).</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="data-sources-3">Data sources<a href="#data-sources-3" class="hash-link" aria-label="Direct link to Data sources" title="Direct link to Data sources" translate="no">​</a></h3>
+<ul>
+<li class="">Google Cloud Storage</li>
+<li class="">Gmail</li>
+<li class="">Dropbox</li>
+<li class="">WebDAV</li>
+<li class="">Airtable</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="model-support-5">Model support<a href="#model-support-5" class="hash-link" aria-label="Direct link to Model support" title="Direct link to Model support" translate="no">​</a></h3>
+<ul>
+<li class="">GPT-5.2</li>
+<li class="">GPT-5.2 Pro</li>
+<li class="">GPT-5.1</li>
+<li class="">GPT-5.1 Instant</li>
+<li class="">Claude Opus 4.5</li>
+<li class="">MiniMax M2</li>
+<li class="">GLM-4.7.</li>
+<li class="">A MinerU configuration interface.</li>
+<li class="">AI Badgr (model provider).</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-1">API changes<a href="#api-changes-1" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-api-1">HTTP API<a href="#http-api-1" class="hash-link" aria-label="Direct link to HTTP API" title="Direct link to HTTP API" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/http_api_reference#converse-with-agent">Converse with Agent</a> returns complete execution trace logs.</li>
+<li class=""><a class="" href="/docs/http_api_reference#create-chat-completion">Create chat completion</a> supports metadata-based filtering.</li>
+<li class=""><a class="" href="/docs/http_api_reference#converse-with-chat-assistant">Converse with chat assistant</a> supports metadata-based filtering.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0221">v0.22.1<a href="#v0221" class="hash-link" aria-label="Direct link to v0.22.1" title="Direct link to v0.22.1" translate="no">​</a></h2>
+<p>Released on November 19, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-12">Improvements<a href="#improvements-12" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Agent:<!-- -->
+<ul>
+<li class="">Supports exporting Agent outputs in Word or Markdown formats.</li>
+<li class="">Adds a <strong>List operations</strong> component.</li>
+<li class="">Adds a <strong>Variable aggregator</strong> component.</li>
+</ul>
+</li>
+<li class="">Data sources:<!-- -->
+<ul>
+<li class="">Supports S3-compatible data sources, e.g., MinIO.</li>
+<li class="">Adds data synchronization with JIRA.</li>
+</ul>
+</li>
+<li class="">Continues the redesign of the <strong>Profile</strong> page layouts.</li>
+<li class="">Upgrades the Flask web framework from synchronous to asynchronous, increasing concurrency and preventing blocking issues caused when requesting upstream LLM services.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-1">Fixed issues<a href="#fixed-issues-1" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<ul>
+<li class="">A v0.22.0 issue: Users failed to parse uploaded files or switch embedding model in a dataset containing parsed files using a built-in model from a <code>-full</code> RAGFlow edition.</li>
+<li class="">Image concatenated in Word documents. <a href="https://github.com/infiniflow/ragflow/pull/11310" target="_blank" rel="noopener noreferrer" class="">#11310</a></li>
+<li class="">Mixed images and text were not correctly displayed in the chat history.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="newly-supported-models">Newly supported models<a href="#newly-supported-models" class="hash-link" aria-label="Direct link to Newly supported models" title="Direct link to Newly supported models" translate="no">​</a></h3>
+<ul>
+<li class="">Gemini 3 Pro Preview</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0220">v0.22.0<a href="#v0220" class="hash-link" aria-label="Direct link to v0.22.0" title="Direct link to v0.22.0" translate="no">​</a></h2>
+<p>Released on November 12, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="breaking-changes">Breaking Changes<a href="#breaking-changes" class="hash-link" aria-label="Direct link to Breaking Changes" title="Direct link to Breaking Changes" translate="no">​</a></h3>
+<div class="theme-admonition theme-admonition-danger admonition_xJq3 alert alert--danger"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 12 16"><path fill-rule="evenodd" d="M5.05.31c.81 2.17.41 3.38-.52 4.31C3.55 5.67 1.98 6.45.9 7.98c-1.45 2.05-1.7 6.53 3.53 7.7-2.2-1.16-2.67-4.52-.3-6.61-.61 2.03.53 3.33 1.94 2.86 1.39-.47 2.3.53 2.27 1.67-.02.78-.31 1.44-1.13 1.81 3.42-.59 4.78-3.42 4.78-5.56 0-2.84-2.53-3.22-1.25-5.61-1.52.13-2.03 1.13-1.89 2.75.09 1.08-1.02 1.8-1.86 1.33-.67-.41-.66-1.19-.06-1.78C8.18 5.31 8.68 2.45 5.05.32L5.03.3l.02.01z"></path></svg></span>IMPORTANT</div><div class="admonitionContent_BuS1"><p>From this release onwards, we ship only the slim edition (without embedding models) Docker image and no longer append the <code>-slim</code> suffix to the image tag.</p></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-11">New Features<a href="#new-features-11" class="hash-link" aria-label="Direct link to New Features" title="Direct link to New Features" translate="no">​</a></h3>
+<ul>
+<li class="">Dataset:<!-- -->
+<ul>
+<li class="">Supports data synchronization from five online sources (AWS S3, Google Drive, Notion, Confluence, and Discord).</li>
+<li class="">RAPTOR can be built across an entire dataset or on individual documents.</li>
+</ul>
+</li>
+<li class="">Ingestion pipeline: Supports <a href="https://github.com/docling-project/docling" target="_blank" rel="noopener noreferrer" class="">Docling document parsing</a> in the <strong>Parser</strong> component.</li>
+<li class="">Launches a new administrative Web UI dashboard for graphical user management and service status monitoring.</li>
+<li class="">Agent:<!-- -->
+<ul>
+<li class="">Supports structured output.</li>
+<li class="">Supports metadata filtering in the <strong>Retrieval</strong> component.</li>
+<li class="">Introduces a <strong>Variable aggregator</strong> component with data operation and session variable definition capabilities.</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-13">Improvements<a href="#improvements-13" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Agent: Supports visualizing previous components&#x27; outputs in the <strong>Await Response</strong> component.</li>
+<li class="">Revamps the model provider page.</li>
+<li class="">Upgrades RAGFlow&#x27;s document engine Infinity to v0.6.5.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-models">Added Models<a href="#added-models" class="hash-link" aria-label="Direct link to Added Models" title="Direct link to Added Models" translate="no">​</a></h3>
+<ul>
+<li class="">Kimi-K2-Thinking</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-agent-templates">New agent templates<a href="#new-agent-templates" class="hash-link" aria-label="Direct link to New agent templates" title="Direct link to New agent templates" translate="no">​</a></h3>
+<ul>
+<li class="">Interactive Agent, incorporates real-time user feedback to dynamically optimize Agent output.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0211">v0.21.1<a href="#v0211" class="hash-link" aria-label="Direct link to v0.21.1" title="Direct link to v0.21.1" translate="no">​</a></h2>
+<p>Released on October 23, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-12">New features<a href="#new-features-12" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Experimental: Adds support for PDF document parsing using MinerU. See <a class="" href="/docs/faq#how-to-use-mineru-to-parse-pdf-documents">here</a>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-14">Improvements<a href="#improvements-14" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Enhances UI/UX for the dataset and personal center pages.</li>
+<li class="">Upgrades RAGFlow&#x27;s document engine, <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a>, to v0.6.1.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-2">Fixed issues<a href="#fixed-issues-2" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<ul>
+<li class="">An issue with video parsing.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0210">v0.21.0<a href="#v0210" class="hash-link" aria-label="Direct link to v0.21.0" title="Direct link to v0.21.0" translate="no">​</a></h2>
+<p>Released on October 15, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-13">New features<a href="#new-features-13" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Orchestratable ingestion pipeline: Supports customized data ingestion and cleansing workflows, enabling users to flexibly design their data flows or directly apply the official data flow templates on the canvas.</li>
+<li class="">GraphRAG &amp; RAPTOR write process optimized: Replaces the automatic incremental build process with manual batch building, significantly reducing construction overhead.</li>
+<li class="">Long-context RAG: Automatically generates document-level table of contents (TOC) structures to mitigate context loss caused by inaccurate or excessive chunking, substantially improving retrieval quality. This feature is now available via a TOC extraction template. See <a class="" href="/docs/enable_table_of_contents">here</a>.</li>
+<li class="">Video file parsing: Expands the system&#x27;s multimodal data processing capabilities by supporting video file parsing.</li>
+<li class="">Admin CLI: Introduces a new command-line tool for system administration, allowing users to manage and monitor RAGFlow&#x27;s service status via command line.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-15">Improvements<a href="#improvements-15" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Redesigns RAGFlow&#x27;s Login and Registration pages.</li>
+<li class="">Upgrades RAGFlow&#x27;s document engine Infinity to v0.6.0.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="newly-supported-models-1">Newly supported models<a href="#newly-supported-models-1" class="hash-link" aria-label="Direct link to Newly supported models" title="Direct link to Newly supported models" translate="no">​</a></h3>
+<ul>
+<li class="">Tongyi Qwen 3 series</li>
+<li class="">Claude Sonnet 4.5</li>
+<li class="">Meituan LongCat-Flash-Thinking</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-agent-templates-1">New agent templates<a href="#new-agent-templates-1" class="hash-link" aria-label="Direct link to New agent templates" title="Direct link to New agent templates" translate="no">​</a></h3>
+<ul>
+<li class="">Company Research Report Deep Dive Agent: Designed for financial institutions to help analysts quickly organize information, generate research reports, and make investment decisions.</li>
+<li class="">Orchestratable Ingestion Pipeline Template: Allows users to apply this template on the canvas to rapidly establish standardized data ingestion and cleansing processes.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0205">v0.20.5<a href="#v0205" class="hash-link" aria-label="Direct link to v0.20.5" title="Direct link to v0.20.5" translate="no">​</a></h2>
+<p>Released on September 10, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-16">Improvements<a href="#improvements-16" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Agent:<!-- -->
+<ul>
+<li class="">Agent Performance Optimized: Improves planning and reflection speed for simple tasks; optimizes concurrent tool calls for parallelizable scenarios, significantly reducing overall response time.</li>
+<li class="">Four framework-level prompt blocks are available in the <strong>System prompt</strong> section, enabling customization and overriding of prompts at the framework level, thereby enhancing flexibility and control. See <a class="" href="/docs/agent_component#system-prompt">here</a>.</li>
+<li class=""><strong>Execute SQL</strong> component enhanced: Replaces the original variable reference component with a text input field, allowing users to write free-form SQL queries and reference variables. See <a class="" href="/docs/execute_sql">here</a>.</li>
+</ul>
+</li>
+<li class="">Chat: Re-enables <strong>Reasoning</strong> and <strong>Cross-language search</strong>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="newly-supported-models-2">Newly supported models<a href="#newly-supported-models-2" class="hash-link" aria-label="Direct link to Newly supported models" title="Direct link to Newly supported models" translate="no">​</a></h3>
+<ul>
+<li class="">Meituan LongCat</li>
+<li class="">Kimi: kimi-k2-turbo-preview and kimi-k2-0905-preview</li>
+<li class="">Qwen: qwen3-max-preview</li>
+<li class="">SiliconFlow: DeepSeek V3.1</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-3">Fixed issues<a href="#fixed-issues-3" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<ul>
+<li class="">Dataset: Deleted files remained searchable.</li>
+<li class="">Chat: Unable to chat with an Ollama model.</li>
+<li class="">Agent:<!-- -->
+<ul>
+<li class="">A <strong>Cite</strong> toggle failure.</li>
+<li class="">An Agent in task mode still required a dialogue to trigger.</li>
+<li class="">Repeated answers in multi-turn dialogues.</li>
+<li class="">Duplicate summarization of parallel execution results.</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-2">API changes<a href="#api-changes-2" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-apis">HTTP APIs<a href="#http-apis" class="hash-link" aria-label="Direct link to HTTP APIs" title="Direct link to HTTP APIs" translate="no">​</a></h4>
+<ul>
+<li class="">Adds a body parameter <code>&quot;metadata_condition&quot;</code> to the <a class="" href="/docs/http_api_reference#retrieve-chunks">Retrieve chunks</a> method, enabling metadata-based chunk filtering during retrieval. <a href="https://github.com/infiniflow/ragflow/pull/9877" target="_blank" rel="noopener noreferrer" class="">#9877</a></li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="python-apis">Python APIs<a href="#python-apis" class="hash-link" aria-label="Direct link to Python APIs" title="Direct link to Python APIs" translate="no">​</a></h4>
+<ul>
+<li class="">Adds a parameter <code>metadata_condition</code> to the <a class="" href="/docs/python_api_reference#retrieve-chunks">Retrieve chunks</a> method, enabling metadata-based chunk filtering during retrieval. <a href="https://github.com/infiniflow/ragflow/pull/9877" target="_blank" rel="noopener noreferrer" class="">#9877</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0204">v0.20.4<a href="#v0204" class="hash-link" aria-label="Direct link to v0.20.4" title="Direct link to v0.20.4" translate="no">​</a></h2>
+<p>Released on August 27, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-17">Improvements<a href="#improvements-17" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Agent component: Completes Chinese localization for the Agent component.</li>
+<li class="">Introduces the <code>ENABLE_TIMEOUT_ASSERTION</code> environment variable to enable or disable timeout assertions for file parsing tasks.</li>
+<li class="">Dataset:<!-- -->
+<ul>
+<li class="">Improves Markdown file parsing, with AST support to avoid unintended chunking.</li>
+<li class="">Enhances HTML parsing, supporting bs4-based HTML tag traversal.</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="newly-supported-models-3">Newly supported models<a href="#newly-supported-models-3" class="hash-link" aria-label="Direct link to Newly supported models" title="Direct link to Newly supported models" translate="no">​</a></h3>
+<p>ZHIPU GLM-4.5</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-agent-templates-2">New Agent templates<a href="#new-agent-templates-2" class="hash-link" aria-label="Direct link to New Agent templates" title="Direct link to New Agent templates" translate="no">​</a></h3>
+<p>Ecommerce Customer Service Workflow: A template designed to handle enquiries about product features and multi-product comparisons using the internal dataset, as well as to manage installation appointment bookings.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-4">Fixed issues<a href="#fixed-issues-4" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<ul>
+<li class="">Dataset:<!-- -->
+<ul>
+<li class="">Unable to share resources with the team.</li>
+<li class="">Inappropriate restrictions on the number and size of uploaded files.</li>
+</ul>
+</li>
+<li class="">Chat:<!-- -->
+<ul>
+<li class="">Unable to preview referenced files in responses.</li>
+<li class="">Unable to send out messages after file uploads.</li>
+</ul>
+</li>
+<li class="">An OAuth2 authentication failure.</li>
+<li class="">A logical error in multi-conditioned metadata searches within a dataset.</li>
+<li class="">Citations infinitely increased in multi-turn conversations.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0203">v0.20.3<a href="#v0203" class="hash-link" aria-label="Direct link to v0.20.3" title="Direct link to v0.20.3" translate="no">​</a></h2>
+<p>Released on August 20, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-18">Improvements<a href="#improvements-18" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Revamps the user interface for the <strong>Datasets</strong>, <strong>Chat</strong>, and <strong>Search</strong> pages.</li>
+<li class="">Search and Chat: Introduces document-level metadata filtering, allowing automatic or manual filtering during chats or searches.</li>
+<li class="">Search: Supports creating search apps tailored to various business scenarios</li>
+<li class="">Chat: Supports comparing answer performance of up to three chat model settings on a single <strong>Chat</strong> page.</li>
+<li class="">Agent:<!-- -->
+<ul>
+<li class="">Implements a toggle in the <strong>Agent</strong> component to enable or disable citation.</li>
+<li class="">Introduces a drag-and-drop method for creating components.</li>
+</ul>
+</li>
+<li class="">Documentation: Corrects inaccuracies in the API reference.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-agent-templates-3">New Agent templates<a href="#new-agent-templates-3" class="hash-link" aria-label="Direct link to New Agent templates" title="Direct link to New Agent templates" translate="no">​</a></h3>
+<ul>
+<li class="">Report Agent: A template for generating summary reports in internal question-answering scenarios, supporting the display of tables and formulae.  <a href="https://github.com/infiniflow/ragflow/pull/9427" target="_blank" rel="noopener noreferrer" class="">#9427</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-5">Fixed issues<a href="#fixed-issues-5" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<ul>
+<li class="">The timeout mechanism introduced in v0.20.0 caused tasks like GraphRAG to halt.</li>
+<li class="">Predefined opening greeting in the <strong>Agent</strong> component was missing during conversations.</li>
+<li class="">An automatic line break issue in the prompt editor.</li>
+<li class="">A memory leak issue caused by PyPDF. <a href="https://github.com/infiniflow/ragflow/pull/9469" target="_blank" rel="noopener noreferrer" class="">#9469</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-3">API changes<a href="#api-changes-3" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="deprecated">Deprecated<a href="#deprecated" class="hash-link" aria-label="Direct link to Deprecated" title="Direct link to Deprecated" translate="no">​</a></h4>
+<p><a class="" href="/docs/http_api_reference#create-session-with-agent">Create session with agent</a></p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0201">v0.20.1<a href="#v0201" class="hash-link" aria-label="Direct link to v0.20.1" title="Direct link to v0.20.1" translate="no">​</a></h2>
+<p>Released on August 8, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-14">New Features<a href="#new-features-14" class="hash-link" aria-label="Direct link to New Features" title="Direct link to New Features" translate="no">​</a></h3>
+<ul>
+<li class="">The <strong>Retrieval</strong> component now supports the dynamic specification of dataset names using variables.</li>
+<li class="">The user interface now includes a French language option.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="newly-supported-models-4">Newly supported models<a href="#newly-supported-models-4" class="hash-link" aria-label="Direct link to Newly supported models" title="Direct link to Newly supported models" translate="no">​</a></h3>
+<ul>
+<li class="">GPT-5</li>
+<li class="">Claude 4.1</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-agent-templates-both-workflow-and-agentic">New agent templates (both workflow and agentic)<a href="#new-agent-templates-both-workflow-and-agentic" class="hash-link" aria-label="Direct link to New agent templates (both workflow and agentic)" title="Direct link to New agent templates (both workflow and agentic)" translate="no">​</a></h3>
+<ul>
+<li class="">Text-to-SQL data expert Workflow: Empowers non-technical teams (e.g., operations, product) to independently query business data.</li>
+<li class="">Choose Your Knowledge Base Workflow: Lets users select a dataset to query during conversations. <a href="https://github.com/infiniflow/ragflow/pull/9325" target="_blank" rel="noopener noreferrer" class="">#9325</a></li>
+<li class="">Choose Your Knowledge Base Agent: Delivers higher-quality responses with extended reasoning time, suited for complex queries. <a href="https://github.com/infiniflow/ragflow/pull/9325" target="_blank" rel="noopener noreferrer" class="">#9325</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-6">Fixed Issues<a href="#fixed-issues-6" class="hash-link" aria-label="Direct link to Fixed Issues" title="Direct link to Fixed Issues" translate="no">​</a></h3>
+<ul>
+<li class="">The <strong>Agent</strong> component was unable to invoke models installed via vLLM.</li>
+<li class="">Agents could not be shared with the team.</li>
+<li class="">Embedding an Agent into a webpage was not functioning properly.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0200">v0.20.0<a href="#v0200" class="hash-link" aria-label="Direct link to v0.20.0" title="Direct link to v0.20.0" translate="no">​</a></h2>
+<p>Released on August 4, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="compatibility-changes">Compatibility changes<a href="#compatibility-changes" class="hash-link" aria-label="Direct link to Compatibility changes" title="Direct link to Compatibility changes" translate="no">​</a></h3>
+<p>From v0.20.0 onwards, Agents are no longer compatible with earlier versions, and all existing Agents from previous versions must be rebuilt following the upgrade.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-15">New features<a href="#new-features-15" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Unified orchestration of both Agents and Workflows.</li>
+<li class="">A comprehensive refactor of the Agent, greatly enhancing its capabilities and usability, with support for Multi-Agent configurations, planning and reflection, and visual functionalities.</li>
+<li class="">Fully implemented MCP functionality, allowing for MCP Server import, Agents functioning as MCP Clients, and RAGFlow itself operating as an MCP Server.</li>
+<li class="">Access to runtime logs for Agents.</li>
+<li class="">Chat histories with Agents available through the management panel.</li>
+<li class="">Integration of a new, more robust version of Infinity, enabling the auto-tagging functionality with Infinity as the underlying document engine.</li>
+<li class="">An OpenAI-compatible API that supports file reference information.</li>
+<li class="">Support for new models, including Kimi K2, Grok 4, and Voyage embedding.</li>
+<li class="">RAGFlow’s codebase is now mirrored on Gitee.</li>
+<li class="">Introduction of a new model provider, Gitee AI.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-agent-templates-introduced">New agent templates introduced<a href="#new-agent-templates-introduced" class="hash-link" aria-label="Direct link to New agent templates introduced" title="Direct link to New agent templates introduced" translate="no">​</a></h3>
+<ul>
+<li class="">Multi-Agent based Deep research: Collaborative Agent teamwork led by a Lead Agent with multiple Subagents, distinct from traditional workflow orchestration.</li>
+<li class="">An intelligent Q&amp;A chatbot leveraging internal datasets, designed for customer service and training scenarios.</li>
+<li class="">A resume analysis template used by the RAGFlow team to screen, analyze, and record candidate information.</li>
+<li class="">A blog generation workflow that transforms raw ideas into SEO-friendly blog content.</li>
+<li class="">An intelligent customer service workflow.</li>
+<li class="">A user feedback analysis template that directs user feedback to appropriate teams through semantic analysis.</li>
+<li class="">Trip planner: Uses web search and map MCP servers to assist with travel planning.</li>
+<li class="">Photo text translator: Translates content from uploaded photos.</li>
+<li class="">An information search assistant that retrieves answers from both internal datasets and the web.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0191">v0.19.1<a href="#v0191" class="hash-link" aria-label="Direct link to v0.19.1" title="Direct link to v0.19.1" translate="no">​</a></h2>
+<p>Released on June 23, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-7">Fixed issues<a href="#fixed-issues-7" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<ul>
+<li class="">A memory leak issue during high-concurrency requests.</li>
+<li class="">Large file parsing freezes when GraphRAG entity resolution is enabled. <a href="https://github.com/infiniflow/ragflow/pull/8223" target="_blank" rel="noopener noreferrer" class="">#8223</a></li>
+<li class="">A context error occurring when using Sandbox in standalone mode. <a href="https://github.com/infiniflow/ragflow/pull/8340" target="_blank" rel="noopener noreferrer" class="">#8340</a></li>
+<li class="">An excessive CPU usage issue caused by Ollama. <a href="https://github.com/infiniflow/ragflow/pull/8216" target="_blank" rel="noopener noreferrer" class="">#8216</a></li>
+<li class="">A bug in the Code Component. <a href="https://github.com/infiniflow/ragflow/pull/7949" target="_blank" rel="noopener noreferrer" class="">#7949</a></li>
+<li class="">Added support for models installed via Ollama or VLLM when creating a dataset through the API. <a href="https://github.com/infiniflow/ragflow/pull/8069" target="_blank" rel="noopener noreferrer" class="">#8069</a></li>
+<li class="">Enabled role-based authentication for S3 bucket access. <a href="https://github.com/infiniflow/ragflow/pull/8149" target="_blank" rel="noopener noreferrer" class="">#8149</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="newly-supported-models-5">Newly supported models<a href="#newly-supported-models-5" class="hash-link" aria-label="Direct link to Newly supported models" title="Direct link to Newly supported models" translate="no">​</a></h3>
+<ul>
+<li class="">Qwen 3 Embedding. <a href="https://github.com/infiniflow/ragflow/pull/8184" target="_blank" rel="noopener noreferrer" class="">#8184</a></li>
+<li class="">Voyage Multimodal 3. <a href="https://github.com/infiniflow/ragflow/pull/7987" target="_blank" rel="noopener noreferrer" class="">#7987</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0190">v0.19.0<a href="#v0190" class="hash-link" aria-label="Direct link to v0.19.0" title="Direct link to v0.19.0" translate="no">​</a></h2>
+<p>Released on May 26, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-16">New features<a href="#new-features-16" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class=""><a class="" href="/docs/glossary#cross-language-search">Cross-language search</a> is supported in the Knowledge and Chat modules, enhancing search accuracy and user experience in multilingual environments, such as in Chinese-English datasets.</li>
+<li class="">Agent component: A new Code component supports Python and JavaScript scripts, enabling developers to handle more complex tasks like dynamic data processing.</li>
+<li class="">Enhanced image display: Images in Chat and Search now render directly within responses, rather than as external references. Knowledge retrieval testing can retrieve images directly, instead of texts extracted from images.</li>
+<li class="">Claude 4 and ChatGPT o3: Developers can now use the newly released, most advanced Claude model and OpenAI’s latest ChatGPT o3 inference model.</li>
+</ul>
+<blockquote>
+<p>The following features have been contributed by our community:</p>
+</blockquote>
+<ul>
+<li class="">Agent component: Enables tool calling within the Generate Component. Thanks to <a href="https://github.com/notsyncing" target="_blank" rel="noopener noreferrer" class="">notsyncing</a>.</li>
+<li class="">Markdown rendering: Image references in a markdown file can be displayed after chunking. Thanks to <a href="https://github.com/Woody-Hu" target="_blank" rel="noopener noreferrer" class="">Woody-Hu</a>.</li>
+<li class="">Document engine support: OpenSearch can now be used as RAGFlow&#x27;s document engine. Thanks to <a href="https://github.com/pyyuhao" target="_blank" rel="noopener noreferrer" class="">pyyuhao</a>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation">Documentation<a href="#documentation" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-documents">Added documents<a href="#added-documents" class="hash-link" aria-label="Direct link to Added documents" title="Direct link to Added documents" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/select_pdf_parser">Select PDF parser</a></li>
+<li class=""><a class="" href="/docs/enable_excel2html">Enable Excel2HTML</a></li>
+<li class=""><a class="" href="/docs/code_component">Code component</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0180">v0.18.0<a href="#v0180" class="hash-link" aria-label="Direct link to v0.18.0" title="Direct link to v0.18.0" translate="no">​</a></h2>
+<p>Released on April 23, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="compatibility-changes-1">Compatibility changes<a href="#compatibility-changes-1" class="hash-link" aria-label="Direct link to Compatibility changes" title="Direct link to Compatibility changes" translate="no">​</a></h3>
+<p>From this release onwards, built-in rerank models have been removed because they have minimal impact on retrieval rates but significantly increase retrieval time.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-17">New features<a href="#new-features-17" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">MCP server: enables access to RAGFlow&#x27;s datasets via MCP.</li>
+<li class="">DeepDoc supports adopting VLM model as a processing pipeline during document layout recognition, enabling in-depth analysis of images in PDF and DOCX files.</li>
+<li class="">OpenAI-compatible APIs: Agents can be called via OpenAI-compatible APIs.</li>
+<li class="">User registration control: administrators can enable or disable user registration through an environment variable.</li>
+<li class="">Team collaboration: Agents can be shared with team members.</li>
+<li class="">Agent version control: all updates are continuously logged and can be rolled back to a previous version via export.</li>
+</ul>
+<p><img decoding="async" loading="lazy" src="https://raw.githubusercontent.com/infiniflow/ragflow-docs/main/images/export_agent_as_json.jpg" alt="export_agent" class="img_ev3q"></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-19">Improvements<a href="#improvements-19" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Enhanced answer referencing: Citation accuracy in generated responses is improved.</li>
+<li class="">Enhanced question-answering experience: users can now manually stop streaming output during a conversation.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-1">Documentation<a href="#documentation-1" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-documents-1">Added documents<a href="#added-documents-1" class="hash-link" aria-label="Direct link to Added documents" title="Direct link to Added documents" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/set_page_rank">Set page rank</a></li>
+<li class=""><a class="" href="/docs/enable_raptor">Enable RAPTOR</a></li>
+<li class=""><a class="" href="/docs/set_chat_variables">Set variables for your chat assistant</a></li>
+<li class=""><a class="" href="/docs/launch_mcp_server">Launch RAGFlow MCP server</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0172">v0.17.2<a href="#v0172" class="hash-link" aria-label="Direct link to v0.17.2" title="Direct link to v0.17.2" translate="no">​</a></h2>
+<p>Released on March 13, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="compatibility-changes-2">Compatibility changes<a href="#compatibility-changes-2" class="hash-link" aria-label="Direct link to Compatibility changes" title="Direct link to Compatibility changes" translate="no">​</a></h3>
+<ul>
+<li class="">Removes the <strong>Max_tokens</strong> setting from <strong>Chat configuration</strong>.</li>
+<li class="">Removes the <strong>Max_tokens</strong> setting from <strong>Generate</strong>, <strong>Rewrite</strong>, <strong>Categorize</strong>, <strong>Keyword</strong> agent components.</li>
+</ul>
+<p>From this release onwards, if you still see RAGFlow&#x27;s responses being cut short or truncated, check the <strong>Max_tokens</strong> setting of your model provider.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-20">Improvements<a href="#improvements-20" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Adds OpenAI-compatible APIs.</li>
+<li class="">Introduces a German user interface.</li>
+<li class="">Accelerates knowledge graph extraction.</li>
+<li class="">Enables Tavily-based web search in the <strong>Retrieval</strong> agent component.</li>
+<li class="">Adds Tongyi-Qianwen QwQ models (OpenAI-compatible).</li>
+<li class="">Supports CSV files in the <strong>General</strong> chunking method.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-8">Fixed issues<a href="#fixed-issues-8" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<ul>
+<li class="">Unable to add models via Ollama/Xinference, an issue introduced in v0.17.1.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-4">API changes<a href="#api-changes-4" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-apis-1">HTTP APIs<a href="#http-apis-1" class="hash-link" aria-label="Direct link to HTTP APIs" title="Direct link to HTTP APIs" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/http_api_reference#openai-compatible-api">Create chat completion</a></li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="python-apis-1">Python APIs<a href="#python-apis-1" class="hash-link" aria-label="Direct link to Python APIs" title="Direct link to Python APIs" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/python_api_reference#openai-compatible-api">Create chat completion</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0171">v0.17.1<a href="#v0171" class="hash-link" aria-label="Direct link to v0.17.1" title="Direct link to v0.17.1" translate="no">​</a></h2>
+<p>Released on March 11, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-21">Improvements<a href="#improvements-21" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Improves English tokenization quality.</li>
+<li class="">Improves the table extraction logic in Markdown document parsing.</li>
+<li class="">Updates SiliconFlow&#x27;s model list.</li>
+<li class="">Supports parsing XLS files (Excel 97-2003) with improved corresponding error handling.</li>
+<li class="">Supports Huggingface rerank models.</li>
+<li class="">Enables relative time expressions (&quot;now&quot;, &quot;yesterday&quot;, &quot;last week&quot;, &quot;next year&quot;, and more) in chat assistant and the <strong>Rewrite</strong> agent component.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-9">Fixed issues<a href="#fixed-issues-9" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<ul>
+<li class="">A repetitive knowledge graph extraction issue.</li>
+<li class="">Issues with API calling.</li>
+<li class="">Options in the <strong>PDF parser</strong>, aka <strong>Document parser</strong>, dropdown are missing.</li>
+<li class="">A Tavily web search issue.</li>
+<li class="">Unable to preview diagrams or images in an AI chat.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-2">Documentation<a href="#documentation-2" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-documents-2">Added documents<a href="#added-documents-2" class="hash-link" aria-label="Direct link to Added documents" title="Direct link to Added documents" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/use_tag_sets">Use tag set</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0170">v0.17.0<a href="#v0170" class="hash-link" aria-label="Direct link to v0.17.0" title="Direct link to v0.17.0" translate="no">​</a></h2>
+<p>Released on March 3, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-18">New features<a href="#new-features-18" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">AI chat: Implements Deep research for agentic reasoning. To activate this, enable the <strong>Reasoning</strong> toggle under the <strong>Prompt engine</strong> tab of your chat assistant dialogue.</li>
+<li class="">AI chat: Leverages Tavily-based web search to enhance contexts in agentic reasoning. To activate this, enter the correct Tavily API key under the <strong>Assistant settings</strong> tab of your chat assistant dialogue.</li>
+<li class="">AI chat: Supports starting a chat without specifying datasets.</li>
+<li class="">AI chat: HTML files can also be previewed and referenced, in addition to PDF files.</li>
+<li class="">Dataset: Adds a <strong>PDF parser</strong>, aka <strong>Document parser</strong>, dropdown menu to dataset configurations. This includes a DeepDoc model option, which is time-consuming, a much faster <strong>naive</strong> option (plain text), which skips DLA (Document Layout Analysis), OCR (Optical Character Recognition), and TSR (Table Structure Recognition) tasks, and several currently <em>experimental</em> large model options. See <a class="" href="/docs/select_pdf_parser">here</a>.</li>
+<li class="">Agent component: <strong>(x)</strong> or a forward slash <code>/</code> can be used to insert available keys (variables) in the system prompt field of the <strong>Generate</strong> or <strong>Template</strong> component.</li>
+<li class="">Object storage: Supports using Aliyun OSS (Object Storage Service) as a file storage option.</li>
+<li class="">Models: Updates the supported model list for Tongyi-Qianwen (Qwen), adding DeepSeek-specific models; adds ModelScope as a model provider.</li>
+<li class="">APIs: Document metadata can be updated through an API.</li>
+</ul>
+<p>The following diagram illustrates the workflow of RAGFlow&#x27;s Deep research:</p>
+<p><img decoding="async" loading="lazy" src="https://github.com/user-attachments/assets/f65d4759-4f09-4d9d-9549-c0e1fe907525" alt="Image" class="img_ev3q"></p>
+<p>The following is a screenshot of a conversation that integrates Deep research:</p>
+<p><img decoding="async" loading="lazy" src="https://github.com/user-attachments/assets/165b88ff-1f5d-4fb8-90e2-c836b25e32e9" alt="Image" class="img_ev3q"></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-5">API changes<a href="#api-changes-5" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-apis-2">HTTP APIs<a href="#http-apis-2" class="hash-link" aria-label="Direct link to HTTP APIs" title="Direct link to HTTP APIs" translate="no">​</a></h4>
+<p>Adds a body parameter <code>&quot;meta_fields&quot;</code> to the <a class="" href="/docs/http_api_reference#update-document">Update document</a> method.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="python-apis-2">Python APIs<a href="#python-apis-2" class="hash-link" aria-label="Direct link to Python APIs" title="Direct link to Python APIs" translate="no">​</a></h4>
+<p>Adds a key option <code>&quot;meta_fields&quot;</code> to the <a class="" href="/docs/python_api_reference#update-document">Update document</a> method.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-3">Documentation<a href="#documentation-3" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-documents-3">Added documents<a href="#added-documents-3" class="hash-link" aria-label="Direct link to Added documents" title="Direct link to Added documents" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/run_retrieval_test">Run retrieval test</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0160">v0.16.0<a href="#v0160" class="hash-link" aria-label="Direct link to v0.16.0" title="Direct link to v0.16.0" translate="no">​</a></h2>
+<p>Released on February 6, 2025.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-19">New features<a href="#new-features-19" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Supports DeepSeek R1 and DeepSeek V3.</li>
+<li class="">GraphRAG refactor: Knowledge graph is dynamically built on an entire dataset rather than on an individual file, and automatically updated when a newly uploaded file starts parsing. See <a class="" href="/docs/construct_knowledge_graph">here</a>.</li>
+<li class="">Adds an <strong>Iteration</strong> agent component and a <strong>Research report generator</strong> agent template. See <a class="" href="/docs/iteration_component">here</a>.</li>
+<li class="">New UI language: Portuguese.</li>
+<li class="">Allows setting metadata for a specific file in a dataset to enhance AI-powered chats. See <a class="" href="/docs/set_metadata">here</a>.</li>
+<li class="">Upgrades RAGFlow&#x27;s document engine <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a> to v0.6.0.dev3.</li>
+<li class="">Supports GPU acceleration for DeepDoc (see <a href="https://github.com/infiniflow/ragflow/blob/main/docker/docker-compose-gpu.yml" target="_blank" rel="noopener noreferrer" class="">docker-compose-gpu.yml</a>).</li>
+<li class="">Supports creating and referencing a <strong>Tag</strong> dataset as a key milestone towards bridging the semantic gap between query and response.</li>
+</ul>
+<div class="theme-admonition theme-admonition-danger admonition_xJq3 alert alert--danger"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 12 16"><path fill-rule="evenodd" d="M5.05.31c.81 2.17.41 3.38-.52 4.31C3.55 5.67 1.98 6.45.9 7.98c-1.45 2.05-1.7 6.53 3.53 7.7-2.2-1.16-2.67-4.52-.3-6.61-.61 2.03.53 3.33 1.94 2.86 1.39-.47 2.3.53 2.27 1.67-.02.78-.31 1.44-1.13 1.81 3.42-.59 4.78-3.42 4.78-5.56 0-2.84-2.53-3.22-1.25-5.61-1.52.13-2.03 1.13-1.89 2.75.09 1.08-1.02 1.8-1.86 1.33-.67-.41-.66-1.19-.06-1.78C8.18 5.31 8.68 2.45 5.05.32L5.03.3l.02.01z"></path></svg></span>IMPORTANT</div><div class="admonitionContent_BuS1"><p>The <strong>Tag dataset</strong> feature is <em>unavailable</em> on the <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a> document engine.</p></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-4">Documentation<a href="#documentation-4" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-documents-4">Added documents<a href="#added-documents-4" class="hash-link" aria-label="Direct link to Added documents" title="Direct link to Added documents" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/construct_knowledge_graph">Construct knowledge graph</a></li>
+<li class=""><a class="" href="/docs/set_metadata">Set metadata</a></li>
+<li class=""><a class="" href="/docs/guides/agent/agent_component_reference/begin.mdx">Begin component</a></li>
+<li class=""><a class="" href="/docs/guides/agent/agent_component_reference/generate.mdx">Generate component</a></li>
+<li class=""><a class="" href="/docs/guides/agent/agent_component_reference/interact.mdx">Interact component</a></li>
+<li class=""><a class="" href="/docs/retrieval_component">Retrieval component</a></li>
+<li class=""><a class="" href="/docs/categorize_component">Categorize component</a></li>
+<li class=""><a class="" href="/docs/guides/agent/agent_component_reference/keyword.mdx">Keyword component</a></li>
+<li class=""><a class="" href="/docs/guides/agent/agent_component_reference/message.mdx">Message component</a></li>
+<li class=""><a class="" href="/docs/guides/agent/agent_component_reference/rewrite.mdx">Rewrite component</a></li>
+<li class=""><a class="" href="/docs/switch_component">Switch component</a></li>
+<li class=""><a class="" href="/docs/guides/agent/agent_component_reference/concentrator.mdx">Concentrator component</a></li>
+<li class=""><a class="" href="/docs/guides/agent/agent_component_reference/template.mdx">Template component</a></li>
+<li class=""><a class="" href="/docs/iteration_component">Iteration component</a></li>
+<li class=""><a class="" href="/docs/guides/agent/agent_component_reference/note.mdx">Note component</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0151">v0.15.1<a href="#v0151" class="hash-link" aria-label="Direct link to v0.15.1" title="Direct link to v0.15.1" translate="no">​</a></h2>
+<p>Released on December 25, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="upgrades">Upgrades<a href="#upgrades" class="hash-link" aria-label="Direct link to Upgrades" title="Direct link to Upgrades" translate="no">​</a></h3>
+<ul>
+<li class="">Upgrades RAGFlow&#x27;s document engine <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a> to v0.5.2.</li>
+<li class="">Enhances the log display of document parsing status.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-10">Fixed issues<a href="#fixed-issues-10" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<p>This release fixes the following issues:</p>
+<ul>
+<li class="">The <code>SCORE not found</code> and <code>position_int</code> errors returned by <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a>.</li>
+<li class="">Once an embedding model in a specific dataset is changed, embedding models in other datasets can no longer be changed.</li>
+<li class="">Slow response in question-answering and AI search due to repetitive loading of the embedding model.</li>
+<li class="">Fails to parse documents with RAPTOR.</li>
+<li class="">Using the <strong>Table</strong> parsing method results in information loss.</li>
+<li class="">Miscellaneous API issues.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-6">API changes<a href="#api-changes-6" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-apis-3">HTTP APIs<a href="#http-apis-3" class="hash-link" aria-label="Direct link to HTTP APIs" title="Direct link to HTTP APIs" translate="no">​</a></h4>
+<p>Adds an optional parameter <code>&quot;user_id&quot;</code> to the following APIs:</p>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#create-session-with-chat-assistant" target="_blank" rel="noopener noreferrer" class="">Create session with chat assistant</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#update-chat-assistants-session" target="_blank" rel="noopener noreferrer" class="">Update chat assistant&#x27;s session</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#list-chat-assistants-sessions" target="_blank" rel="noopener noreferrer" class="">List chat assistant&#x27;s sessions</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#create-session-with-agent" target="_blank" rel="noopener noreferrer" class="">Create session with agent</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#converse-with-chat-assistant" target="_blank" rel="noopener noreferrer" class="">Converse with chat assistant</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#converse-with-agent" target="_blank" rel="noopener noreferrer" class="">Converse with agent</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#list-agent-sessions" target="_blank" rel="noopener noreferrer" class="">List agent sessions</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0150">v0.15.0<a href="#v0150" class="hash-link" aria-label="Direct link to v0.15.0" title="Direct link to v0.15.0" translate="no">​</a></h2>
+<p>Released on December 18, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-20">New features<a href="#new-features-20" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Introduces additional Agent-specific APIs.</li>
+<li class="">Supports using page rank score to improve retrieval performance when searching across multiple datasets.</li>
+<li class="">Offers an iframe in Chat and Agent to facilitate the integration of RAGFlow into your webpage.</li>
+<li class="">Adds a Helm chart for deploying RAGFlow on Kubernetes.</li>
+<li class="">Supports importing or exporting an agent in JSON format.</li>
+<li class="">Supports step run for Agent components/tools.</li>
+<li class="">Adds a new UI language: Japanese.</li>
+<li class="">Supports resuming GraphRAG and RAPTOR from a failure, enhancing task management resilience.</li>
+<li class="">Adds more Mistral models.</li>
+<li class="">Adds a dark mode to the UI, allowing users to toggle between light and dark themes.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-22">Improvements<a href="#improvements-22" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<ul>
+<li class="">Upgrades the Document Layout Analysis model in DeepDoc.</li>
+<li class="">Significantly enhances the retrieval performance when using <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a> as document engine.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-7">API changes<a href="#api-changes-7" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-apis-4">HTTP APIs<a href="#http-apis-4" class="hash-link" aria-label="Direct link to HTTP APIs" title="Direct link to HTTP APIs" translate="no">​</a></h4>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#list-agent-sessions" target="_blank" rel="noopener noreferrer" class="">List agent sessions</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#list-agents" target="_blank" rel="noopener noreferrer" class="">List agents</a></li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="python-apis-3">Python APIs<a href="#python-apis-3" class="hash-link" aria-label="Direct link to Python APIs" title="Direct link to Python APIs" translate="no">​</a></h4>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/python_api_reference#list-agent-sessions" target="_blank" rel="noopener noreferrer" class="">List agent sessions</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/python_api_reference#list-agents" target="_blank" rel="noopener noreferrer" class="">List agents</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0141">v0.14.1<a href="#v0141" class="hash-link" aria-label="Direct link to v0.14.1" title="Direct link to v0.14.1" translate="no">​</a></h2>
+<p>Released on November 29, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="improvements-23">Improvements<a href="#improvements-23" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements" translate="no">​</a></h3>
+<p>Adds <a href="https://github.com/infiniflow/ragflow/blob/main/docker/infinity_conf.toml" target="_blank" rel="noopener noreferrer" class="">Infinity&#x27;s configuration file</a> to facilitate integration and customization of <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a> as a document engine. From this release onwards, updates to Infinity&#x27;s configuration can be made directly within RAGFlow and will take effect immediately after restarting RAGFlow using <code>docker compose</code>. <a href="https://github.com/infiniflow/ragflow/pull/3715" target="_blank" rel="noopener noreferrer" class="">#3715</a></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-issues-11">Fixed issues<a href="#fixed-issues-11" class="hash-link" aria-label="Direct link to Fixed issues" title="Direct link to Fixed issues" translate="no">​</a></h3>
+<p>This release fixes the following issues:</p>
+<ul>
+<li class="">Unable to display or edit content of a chunk after clicking it.</li>
+<li class="">A <code>&#x27;Not found&#x27;</code> error in Elasticsearch.</li>
+<li class="">Chinese text becoming garbled during parsing.</li>
+<li class="">A compatibility issue with Polars.</li>
+<li class="">A compatibility issue between Infinity and GraphRAG.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0140">v0.14.0<a href="#v0140" class="hash-link" aria-label="Direct link to v0.14.0" title="Direct link to v0.14.0" translate="no">​</a></h2>
+<p>Released on November 26, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-21">New features<a href="#new-features-21" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Supports <a href="https://github.com/infiniflow/infinity" target="_blank" rel="noopener noreferrer" class="">Infinity</a> or Elasticsearch (default) as document engine for vector storage and full-text indexing. <a href="https://github.com/infiniflow/ragflow/pull/2894" target="_blank" rel="noopener noreferrer" class="">#2894</a></li>
+<li class="">Enhances user experience by adding more variables to the Agent and implementing auto-saving.</li>
+<li class="">Adds a three-step translation agent template, inspired by <a href="https://github.com/andrewyng/translation-agent" target="_blank" rel="noopener noreferrer" class="">Andrew Ng&#x27;s translation agent</a>.</li>
+<li class="">Adds an SEO-optimized blog writing agent template.</li>
+<li class="">Provides HTTP and Python APIs for conversing with an agent.</li>
+<li class="">Supports the use of English synonyms during retrieval processes.</li>
+<li class="">Optimizes term weight calculations, reducing the retrieval time by 50%.</li>
+<li class="">Improves task executor monitoring with additional performance indicators.</li>
+<li class="">Replaces Redis with Valkey.</li>
+<li class="">Adds three new UI languages (<em>contributed by the community</em>): Indonesian, Spanish, and Vietnamese.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="compatibility-changes-3">Compatibility changes<a href="#compatibility-changes-3" class="hash-link" aria-label="Direct link to Compatibility changes" title="Direct link to Compatibility changes" translate="no">​</a></h3>
+<p>From this release onwards, <strong>service_config.yaml.template</strong> replaces <strong>service_config.yaml</strong> for configuring backend services. Upon Docker container startup, the environment variables defined in this template file are automatically populated and a <strong>service_config.yaml</strong> is auto-generated from it. <a href="https://github.com/infiniflow/ragflow/pull/3341" target="_blank" rel="noopener noreferrer" class="">#3341</a></p>
+<p>This approach eliminates the need to manually update <strong>service_config.yaml</strong> after making changes to <strong>.env</strong>, facilitating dynamic environment configurations.</p>
+<div class="theme-admonition theme-admonition-danger admonition_xJq3 alert alert--danger"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 12 16"><path fill-rule="evenodd" d="M5.05.31c.81 2.17.41 3.38-.52 4.31C3.55 5.67 1.98 6.45.9 7.98c-1.45 2.05-1.7 6.53 3.53 7.7-2.2-1.16-2.67-4.52-.3-6.61-.61 2.03.53 3.33 1.94 2.86 1.39-.47 2.3.53 2.27 1.67-.02.78-.31 1.44-1.13 1.81 3.42-.59 4.78-3.42 4.78-5.56 0-2.84-2.53-3.22-1.25-5.61-1.52.13-2.03 1.13-1.89 2.75.09 1.08-1.02 1.8-1.86 1.33-.67-.41-.66-1.19-.06-1.78C8.18 5.31 8.68 2.45 5.05.32L5.03.3l.02.01z"></path></svg></span>IMPORTANT</div><div class="admonitionContent_BuS1"><p>Ensure that you <a class="" href="/docs/upgrade_ragflow#upgrade-ragflow-to-the-most-recent-officially-published-release">upgrade <strong>both</strong> your code <strong>and</strong> Docker image to this release</a> before trying this new approach.</p></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-8">API changes<a href="#api-changes-8" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-apis-5">HTTP APIs<a href="#http-apis-5" class="hash-link" aria-label="Direct link to HTTP APIs" title="Direct link to HTTP APIs" translate="no">​</a></h4>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#create-session-with-agent" target="_blank" rel="noopener noreferrer" class="">Create session with agent</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#converse-with-agent" target="_blank" rel="noopener noreferrer" class="">Converse with agent</a></li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="python-apis-4">Python APIs<a href="#python-apis-4" class="hash-link" aria-label="Direct link to Python APIs" title="Direct link to Python APIs" translate="no">​</a></h4>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/python_api_reference#create-session-with-agent" target="_blank" rel="noopener noreferrer" class="">Create session with agent</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/python_api_reference#create-session-with-agent" target="_blank" rel="noopener noreferrer" class="">Converse with agent</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-5">Documentation<a href="#documentation-5" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-documents-5">Added documents<a href="#added-documents-5" class="hash-link" aria-label="Direct link to Added documents" title="Direct link to Added documents" translate="no">​</a></h4>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/configurations" target="_blank" rel="noopener noreferrer" class="">Configurations</a></li>
+<li class=""><a class="" href="/docs/manage_team_members">Manage team members</a></li>
+<li class=""><a href="https://ragflow.io/docs/dev/run_health_check" target="_blank" rel="noopener noreferrer" class="">Run health check on RAGFlow&#x27;s dependencies</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0130">v0.13.0<a href="#v0130" class="hash-link" aria-label="Direct link to v0.13.0" title="Direct link to v0.13.0" translate="no">​</a></h2>
+<p>Released on October 31, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-22">New features<a href="#new-features-22" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Adds the team management functionality for all users.</li>
+<li class="">Updates the Agent UI to improve usability.</li>
+<li class="">Adds support for Markdown chunking in the <strong>General</strong> chunking method.</li>
+<li class="">Introduces an <strong>invoke</strong> tool within the Agent UI.</li>
+<li class="">Integrates support for Dify&#x27;s knowledge base API.</li>
+<li class="">Adds support for GLM4-9B and Yi-Lightning models.</li>
+<li class="">Introduces HTTP and Python APIs for dataset management, file management within dataset, and chat assistant management.</li>
+</ul>
+<div class="theme-admonition theme-admonition-tip admonition_xJq3 alert alert--success"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 12 16"><path fill-rule="evenodd" d="M6.5 0C3.48 0 1 2.19 1 5c0 .92.55 2.25 1 3 1.34 2.25 1.78 2.78 2 4v1h5v-1c.22-1.22.66-1.75 2-4 .45-.75 1-2.08 1-3 0-2.81-2.48-5-5.5-5zm3.64 7.48c-.25.44-.47.8-.67 1.11-.86 1.41-1.25 2.06-1.45 3.23-.02.05-.02.11-.02.17H5c0-.06 0-.13-.02-.17-.2-1.17-.59-1.83-1.45-3.23-.2-.31-.42-.67-.67-1.11C2.44 6.78 2 5.65 2 5c0-2.2 2.02-4 4.5-4 1.22 0 2.36.42 3.22 1.19C10.55 2.94 11 3.94 11 5c0 .66-.44 1.78-.86 2.48zM4 14h5c-.23 1.14-1.3 2-2.5 2s-2.27-.86-2.5-2z"></path></svg></span>NOTE</div><div class="admonitionContent_BuS1"><p>To download RAGFlow&#x27;s Python SDK:</p><div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#bfc7d5"><span class="token plain">pip install ragflow-sdk==0.13.0</span><br></div></code></pre></div></div></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-6">Documentation<a href="#documentation-6" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-documents-6">Added documents<a href="#added-documents-6" class="hash-link" aria-label="Direct link to Added documents" title="Direct link to Added documents" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/acquire_ragflow_api_key">Acquire a RAGFlow API key</a></li>
+<li class=""><a class="" href="/docs/http_api_reference">HTTP API Reference</a></li>
+<li class=""><a class="" href="/docs/python_api_reference">Python API Reference</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0120">v0.12.0<a href="#v0120" class="hash-link" aria-label="Direct link to v0.12.0" title="Direct link to v0.12.0" translate="no">​</a></h2>
+<p>Released on September 30, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-23">New features<a href="#new-features-23" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Offers slim editions of RAGFlow&#x27;s Docker images, which do not include built-in BGE/BCE embedding or reranking models.</li>
+<li class="">Improves the results of multi-round dialogues.</li>
+<li class="">Enables users to remove added LLM vendors.</li>
+<li class="">Adds support for <strong>OpenTTS</strong> and <strong>SparkTTS</strong> models.</li>
+<li class="">Implements an <strong>Excel to HTML</strong> toggle in the <strong>General</strong> chunking method, allowing users to parse a spreadsheet into either HTML tables or key-value pairs by row.</li>
+<li class="">Adds agent tools <strong>YahooFinance</strong> and <strong>Jin10</strong>.</li>
+<li class="">Adds an investment advisor agent template.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="compatibility-changes-4">Compatibility changes<a href="#compatibility-changes-4" class="hash-link" aria-label="Direct link to Compatibility changes" title="Direct link to Compatibility changes" translate="no">​</a></h3>
+<p>From this release onwards, RAGFlow offers slim editions of its Docker images to improve the experience for users with limited Internet access. A slim edition of RAGFlow&#x27;s Docker image does not include built-in BGE/BCE embedding models and has a size of about 1GB; a full edition of RAGFlow is approximately 9GB and includes two built-in embedding models.</p>
+<p>The default Docker image edition is <code>nightly-slim</code>. The following list clarifies the differences between various editions:</p>
+<ul>
+<li class=""><code>nightly-slim</code>: The slim edition of the most recent tested Docker image.</li>
+<li class=""><code>v0.12.0-slim</code>: The slim edition of the most recent <strong>officially released</strong> Docker image.</li>
+<li class=""><code>nightly</code>: The full edition of the most recent tested Docker image.</li>
+<li class=""><code>v0.12.0</code>: The full edition of the most recent <strong>officially released</strong> Docker image.</li>
+</ul>
+<p>See <a class="" href="/docs/upgrade_ragflow">Upgrade RAGFlow</a> for instructions on upgrading.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-7">Documentation<a href="#documentation-7" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-documents-7">Added documents<a href="#added-documents-7" class="hash-link" aria-label="Direct link to Added documents" title="Direct link to Added documents" translate="no">​</a></h4>
+<ul>
+<li class=""><a class="" href="/docs/upgrade_ragflow">Upgrade RAGFlow</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0110">v0.11.0<a href="#v0110" class="hash-link" aria-label="Direct link to v0.11.0" title="Direct link to v0.11.0" translate="no">​</a></h2>
+<p>Released on September 14, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-24">New features<a href="#new-features-24" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Introduces an AI search interface within the RAGFlow UI.</li>
+<li class="">Supports audio output via <strong>FishAudio</strong> or <strong>Tongyi Qwen TTS</strong>.</li>
+<li class="">Allows the use of Postgres for metadata storage, in addition to MySQL.</li>
+<li class="">Supports object storage options with S3 or Azure Blob.</li>
+<li class="">Supports model vendors: <strong>Anthropic</strong>, <strong>Voyage AI</strong>, and <strong>Google Cloud</strong>.</li>
+<li class="">Supports the use of <strong>Tencent Cloud ASR</strong> for audio content recognition.</li>
+<li class="">Adds finance-specific agent components: <strong>WenCai</strong>, <strong>AkShare</strong>, <strong>YahooFinance</strong>, and <strong>TuShare</strong>.</li>
+<li class="">Adds a medical consultant agent template.</li>
+<li class="">Supports running retrieval benchmarking on the following datasets:<!-- -->
+<ul>
+<li class=""><a href="https://huggingface.co/datasets/microsoft/ms_marco" target="_blank" rel="noopener noreferrer" class="">ms_marco_v1.1</a></li>
+<li class=""><a href="https://huggingface.co/datasets/mandarjoshi/trivia_qa" target="_blank" rel="noopener noreferrer" class="">trivia_qa</a></li>
+<li class=""><a href="https://huggingface.co/datasets/miracl/miracl" target="_blank" rel="noopener noreferrer" class="">miracl</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v0100">v0.10.0<a href="#v0100" class="hash-link" aria-label="Direct link to v0.10.0" title="Direct link to v0.10.0" translate="no">​</a></h2>
+<p>Released on August 26, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-25">New features<a href="#new-features-25" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Introduces a text-to-SQL template in the Agent UI.</li>
+<li class="">Implements Agent APIs.</li>
+<li class="">Incorporates monitoring for the task executor.</li>
+<li class="">Introduces Agent tools <strong>GitHub</strong>, <strong>DeepL</strong>, <strong>BaiduFanyi</strong>, <strong>QWeather</strong>, and <strong>GoogleScholar</strong>.</li>
+<li class="">Supports chunking of EML files.</li>
+<li class="">Supports more LLMs or model services: <strong>GPT-4o-mini</strong>, <strong>PerfXCloud</strong>, <strong>TogetherAI</strong>, <strong>Upstage</strong>, <strong>Novita AI</strong>, <strong>01.AI</strong>, <strong>SiliconFlow</strong>, <strong>PPIO</strong>, <strong>XunFei Spark</strong>, <strong>Jiekou.AI</strong>, <strong>Baidu Yiyan</strong>, and <strong>Tencent Hunyuan</strong>.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v090">v0.9.0<a href="#v090" class="hash-link" aria-label="Direct link to v0.9.0" title="Direct link to v0.9.0" translate="no">​</a></h2>
+<p>Released on August 6, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-26">New features<a href="#new-features-26" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Supports GraphRAG as a chunking method.</li>
+<li class="">Introduces Agent component <strong>Keyword</strong> and search tools, including <strong>Baidu</strong>, <strong>DuckDuckGo</strong>, <strong>PubMed</strong>, <strong>Wikipedia</strong>, <strong>Bing</strong>, and <strong>Google</strong>.</li>
+<li class="">Supports speech-to-text recognition for audio files.</li>
+<li class="">Supports model vendors <strong>Gemini</strong> and <strong>Groq</strong>.</li>
+<li class="">Supports inference frameworks, engines, and services including <strong>LM studio</strong>, <strong>OpenRouter</strong>, <strong>LocalAI</strong>, and <strong>Nvidia API</strong>.</li>
+<li class="">Supports using reranker models in Xinference.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v080">v0.8.0<a href="#v080" class="hash-link" aria-label="Direct link to v0.8.0" title="Direct link to v0.8.0" translate="no">​</a></h2>
+<p>Released on July 8, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-27">New features<a href="#new-features-27" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Supports Agentic RAG, enabling graph-based workflow construction for RAG and agents.</li>
+<li class="">Supports model vendors <strong>Mistral</strong>, <strong>MiniMax</strong>, <strong>Bedrock</strong>, and <strong>Azure OpenAI</strong>.</li>
+<li class="">Supports DOCX files in the MANUAL chunking method.</li>
+<li class="">Supports DOCX, MD, and PDF files in the Q&amp;A chunking method.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v070">v0.7.0<a href="#v070" class="hash-link" aria-label="Direct link to v0.7.0" title="Direct link to v0.7.0" translate="no">​</a></h2>
+<p>Released on May 31, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-28">New features<a href="#new-features-28" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Supports the use of reranker models.</li>
+<li class="">Integrates reranker and embedding models: <a href="https://github.com/netease-youdao/BCEmbedding" target="_blank" rel="noopener noreferrer" class="">BCE</a>, <a href="https://github.com/FlagOpen/FlagEmbedding" target="_blank" rel="noopener noreferrer" class="">BGE</a>, and <a href="https://jina.ai/embeddings/" target="_blank" rel="noopener noreferrer" class="">Jina</a>.</li>
+<li class="">Supports LLMs Baichuan and VolcanoArk.</li>
+<li class="">Implements <a href="https://arxiv.org/html/2401.18059v1" target="_blank" rel="noopener noreferrer" class="">RAPTOR</a> for improved text retrieval.</li>
+<li class="">Supports HTML files in the GENERAL chunking method.</li>
+<li class="">Provides HTTP and Python APIs for deleting documents by ID.</li>
+<li class="">Supports ARM64 platforms.</li>
+</ul>
+<div class="theme-admonition theme-admonition-danger admonition_xJq3 alert alert--danger"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 12 16"><path fill-rule="evenodd" d="M5.05.31c.81 2.17.41 3.38-.52 4.31C3.55 5.67 1.98 6.45.9 7.98c-1.45 2.05-1.7 6.53 3.53 7.7-2.2-1.16-2.67-4.52-.3-6.61-.61 2.03.53 3.33 1.94 2.86 1.39-.47 2.3.53 2.27 1.67-.02.78-.31 1.44-1.13 1.81 3.42-.59 4.78-3.42 4.78-5.56 0-2.84-2.53-3.22-1.25-5.61-1.52.13-2.03 1.13-1.89 2.75.09 1.08-1.02 1.8-1.86 1.33-.67-.41-.66-1.19-.06-1.78C8.18 5.31 8.68 2.45 5.05.32L5.03.3l.02.01z"></path></svg></span>IMPORTANT</div><div class="admonitionContent_BuS1"><p>While we also test RAGFlow on ARM64 platforms, we do not maintain RAGFlow Docker images for ARM.</p><p>If you are on an ARM platform, follow <a class="" href="/docs/build_docker_image">this guide</a> to build a RAGFlow Docker image.</p></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-9">API changes<a href="#api-changes-9" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-api-2">HTTP API<a href="#http-api-2" class="hash-link" aria-label="Direct link to HTTP API" title="Direct link to HTTP API" translate="no">​</a></h4>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#delete-documents" target="_blank" rel="noopener noreferrer" class="">Delete documents</a></li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="python-api-1">Python API<a href="#python-api-1" class="hash-link" aria-label="Direct link to Python API" title="Direct link to Python API" translate="no">​</a></h4>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/python_api_reference#delete-documents" target="_blank" rel="noopener noreferrer" class="">Delete documents</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v060">v0.6.0<a href="#v060" class="hash-link" aria-label="Direct link to v0.6.0" title="Direct link to v0.6.0" translate="no">​</a></h2>
+<p>Released on May 21, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-29">New features<a href="#new-features-29" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Supports streaming output.</li>
+<li class="">Provides HTTP and Python APIs for retrieving document chunks.</li>
+<li class="">Supports monitoring of system components, including Elasticsearch, MySQL, Redis, and MinIO.</li>
+<li class="">Supports disabling <strong>Layout Recognition</strong> in the GENERAL chunking method to reduce file chunking time.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-changes-10">API changes<a href="#api-changes-10" class="hash-link" aria-label="Direct link to API changes" title="Direct link to API changes" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-api-3">HTTP API<a href="#http-api-3" class="hash-link" aria-label="Direct link to HTTP API" title="Direct link to HTTP API" translate="no">​</a></h4>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/http_api_reference#retrieve-chunks" target="_blank" rel="noopener noreferrer" class="">Retrieve chunks</a></li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="python-api-2">Python API<a href="#python-api-2" class="hash-link" aria-label="Direct link to Python API" title="Direct link to Python API" translate="no">​</a></h4>
+<ul>
+<li class=""><a href="https://ragflow.io/docs/dev/python_api_reference#retrieve-chunks" target="_blank" rel="noopener noreferrer" class="">Retrieve chunks</a></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="v050">v0.5.0<a href="#v050" class="hash-link" aria-label="Direct link to v0.5.0" title="Direct link to v0.5.0" translate="no">​</a></h2>
+<p>Released on May 8, 2024.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new-features-30">New features<a href="#new-features-30" class="hash-link" aria-label="Direct link to New features" title="Direct link to New features" translate="no">​</a></h3>
+<ul>
+<li class="">Supports LLM DeepSeek.</li>
+</ul></div></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--next" href="/docs/category/basics"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Basics</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#v0263" class="table-of-contents__link toc-highlight">v0.26.3</a><ul><li><a href="#new-features" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#bug-fixes" class="table-of-contents__link toc-highlight">Bug fixes</a></li></ul></li><li><a href="#v0262" class="table-of-contents__link toc-highlight">v0.26.2</a><ul><li><a href="#new-features-1" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-1" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#i18n" class="table-of-contents__link toc-highlight">i18n</a></li><li><a href="#bug-fixes-1" class="table-of-contents__link toc-highlight">Bug fixes</a></li></ul></li><li><a href="#v0261" class="table-of-contents__link toc-highlight">v0.26.1</a><ul><li><a href="#new-features-2" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#i18n-1" class="table-of-contents__link toc-highlight">i18n</a></li><li><a href="#bug-fixes-2" class="table-of-contents__link toc-highlight">Bug fixes</a></li></ul></li><li><a href="#v0260" class="table-of-contents__link toc-highlight">v0.26.0</a><ul><li><a href="#new-features-3" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-2" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#model-support" class="table-of-contents__link toc-highlight">Model Support</a></li><li><a href="#i18n-2" class="table-of-contents__link toc-highlight">i18n</a></li><li><a href="#bug-fixes-3" class="table-of-contents__link toc-highlight">Bug fixes</a></li></ul></li><li><a href="#v0256" class="table-of-contents__link toc-highlight">v0.25.6</a><ul><li><a href="#new-features-4" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-3" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#bug-fixes-4" class="table-of-contents__link toc-highlight">Bug fixes</a></li><li><a href="#i18n-3" class="table-of-contents__link toc-highlight">i18n</a></li></ul></li><li><a href="#v0255" class="table-of-contents__link toc-highlight">v0.25.5</a><ul><li><a href="#new-features-5" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-4" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#bug-fixes-5" class="table-of-contents__link toc-highlight">Bug fixes</a></li></ul></li><li><a href="#v0254" class="table-of-contents__link toc-highlight">v0.25.4</a><ul><li><a href="#new-features-6" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-5" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#model-support-1" class="table-of-contents__link toc-highlight">Model support</a></li><li><a href="#bug-fixes-6" class="table-of-contents__link toc-highlight">Bug fixes</a></li></ul></li><li><a href="#v0253" class="table-of-contents__link toc-highlight">v0.25.3</a><ul><li><a href="#new-features-7" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-6" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#bug-fixes-7" class="table-of-contents__link toc-highlight">Bug fixes</a></li></ul></li><li><a href="#v0252" class="table-of-contents__link toc-highlight">v0.25.2</a><ul><li><a href="#improvements-7" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#data-source" class="table-of-contents__link toc-highlight">Data source</a></li><li><a href="#bug-fixes-8" class="table-of-contents__link toc-highlight">Bug fixes</a></li></ul></li><li><a href="#v0251" class="table-of-contents__link toc-highlight">v0.25.1</a><ul><li><a href="#improvements-8" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#data-source-1" class="table-of-contents__link toc-highlight">Data source</a></li><li><a href="#model-support-2" class="table-of-contents__link toc-highlight">Model support</a></li><li><a href="#model-providers" class="table-of-contents__link toc-highlight">Model providers</a></li><li><a href="#bug-fixes-9" class="table-of-contents__link toc-highlight">Bug fixes</a></li></ul></li><li><a href="#v0250" class="table-of-contents__link toc-highlight">v0.25.0</a><ul><li><a href="#new-features-8" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-9" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#model-support-3" class="table-of-contents__link toc-highlight">Model support</a></li><li><a href="#new-model-providers" class="table-of-contents__link toc-highlight">New model providers</a></li><li><a href="#data-sources" class="table-of-contents__link toc-highlight">Data sources</a></li></ul></li><li><a href="#v0240" class="table-of-contents__link toc-highlight">v0.24.0</a><ul><li><a href="#new-features-9" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#mysql-alternative" class="table-of-contents__link toc-highlight">MySQL alternative</a></li><li><a href="#model-support-4" class="table-of-contents__link toc-highlight">Model support</a></li><li><a href="#data-sources-1" class="table-of-contents__link toc-highlight">Data sources</a></li><li><a href="#api-changes" class="table-of-contents__link toc-highlight">API changes</a></li></ul></li><li><a href="#v0231" class="table-of-contents__link toc-highlight">v0.23.1</a><ul><li><a href="#improvements-10" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#fixed-issues" class="table-of-contents__link toc-highlight">Fixed issues</a></li><li><a href="#data-sources-2" class="table-of-contents__link toc-highlight">Data sources</a></li></ul></li><li><a href="#v0230" class="table-of-contents__link toc-highlight">v0.23.0</a><ul><li><a href="#new-features-10" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-11" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#data-sources-3" class="table-of-contents__link toc-highlight">Data sources</a></li><li><a href="#model-support-5" class="table-of-contents__link toc-highlight">Model support</a></li><li><a href="#api-changes-1" class="table-of-contents__link toc-highlight">API changes</a></li></ul></li><li><a href="#v0221" class="table-of-contents__link toc-highlight">v0.22.1</a><ul><li><a href="#improvements-12" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#fixed-issues-1" class="table-of-contents__link toc-highlight">Fixed issues</a></li><li><a href="#newly-supported-models" class="table-of-contents__link toc-highlight">Newly supported models</a></li></ul></li><li><a href="#v0220" class="table-of-contents__link toc-highlight">v0.22.0</a><ul><li><a href="#breaking-changes" class="table-of-contents__link toc-highlight">Breaking Changes</a></li><li><a href="#new-features-11" class="table-of-contents__link toc-highlight">New Features</a></li><li><a href="#improvements-13" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#added-models" class="table-of-contents__link toc-highlight">Added Models</a></li><li><a href="#new-agent-templates" class="table-of-contents__link toc-highlight">New agent templates</a></li></ul></li><li><a href="#v0211" class="table-of-contents__link toc-highlight">v0.21.1</a><ul><li><a href="#new-features-12" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-14" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#fixed-issues-2" class="table-of-contents__link toc-highlight">Fixed issues</a></li></ul></li><li><a href="#v0210" class="table-of-contents__link toc-highlight">v0.21.0</a><ul><li><a href="#new-features-13" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-15" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#newly-supported-models-1" class="table-of-contents__link toc-highlight">Newly supported models</a></li><li><a href="#new-agent-templates-1" class="table-of-contents__link toc-highlight">New agent templates</a></li></ul></li><li><a href="#v0205" class="table-of-contents__link toc-highlight">v0.20.5</a><ul><li><a href="#improvements-16" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#newly-supported-models-2" class="table-of-contents__link toc-highlight">Newly supported models</a></li><li><a href="#fixed-issues-3" class="table-of-contents__link toc-highlight">Fixed issues</a></li><li><a href="#api-changes-2" class="table-of-contents__link toc-highlight">API changes</a></li></ul></li><li><a href="#v0204" class="table-of-contents__link toc-highlight">v0.20.4</a><ul><li><a href="#improvements-17" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#newly-supported-models-3" class="table-of-contents__link toc-highlight">Newly supported models</a></li><li><a href="#new-agent-templates-2" class="table-of-contents__link toc-highlight">New Agent templates</a></li><li><a href="#fixed-issues-4" class="table-of-contents__link toc-highlight">Fixed issues</a></li></ul></li><li><a href="#v0203" class="table-of-contents__link toc-highlight">v0.20.3</a><ul><li><a href="#improvements-18" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#new-agent-templates-3" class="table-of-contents__link toc-highlight">New Agent templates</a></li><li><a href="#fixed-issues-5" class="table-of-contents__link toc-highlight">Fixed issues</a></li><li><a href="#api-changes-3" class="table-of-contents__link toc-highlight">API changes</a></li></ul></li><li><a href="#v0201" class="table-of-contents__link toc-highlight">v0.20.1</a><ul><li><a href="#new-features-14" class="table-of-contents__link toc-highlight">New Features</a></li><li><a href="#newly-supported-models-4" class="table-of-contents__link toc-highlight">Newly supported models</a></li><li><a href="#new-agent-templates-both-workflow-and-agentic" class="table-of-contents__link toc-highlight">New agent templates (both workflow and agentic)</a></li><li><a href="#fixed-issues-6" class="table-of-contents__link toc-highlight">Fixed Issues</a></li></ul></li><li><a href="#v0200" class="table-of-contents__link toc-highlight">v0.20.0</a><ul><li><a href="#compatibility-changes" class="table-of-contents__link toc-highlight">Compatibility changes</a></li><li><a href="#new-features-15" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#new-agent-templates-introduced" class="table-of-contents__link toc-highlight">New agent templates introduced</a></li></ul></li><li><a href="#v0191" class="table-of-contents__link toc-highlight">v0.19.1</a><ul><li><a href="#fixed-issues-7" class="table-of-contents__link toc-highlight">Fixed issues</a></li><li><a href="#newly-supported-models-5" class="table-of-contents__link toc-highlight">Newly supported models</a></li></ul></li><li><a href="#v0190" class="table-of-contents__link toc-highlight">v0.19.0</a><ul><li><a href="#new-features-16" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#documentation" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#v0180" class="table-of-contents__link toc-highlight">v0.18.0</a><ul><li><a href="#compatibility-changes-1" class="table-of-contents__link toc-highlight">Compatibility changes</a></li><li><a href="#new-features-17" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-19" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#documentation-1" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#v0172" class="table-of-contents__link toc-highlight">v0.17.2</a><ul><li><a href="#compatibility-changes-2" class="table-of-contents__link toc-highlight">Compatibility changes</a></li><li><a href="#improvements-20" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#fixed-issues-8" class="table-of-contents__link toc-highlight">Fixed issues</a></li><li><a href="#api-changes-4" class="table-of-contents__link toc-highlight">API changes</a></li></ul></li><li><a href="#v0171" class="table-of-contents__link toc-highlight">v0.17.1</a><ul><li><a href="#improvements-21" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#fixed-issues-9" class="table-of-contents__link toc-highlight">Fixed issues</a></li><li><a href="#documentation-2" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#v0170" class="table-of-contents__link toc-highlight">v0.17.0</a><ul><li><a href="#new-features-18" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#api-changes-5" class="table-of-contents__link toc-highlight">API changes</a></li><li><a href="#documentation-3" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#v0160" class="table-of-contents__link toc-highlight">v0.16.0</a><ul><li><a href="#new-features-19" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#documentation-4" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#v0151" class="table-of-contents__link toc-highlight">v0.15.1</a><ul><li><a href="#upgrades" class="table-of-contents__link toc-highlight">Upgrades</a></li><li><a href="#fixed-issues-10" class="table-of-contents__link toc-highlight">Fixed issues</a></li><li><a href="#api-changes-6" class="table-of-contents__link toc-highlight">API changes</a></li></ul></li><li><a href="#v0150" class="table-of-contents__link toc-highlight">v0.15.0</a><ul><li><a href="#new-features-20" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#improvements-22" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#api-changes-7" class="table-of-contents__link toc-highlight">API changes</a></li></ul></li><li><a href="#v0141" class="table-of-contents__link toc-highlight">v0.14.1</a><ul><li><a href="#improvements-23" class="table-of-contents__link toc-highlight">Improvements</a></li><li><a href="#fixed-issues-11" class="table-of-contents__link toc-highlight">Fixed issues</a></li></ul></li><li><a href="#v0140" class="table-of-contents__link toc-highlight">v0.14.0</a><ul><li><a href="#new-features-21" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#compatibility-changes-3" class="table-of-contents__link toc-highlight">Compatibility changes</a></li><li><a href="#api-changes-8" class="table-of-contents__link toc-highlight">API changes</a></li><li><a href="#documentation-5" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#v0130" class="table-of-contents__link toc-highlight">v0.13.0</a><ul><li><a href="#new-features-22" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#documentation-6" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#v0120" class="table-of-contents__link toc-highlight">v0.12.0</a><ul><li><a href="#new-features-23" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#compatibility-changes-4" class="table-of-contents__link toc-highlight">Compatibility changes</a></li><li><a href="#documentation-7" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#v0110" class="table-of-contents__link toc-highlight">v0.11.0</a><ul><li><a href="#new-features-24" class="table-of-contents__link toc-highlight">New features</a></li></ul></li><li><a href="#v0100" class="table-of-contents__link toc-highlight">v0.10.0</a><ul><li><a href="#new-features-25" class="table-of-contents__link toc-highlight">New features</a></li></ul></li><li><a href="#v090" class="table-of-contents__link toc-highlight">v0.9.0</a><ul><li><a href="#new-features-26" class="table-of-contents__link toc-highlight">New features</a></li></ul></li><li><a href="#v080" class="table-of-contents__link toc-highlight">v0.8.0</a><ul><li><a href="#new-features-27" class="table-of-contents__link toc-highlight">New features</a></li></ul></li><li><a href="#v070" class="table-of-contents__link toc-highlight">v0.7.0</a><ul><li><a href="#new-features-28" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#api-changes-9" class="table-of-contents__link toc-highlight">API changes</a></li></ul></li><li><a href="#v060" class="table-of-contents__link toc-highlight">v0.6.0</a><ul><li><a href="#new-features-29" class="table-of-contents__link toc-highlight">New features</a></li><li><a href="#api-changes-10" class="table-of-contents__link toc-highlight">API changes</a></li></ul></li><li><a href="#v050" class="table-of-contents__link toc-highlight">v0.5.0</a><ul><li><a href="#new-features-30" class="table-of-contents__link toc-highlight">New features</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Swipies AI. All rights reserved.</div></div></div></footer></div>
+</body>
+</html>

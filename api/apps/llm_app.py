@@ -77,6 +77,12 @@ def factories():
 async def set_api_key():
     req = await get_request_json()
     from rag.llm import ChatModel, EmbeddingModel, RerankModel
+    from api.db.services.ai_policy_service import AIPolicyManager
+
+    if not getattr(current_user, "is_superuser", False):
+        can_add, reason = AIPolicyManager.can_add_custom_model(current_user.id)
+        if not can_add:
+            return get_data_error_result(message=reason)
 
     # test if api key works
     chat_passed, embd_passed, rerank_passed = False, False, False
@@ -159,6 +165,10 @@ async def set_api_key():
         if n in req:
             llm_config[n] = req[n]
 
+    from api.db.services.tenant_model_provider_service import TenantModelProviderService
+    from api.db.services.tenant_model_instance_service import TenantModelInstanceService
+    from api.db.services.tenant_model_service import TenantModelService
+
     for llm in source_llms:
         llm_config["max_tokens"] = llm.max_tokens
         if not TenantLLMService.filter_update([TenantLLM.tenant_id == current_user.id, TenantLLM.llm_factory == factory, TenantLLM.llm_name == llm.llm_name], llm_config):
@@ -171,6 +181,26 @@ async def set_api_key():
                 api_base=llm_config["api_base"],
                 max_tokens=llm_config["max_tokens"],
             )
+
+        # Sync to TenantModelProvider & TenantModelInstance & TenantModel
+        try:
+            from common.misc_utils import get_uuid
+            p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
+            if not p_obj:
+                TenantModelProviderService.insert(id=get_uuid(), tenant_id=current_user.id, provider_name=factory)
+                p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
+            if p_obj:
+                inst_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
+                if not inst_obj:
+                    inst_obj = TenantModelInstanceService.create_instance(provider_id=p_obj.id, instance_name="default", api_key=llm_config["api_key"], extra=json.dumps({"base_url": base_url}))
+                else:
+                    TenantModelInstanceService.filter_update([TenantModelInstanceService.model.id == inst_obj.id], {"api_key": llm_config["api_key"], "extra": json.dumps({"base_url": base_url})})
+
+                m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(p_obj.id, inst_obj.id, llm.model_type, llm.llm_name)
+                if not m_obj:
+                    TenantModelService.insert(id=get_uuid(), model_name=llm.llm_name, provider_id=p_obj.id, instance_id=inst_obj.id, model_type=llm.model_type, extra=json.dumps({"max_tokens": llm.max_tokens}))
+        except Exception as sync_e:
+            logging.warning(f"set_api_key provider instance sync warning: {sync_e}")
 
     return get_json_result(data=True)
 
@@ -185,6 +215,13 @@ async def add_llm():
     factory = req["llm_factory"]
     llm_name = req.get("llm_name")
     timeout_seconds = int(os.environ.get("LLM_TIMEOUT_SECONDS", 10))
+
+    from api.db.services.ai_policy_service import AIPolicyManager
+
+    if not getattr(current_user, "is_superuser", False):
+        can_add, reason = AIPolicyManager.can_add_custom_model(current_user.id)
+        if not can_add:
+            return get_data_error_result(message=reason)
 
     if factory not in [f.name for f in get_allowed_llm_factories()]:
         return get_data_error_result(message=f"LLM factory {factory} is not allowed")
@@ -431,6 +468,26 @@ async def add_llm():
     if not TenantLLMService.filter_update([TenantLLM.tenant_id == current_user.id, TenantLLM.llm_factory == factory, TenantLLM.llm_name == llm["llm_name"]], llm):
         TenantLLMService.save(**llm)
 
+    # Sync to TenantModelProvider & TenantModelInstance & TenantModel
+    try:
+        from common.misc_utils import get_uuid
+        p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
+        if not p_obj:
+            TenantModelProviderService.insert(id=get_uuid(), tenant_id=current_user.id, provider_name=factory)
+            p_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(current_user.id, factory, fallback_admin=False)
+        if p_obj:
+            inst_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(p_obj.id, "default")
+            if not inst_obj:
+                inst_obj = TenantModelInstanceService.create_instance(provider_id=p_obj.id, instance_name="default", api_key=llm["api_key"], extra=json.dumps({"base_url": llm.get("api_base", "")}))
+            else:
+                TenantModelInstanceService.filter_update([TenantModelInstanceService.model.id == inst_obj.id], {"api_key": llm["api_key"], "extra": json.dumps({"base_url": llm.get("api_base", "")})})
+
+            m_obj = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(p_obj.id, inst_obj.id, llm["model_type"], llm["llm_name"])
+            if not m_obj:
+                TenantModelService.insert(id=get_uuid(), model_name=llm["llm_name"], provider_id=p_obj.id, instance_id=inst_obj.id, model_type=llm["model_type"], extra=json.dumps({"max_tokens": llm.get("max_tokens", 8192)}))
+    except Exception as sync_e:
+        logging.warning(f"add_llm provider instance sync warning: {sync_e}")
+
     return get_json_result(data=True)
 
 
@@ -499,12 +556,68 @@ def my_llms():
                         "is_tools": _resolve_my_llm_is_tools(o_dict),
                     }
                 )
+
+            # Fallback to Admin-registered global AIModels if user has no custom override (only verified active providers)
+            try:
+                from api.db.services.ai_policy_service import AIModelService
+                global_models = AIModelService.get_platform_models()
+                existing_models = {(o.llm_factory, o.llm_name) for o in objs}
+                factories_dict = {f.name: f.tags for f in factories}
+                for gm in global_models:
+                    gm_provider = gm.get("provider", "")
+                    gm_name = gm.get("model_name", "")
+                    if (gm_provider, gm_name) not in existing_models:
+                        if gm_provider not in res:
+                            res[gm_provider] = {"tags": factories_dict.get(gm_provider), "llm": []}
+                        res[gm_provider]["llm"].append(
+                            {
+                                "id": gm.get("id", f"{gm_provider}/{gm_name}"),
+                                "type": gm.get("model_type", "CHAT"),
+                                "name": gm_name,
+                                "used_token": 0,
+                                "api_base": gm.get("base_url", "") or "",
+                                "max_tokens": gm.get("max_tokens", 8192) or 8192,
+                                "status": "1",
+                                "is_tools": True,
+                            }
+                        )
+            except Exception as e:
+                logging.warning(f"my_llms include_details global fallback exception: {e}")
         else:
             res = {}
-            for o in TenantLLMService.get_my_llms(current_user.id):
-                if o["llm_factory"] not in res:
-                    res[o["llm_factory"]] = {"tags": o["tags"], "llm": []}
-                res[o["llm_factory"]]["llm"].append({"id": o["id"], "type": o["model_type"], "name": o["llm_name"], "used_token": o["used_tokens"], "status": o["status"]})
+            objs = TenantLLMService.get_my_llms(current_user.id)
+            existing_models = set()
+            for o in objs:
+                factory = o.get("llm_factory")
+                if factory not in res:
+                    res[factory] = {"tags": o.get("tags"), "llm": []}
+                res[factory]["llm"].append({"id": o["id"], "type": o["model_type"], "name": o["llm_name"], "used_token": o.get("used_tokens", 0), "status": o.get("status", "1")})
+                existing_models.add((factory, o["llm_name"]))
+
+            # Fallback to Admin-registered global AIModels
+            try:
+                from api.db.services.ai_policy_service import AIModelService
+                from api.db.services.llm_service import LLMFactoriesService
+                factories = LLMFactoriesService.query(status=StatusEnum.VALID.value)
+                factories_dict = {f.name: f.tags for f in factories}
+                global_models = AIModelService.get_platform_models()
+                for gm in global_models:
+                    gm_provider = gm.get("provider", "")
+                    gm_name = gm.get("model_name", "")
+                    if (gm_provider, gm_name) not in existing_models:
+                        if gm_provider not in res:
+                            res[gm_provider] = {"tags": factories_dict.get(gm_provider), "llm": []}
+                        res[gm_provider]["llm"].append(
+                            {
+                                "id": gm.get("id", f"{gm_provider}/{gm_name}"),
+                                "type": gm.get("model_type", "CHAT"),
+                                "name": gm_name,
+                                "used_token": 0,
+                                "status": "1",
+                            }
+                        )
+            except Exception as e:
+                logging.warning(f"my_llms fallback exception: {e}")
 
         return get_json_result(data=res)
     except Exception as e:
@@ -524,6 +637,17 @@ async def list_app():
         facts = set([o.to_dict()["llm_factory"] for o in objs if o.api_key and o.status == StatusEnum.VALID.value])
         tenant_llm_mapping = {f"{o.llm_name}@{o.llm_factory}": o for o in objs}
         status = {(o.llm_name + "@" + o.llm_factory) for o in objs if o.status == StatusEnum.VALID.value}
+
+        # Include Admin-registered global AIModels into facts and status
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            global_models = AIModelService.query(enabled=True)
+            for gm in global_models:
+                facts.add(gm.provider)
+                status.add(f"{gm.model_name}@{gm.provider}")
+        except Exception as e:
+            logging.warning(f"list_app global models fallback exception: {e}")
+
         llms = LLMService.get_all()
         llms = [m.to_dict() for m in llms if m.status == StatusEnum.VALID.value and m.fid not in weighted and (m.fid == "Builtin" or (m.llm_name + "@" + m.fid) in status)]
         for m in llms:
@@ -538,9 +662,19 @@ async def list_app():
                 continue
             llms.append({"id": o.id, "llm_name": o.llm_name, "model_type": o.model_type, "fid": o.llm_factory, "available": True, "status": StatusEnum.VALID.value})
 
+        # Append global models not already present in LLMService
+        try:
+            from api.db.services.ai_policy_service import AIModelService
+            global_models = AIModelService.query(enabled=True)
+            for gm in global_models:
+                if f"{gm.model_name}@{gm.provider}" not in llm_set:
+                    llms.append({"id": gm.id, "llm_name": gm.model_name, "model_type": gm.model_type, "fid": gm.provider, "available": True, "status": StatusEnum.VALID.value})
+        except Exception:
+            pass
+
         res = {}
         for m in llms:
-            if model_type and m["model_type"].find(model_type) < 0:
+            if model_type and str(m["model_type"]).lower().find(str(model_type).lower()) < 0:
                 continue
             if m["fid"] not in res:
                 res[m["fid"]] = []

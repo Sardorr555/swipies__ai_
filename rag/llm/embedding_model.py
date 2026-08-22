@@ -725,7 +725,7 @@ class BedrockEmbed(Base):
 class GeminiEmbed(Base):
     _FACTORY_NAME = "Gemini"
 
-    def __init__(self, key, model_name="gemini-embedding-001", **kwargs):
+    def __init__(self, key, model_name="text-embedding-004", **kwargs):
         from google import genai
         from google.genai import types
 

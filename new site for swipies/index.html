@@ -83,7 +83,7 @@
           "@type": "SiteNavigationElement",
           "position": 7,
           "name": "Login / Try Demo",
-          "url": "https://api.swipies.app/login"
+          "url": "https://app.swipies.app/login"
         }
       ]
     }
@@ -109,7 +109,7 @@
 
       // Yandex Metrika Goal
       if (typeof ym === 'function') {
-        const ymId = localStorage.getItem('swipies_ym_counter_id') || '97561823';
+        const ymId = localStorage.getItem('swipies_ym_counter_id') || '106098534';
         ym(parseInt(ymId), 'reachGoal', eventName, params);
       }
     };
@@ -129,7 +129,7 @@
         document.head.appendChild(gaScript);
 
         // 2. Yandex Metrika Counter
-        const ymId = localStorage.getItem('swipies_ym_counter_id') || '97561823';
+        const ymId = localStorage.getItem('swipies_ym_counter_id') || '106098534';
         ym(parseInt(ymId), "init", {
           clickmap: true,
           trackLinks: true,
@@ -1181,6 +1181,93 @@
       word-break: break-all;
     }
 
+    .copy-cmd-btn {
+      margin-left: auto;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .copy-cmd-btn:hover {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+
+    /* Server requirements styling */
+    .server-requirements {
+      margin-top: 2rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem 1.5rem;
+    }
+
+    .req-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: var(--t-label);
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border2);
+    }
+
+    .req-header svg {
+      width: 18px;
+      height: 18px;
+      color: var(--accent);
+    }
+
+    .req-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    @media (min-width: 640px) {
+      .req-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .req-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border2);
+    }
+
+    .req-label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .req-val {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
     @media (min-width: 768px) {
       .pricing-grid {
         grid-template-columns: 1fr;
@@ -1547,6 +1634,139 @@
         scroll-behavior: auto;
       }
     }
+
+    /* ===== COOKIE CONSENT BANNER ===== */
+    .cookie-banner {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      max-width: 440px;
+      width: calc(100% - 48px);
+      background: rgba(13, 19, 31, 0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(232, 168, 32, 0.3);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(232, 168, 32, 0.12);
+      z-index: 999999;
+      display: none;
+      opacity: 0;
+      transform: translateY(30px) scale(0.96);
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .cookie-banner.show {
+      display: block;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .cookie-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .cookie-icon {
+      width: 24px !important;
+      height: 24px !important;
+      min-width: 24px !important;
+      min-height: 24px !important;
+      max-width: 24px !important;
+      max-height: 24px !important;
+      color: var(--accent);
+      flex-shrink: 0;
+      display: inline-block;
+    }
+
+    .cookie-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
+
+    .cookie-text {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 1.2rem;
+    }
+
+    .cookie-text a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      transition: color 0.15s;
+    }
+
+    .cookie-text a:hover {
+      color: #fff;
+    }
+
+    .cookie-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    .cookie-btn {
+      padding: 8px 18px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      border: none;
+    }
+
+    .cookie-btn-decline {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+      border: 1px solid var(--border2);
+    }
+
+    .cookie-btn-decline:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+
+    .cookie-btn-accept {
+      background: var(--accent);
+      color: var(--bg);
+      box-shadow: 0 4px 14px rgba(232, 168, 32, 0.25);
+    }
+
+    .cookie-btn-accept:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(232, 168, 32, 0.35);
+    }
+
+    @media (max-width: 600px) {
+      .cookie-banner {
+        bottom: 16px;
+        left: 16px;
+        right: 16px;
+        width: auto;
+        max-width: none;
+        padding: 1rem 1.25rem;
+      }
+
+      .cookie-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+
+      .cookie-btn {
+        text-align: center;
+        width: 100%;
+        padding: 10px;
+      }
+    }
   </style>
 </head>
 
@@ -1571,7 +1791,7 @@
           <button data-lang="ru">RU</button>
           <button data-lang="uz">UZ</button>
         </div>
-        <a href="login.html" class="btn-primary" data-i18n="nav_cta">Try Demo</a>
+        <a href="https://app.swipies.app" class="btn-primary" data-i18n="nav_cta">Try Demo</a>
       </div>
       <button class="nav-hamburger" id="hamburger" aria-label="Menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -1593,7 +1813,7 @@
       <p class="hero-sub" data-i18n="hero_sub">Deploy on-premise RAG pipelines powered by any LLM — directly on your
         servers. Your data never leaves your environment. Ever.</p>
       <div class="hero-ctas">
-        <a href="login.html" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
+        <a href="https://app.swipies.app" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
         <a href="#contact" class="btn-secondary" data-i18n="hero_cta2">Talk to Sales</a>
       </div>
     </div>
@@ -1752,15 +1972,13 @@
     <div class="container reveal">
       <div class="section-num" data-i18n="selfhosted_num">04 — Self-Hosted</div>
       <h2 class="section-title" data-i18n="selfhosted_title">Run Swipies AI on Your Own Hardware</h2>
-      <p class="section-subtitle" data-i18n="selfhosted_subtitle">Pull our Docker containers, configure your
-        environment, and paste your license key to unlock maximum performance.</p>
+      <p class="section-subtitle" data-i18n="selfhosted_subtitle">Execute a single command on your Linux server to automatically install and launch Swipies AI.</p>
 
       <div class="selfhosted-grid">
         <div class="selfhosted-steps">
           <div class="sh-step">
-            <h3 data-i18n="selfhosted_step1_h">1. Pull and Run</h3>
-            <p data-i18n="selfhosted_step1_p">Deploy our containerized stack in minutes using Docker Compose or
-              Kubernetes Helm charts.</p>
+            <h3 data-i18n="selfhosted_step1_h">1. One-Line Automatic Install</h3>
+            <p data-i18n="selfhosted_step1_p">Run our automated setup command on your Linux server to prepare the environment and spin up Swipies AI.</p>
           </div>
           <div class="sh-step">
             <h3 data-i18n="selfhosted_step2_h">2. Insert License Key</h3>
@@ -1780,13 +1998,47 @@
             <span class="code-dot"></span>
             <span class="code-dot"></span>
             <span class="code-title">terminal — install.sh</span>
+            <button class="copy-cmd-btn" id="copyBtn" onclick="copyInstallCmd()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>Copy</span>
+            </button>
           </div>
-          <pre class="code-content"><code class="mono"><span class="accent"># 1-Command Automatic Installer (Pull prebuilt containers & run)</span>
-curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/install.sh | bash
+          <pre class="code-content"><code class="mono"><span class="accent"># Automated installation command</span>
+curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/install.sh | bash</code></pre>
+        </div>
+      </div>
 
-<span class="accent"># System Requirements:</span>
-<span class="accent"># Minimum Specs: 16 GB RAM | 6 vCPU | 50 GB SSD (Ubuntu 20.04+)</span>
-<span class="accent"># Recommended: 32 GB RAM | 8 vCPU / NVIDIA GPU Acceleration</span></code></pre>
+      <!-- Minimum Server Requirements -->
+      <div class="server-requirements">
+        <div class="req-header">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="8" rx="2" />
+            <rect x="2" y="14" width="20" height="8" rx="2" />
+            <line x1="6" y1="6" x2="6.01" y2="6" />
+            <line x1="6" y1="18" x2="6.01" y2="18" />
+          </svg>
+          <span data-i18n="req_title">Minimum Server Requirements</span>
+        </div>
+        <div class="req-grid">
+          <div class="req-item">
+            <span class="req-label" data-i18n="req_cpu_label">CPU Cores</span>
+            <span class="req-val" data-i18n="req_cpu_val">6 Cores</span>
+          </div>
+          <div class="req-item">
+            <span class="req-label" data-i18n="req_ram_label">RAM / Memory</span>
+            <span class="req-val" data-i18n="req_ram_val">16 GB RAM</span>
+          </div>
+          <div class="req-item">
+            <span class="req-label" data-i18n="req_storage_label">Storage</span>
+            <span class="req-val" data-i18n="req_storage_val">50+ GB SSD</span>
+          </div>
+          <div class="req-item">
+            <span class="req-label" data-i18n="req_os_label">OS</span>
+            <span class="req-val" data-i18n="req_os_val">Ubuntu / Debian</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1867,7 +2119,7 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
                 <polyline points="20 6 9 17 4 12" />
               </svg><span data-i18n="starter_f4">Managed infrastructure</span></li>
           </ul>
-          <a href="login.html" class="btn-secondary" style="display:inline-block;text-align:center"
+          <a href="https://app.swipies.app" class="btn-secondary" style="display:inline-block;text-align:center"
             data-i18n="starter_cta">Start Building</a>
         </div>
         <div class="price-card">
@@ -2116,7 +2368,7 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
     <div class="container">
       <h2 data-i18n="fcta_h">Ready to Bring AI Inside Your Infrastructure?</h2>
       <p data-i18n="fcta_p">Deploy enterprise-grade AI on your servers. Your data stays yours.</p>
-      <a href="login.html" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
+      <a href="https://app.swipies.app" class="btn-primary" data-i18n="hero_cta1">Try Demo</a>
     </div>
   </div>
 
@@ -2648,11 +2900,11 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
       document.querySelectorAll('[data-i18n="nav_cta"]').forEach(el => {
         if (isLoggedIn) {
           el.textContent = consoleTexts[savedLang] || 'Console';
-          el.href = 'https://api.swipies.app/';
+          el.href = 'https://app.swipies.app/';
           el.target = '_self';
         } else {
           el.textContent = T[savedLang].nav_cta;
-          el.href = 'login.html';
+          el.href = 'https://app.swipies.app';
           el.target = '_self';
         }
       });
@@ -2660,11 +2912,11 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
       document.querySelectorAll('[data-i18n="hero_cta1"]').forEach(el => {
         if (isLoggedIn) {
           el.textContent = consoleTexts[savedLang] || 'Console';
-          el.href = 'https://api.swipies.app/';
+          el.href = 'https://app.swipies.app/';
           el.target = '_self';
         } else {
           el.textContent = T[savedLang].hero_cta1;
-          el.href = 'login.html';
+          el.href = 'https://app.swipies.app';
           el.target = '_self';
         }
       });
@@ -2672,10 +2924,10 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
       const starterBtn = document.querySelector('[data-i18n="starter_cta"]');
       if (starterBtn) {
         if (isLoggedIn) {
-          starterBtn.href = 'https://api.swipies.app/pricing?plan=plus';
+          starterBtn.href = 'https://app.swipies.app/pricing?plan=plus';
           starterBtn.target = '_self';
         } else {
-          starterBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dplus';
+          starterBtn.href = 'https://app.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dplus';
           starterBtn.target = '_self';
         }
       }
@@ -2683,10 +2935,10 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
       const licenseBtn = document.querySelector('[data-i18n="license_cta"]');
       if (licenseBtn) {
         if (isLoggedIn) {
-          licenseBtn.href = 'https://api.swipies.app/pricing?plan=license';
+          licenseBtn.href = 'https://app.swipies.app/pricing?plan=license';
           licenseBtn.target = '_self';
         } else {
-          licenseBtn.href = 'https://api.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dlicense';
+          licenseBtn.href = 'https://app.swipies.app/login?redirect=%2Fpricing%3Fplan%3Dlicense';
           licenseBtn.target = '_self';
         }
       }
@@ -2780,7 +3032,7 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
       menuFooter.className = 'mobile-menu-footer';
 
       const tryDemoBtn = document.createElement('a');
-      tryDemoBtn.href = 'login.html';
+      tryDemoBtn.href = 'https://app.swipies.app';
       tryDemoBtn.className = 'btn-primary';
       tryDemoBtn.setAttribute('data-i18n', 'nav_cta');
       tryDemoBtn.textContent = 'Try Demo';
@@ -2879,8 +3131,8 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
         console.error('Error saving submission locally:', err);
       }
 
-      // Submit to the main database of the platform
-      fetch('/api/v1/leads', {
+      // Submit to the local Flask database for admin panel visibility
+      fetch('/api/leads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -2896,13 +3148,13 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
       }).then(res => res.json())
         .then(res => {
           if (res && res.code === 0) {
-            console.log('Lead successfully saved in database.');
+            console.log('Lead successfully saved in database. ID:', res.data && res.data.id);
           } else {
             console.warn('Backend responded with error for lead submission:', res);
           }
         })
         .catch(err => {
-          console.error('Error posting lead to main database:', err);
+          console.error('Error posting lead to database:', err);
         });
 
       // Trigger GA4 & Yandex Metrika form submission event
@@ -2931,7 +3183,7 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
       if (!link) return;
 
       const href = link.getAttribute('href') || '';
-      const isDemo = href.includes('api.swipies.app') || link.getAttribute('data-i18n') === 'nav_cta' || link.getAttribute('data-i18n') === 'hero_cta1' || link.getAttribute('data-i18n') === 'starter_cta';
+      const isDemo = href.includes('app.swipies.app') || href.includes('api.swipies.app') || link.getAttribute('data-i18n') === 'nav_cta' || link.getAttribute('data-i18n') === 'hero_cta1' || link.getAttribute('data-i18n') === 'starter_cta';
       const isSales = href === '#contact' || link.getAttribute('data-i18n') === 'hero_cta2' || link.getAttribute('data-i18n') === 'ent_cta';
 
       if (isDemo) {
@@ -3022,13 +3274,218 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
         const hero = document.getElementById('hero');
         if (hero) hero.classList.add('visible');
       }, 100);
+
+      initCookieBanner();
     });
+
+    /* ===== COOKIE CONSENT & ADVANCED VISITOR TRACKING TELEMETRY ===== */
+    let sessionStartTime = Date.now();
+    let sessionMaxScroll = 0;
+    let sessionClickedButtons = [];
+
+    function getVisitorId() {
+      let vId = localStorage.getItem('swipies_visitor_id');
+      if (!vId) {
+        vId = 'v_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+        localStorage.setItem('swipies_visitor_id', vId);
+      }
+      return vId;
+    }
+
+    function getGpuInfo() {
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            return gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || 'WebGL Renderer';
+          }
+        }
+      } catch (e) {}
+      return 'Standard Graphics';
+    }
+
+    function getConnectionInfo() {
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (conn) {
+        const type = conn.effectiveType ? conn.effectiveType.toUpperCase() : '';
+        const speed = conn.downlink ? `${conn.downlink}Mbps` : '';
+        const rtt = conn.rtt ? `${conn.rtt}ms ping` : '';
+        return [type, speed, rtt].filter(Boolean).join(' • ');
+      }
+      return 'Standard Network';
+    }
+
+    function getThemePreference() {
+      return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'Dark Mode' : 'Light Mode';
+    }
+
+    function updateScrollDepth() {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const docHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
+      if (docHeight > 0) {
+        const currentPercent = Math.min(100, Math.round((scrollTop / docHeight) * 100));
+        if (currentPercent > sessionMaxScroll) {
+          sessionMaxScroll = currentPercent;
+        }
+      }
+    }
+
+    window.addEventListener('scroll', updateScrollDepth, { passive: true });
+
+    function initCtaClickTracking() {
+      document.addEventListener('click', (e) => {
+        const target = e.target.closest('button, a, .btn-primary, .btn-secondary, [data-i18n]');
+        if (target) {
+          const label = (target.getAttribute('data-i18n') || target.textContent || target.title || 'Button').trim();
+          const cleaned = label.replace(/\s+/g, ' ').substring(0, 40);
+          if (cleaned && !sessionClickedButtons.includes(cleaned)) {
+            sessionClickedButtons.push(cleaned);
+          }
+        }
+      });
+    }
+
+    function getUtmParams() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+      let utmObj = {};
+      let foundInUrl = false;
+
+      utmKeys.forEach(k => {
+        const val = urlParams.get(k);
+        if (val) {
+          utmObj[k] = val.trim();
+          foundInUrl = true;
+        }
+      });
+
+      if (foundInUrl) {
+        localStorage.setItem('swipies_utm', JSON.stringify(utmObj));
+        return utmObj;
+      }
+
+      try {
+        const saved = localStorage.getItem('swipies_utm');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+
+      return {};
+    }
+
+    function trackVisitor(consentStatus) {
+      try {
+        const elapsedSeconds = Math.round((Date.now() - sessionStartTime) / 1000);
+        const utm = getUtmParams();
+
+        const payload = {
+          visitor_id: getVisitorId(),
+          screen_res: window.screen ? `${window.screen.width}x${window.screen.height}` : '',
+          language: navigator.language || navigator.userLanguage || 'en',
+          timezone: (Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
+          page_url: window.location.href,
+          referrer: document.referrer || 'Direct',
+          cookie_consent: consentStatus || localStorage.getItem('swipies_cookie_consent') || 'pending',
+          user_agent: navigator.userAgent,
+          
+          // Extended Telemetry Specs
+          cpu_cores: navigator.hardwareConcurrency || '',
+          ram_gb: navigator.deviceMemory || '',
+          gpu_info: getGpuInfo(),
+          connection_type: getConnectionInfo(),
+          theme_pref: getThemePreference(),
+          session_duration: elapsedSeconds,
+          scroll_depth: sessionMaxScroll,
+          clicked_buttons: sessionClickedButtons.join(', '),
+
+          // Campaign UTM Parameters
+          utm_source: utm.utm_source || '',
+          utm_medium: utm.utm_medium || '',
+          utm_campaign: utm.utm_campaign || '',
+          utm_term: utm.utm_term || '',
+          utm_content: utm.utm_content || ''
+        };
+
+        fetch('/api/visitors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(err => console.error('[Telemetry] Visitor tracking error:', err));
+      } catch (err) {
+        console.error('[Telemetry] Error preparing visitor data:', err);
+      }
+    }
+
+    window.handleCookieConsent = function(choice) {
+      localStorage.setItem('swipies_cookie_consent', choice);
+      const banner = document.getElementById('cookieBanner');
+      if (banner) {
+        banner.classList.remove('show');
+        setTimeout(() => { banner.style.display = 'none'; }, 350);
+      }
+      trackVisitor(choice);
+    };
+
+    function initCookieBanner() {
+      initCtaClickTracking();
+      updateScrollDepth();
+
+      const consent = localStorage.getItem('swipies_cookie_consent') || 'pending';
+      const banner = document.getElementById('cookieBanner');
+
+      // ALWAYS track visitor telemetry immediately on load regardless of cookie status
+      trackVisitor(consent);
+
+      if (!localStorage.getItem('swipies_cookie_consent')) {
+        // Show cookie banner after 1s delay if not decided yet
+        setTimeout(() => {
+          if (banner) {
+            banner.style.display = 'block';
+            setTimeout(() => banner.classList.add('show'), 50);
+          }
+        }, 1000);
+      }
+
+      // Continuous heartbeat telemetry update every 15 seconds
+      setInterval(() => {
+        const activeConsent = localStorage.getItem('swipies_cookie_consent') || 'pending';
+        trackVisitor(activeConsent);
+      }, 15000);
+
+      // Track session end on visibility change
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          const activeConsent = localStorage.getItem('swipies_cookie_consent') || 'pending';
+          trackVisitor(activeConsent);
+        }
+      });
+    }
 
     window.closeReferralBadge = function() {
       const badge = document.getElementById('referralBadge');
       if (badge) {
         badge.style.display = 'none';
       }
+    };
+
+    window.copyInstallCmd = function() {
+      const cmd = "curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/install.sh | bash";
+      navigator.clipboard.writeText(cmd).then(() => {
+        const btn = document.getElementById('copyBtn');
+        if (btn) {
+          const span = btn.querySelector('span');
+          if (span) {
+            const origText = span.textContent;
+            span.textContent = 'Copied!';
+            setTimeout(() => {
+              span.textContent = origText;
+            }, 2000);
+          }
+        }
+      }).catch(err => {
+        console.error('Failed to copy command', err);
+      });
     };
   </script>
 
@@ -3038,6 +3495,22 @@ curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/i
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="badge-icon"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
     <span>Referral active: <strong id="badgeRefCode"></strong></span>
     <button class="badge-close" onclick="closeReferralBadge()">&times;</button>
+  </div>
+
+  <!-- Cookie Consent Banner -->
+  <div id="cookieBanner" class="cookie-banner" role="dialog" aria-live="polite">
+    <div class="cookie-header">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cookie-icon" style="width:24px; height:24px; min-width:24px; min-height:24px;"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5z"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="11.5" cy="14.5" r="1.5"/><circle cx="15.5" cy="9.5" r="1.5"/></svg>
+      <div class="cookie-title" data-i18n="cookie_title">Cookie & Data Consent</div>
+    </div>
+    <div class="cookie-text">
+      <span data-i18n="cookie_msg">We use cookies and collect technical specs (device, IP address, browser specs) to optimize site performance and security.</span>
+      <a href="privacy.html" target="_blank" data-i18n="cookie_learn_more">Privacy Policy</a>
+    </div>
+    <div class="cookie-actions">
+      <button type="button" class="cookie-btn cookie-btn-decline" onclick="handleCookieConsent('declined')" data-i18n="cookie_decline">Decline</button>
+      <button type="button" class="cookie-btn cookie-btn-accept" onclick="handleCookieConsent('accepted')" data-i18n="cookie_accept">Accept Cookies</button>
+    </div>
   </div>
 </body>
 
