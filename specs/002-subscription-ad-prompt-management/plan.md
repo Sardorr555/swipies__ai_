@@ -23,15 +23,16 @@
 │ 2. Swipies Ads Engine                 │                                                │
 │    - Semantic & Intent Matcher        │ 2. Admin Ads Console (/admin/ads)              │
 │    - Frequency Capping Evaluator      │    - Campaign Moderation Queue (Approve/Reject)│
-│    - Budget & Balance Verifier        │    - Network Revenue & Spend Overview          │
-│    - Winner Auction Ranker            │                                                │
-│                                       │ 3. User Settings & Plan Badges                 │
-│ 3. Centralized LLM Gateway            │    - Navigation Link: Settings -> Swipies Ads  │
-│    - LLMBundle Single Point of Truth  │    - Plan Badges (Sponsored vs 100% Ad-Free)   │
+│    - Platform Branding Injector       │    - Network Revenue & Spend Overview          │
+│    - Budget & Balance Verifier        │                                                │
+│    - Winner Auction Ranker            │ 3. User Settings & Plan Badges                 │
+│                                       │    - Navigation Link: Settings -> Swipies Ads  │
+│ 3. Centralized LLM Gateway            │    - Plan Badges (Sponsored vs 100% Ad-Free)   │
+│    - LLMBundle Single Point of Truth  │    - White-Label Perk for Plus/Pro             │
 │    - Subscription Tier Filter         │                                                │
-│    - 14 Rules System Prompt Injection │ 4. Chat UI Sponsored Formatting                │
+│    - 14 Rules System Prompt Injection │ 4. Chat UI Sponsored & Attribution Formatting  │
 │                                       │    - Native [Sponsored] Card & Click Tracking  │
-│ 4. RESTful API & Tracking Endpoints   │                                                │
+│ 4. RESTful API & Tracking Endpoints   │    - "Powered by Swipies" Footer Renderer      │
 │    - /v1/ads/*, /v1/admin/ads/*       │                                                │
 └───────────────────────────────────────┴────────────────────────────────────────────────┘
 ```
@@ -42,18 +43,18 @@
 
 ```mermaid
 graph TD
-    Phase1[Phase 1: Database Models & Feature Flags] --> Phase2[Phase 2: Swipies Ads Backend Engine & Policy Service]
+    Phase1[Phase 1: Database Models & Feature Flags] --> Phase2[Phase 2: Swipies Ads Backend Engine & Platform Branding Policy]
     Phase2 --> Phase3[Phase 3: Centralized LLM Gateway Integration in LLMBundle]
     Phase3 --> Phase4[Phase 4: RESTful API Endpoints & Click Tracking]
     Phase4 --> Phase5[Phase 5: Advertiser Portal & UI Dashboard /ads]
-    Phase5 --> Phase6[Phase 6: Admin Moderation Console & User Settings]
+    Phase5 --> Phase6[Phase 6: Admin Moderation Console, User Settings & Branding Toggles]
     Phase6 --> Phase7[Phase 7: End-to-End Testing & Verification]
 ```
 
 ---
 
 ### Phase 1: Database Entities & Configuration Flags
-- **Goal**: Establish the persistence layer and feature flag infrastructure.
+- **Goal**: Establish the persistence layer, platform attribution defaults, and feature flag infrastructure.
 - **Tasks**:
   1. Add database models in [`api/db/db_models.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/db_models.py):
      - `Advertiser`: Account balance, company name, status (`active`, `suspended`), user/tenant relation.
@@ -61,11 +62,12 @@ graph TD
      - `AdImpression`: Tracking records with tenant_id, conversation_id, cost, timestamp.
      - `AdClick`: Unique click tracking, impression linkage, cost, IP hash.
      - `AdTransaction`: Financial deposits, spend debits, refund logs.
-     - `AdSettings`: Configurable network parameters (frequency caps, min bids).
+     - `AdSettings`: Configurable network parameters (frequency caps, min bids, platform watermark template).
   2. Add automatic table creation on startup in `api/db/services/ad_engine_service.py` / `api/db/init_data.py`.
   3. Add feature flags in `api/settings.py` and `docker/service_conf.yaml.template`:
      - `ADS_ENABLED: bool = True`
      - `ADS_FOR_FREE_USERS: bool = True`
+     - `ADS_PLATFORM_BRANDING_ENABLED: bool = True`
      - `ADS_LLM_PROMPT_ENABLED: bool = True`
      - `ADS_TARGETING_ENABLED: bool = True`
      - `ADS_BILLING_ENABLED: bool = True`
@@ -77,8 +79,8 @@ graph TD
 
 ---
 
-### Phase 2: Swipies Ads Engine & Targeting Service
-- **Goal**: Implement intent analysis, semantic & keyword campaign matching, frequency capping, and budget verification.
+### Phase 2: Swipies Ads Engine & Platform Branding Policy
+- **Goal**: Implement intent analysis, semantic & keyword campaign matching, frequency capping, budget verification, and Swipies platform attribution.
 - **Tasks**:
   1. Create `api/db/services/ad_engine_service.py`:
      - `match_campaign_for_query(tenant_id, user_id, user_query, conversation_id) -> dict | None`:
@@ -96,8 +98,11 @@ graph TD
      - `is_ad_eligible_user(tenant_id: str) -> bool`:
        - Evaluates `AIPolicyManager.get_tenant_plan(tenant_id)`.
        - Returns `True` strictly for `Free` tier; returns `False` for `Plus`, `Pro`, `Enterprise`, or `Superuser`.
-     - `build_ad_system_prompt_block(campaign: dict | None, lang: str = "en") -> str`:
-       - Generates structured instruction context containing the 14 rules and the selected campaign data.
+     - `is_platform_branding_enabled(tenant_id: str) -> bool`:
+       - Checks if the user is on `Free` tier. For `Plus`/`Pro`, returns `False` (allowing 100% white-labeled ad-free output).
+     - `build_ad_system_prompt_block(campaign: dict | None, include_branding: bool = True, lang: str = "en") -> str`:
+       - Generates structured instruction context containing the 14 rules, the selected sponsor campaign, and the Swipies platform attribution line:
+         `⚡ Generated by [Swipies AI](https://swipies.app) — Free Multi-Model Workspace`.
      - `build_effective_system_prompt(tenant_id, base_system_prompt, user_query, conversation_id) -> str`:
        - Orchestrates the full prompt assembly hierarchy.
 - **Deliverables**:
@@ -113,8 +118,8 @@ graph TD
      - Add `_prepare_system_prompt(self, system: str, history: list) -> str`.
      - In all 6 chat methods (`chat`, `async_chat`, `chat_streamly`, `async_chat_streamly`, `chat_streamly_delta`, `async_chat_streamly_delta`):
        - Intercept `system` and `history` to evaluate the user's latest message.
-       - If user is `Free`, resolve matched ad and append instructions.
-       - If user is `Plus`/`Pro`, strictly retain the clean original `system` prompt.
+       - If user is `Free`, resolve matched ad, inject Swipies attribution links, and append instructions.
+       - If user is `Plus`/`Pro`, strictly retain the clean original `system` prompt with zero ad or watermark tokens.
   2. Ensure Langfuse traces, token usage counting, and stream deltas continue to operate seamlessly.
 - **Deliverables**:
   - `api/db/services/llm_service.py`
@@ -171,16 +176,17 @@ graph TD
 ---
 
 ### Phase 6: Admin Moderation Console & User Navigation
-- **Goal**: Provide moderation tools in the Admin Panel and integrate Ads into User Settings.
+- **Goal**: Provide moderation tools in the Admin Panel, integrate Ads into User Settings, and format sponsored messages in chat.
 - **Tasks**:
   1. Create `web/src/pages/admin/ads/index.tsx`:
      - Moderation review table with preview of ad text, landing URL, and 1-click Approve/Reject modals.
      - Network statistics (Total Revenue, Active Campaigns, Global Impressions).
-  2. Add `Swipies Ads` navigation item in User Settings sidebar (`web/src/pages/user-setting/sidebar.tsx` or navigation menus).
+     - Platform branding & watermark settings.
+  2. Add `Swipies Ads` navigation item in User Settings sidebar (`web/src/pages/user-setting/sidebar.tsx`).
   3. Update Subscription Plan cards in Pricing / Settings:
-     - Free: `⚠ Sponsored AI recommendations`.
-     - Plus/Pro: `✓ Guaranteed 100% Ad-Free`.
-  4. Add native sponsored card formatting helper in `web/src/pages/chat/` for rendering `[Sponsored]` blocks with styling.
+     - Free: `⚠ Sponsored AI recommendations & Swipies attribution`.
+     - Plus/Pro: `✓ Guaranteed 100% Ad-Free`, `✓ No Platform Watermark (White-label AI)`.
+  4. Add native sponsored card & attribution footer formatting in `web/src/pages/chat/`.
 - **Deliverables**:
   - `web/src/pages/admin/ads/index.tsx`
   - `web/src/pages/user-setting/sidebar.tsx`
@@ -192,13 +198,13 @@ graph TD
 - **Goal**: Full automated test coverage and zero-downtime deployment verification.
 - **Tasks**:
   1. Create comprehensive unit & integration test suite `test/test_swipies_ads_system.py`:
-     - **Test 1**: Free tier prompt injection + valid campaign matching.
-     - **Test 2**: Plus / Pro 100% ad-free payload guarantee.
+     - **Test 1**: Free tier prompt injection + valid campaign matching + Swipies attribution link.
+     - **Test 2**: Plus / Pro 100% ad-free & watermark-free payload guarantee.
      - **Test 3**: Frequency capping enforcement (max impressions per user).
      - **Test 4**: Campaign budget exhaustion and advertiser balance deductions.
      - **Test 5**: Click tracking and redirection attribution.
      - **Test 6**: Admin campaign approval / rejection workflow.
-     - **Test 7**: Global feature flags (`ADS_ENABLED=False`) kill-switch test.
+     - **Test 7**: Global feature flags (`ADS_ENABLED=False`, `ADS_PLATFORM_BRANDING_ENABLED=False`) kill-switch test.
   2. Verify Python compilation (`python -m py_compile ...`).
   3. Verify Frontend build (`npm run build` in `web/`).
   4. Commit all changes to `test` branch and push to remote `swipies_ai/test`.
@@ -210,8 +216,8 @@ graph TD
 ## 3. Definition of Done (DoD)
 
 - [ ] All database entities (`Advertiser`, `AdCampaign`, `AdImpression`, `AdClick`, `AdTransaction`, `AdSettings`) active and initialized.
-- [ ] Swipies Ads Engine matching logic, frequency capping, and budget tracking fully functional.
-- [ ] Centralized `LLMBundle` gateway enforces prompt injection for Free users and 100% ad-free experience for Plus/Pro.
+- [ ] Swipies Ads Engine matching logic, frequency capping, platform branding, and budget tracking fully functional.
+- [ ] Centralized `LLMBundle` gateway enforces prompt injection & attribution for Free users and 100% ad-free / white-label experience for Plus/Pro.
 - [ ] Advertiser Portal (`/ads`) and Admin Moderation Console (`/admin/ads`) accessible with complete UI.
 - [ ] 100% passing test suite across all 7 automated test categories.
 - [ ] Zero breaking changes in existing dialogues, datasets, agents, or RAG flows.
