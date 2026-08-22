@@ -182,3 +182,15 @@ oauth:
 #   max_backups: 10          # retained rotated files
 #   max_age: 30              # days
 #   compress: true           # gzip rotated files; default true. Set false to disable.
+
+swipies_ads:
+  ads_enabled: ${SWIPIES_ADS_ENABLED:-true}
+  ads_for_free_users: ${SWIPIES_ADS_FOR_FREE_USERS:-true}
+  platform_branding_enabled: ${SWIPIES_PLATFORM_BRANDING_ENABLED:-true}
+  llm_prompt_enabled: ${SWIPIES_ADS_LLM_PROMPT_ENABLED:-true}
+  targeting_enabled: ${SWIPIES_ADS_TARGETING_ENABLED:-true}
+  billing_enabled: ${SWIPIES_ADS_BILLING_ENABLED:-true}
+  analytics_enabled: ${SWIPIES_ADS_ANALYTICS_ENABLED:-true}
+  app_url: '${SWIPIES_APP_URL:-https://swipies.app}'
+  brand_name: '${SWIPIES_BRAND_NAME:-Swipies AI}'
+

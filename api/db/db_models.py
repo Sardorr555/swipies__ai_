@@ -1648,6 +1648,107 @@ class AIAuditLog(DataBaseModel):
         db_table = "ai_audit_log"
 
 
+class Advertiser(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    company_name = CharField(max_length=255, null=False, default="")
+    contact_email = CharField(max_length=255, null=True)
+    website_url = CharField(max_length=1024, null=True)
+    balance = FloatField(default=0.0)
+    currency = CharField(max_length=8, default="USD")
+    status = CharField(max_length=32, default="active", index=True)  # active, suspended, pending
+    create_time = BigIntegerField(null=True, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "advertisers"
+
+
+class AdCampaign(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=255, null=False)
+    product_name = CharField(max_length=255, null=False)
+    description = TextField(null=True)
+    advertisement_text = TextField(null=False)
+    landing_url = CharField(max_length=1024, null=False)
+    target_categories = JSONField(null=True, default=list)  # list of str (e.g. ["crm", "business"])
+    keywords = JSONField(null=True, default=list)  # list of str
+    daily_budget = FloatField(default=10.0)
+    total_budget = FloatField(default=100.0)
+    spent_today = FloatField(default=0.0)
+    total_spent = FloatField(default=0.0)
+    pricing_model = CharField(max_length=16, default="cpc", index=True)  # cpc, cpm
+    bid_amount = FloatField(default=0.10)
+    priority = IntegerField(default=0)
+    status = CharField(max_length=32, default="active", index=True)  # draft, active, paused, completed, archived
+    moderation_status = CharField(max_length=32, default="approved", index=True)  # pending, approved, rejected
+    moderation_note = TextField(null=True)
+    start_date = DateTimeField(null=True)
+    end_date = DateTimeField(null=True)
+    create_time = BigIntegerField(null=True, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "campaigns"
+
+
+class AdImpression(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    campaign_id = CharField(max_length=32, null=False, index=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=True, index=True)
+    tenant_id = CharField(max_length=32, null=True, index=True)
+    conversation_id = CharField(max_length=32, null=True, index=True)
+    message_id = CharField(max_length=32, null=True)
+    cost = FloatField(default=0.0)
+    query_intent = CharField(max_length=255, null=True)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "campaign_impressions"
+
+
+class AdClick(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    campaign_id = CharField(max_length=32, null=False, index=True)
+    impression_id = CharField(max_length=32, null=True, index=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=True, index=True)
+    cost = FloatField(default=0.0)
+    ip_hash = CharField(max_length=64, null=True)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "campaign_clicks"
+
+
+class AdTransaction(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    amount = FloatField(null=False)
+    type = CharField(max_length=32, null=False, index=True)  # deposit, spend_cpc, spend_cpm, refund, adjustment
+    description = CharField(max_length=255, null=True)
+    reference_id = CharField(max_length=64, null=True)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "advertising_transactions"
+
+
+class AdSettings(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    key = CharField(max_length=128, unique=True, index=True)
+    value = TextField(null=False)
+    description = CharField(max_length=255, null=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "advertising_settings"
+
+
+
 
 def alter_db_add_column(migrator, table_name, column_name, column_type):
     try:

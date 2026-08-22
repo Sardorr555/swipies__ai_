@@ -12,4 +12,15 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-#
+#import os
+
+# Swipies Ads & Platform Branding settings
+ADS_ENABLED = True
+ADS_FOR_FREE_USERS = True
+ADS_PLATFORM_BRANDING_ENABLED = True
+ADS_LLM_PROMPT_ENABLED = True
+ADS_TARGETING_ENABLED = True
+ADS_BILLING_ENABLED = True
+ADS_ANALYTICS_ENABLED = True
+SWIPIES_APP_URL = os.getenv("SWIPIES_APP_URL", "https://swipies.app")
+SWIPIES_BRAND_NAME = os.getenv("SWIPIES_BRAND_NAME", "Swipies AI")

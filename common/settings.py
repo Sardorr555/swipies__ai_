@@ -99,6 +99,17 @@ REGISTER_ENABLED = 1
 # SSO-only mode: hide password login form
 DISABLE_PASSWORD_LOGIN = False
 
+# Swipies Ads & Platform Branding settings
+ADS_ENABLED = True
+ADS_FOR_FREE_USERS = True
+ADS_PLATFORM_BRANDING_ENABLED = True
+ADS_LLM_PROMPT_ENABLED = True
+ADS_TARGETING_ENABLED = True
+ADS_BILLING_ENABLED = True
+ADS_ANALYTICS_ENABLED = True
+SWIPIES_APP_URL = os.getenv("SWIPIES_APP_URL", "https://swipies.app")
+SWIPIES_BRAND_NAME = os.getenv("SWIPIES_BRAND_NAME", "Swipies AI")
+
 # sandbox-executor-manager
 SANDBOX_HOST = None
 STRONG_TEST_COUNT = int(os.environ.get("STRONG_TEST_COUNT", "8"))
