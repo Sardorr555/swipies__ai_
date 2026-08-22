@@ -1,0 +1,680 @@
+#
+#  Copyright 2026 The InfiniFlow Authors. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+import os
+import sys
+import types
+import unittest
+import uuid
+from datetime import datetime, timezone
+from unittest.mock import MagicMock
+from sqlalchemy.types import TypeEngine
+
+# Add project root to sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Stub out heavy C-extensions/optional database driver dependencies if not present on host
+class _ArrayClass(TypeEngine):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+class _VectorClass(TypeEngine):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+pyob = types.ModuleType("pyobvector")
+pyob.ARRAY = _ArrayClass
+pyob.VECTOR = _VectorClass
+pyob.ObVecClient = MagicMock()
+pyob.FtsIndexParam = MagicMock()
+pyob.FtsParser = MagicMock()
+sys.modules["pyobvector"] = pyob
+
+valkey_mod = types.ModuleType("valkey")
+valkey_mod.__path__ = []
+valkey_mod.Redis = MagicMock()
+valkey_mod.StrictRedis = MagicMock()
+valkey_mod.ConnectionPool = MagicMock()
+valkey_lock = types.ModuleType("valkey.lock")
+valkey_lock.Lock = MagicMock()
+valkey_mod.lock = valkey_lock
+sys.modules["valkey"] = valkey_mod
+sys.modules["valkey.lock"] = valkey_lock
+
+redis_mod = types.ModuleType("redis")
+redis_mod.__path__ = []
+redis_mod.Redis = MagicMock()
+redis_mod.StrictRedis = MagicMock()
+redis_mod.ConnectionPool = MagicMock()
+redis_lock = types.ModuleType("redis.lock")
+redis_lock.Lock = MagicMock()
+redis_mod.lock = redis_lock
+sys.modules["redis"] = redis_mod
+sys.modules["redis.lock"] = redis_lock
+
+opendal_mod = types.ModuleType("opendal")
+opendal_mod.Operator = MagicMock()
+sys.modules["opendal"] = opendal_mod
+
+opensearch_mod = types.ModuleType("opensearchpy")
+opensearch_mod.OpenSearch = MagicMock()
+opensearch_mod.NotFoundError = Exception
+opensearch_mod.BadRequestError = Exception
+opensearch_mod.ConnectionTimeout = Exception
+opensearch_mod.UpdateByQuery = MagicMock()
+opensearch_mod.Q = MagicMock()
+opensearch_mod.Search = MagicMock()
+opensearch_mod.Index = MagicMock()
+opensearch_mod.Mapping = MagicMock()
+opensearch_mod.__version__ = (2, 0, 0)
+opensearch_mod.__path__ = []
+opensearch_mod.helpers = types.ModuleType("opensearchpy.helpers")
+opensearch_mod.helpers.bulk = MagicMock()
+opensearch_mod.client = types.ModuleType("opensearchpy.client")
+opensearch_mod.client.IndicesClient = MagicMock()
+sys.modules["opensearchpy"] = opensearch_mod
+sys.modules["opensearchpy.helpers"] = opensearch_mod.helpers
+sys.modules["opensearchpy.client"] = opensearch_mod.client
+
+es_mod = types.ModuleType("elasticsearch")
+es_mod.__path__ = []
+es_mod.Elasticsearch = MagicMock()
+es_mod.NotFoundError = Exception
+es_mod.BadRequestError = Exception
+es_mod.ConnectionTimeout = Exception
+es_mod.__version__ = (8, 0, 0)
+es_dsl = types.ModuleType("elasticsearch.dsl")
+es_dsl.UpdateByQuery = MagicMock()
+es_dsl.Q = MagicMock()
+es_dsl.Search = MagicMock()
+es_dsl.Index = MagicMock()
+es_dsl.Mapping = MagicMock()
+es_mod.dsl = es_dsl
+es_mod.helpers = types.ModuleType("elasticsearch.helpers")
+es_mod.helpers.bulk = MagicMock()
+es_mod.client = types.ModuleType("elasticsearch.client")
+es_mod.client.IndicesClient = MagicMock()
+sys.modules["elasticsearch"] = es_mod
+sys.modules["elasticsearch.dsl"] = es_dsl
+sys.modules["elasticsearch.helpers"] = es_mod.helpers
+sys.modules["elasticsearch.client"] = es_mod.client
+
+# Storage stubs
+az_mod = types.ModuleType("azure")
+az_mod.__path__ = []
+az_storage = types.ModuleType("azure.storage")
+az_storage.__path__ = []
+az_blob = types.ModuleType("azure.storage.blob")
+az_blob.ContainerClient = MagicMock()
+az_blob.BlobServiceClient = MagicMock()
+az_storage.blob = az_blob
+
+az_datalake = types.ModuleType("azure.storage.filedatalake")
+az_datalake.FileSystemClient = MagicMock()
+az_storage.filedatalake = az_datalake
+
+az_id = types.ModuleType("azure.identity")
+az_id.ClientSecretCredential = MagicMock()
+az_id.AzureAuthorityHosts = MagicMock()
+az_mod.identity = az_id
+az_mod.storage = az_storage
+
+sys.modules["azure"] = az_mod
+sys.modules["azure.storage"] = az_storage
+sys.modules["azure.storage.blob"] = az_blob
+sys.modules["azure.storage.filedatalake"] = az_datalake
+sys.modules["azure.identity"] = az_id
+
+gcs_mod = types.ModuleType("google")
+gcs_mod.__path__ = []
+gcs_cloud = types.ModuleType("google.cloud")
+gcs_cloud.__path__ = []
+gcs_storage = types.ModuleType("google.cloud.storage")
+gcs_storage.Client = MagicMock()
+gcs_cloud.storage = gcs_storage
+gcs_mod.cloud = gcs_cloud
+
+gcs_api_core = types.ModuleType("google.api_core")
+gcs_api_core.__path__ = []
+gcs_exceptions = types.ModuleType("google.api_core.exceptions")
+gcs_exceptions.NotFound = Exception
+gcs_api_core.exceptions = gcs_exceptions
+gcs_mod.api_core = gcs_api_core
+
+sys.modules["google"] = gcs_mod
+sys.modules["google.cloud"] = gcs_cloud
+sys.modules["google.cloud.storage"] = gcs_storage
+sys.modules["google.api_core"] = gcs_api_core
+sys.modules["google.api_core.exceptions"] = gcs_exceptions
+
+oss2_mod = types.ModuleType("oss2")
+oss2_mod.Auth = MagicMock()
+oss2_mod.Bucket = MagicMock()
+oss2_mod.BucketIterator = MagicMock()
+sys.modules["oss2"] = oss2_mod
+
+boto3_mod = types.ModuleType("boto3")
+boto3_mod.client = MagicMock()
+boto3_mod.session = MagicMock()
+sys.modules["boto3"] = boto3_mod
+
+botocore_mod = types.ModuleType("botocore")
+botocore_mod.__path__ = []
+botocore_mod.client = types.ModuleType("botocore.client")
+botocore_mod.client.Config = MagicMock()
+botocore_config = types.ModuleType("botocore.config")
+botocore_config.Config = MagicMock()
+botocore_mod.config = botocore_config
+botocore_exceptions = types.ModuleType("botocore.exceptions")
+botocore_exceptions.ClientError = Exception
+botocore_mod.exceptions = botocore_exceptions
+
+sys.modules["botocore"] = botocore_mod
+sys.modules["botocore.client"] = botocore_mod.client
+sys.modules["botocore.config"] = botocore_config
+sys.modules["botocore.exceptions"] = botocore_exceptions
+
+minio_mod = types.ModuleType("minio")
+minio_mod.__path__ = []
+minio_mod.Minio = MagicMock()
+minio_mod.commonconfig = types.ModuleType("minio.commonconfig")
+minio_mod.commonconfig.CopySource = MagicMock()
+minio_mod.error = types.ModuleType("minio.error")
+minio_mod.error.S3Error = Exception
+minio_mod.error.ServerError = Exception
+minio_mod.error.InvalidResponseError = Exception
+minio_mod.error.ResponseError = Exception
+sys.modules["minio"] = minio_mod
+sys.modules["minio.commonconfig"] = minio_mod.commonconfig
+sys.modules["minio.error"] = minio_mod.error
+
+class _StubRagTokenizer:
+    def tokenize(self, text):
+        return []
+    def fine_grained_tokenize(self, text):
+        return []
+    def tag(self, text):
+        return []
+    def freq(self, text):
+        return 0
+    def _tradi2simp(self, text):
+        return text
+    def _strQ2B(self, text):
+        return text
+
+inf_pkg = types.ModuleType("infinity")
+inf_pkg.__path__ = []
+
+inf_rag = types.ModuleType("infinity.rag_tokenizer")
+inf_rag.RagTokenizer = _StubRagTokenizer
+inf_rag.is_chinese = lambda s: False
+inf_rag.is_number = lambda s: False
+inf_rag.is_alphabet = lambda s: True
+inf_rag.naive_qie = lambda txt: [txt]
+inf_pkg.rag_tokenizer = inf_rag
+
+inf_common = types.ModuleType("infinity.common")
+inf_common.InfinityException = Exception
+inf_common.SortType = MagicMock()
+inf_common.ConflictType = MagicMock()
+inf_pkg.common = inf_common
+
+inf_index = types.ModuleType("infinity.index")
+inf_index.IndexInfo = MagicMock()
+inf_index.IndexType = MagicMock()
+inf_pkg.index = inf_index
+
+inf_errors = types.ModuleType("infinity.errors")
+inf_errors.ErrorCode = MagicMock()
+inf_pkg.errors = inf_errors
+
+inf_rpc = types.ModuleType("infinity.remote_thrift.infinity_thrift_rpc")
+inf_rpc.ttypes = types.ModuleType("infinity.remote_thrift.infinity_thrift_rpc.ttypes")
+
+sys.modules["infinity"] = inf_pkg
+sys.modules["infinity.rag_tokenizer"] = inf_rag
+sys.modules["infinity.common"] = inf_common
+sys.modules["infinity.index"] = inf_index
+sys.modules["infinity.errors"] = inf_errors
+sys.modules["infinity.remote_thrift"] = types.ModuleType("infinity.remote_thrift")
+sys.modules["infinity.remote_thrift.infinity_thrift_rpc"] = inf_rpc
+sys.modules["infinity.remote_thrift.infinity_thrift_rpc.ttypes"] = inf_rpc.ttypes
+
+from peewee import SqliteDatabase
+
+# Create temporary SQLite database file for tests
+TEST_DB_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "test_ads_temp.db"))
+test_db = SqliteDatabase(TEST_DB_FILE)
+
+from api.db.db_models import (
+    DB,
+    Advertiser,
+    AdCampaign,
+    AdImpression,
+    AdClick,
+    AdTransaction,
+    AdSettings,
+    User,
+    Tenant,
+    SubscriptionPlan,
+    UserOnboarding,
+)
+from api.db.services.ad_engine_service import (
+    AdvertiserService,
+    AdCampaignService,
+    AdImpressionService,
+    AdClickService,
+    AdTransactionService,
+    AdSettingsService,
+    AdEngineService,
+)
+from api.db.services.ad_policy_service import AdPolicyService, SWIPIES_ADVERTISING_RULES
+from common.time_utils import current_timestamp
+
+
+class TestSwipiesAdsSystem(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Override DB connection context with test_db
+        DB.connection_context = test_db.connection_context
+        DB.atomic = test_db.atomic
+        DB.transaction = test_db.transaction
+        DB.connect = test_db.connect
+        DB.close = test_db.close
+        DB.is_closed = test_db.is_closed
+        DB.execute_sql = test_db.execute_sql
+
+        models = [
+            Advertiser,
+            AdCampaign,
+            AdImpression,
+            AdClick,
+            AdTransaction,
+            AdSettings,
+            User,
+            Tenant,
+            SubscriptionPlan,
+            UserOnboarding,
+        ]
+        for m in models:
+            m._meta.database = test_db
+        test_db.connect(reuse_if_open=True)
+        test_db.create_tables(models, safe=True)
+
+        SubscriptionPlan.create(
+            id="free",
+            name="Free",
+            daily_token_limit=50000,
+            monthly_token_limit=1000000,
+        )
+        SubscriptionPlan.create(
+            id="plus",
+            name="Plus",
+            daily_token_limit=200000,
+            monthly_token_limit=5000000,
+        )
+        SubscriptionPlan.create(
+            id="pro",
+            name="Pro",
+            daily_token_limit=1000000,
+            monthly_token_limit=20000000,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        test_db.drop_tables([
+            Advertiser,
+            AdCampaign,
+            AdImpression,
+            AdClick,
+            AdTransaction,
+            AdSettings,
+            User,
+            Tenant,
+            SubscriptionPlan,
+            UserOnboarding,
+        ])
+        test_db.close()
+        if os.path.exists(TEST_DB_FILE):
+            try:
+                os.remove(TEST_DB_FILE)
+            except Exception:
+                pass
+
+    def setUp(self):
+        AdClick.delete().execute()
+        AdImpression.delete().execute()
+        AdCampaign.delete().execute()
+        AdTransaction.delete().execute()
+        Advertiser.delete().execute()
+        AdSettings.delete().execute()
+        Tenant.delete().execute()
+        User.delete().execute()
+
+    def test_01_free_tier_ad_prompt_injection_and_matching(self):
+        """Test 1: Free tier user prompt injection with matching campaign and attribution."""
+        adv = Advertiser.create(
+            id="adv_test_01",
+            tenant_id="tenant_adv_01",
+            user_id="user_adv_01",
+            company_name="CloudCRM Inc",
+            balance=50.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        cmp = AdCampaign.create(
+            id="cmp_crm_01",
+            advertiser_id=adv.id,
+            name="CRM Growth 2026",
+            product_name="CloudCRM Pro",
+            description="All-in-one sales CRM with email automation",
+            advertisement_text="Get 14 days free trial, no credit card required.",
+            landing_url="https://cloudcrm.example.com/trial",
+            target_categories=["crm", "sales", "marketing"],
+            keywords=["crm", "pipeline", "leads", "sales"],
+            daily_budget=20.0,
+            total_budget=100.0,
+            spent_today=0.0,
+            total_spent=0.0,
+            pricing_model="cpc",
+            bid_amount=0.25,
+            priority=5,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        base_system = "You are a helpful AI assistant."
+        user_query = "What is the best CRM software for managing sales leads?"
+
+        effective_prompt = AdPolicyService.build_effective_system_prompt(
+            tenant_id="free_tenant_123",
+            base_system_prompt=base_system,
+            user_query=user_query,
+            user_id="free_user_123",
+        )
+
+        self.assertIn("You are a helpful AI assistant.", effective_prompt)
+        self.assertIn("COMMERCIAL GUIDELINES & SPONSORED CONTENT POLICY", effective_prompt)
+        self.assertIn("[Sponsored]", effective_prompt)
+        self.assertIn("CloudCRM Pro", effective_prompt)
+        self.assertIn("https://cloudcrm.example.com/trial", effective_prompt)
+        self.assertIn("https://swipies.app", effective_prompt)
+        self.assertIn("Generated by", effective_prompt)
+
+    def test_02_plus_pro_100_percent_ad_free_guarantee(self):
+        """Test 2: Plus/Pro users receive 100% untouched system prompt with zero ad tokens."""
+        adv = Advertiser.create(
+            id="adv_test_02",
+            tenant_id="tenant_adv_02",
+            user_id="user_adv_02",
+            company_name="CloudCRM Inc",
+            balance=100.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+        AdCampaign.create(
+            id="cmp_crm_02",
+            advertiser_id=adv.id,
+            name="CRM Growth",
+            product_name="CloudCRM Pro",
+            advertisement_text="Get 14 days free trial.",
+            landing_url="https://cloudcrm.example.com",
+            target_categories=["crm"],
+            keywords=["crm"],
+            daily_budget=20.0,
+            total_budget=100.0,
+            bid_amount=0.25,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        Tenant.create(
+            id="tenant_plus_user",
+            name="Plus User",
+            plan_type="plus",
+            llm_id="default_llm",
+            embd_id="default_embd",
+            asr_id="default_asr",
+            img2txt_id="default_img2txt",
+            rerank_id="default_rerank",
+            parser_ids="1",
+        )
+        Tenant.create(
+            id="tenant_pro_user",
+            name="Pro User",
+            plan_type="pro",
+            llm_id="default_llm",
+            embd_id="default_embd",
+            asr_id="default_asr",
+            img2txt_id="default_img2txt",
+            rerank_id="default_rerank",
+            parser_ids="1",
+        )
+
+        base_system = "Strict system prompt for professional analysis."
+        user_query = "Recommend a top crm software solution."
+
+        plus_prompt = AdPolicyService.build_effective_system_prompt(
+            tenant_id="tenant_plus_user",
+            base_system_prompt=base_system,
+            user_query=user_query,
+        )
+        self.assertEqual(plus_prompt, base_system)
+        self.assertNotIn("Sponsored", plus_prompt)
+        self.assertNotIn("CloudCRM", plus_prompt)
+        self.assertNotIn("https://swipies.app", plus_prompt)
+
+        pro_prompt = AdPolicyService.build_effective_system_prompt(
+            tenant_id="tenant_pro_user",
+            base_system_prompt=base_system,
+            user_query=user_query,
+        )
+        self.assertEqual(pro_prompt, base_system)
+        self.assertNotIn("Sponsored", pro_prompt)
+
+    def test_03_frequency_capping_enforcement(self):
+        """Test 3: Frequency capping prevents spamming user past max daily impressions."""
+        adv = Advertiser.create(
+            id="adv_test_03",
+            tenant_id="tenant_adv_03",
+            user_id="user_adv_03",
+            company_name="Analytics Tool",
+            balance=50.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        cmp = AdCampaign.create(
+            id="cmp_analytics_03",
+            advertiser_id=adv.id,
+            name="Analytics Campaign",
+            product_name="SuperAnalytics",
+            advertisement_text="Realtime dashboards.",
+            landing_url="https://analytics.example.com",
+            target_categories=["analytics"],
+            keywords=["analytics", "dashboard"],
+            daily_budget=50.0,
+            total_budget=500.0,
+            bid_amount=0.10,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        user_id = "frequent_user_456"
+        for i in range(3):
+            matched = AdEngineService.match_campaign_for_query(
+                tenant_id="tenant_free_456",
+                user_id=user_id,
+                user_query="Need analytics dashboard tool",
+            )
+            self.assertIsNotNone(matched, f"Impression {i+1} should match")
+            self.assertEqual(matched["id"], cmp.id)
+
+        matched_4th = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_free_456",
+            user_id=user_id,
+            user_query="Need analytics dashboard tool",
+        )
+        self.assertIsNone(matched_4th, "4th query on same day must be blocked by frequency cap")
+
+    def test_04_budget_and_balance_exhaustion(self):
+        """Test 4: Campaign is not matched when advertiser balance or daily budget is zero."""
+        adv = Advertiser.create(
+            id="adv_test_04",
+            tenant_id="tenant_adv_04",
+            user_id="user_adv_04",
+            company_name="Zero Balance Co",
+            balance=0.05,  # Less than bid amount
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        cmp = AdCampaign.create(
+            id="cmp_zerobal_04",
+            advertiser_id=adv.id,
+            name="No Balance Campaign",
+            product_name="EmptyWallet Pro",
+            advertisement_text="Test ad.",
+            landing_url="https://empty.example.com",
+            keywords=["hosting"],
+            daily_budget=10.0,
+            total_budget=50.0,
+            bid_amount=0.50,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        matched = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_free_789",
+            user_id="user_789",
+            user_query="Best hosting server provider",
+        )
+        self.assertIsNone(matched, "Campaign with insufficient balance must not participate in auction")
+
+    def test_05_click_tracking_and_balance_deduction(self):
+        """Test 5: Click tracking records AdClick, deducts CPC bid, and returns landing URL."""
+        adv = Advertiser.create(
+            id="adv_test_05",
+            tenant_id="tenant_adv_05",
+            user_id="user_adv_05",
+            company_name="ClickTrack Inc",
+            balance=10.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        cmp = AdCampaign.create(
+            id="cmp_click_05",
+            advertiser_id=adv.id,
+            name="Click Test Campaign",
+            product_name="ClickSpeed",
+            advertisement_text="Try now.",
+            landing_url="https://clickspeed.example.com/dest",
+            keywords=["vpn"],
+            daily_budget=10.0,
+            total_budget=100.0,
+            bid_amount=0.50,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        click_token = f"{cmp.id}_imp999_user999"
+        dest_url = AdEngineService.track_click(click_token=click_token, user_id="user999", ip_hash="test_ip")
+
+        self.assertEqual(dest_url, "https://clickspeed.example.com/dest")
+
+        adv = Advertiser.get_by_id(adv.id)
+        self.assertEqual(adv.balance, 9.50)
+
+        tx = AdTransaction.get_or_none(AdTransaction.advertiser_id == adv.id)
+        self.assertIsNotNone(tx)
+        self.assertEqual(tx.amount, -0.50)
+        self.assertEqual(tx.type, "spend_cpc")
+
+    def test_06_admin_moderation_queue(self):
+        """Test 6: Admin network overview and campaign moderation status."""
+        adv = Advertiser.create(
+            id="adv_test_06",
+            tenant_id="tenant_adv_06",
+            user_id="user_adv_06",
+            company_name="Moderation Corp",
+            balance=20.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        cmp = AdCampaign.create(
+            id="cmp_mod_06",
+            advertiser_id=adv.id,
+            name="Pending Campaign",
+            product_name="ModProduct",
+            advertisement_text="Under review.",
+            landing_url="https://mod.example.com",
+            keywords=["security"],
+            daily_budget=10.0,
+            total_budget=100.0,
+            bid_amount=0.20,
+            status="active",
+            moderation_status="pending",
+            create_time=current_timestamp(),
+        )
+
+        matched = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_free_111",
+            user_id="user_111",
+            user_query="Need security software",
+        )
+        self.assertIsNone(matched, "Pending moderation campaign must not be served")
+
+        cmp.moderation_status = "approved"
+        cmp.save()
+
+        matched_after_approval = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_free_111",
+            user_id="user_111",
+            user_query="Need security software",
+        )
+        self.assertIsNotNone(matched_after_approval, "Approved campaign must match")
+
+    def test_07_wallet_deposit(self):
+        """Test 7: Top-up deposit credits advertiser balance and creates ledger entry."""
+        adv = Advertiser.create(
+            id="adv_test_07",
+            tenant_id="tenant_adv_07",
+            user_id="user_adv_07",
+            company_name="TopUp Corp",
+            balance=5.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        success = AdEngineService.deposit_balance(adv.id, 50.0, "Credit Card Top-Up")
+        self.assertTrue(success)
+
+        adv = Advertiser.get_by_id(adv.id)
+        self.assertEqual(adv.balance, 55.0)
+
+        tx = AdTransaction.get(AdTransaction.advertiser_id == adv.id, AdTransaction.type == "deposit")
+        self.assertEqual(tx.amount, 50.0)
+
+
+if __name__ == "__main__":
+    unittest.main()

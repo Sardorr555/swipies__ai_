@@ -301,13 +301,24 @@ class AdEngineService:
         Record unique click for campaign, deduct CPC bid from advertiser balance,
         and return destination landing URL.
         """
-        if not click_token or "_" not in click_token:
+        if not click_token:
             return "https://swipies.app"
 
-        parts = click_token.split("_")
-        campaign_id = parts[0]
-        impression_id = parts[1] if len(parts) > 1 else ""
-        token_user_id = parts[2] if len(parts) > 2 else user_id
+        if "_" in click_token:
+            parts = click_token.rsplit("_", 2)
+            if len(parts) == 3:
+                campaign_id, impression_id, token_user_id = parts
+            elif len(parts) == 2:
+                campaign_id, impression_id = parts
+                token_user_id = user_id
+            else:
+                campaign_id = parts[0]
+                impression_id = ""
+                token_user_id = user_id
+        else:
+            campaign_id = click_token
+            impression_id = ""
+            token_user_id = user_id
 
         campaign = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
         if not campaign:

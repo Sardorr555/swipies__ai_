@@ -1748,6 +1748,21 @@ class AdSettings(DataBaseModel):
         db_table = "advertising_settings"
 
 
+class UserOnboarding(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    tenant_id = CharField(max_length=32, null=True, index=True)
+    purpose = CharField(max_length=255, null=True)
+    intended_use = TextField(null=True)
+    company_name = CharField(max_length=255, null=True)
+    company_size = CharField(max_length=64, null=True)
+    industry = CharField(max_length=128, null=True)
+    role = CharField(max_length=128, null=True)
+    platform_goals = TextField(null=True)
+    completed = BooleanField(default=False)
+
+    class Meta:
+        db_table = "user_onboarding"
 
 
 def alter_db_add_column(migrator, table_name, column_name, column_type):

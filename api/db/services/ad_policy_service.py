@@ -68,16 +68,18 @@ class AdPolicyService:
             return True
 
         try:
-            plan = AIPolicyManager.get_tenant_plan(tenant_id)
+            plan = AIPolicyManager.get_user_plan(tenant_id)
             plan_id = (plan.get("id") or "free").lower().strip()
 
             # Paid plans receive 100% ad-free experience on backend
             if plan_id in ["plus", "pro", "enterprise", "unlimited", "custom"]:
                 return False
 
-            # Check superuser exemption
+            # Check direct tenant record and superuser exemption
             tenant = Tenant.get_or_none(Tenant.id == tenant_id)
             if tenant:
+                if tenant.plan_type and tenant.plan_type.lower().strip() in ["plus", "pro", "enterprise", "unlimited", "custom"]:
+                    return False
                 user = User.get_or_none(User.id == tenant.id)
                 if user and getattr(user, "is_superuser", False):
                     return False
