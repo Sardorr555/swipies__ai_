@@ -16,6 +16,7 @@ import {
   LucideBrain,
   Key,
   Bot,
+  Megaphone,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -80,6 +81,11 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminIntelligence,
         name: 'Enterprise Intelligence',
         icon: <LucideBrain className="size-[1em] text-primary" />,
+      },
+      {
+        path: Routes.AdminAds,
+        name: 'Swipies Ads & Moderation',
+        icon: <Megaphone className="size-[1em]" />,
       },
 
       ...(IS_ENTERPRISE

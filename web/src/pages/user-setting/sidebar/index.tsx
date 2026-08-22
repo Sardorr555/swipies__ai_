@@ -23,6 +23,7 @@ import {
   LucideUsers,
   CreditCard,
   Key,
+  Megaphone,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -75,6 +76,11 @@ const menuItems = (t: TFunction) => {
       icon: <CreditCard className="size-[1em]" />,
       label: t('setting.subscription'),
       key: Routes.Subscription,
+    },
+    {
+      icon: <Megaphone className="size-[1em] text-blue-500" />,
+      label: 'Swipies Ads',
+      key: Routes.Ads,
     },
     {
       icon: <Key className="size-[1em]" />,

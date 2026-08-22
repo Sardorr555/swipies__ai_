@@ -82,10 +82,12 @@ export enum Routes {
   AdminMonitoring = `${Admin}/monitoring`,
   AdminLicenses = `${Admin}/licenses`,
   AdminIntelligence = `${Admin}/intelligence`,
+  AdminAds = `${Admin}/ads`,
   Pricing = '/pricing',
   PrivacyPolicy = '/privacy-policy',
   License = '/license',
   Checkout = '/checkout',
+  Ads = '/ads',
 }
 
 const defaultRouteFallback = (
@@ -296,6 +298,10 @@ const routeConfigOptions = [
         Component: () => import('@/pages/skills'),
       },
       {
+        path: Routes.Ads,
+        Component: () => import('@/pages/ads'),
+      },
+      {
         path: Routes.UserSetting,
         Component: () => import('@/pages/user-setting'),
         layout: false,
@@ -466,6 +472,10 @@ const routeConfigOptions = [
               {
                 path: 'intelligence',
                 Component: () => import('@/pages/admin/intelligence'),
+              },
+              {
+                path: 'ads',
+                Component: () => import('@/pages/admin/ads'),
               },
               ...(IS_ENTERPRISE
                 ? [

@@ -19,6 +19,9 @@ export const useHandleMenuClick = () => {
     (key: Routes) => () => {
       if (key === Routes.Logout) {
         logout();
+      } else if (key === Routes.Ads) {
+        setActive(key);
+        navigate(Routes.Ads);
       } else {
         setActive(key);
         navigate(`${Routes.UserSetting}${key}`);
