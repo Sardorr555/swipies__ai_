@@ -1,130 +1,281 @@
-# Feature Specification: Centralized Subscription-Aware Ad System Prompt Management
+# Feature Specification: Swipies Ads — Global AI Advertising & Monetization Engine
 
+**Feature Name**: Swipies Ads Global Advertising Engine  
 **Feature Branch**: `002-subscription-ad-prompt-management`  
 **Created**: 2026-08-22  
-**Status**: Ready for Planning  
-**Feature Flag**: `ADS_ENABLED` / `ADS_FOR_FREE_USERS`  
+**Status**: Ready for Planning & Phased Execution  
+**Target Environments**: Swipies AI Platform (API backend, LLM Gateway, React Web, Admin Console)  
 
 ---
 
-## 1. Executive Summary
+## 1. Executive Summary & Business Architecture
 
-This feature establishes a centralized backend mechanism inside the LLM Gateway (`LLMBundle` / LLM invocation layer) to dynamically evaluate the requesting user's subscription tier (`Free`, `Plus`, `Pro`) via the existing subscription/billing service and conditionally inject advertising prompt instructions into the final `system` prompt sent to the LLM.
+**Swipies Ads** transforms Swipies AI from a single-sided SaaS tool into a high-efficiency two-sided AI platform:
+- **Free Users**: Access world-class AI models, RAG search, and agent capabilities at zero subscription cost, subsidized by non-intrusive, contextually relevant native sponsored recommendations inside AI responses.
+- **Plus & Pro Subscribers**: Pay for premium subscriptions and receive a 100% ad-free, pure AI experience with zero ad instructions or promotional context ever transmitted to the LLM backend.
+- **Advertisers**: Create targeted AI search campaigns, specify product offerings and keyword/semantic categories, deposit advertising balance, and reach high-intent users at the exact moment they ask relevant questions.
+- **Platform Administrators**: Supervise all campaigns via a moderation queue, configure frequency capping and auction parameters, and monitor network-wide revenue, impressions, and CTR metrics.
 
-- **Free Tier**: An advertising guideline block is appended to the effective system prompt (preserving existing assistant/dialog system instructions), prompting the LLM to deliver relevant, clearly designated sponsored recommendations when contextually appropriate.
-- **Plus & Pro Tiers**: The advertising block is strictly omitted on the backend before the request payload is constructed and dispatched to the LLM. Ad tokens and instructions are physically absent from the LLM request.
-- **Zero-Downtime Hot Upgrades**: Subscription tier changes (upgrades/downgrades) take effect on the very next query without requiring conversation recreation or container restarts.
-
----
-
-## 2. User Scenarios & Testing *(mandatory)*
-
-### User Story 1 - Free User Ad-Supported AI Experience (Priority: P1)
-
-As a Free-tier user, I want to use AI chats, assistants, and knowledgebase search without payment, and receive accurate responses with clearly designated, contextually relevant sponsored suggestions, so that I can access AI services freely while understanding which recommendations are sponsored.
-
-- **Why this priority**: Core monetization mechanism. Enables free access funded by non-intrusive, relevant contextual ads.
-- **Independent Test**: Send a query as a Free user. Inspect the outgoing LLM payload to confirm the ad instruction block is appended to the assistant's system prompt, and verify the model's response adheres to transparent ad formatting guidelines.
-
-**Acceptance Scenarios**:
-1. **Given** a user with a `Free` subscription submits a chat message, **When** the LLM request is prepared by the LLM Gateway, **Then** the global advertising instruction block is appended to the system prompt after the dialog/assistant's custom system prompt.
-2. **Given** an assistant has a custom system prompt (e.g. *"You are a legal advisor"*), **When** a Free user chats with this assistant, **Then** the resulting system prompt contains both the legal advisor instructions AND the advertising guideline block without overwriting either.
-3. **Given** the user's query is purely factual or unrelated to commercial intent, **When** the LLM responds, **Then** the LLM prioritizes answering the user's primary query accurately and only includes sponsored information when contextually relevant and clearly labeled.
-
----
-
-### User Story 2 - Plus & Pro User Guaranteed Clean Ad-Free Experience (Priority: P1)
-
-As a paying Plus or Pro subscriber, I want a 100% ad-free experience where no advertising instructions or promotional context ever participate in generating my answers, so that my queries receive pristine, unbiased, and distraction-free responses.
-
-- **Why this priority**: Fundamental value proposition for paid subscribers. Guarantees that paid tiers receive pure model intelligence without ad prompt pollution.
-- **Independent Test**: Send identical queries as a `Plus` or `Pro` user. Intercept/inspect the outgoing LLM payload and verify that the ad instruction block is 100% absent from the system prompt before dispatch to the provider.
-
-**Acceptance Scenarios**:
-1. **Given** a user with a `Plus` or `Pro` subscription sends a message, **When** the LLM Gateway prepares the payload, **Then** zero advertising instructions are included in the system prompt.
-2. **Given** a user upgrades their account from `Free` to `Plus` during an ongoing conversation, **When** they send their next message in the same dialog, **Then** the advertising block is immediately omitted from that request onward without recreating the dialog or logging out.
-3. **Given** a user downgrades from `Pro` to `Free`, **When** their next query executes, **Then** the system prompt seamlessly incorporates the Free-tier ad block on the backend.
-
----
-
-### User Story 3 - Centralized Governance & Bypass Prevention (Priority: P1)
-
-As a Platform Administrator, I want the subscription check and prompt injection logic to reside strictly in a single, unified point (LLM Gateway) across all chat assistants, agents, canvas workflows, and connected LLM providers, so that the policy cannot be bypassed or inconsistently implemented in different endpoints.
-
-- **Why this priority**: Eliminates security and business bypass vulnerabilities. Enforces DRY (Don't Repeat Yourself) architecture across all AI features.
-- **Independent Test**: Invoke different endpoints (direct chat, RAG search chat, agent canvas, API keys) under Free and Pro accounts. Verify that all pathways route through the unified gateway and enforce identical subscription-based prompt composition.
-
-**Acceptance Scenarios**:
-1. **Given** a chat request originates from any feature (Solo Chat, Knowledgebase RAG Chat, Agent Workflow, or Public API), **When** the request reaches the LLM Gateway (`LLMBundle`), **Then** the user/tenant subscription tier is evaluated in one place before any LLM API call.
-2. **Given** a feature flag (`ADS_ENABLED=False` or `ADS_FOR_FREE_USERS=False`) is disabled in environment/settings, **When** a Free user executes a chat, **Then** the ad injection is bypassed globally without code modification.
-3. **Given** an administrator inspects audit logs or system metrics, **When** requests are processed, **Then** tier resolution and ad injection status are recorded consistently.
-
----
-
-## 3. Requirements *(mandatory)*
-
-### 3.1 Functional Requirements
-
-- **FR-001**: The system MUST evaluate the user/tenant subscription tier (`Free`, `Plus`, `Pro`, `Enterprise`, `Superuser`) once per LLM execution within the centralized LLM Gateway (`LLMBundle` / `TenantLLMService`).
-- **FR-002**: For `Free` subscription tier users, the LLM Gateway MUST append the configured Advertising Instruction Block to the existing `system` prompt before dispatching the request to the upstream LLM provider.
-- **FR-003**: For `Plus`, `Pro`, `Enterprise`, and `Superuser` accounts, the LLM Gateway MUST completely omit the Advertising Instruction Block from the system prompt at the backend layer prior to LLM network transmission.
-- **FR-004**: The Advertising Instruction Block MUST NOT overwrite, erase, or truncate the custom system prompt defined for specific assistants, agents, or knowledgebases.
-- **FR-005**: Subscription tier evaluation MUST query the live subscription status from the existing `AIPolicyManager` / `TenantService` / `UserSubscription` service, guaranteeing immediate effect on plan upgrade/downgrade without conversation restart.
-- **FR-006**: The feature MUST be controlled by a global feature flag (`ADS_ENABLED` / `ADS_FOR_FREE_USERS`), which can disable prompt injection system-wide without code modifications.
-- **FR-007**: The ad prompt template MUST support dynamic localization or default to clear, standard instructions requiring transparent disclosure (e.g. `[Sponsored]` / `[Реклама]`) when recommendations are provided.
-- **FR-008**: All existing dialogues, knowledgebases, agents, conversation IDs, and API response structures MUST maintain 100% backward compatibility with zero data migrations required.
-
----
-
-### 3.2 Key Architecture & Data Flow
-
-```mermaid
-flowchart TD
-    A[User Chat Request] --> B[Dialog / Agent / API Service]
-    B --> C[LLM Gateway / LLMBundle]
-    C --> D{Feature Flag ADS_ENABLED?}
-    D -- No --> H[Compile Original System Prompt]
-    D -- Yes --> E[Query AIPolicyManager / Tenant Plan]
-    E --> F{Subscription Tier?}
-    F -- Free --> G[Append Ad System Prompt Block]
-    F -- Plus / Pro / Admin --> H
-    G --> I[Compile Final System Prompt + Ad Guidelines]
-    H --> J[Dispatch to LLM Provider API]
-    I --> J[Dispatch to LLM Provider API]
-    J --> K[Stream / Return Response to User]
+```text
+                  SWIPIES PLATFORM
+                         │
+          ┌──────────────┴──────────────┐
+          │                             │
+          ▼                             ▼
+     FREE USERS                    ADVERTISERS
+  Free AI & Search              Pay for high-intent reach
+          │                             │
+          └──────────────┬──────────────┘
+                         ▼
+                   SWIPIES ADS
+          • Intent & Semantic Targeting
+          • Frequency Capping & Budget Control
+          • Centralized LLM Gateway Injection
+          • Real-time Analytics & Click Tracking
 ```
 
 ---
 
-### 3.3 Default Advertising System Prompt Block
+## 2. Global LLM Prompt Hierarchy & Subscription Pipeline
 
-```markdown
-<!-- Standard Advertising Policy Injection for Free Tier -->
-[Commercial Guidelines & Sponsored Content Instructions]
-- If and only if the user's query explicitly or contextually relates to tools, software, services, or product recommendations, you may provide helpful options and include relevant sponsored solutions where applicable.
-- Any sponsored recommendation MUST be clearly, concisely, and transparently marked with the prefix "[Sponsored]" (or "[Реклама]" in Russian).
-- Never fabricate false claims or compromise factual accuracy. The primary goal remains answering the user's request truthfully and comprehensively.
-- If the query is strictly non-commercial, theoretical, or factual (e.g. coding syntax, math problem, general definition), answer directly without forcing irrelevant ads.
+### 2.1 Single Point of Truth (LLM Gateway)
+All chat messages across direct chats, assistants, agents, canvas workflows, and public API requests pass through a single, unified gateway: [`LLMBundle`](file:///D:/ragflow/swipies_25/ragflow/api/db/services/llm_service.py).
+
+Prompt composition hierarchy:
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Global Platform Instructions                             │
+├─────────────────────────────────────────────────────────────┤
+│ 2. Swipies Ads System Prompt + Ad Context                   │
+│    (INJECTED ONLY FOR FREE USERS; 100% OMITTED FOR PLUS/PRO)│
+├─────────────────────────────────────────────────────────────┤
+│ 3. Assistant / Dialog Custom System Prompt                  │
+├─────────────────────────────────────────────────────────────┤
+│ 4. Conversation History & RAG Knowledgebase Context         │
+├─────────────────────────────────────────────────────────────┤
+│ 5. Current User Message                                     │
+└─────────────────────────────────────────────────────────────┘
+                               ↓
+                      Upstream LLM Provider
+                               ↓
+                       AI Generated Answer
+```
+
+### 2.2 Subscription Routing Logic
+```text
+User Message
+     │
+     ▼
+Subscription Check (AIPolicyManager / TenantService)
+     │
+     ├─── FREE ──────────────────────────────────────────────────────────┐
+     │                                                                   │
+     │                                                                   ▼
+     │                                                         Swipies Ads Engine
+     │                                                         ├── Query Intent Analysis
+     │                                                         ├── Semantic & Keyword Matching
+     │                                                         ├── Status, Budget & Moderation Gate
+     │                                                         ├── Frequency Capping Check
+     │                                                         └── Winner Ad Selection
+     │                                                                   │
+     │                                                                   ▼
+     │                                                     Structured Ad Context + Rules
+     │                                                                   │
+     │                                                                   ▼
+     │                                                       Final System Prompt
+     │                                                                   │
+     │                                                                   ▼
+     │                                                          LLM Invocations
+     │                                                                   │
+     │                                                                   ▼
+     │                                                     Native AI Answer + [Sponsored]
+     │
+     └─── PLUS / PRO / ENTERPRISE ───────────────────────────────────────┐
+                                                                         ▼
+                                                                100% AD-FREE PIPELINE
+                                                                (Zero ad prompt tokens)
+                                                                         │
+                                                                         ▼
+                                                                Pristine AI Answer
 ```
 
 ---
 
-## 4. Edge Cases & Resilience
+## 3. The 14 Golden Rules of `SWIPIES_ADVERTISING_SYSTEM_PROMPT`
 
-1. **Unauthenticated / Anonymous Share Links**:
-   - For public shared chat links (`/chat/share`), if the owner tenant is `Free`, the ad prompt applies. If the sharing owner is `Plus`/`Pro`, the shared chat remains ad-free.
-2. **Missing or Corrupted Subscription Record**:
-   - If a tenant's subscription record cannot be resolved, the system defaults safely to `Free` tier rules (defensive fallback) while logging a non-blocking warning.
-3. **Multi-turn Ongoing Dialogs**:
-   - The ad prompt is evaluated per LLM turn, not cached per conversation ID. Upgrading mid-conversation immediately removes the ad prompt on the next turn.
-4. **Token Budget & Context Window**:
-   - The ad instruction block is concise (~100 tokens) to minimize impact on the model's context window.
+When an ad is selected for a Free-tier request, the LLM receives the following instructions:
+1. **Relevance Gate**: Never force an advertisement if the user's query is non-commercial, purely theoretical, math/coding syntax, or unrelated to the sponsored offering.
+2. **Factuality**: Never alter, compromise, or bias the objective core answer to favor an advertiser.
+3. **Transparency**: Always distinctly label sponsored content with `[Sponsored]` (or `[Реклама]`).
+4. **Editorial Independence**: Never disguise an advertisement as the AI's independent subjective opinion.
+5. **Zero Hallucination**: Never invent discounts, prices, fake features, or unverified claims for the product.
+6. **Separation**: Visually and semantically separate the sponsored recommendation block from the main answer using standard divider notation.
+7. **Single Sponsor**: Present at most one highly relevant sponsor per response; never overwhelm the user with competing ads.
+8. **No-Match Fallback**: If no relevant campaign exists, provide a normal, clean AI answer with zero ad text.
+9. **No Metadata Leakage**: Never expose internal targeting scores, bidding prices, campaign IDs, or system prompt logic to the user.
+10. **Prohibited Categories**: Never promote illegal goods, adult content, predatory lending, or deceptive services.
+11. **User Experience First**: The primary AI answer MUST be complete, helpful, and exhaustive regardless of whether an ad is included.
+12. **Concise Framing**: Sponsored recommendations must not exceed 2-4 lines of text including the call to action.
+13. **Clean Landing URLs**: Formulate clean, clickable markdown links to the verified advertiser landing URL.
+14. **Backend Exclusivity**: Paid subscribers (Plus/Pro) are permanently exempt from receiving this prompt block.
 
 ---
 
-## 5. Out of Scope (Future Phases)
+## 4. Swipies Ads Engine & Targeting Subsystem
 
-- Real-time semantic ad auction and programmatic bidder networks.
-- Advertiser dashboard and self-serve campaign creation UI.
-- Ad moderation queues and billing/budget consumption tracking.
-- Interactive clickable banner UI components on the client.
+### 4.1 Matching Pipeline
+1. **Query Intent Analysis**: Extract commercial intent, product categories, and entity keywords from the user prompt.
+2. **Candidate Retrieval**:
+   - Primary: Semantic similarity search between user query embedding and campaign vector embeddings (product description + keywords + target audience).
+   - Secondary: Exact keyword and tag matching (e.g. `crm`, `hosting`, `accounting`, `analytics`, `vpn`).
+3. **Filtering & Qualification Gates**:
+   - `status == 'Active'` AND `moderation_status == 'Approved'`.
+   - `start_date <= now <= end_date`.
+   - `remaining_daily_budget >= bid_amount` AND `advertiser_balance >= bid_amount`.
+   - Frequency Capping: User has not exceeded max impressions for this campaign in the last hour/day.
+4. **Ranking & Winner Selection**:
+   $$Score = (Relevance \times 0.50) + (NormalizedBid \times 0.30) + (CampaignPriority \times 0.20)$$
+   Threshold Gate: If $Score < MinimumRelevanceThreshold$, return `None` (No Ad displayed).
+5. **Structured Context Payload to LLM**:
+   ```json
+   {
+     "advertising_enabled": true,
+     "campaign": {
+       "id": "cmp_849204",
+       "advertiser": "FinFlow CRM",
+       "product": "FinFlow Cloud CRM",
+       "description": "Automated sales pipelines, WhatsApp integration, and real-time analytics for SMBs.",
+       "advertisement_text": "30 days free trial, no credit card required.",
+       "landing_url": "https://swipies.app/r/cmp_849204",
+       "target_categories": ["crm", "sales", "business", "automation"]
+     }
+   }
+   ```
+
+---
+
+## 5. Database Schema & Entities
+
+The following tables are added to [`api/db/db_models.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/db_models.py):
+
+### 5.1 `advertisers`
+- `id` (PK, varchar 32)
+- `tenant_id` (FK to tenant)
+- `user_id` (FK to user)
+- `company_name` (varchar 255)
+- `balance` (decimal 12,4, default 0.00)
+- `currency` (varchar 8, default 'USD')
+- `status` (varchar 32: `active`, `suspended`, `pending_verification`)
+- `created_at`, `updated_at`
+
+### 5.2 `campaigns`
+- `id` (PK, varchar 32)
+- `advertiser_id` (FK to advertisers)
+- `name` (varchar 255)
+- `product_name` (varchar 255)
+- `description` (text)
+- `advertisement_text` (text)
+- `landing_url` (varchar 1024)
+- `keywords` (json list)
+- `target_categories` (json list)
+- `daily_budget` (decimal 10,2)
+- `total_budget` (decimal 10,2)
+- `spent_today` (decimal 10,2, default 0.00)
+- `total_spent` (decimal 10,2, default 0.00)
+- `pricing_model` (varchar 16: `cpc`, `cpm`)
+- `bid_amount` (decimal 8,4, default 0.10)
+- `priority` (int, default 0)
+- `status` (varchar 32: `draft`, `active`, `paused`, `completed`, `archived`)
+- `moderation_status` (varchar 32: `pending`, `approved`, `rejected`)
+- `moderation_note` (text)
+- `start_date`, `end_date`
+- `created_at`, `updated_at`
+
+### 5.3 `campaign_impressions`
+- `id` (PK, varchar 32)
+- `campaign_id` (FK to campaigns)
+- `advertiser_id` (FK to advertisers)
+- `user_id` (varchar 32)
+- `tenant_id` (varchar 32)
+- `conversation_id` (varchar 32)
+- `message_id` (varchar 32)
+- `cost` (decimal 8,4)
+- `created_at`
+
+### 5.4 `campaign_clicks`
+- `id` (PK, varchar 32)
+- `campaign_id` (FK to campaigns)
+- `impression_id` (varchar 32)
+- `user_id` (varchar 32)
+- `cost` (decimal 8,4)
+- `ip_hash` (varchar 64)
+- `created_at`
+
+### 5.5 `advertising_transactions`
+- `id` (PK, varchar 32)
+- `advertiser_id` (FK to advertisers)
+- `amount` (decimal 12,4)
+- `type` (varchar 32: `deposit`, `spend_cpc`, `spend_cpm`, `refund`, `adjustment`)
+- `description` (varchar 255)
+- `reference_id` (varchar 64)
+- `created_at`
+
+### 5.6 `advertising_settings`
+- `id` (PK, varchar 32)
+- `key` (varchar 128, unique)
+- `value` (json / text)
+- `description` (varchar 255)
+- `updated_at`
+
+---
+
+## 6. Frontend & User Interface Architecture
+
+### 6.1 Swipies Ads Advertiser Portal (`/ads`)
+A dedicated, responsive dashboard under route `/ads` and linked from `Settings -> Swipies Ads`:
+1. **Overview Dashboard**:
+   - KPI Cards: **Account Balance**, **Active Campaigns**, **Total Impressions**, **Total Clicks**, **Average CTR**, **Total Spend**.
+   - Performance Chart: Impressions, Clicks, and Spend trends over time (7d, 30d, all-time).
+2. **Campaign Manager**:
+   - Tabular list of campaigns with status toggles (`Active` / `Paused`), spend bars, CTR, and action menus (`Edit`, `Duplicate`, `View Analytics`).
+   - `+ Create Campaign` Modal Wizard:
+     - Step 1: Campaign Name, Product Name, Target Categories & Keywords.
+     - Step 2: Pitch & Ad Copy, Landing Page URL.
+     - Step 3: Daily Budget, Total Budget, Bid per Click/Impression, Schedule Dates.
+3. **Campaign Analytics**:
+   - Deep-dive charts per campaign (Hourly impressions, Click distribution, Conversion rates).
+4. **Billing & Wallet**:
+   - Balance overview, Deposit funds form, Transaction ledger with downloadable receipts.
+5. **Advertiser Onboarding**:
+   - Displayed to users without active advertiser profiles with clear value proposition and 1-click advertiser activation.
+
+### 6.2 Admin Panel Ads Management (`/admin/ads`)
+Integrated into the Swipies Admin Console:
+- **Campaign Moderation Queue**: Review submitted ad copies and landing URLs; 1-click `Approve` or `Reject` (with feedback note).
+- **Network Overview**: Total system ad revenue, active campaigns across all advertisers, CPM/CPC metrics.
+- **Advertiser Account Controls**: Suspend/unsuspend advertisers, adjust credit limits.
+
+### 6.3 User Settings & Pricing Matrix Display
+In User Settings and Subscription Modals:
+- **Free Plan**: Clearly shows `✓ Free AI Models`, `✓ RAG Search`, `✓ AI Agents`, `⚠ Contextual Sponsored Recommendations`.
+- **Plus & Pro Plans**: Displays `✓ Guaranteed 100% Ad-Free AI Experience`.
+
+---
+
+## 7. Feature Flags & Configuration
+
+All components are strictly feature-flagged in `api/settings.py` and `conf/service_conf.yaml.template`:
+- `ADS_ENABLED`: Global master kill-switch (default: `True`).
+- `ADS_FOR_FREE_USERS`: Enables ad evaluation for Free tier (default: `True`).
+- `ADS_LLM_PROMPT_ENABLED`: Enables prompt injection into LLM Gateway (default: `True`).
+- `ADS_TARGETING_ENABLED`: Enables semantic & intent matching (default: `True`).
+- `ADS_BILLING_ENABLED`: Enables real-time balance deduction (default: `True`).
+- `ADS_ANALYTICS_ENABLED`: Enables impression and click telemetry (default: `True`).
+
+---
+
+## 8. Backward Compatibility & Non-Breaking Guarantees
+
+1. **Zero Database Migrations Required for Existing Tables**: Existing tables (`user`, `tenant`, `dialog`, `knowledgebase`, `message`) remain 100% untouched. All advertising data resides in clean, isolated tables.
+2. **Zero Conversation Interruptions**: Existing conversations, conversation IDs, assistant configs, and agents automatically inherit the gateway logic without reconfiguration.
+3. **Safe Fallbacks**: If the Ads Engine encounters an error or timeout during matching, the system logs a non-blocking warning and gracefully proceeds with a clean, unadvertised AI response.
