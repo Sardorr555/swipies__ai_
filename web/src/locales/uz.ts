@@ -761,6 +761,7 @@ export default {
       api: 'API',
       referral: 'Referal dasturi',
       subscription: 'Obuna',
+      ads: 'Swipies Reklama',
       license: "Litsenziya va To'lov",
       username: 'Ism',
       usernameMessage: 'Foydalanuvchi nomini kiriting!',

@@ -79,7 +79,7 @@ const menuItems = (t: TFunction) => {
     },
     {
       icon: <Megaphone className="size-[1em] text-blue-500" />,
-      label: 'Swipies Ads',
+      label: t('setting.ads'),
       key: Routes.Ads,
     },
     {

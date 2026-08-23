@@ -304,23 +304,37 @@ class AdEngineService:
         if not click_token:
             return "https://swipies.app"
 
-        if "_" in click_token:
-            parts = click_token.rsplit("_", 2)
-            if len(parts) == 3:
-                campaign_id, impression_id, token_user_id = parts
-            elif len(parts) == 2:
-                campaign_id, impression_id = parts
-                token_user_id = user_id
-            else:
-                campaign_id = parts[0]
+        campaign = None
+        impression = AdImpression.get_or_none(AdImpression.id == click_token)
+        if impression:
+            campaign = AdCampaign.get_or_none(AdCampaign.id == impression.campaign_id)
+            campaign_id = impression.campaign_id
+            impression_id = impression.id
+            token_user_id = impression.user_id
+        else:
+            campaign = AdCampaign.get_or_none(AdCampaign.id == click_token)
+            if campaign:
+                campaign_id = campaign.id
                 impression_id = ""
                 token_user_id = user_id
-        else:
-            campaign_id = click_token
-            impression_id = ""
-            token_user_id = user_id
+            elif "_" in click_token:
+                parts = click_token.rsplit("_", 2)
+                if len(parts) == 3:
+                    campaign_id, impression_id, token_user_id = parts
+                elif len(parts) == 2:
+                    campaign_id, impression_id = parts
+                    token_user_id = user_id
+                else:
+                    campaign_id = parts[0]
+                    impression_id = ""
+                    token_user_id = user_id
+                campaign = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
+            else:
+                campaign_id = click_token
+                impression_id = ""
+                token_user_id = user_id
+                campaign = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
 
-        campaign = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
         if not campaign:
             return "https://swipies.app"
 

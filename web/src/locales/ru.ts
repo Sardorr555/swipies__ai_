@@ -1268,6 +1268,7 @@ export default {
       api: 'API',
       referral: 'Реферальная программа',
       subscription: 'Подписка',
+      ads: 'Реклама Swipies Ads',
       license: 'Лицензия и Оплата',
       username: 'Имя',
       usernameMessage: 'Пожалуйста, введите ваше имя!',
