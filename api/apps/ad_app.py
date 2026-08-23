@@ -39,7 +39,9 @@ from api.db.services.ad_engine_service import (
     AdTransactionService,
     AdSettingsService,
     AdEngineService,
+    AttributionService,
 )
+from api.db.services.ad_policy_service import AdPolicyService
 from api.utils.api_utils import (
     get_data_error_result,
     get_json_result,
@@ -383,6 +385,49 @@ async def click_redirect(click_token):
     except Exception as e:
         logger.warning(f"Click redirect error: {e}")
         return redirect("https://swipies.app", code=302)
+
+
+@manager.route("/r/ref/<user_id>", methods=["GET"])
+async def attribution_redirect(user_id):
+    """
+    Public redirect handler for AI response watermark links.
+    Tracks which user account the traffic came from and redirects to landing page with UTM tags.
+    """
+    try:
+        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+        user_agent = request.headers.get("User-Agent", "")
+        utm_source = request.args.get("utm_source", "chat_watermark")
+        utm_medium = request.args.get("utm_medium", "ai_response")
+        utm_campaign = request.args.get("utm_campaign", "share_attribution")
+        utm_content = request.args.get("utm_content", "")
+
+        AttributionService.record_attribution_visit(
+            referrer_id=user_id,
+            utm_source=utm_source,
+            utm_medium=utm_medium,
+            utm_campaign=utm_campaign,
+            utm_content=utm_content,
+            ip=client_ip,
+            user_agent=user_agent,
+        )
+
+        target_url = AdPolicyService.build_attribution_url(user_id=user_id)
+        return redirect(target_url, code=302)
+    except Exception as e:
+        logger.warning(f"Attribution redirect error: {e}")
+        return redirect("https://swipies.app", code=302)
+
+
+@manager.route("/attribution/stats", methods=["GET"])
+@login_required
+async def get_my_attribution_stats():
+    """Returns UTM attribution and chat watermark analytics for the current user."""
+    try:
+        data = AttributionService.get_attribution_analytics(user_id=current_user.id)
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error fetching attribution analytics: {e}")
+        return get_data_error_result(message=str(e))
 
 
 # ==========================================

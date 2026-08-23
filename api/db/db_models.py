@@ -1789,6 +1789,23 @@ class PaymentOrder(DataBaseModel):
         db_table = "payment_orders"
 
 
+class AdAttributionVisit(BaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    user_id = CharField(max_length=32, null=False, index=True, help_text="Referrer account user id")
+    tenant_id = CharField(max_length=32, null=True, index=True)
+    utm_source = CharField(max_length=64, default="chat_watermark", index=True)
+    utm_medium = CharField(max_length=64, default="ai_response", index=True)
+    utm_campaign = CharField(max_length=64, default="platform_attribution", index=True)
+    utm_content = CharField(max_length=64, null=True)
+    ip_hash = CharField(max_length=64, null=True, index=True)
+    user_agent = TextField(null=True)
+    converted_to_user_id = CharField(max_length=32, null=True, index=True, help_text="User ID if visitor registered")
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "ad_attribution_visits"
+
+
 def alter_db_add_column(migrator, table_name, column_name, column_type):
     try:
         migrate(migrator.add_column(table_name, column_name, column_type))

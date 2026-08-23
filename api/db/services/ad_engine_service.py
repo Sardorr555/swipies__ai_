@@ -30,6 +30,7 @@ from api.db.db_models import (
     AdClick,
     AdTransaction,
     AdSettings,
+    AdAttributionVisit,
     User,
     Tenant,
 )
@@ -497,4 +498,98 @@ class AdEngineService:
             "total_clicks": total_clicks,
             "total_revenue": round(total_revenue, 2),
             "network_ctr": round(ctr, 2),
+        }
+
+
+class AttributionService(CommonService):
+    model = AdAttributionVisit
+
+    @classmethod
+    @DB.connection_context()
+    def record_attribution_visit(
+        cls,
+        referrer_id: str,
+        tenant_id: str = "",
+        utm_source: str = "chat_watermark",
+        utm_medium: str = "ai_response",
+        utm_campaign: str = "share_attribution",
+        utm_content: str = "",
+        ip: str = "",
+        user_agent: str = "",
+    ) -> str:
+        """Record a visit originating from a user's AI response watermark."""
+        if not referrer_id:
+            return ""
+
+        import hashlib
+        ip_hash = hashlib.sha256(ip.encode("utf-8")).hexdigest()[:32] if ip else ""
+        visit_id = uuid.uuid4().hex[:32]
+
+        AdAttributionVisit.create(
+            id=visit_id,
+            user_id=referrer_id,
+            tenant_id=tenant_id or "",
+            utm_source=utm_source or "chat_watermark",
+            utm_medium=utm_medium or "ai_response",
+            utm_campaign=utm_campaign or "share_attribution",
+            utm_content=utm_content or "",
+            ip_hash=ip_hash,
+            user_agent=(user_agent or "")[:500],
+            create_time=current_timestamp(),
+        )
+        return visit_id
+
+    @classmethod
+    @DB.connection_context()
+    def get_attribution_analytics(cls, user_id: str) -> dict:
+        """
+        Get complete statistics on how many people visited & registered via user's AI chat watermark.
+        """
+        from api.db.services.ad_policy_service import AdPolicyService
+
+        if not user_id:
+            return {
+                "total_visits": 0,
+                "unique_visitors": 0,
+                "total_signups": 0,
+                "conversion_rate": 0.0,
+                "recent_visits": [],
+                "utm_link": AdPolicyService.build_attribution_url(user_id=""),
+            }
+
+        visits_query = AdAttributionVisit.select().where(AdAttributionVisit.user_id == user_id)
+        total_visits = visits_query.count()
+
+        # Unique visitors by IP hash
+        unique_visitors = AdAttributionVisit.select(AdAttributionVisit.ip_hash).where(
+            AdAttributionVisit.user_id == user_id,
+            AdAttributionVisit.ip_hash.is_null(False),
+            AdAttributionVisit.ip_hash != "",
+        ).distinct().count()
+
+        # Count users registered with referred_by_id == user_id
+        signups_count = User.select().where(User.referred_by_id == user_id).count()
+
+        conversion_rate = round((signups_count / total_visits * 100.0), 2) if total_visits > 0 else 0.0
+
+        recent_records = visits_query.order_by(AdAttributionVisit.create_time.desc()).limit(10)
+        recent_visits = [
+            {
+                "id": v.id,
+                "utm_source": v.utm_source,
+                "utm_medium": v.utm_medium,
+                "utm_campaign": v.utm_campaign,
+                "utm_content": v.utm_content or "",
+                "created_at": v.create_time,
+            }
+            for v in recent_records
+        ]
+
+        return {
+            "total_visits": total_visits,
+            "unique_visitors": unique_visitors,
+            "total_signups": signups_count,
+            "conversion_rate": conversion_rate,
+            "utm_link": AdPolicyService.build_attribution_url(user_id=user_id),
+            "recent_visits": recent_visits,
         }

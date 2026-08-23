@@ -108,6 +108,31 @@ class AdPolicyService:
         return not cls.is_ad_eligible_user(tenant_id)
 
     @classmethod
+    def build_attribution_url(cls, user_id: str = "", tenant_id: str = "") -> str:
+        """
+        Build dynamic UTM & referral attribution link.
+        Allows tracking which account/user the response came from and analyzing traffic/signups.
+        Example: https://swipies.app/?ref=<user_id>&utm_source=swipies_ai&utm_medium=chat_watermark&utm_campaign=share_attribution&utm_content=<tenant_id>
+        """
+        from common.settings import SWIPIES_APP_URL
+        base_url = (SWIPIES_APP_URL or "https://swipies.app").rstrip("/")
+
+        ref_id = user_id or tenant_id or ""
+        params = [
+            ("utm_source", "swipies_ai"),
+            ("utm_medium", "chat_watermark"),
+            ("utm_campaign", "share_attribution"),
+        ]
+        if ref_id:
+            params.append(("ref", ref_id))
+        if tenant_id and tenant_id != ref_id:
+            params.append(("utm_content", tenant_id))
+
+        query_string = "&".join(f"{k}={v}" for k, v in params)
+        sep = "&" if "?" in base_url else "?"
+        return f"{base_url}{sep}{query_string}"
+
+    @classmethod
     def build_effective_system_prompt(
         cls,
         tenant_id: str,
@@ -120,7 +145,7 @@ class AdPolicyService:
     ) -> str:
         """
         Compose the final system prompt sent to the LLM.
-        - For Free users: Match candidate campaign & append structured ad rules + platform attribution.
+        - For Free users: Match candidate campaign & append structured ad rules + platform attribution with UTM tracking.
         - For Plus & Pro users: Return the original base_system_prompt 100% untouched.
         """
         base_prompt = base_system_prompt or ""
@@ -143,9 +168,9 @@ class AdPolicyService:
             except Exception as e:
                 logger.warning(f"AdEngine matching error (non-blocking fallback to clean prompt): {e}")
 
-        from common.settings import SWIPIES_APP_URL, SWIPIES_BRAND_NAME
-        app_url = SWIPIES_APP_URL or "https://swipies.app"
+        from common.settings import SWIPIES_BRAND_NAME
         brand_name = SWIPIES_BRAND_NAME or "Swipies AI"
+        attribution_url = cls.build_attribution_url(user_id=user_id, tenant_id=tenant_id)
 
         ad_blocks = []
 
@@ -169,11 +194,11 @@ class AdPolicyService:
                 f"```json\n{campaign_context_json}\n```"
             )
 
-        # Platform branding instruction for Free users
+        # Platform branding instruction for Free users with dynamic UTM attribution link
         if cls.is_platform_branding_enabled(tenant_id):
             branding_str = SWIPIES_PLATFORM_BRANDING_TEMPLATE.format(
                 brand_name=brand_name,
-                app_url=app_url,
+                app_url=attribution_url,
             ).strip()
             ad_blocks.append(branding_str)
 

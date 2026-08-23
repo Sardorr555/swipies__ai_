@@ -109,6 +109,25 @@ const adService = {
   getAdminSettings: () => request.get<ResponseData<AdminAdsSettings>>('/ads/admin/settings'),
   updateAdminSettings: (data: Partial<AdminAdsSettings>) =>
     request.post<ResponseData<boolean>>('/ads/admin/settings', { data }),
+
+  // Attribution & Watermark Analytics
+  getAttributionStats: () => request.get<ResponseData<AttributionStatsData>>('/ads/attribution/stats'),
 };
+
+export interface AttributionStatsData {
+  total_visits: number;
+  unique_visitors: number;
+  total_signups: number;
+  conversion_rate: number;
+  utm_link: string;
+  recent_visits: Array<{
+    id: string;
+    utm_source: string;
+    utm_medium: string;
+    utm_campaign: string;
+    utm_content?: string;
+    created_at: number;
+  }>;
+}
 
 export default adService;

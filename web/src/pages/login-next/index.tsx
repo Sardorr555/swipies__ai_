@@ -527,7 +527,15 @@ const Login = () => {
   const [title, setTitle] = useState('login');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const ref = searchParams.get('ref') || '';
+  const refFromQuery = searchParams.get('ref') || searchParams.get('referrer') || searchParams.get('utm_content') || '';
+  useEffect(() => {
+    if (refFromQuery) {
+      try {
+        localStorage.setItem('swipies_referrer', refFromQuery);
+      } catch {}
+    }
+  }, [refFromQuery]);
+  const ref = refFromQuery || (typeof window !== 'undefined' ? localStorage.getItem('swipies_referrer') || '' : '');
   const [activationEmail, setActivationEmail] = useState<string | null>(null);
   const { login, loading: signLoading } = useLogin();
   const { register, loading: registerLoading } = useRegister();
