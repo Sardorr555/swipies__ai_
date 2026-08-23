@@ -730,49 +730,65 @@ export default function SwipiesAdsPage() {
       <Dialog open={isTopUpModalOpen} onOpenChange={setIsTopUpModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
               <CreditCard className="h-5 w-5 text-emerald-600" />
               Пополнение рекламного баланса
             </DialogTitle>
-            <DialogDescription>
-              Выберите сумму для пополнения счета рекламодателя через Atmos.
+            <DialogDescription className="text-xs">
+              Моментальное зачисление средств на баланс рекламодателя через национальные и международные карты.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-4 gap-2">
-              {['20', '50', '100', '250'].map((amt) => (
-                <Button
-                  key={amt}
-                  variant={topUpAmount === amt ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTopUpAmount(amt)}
-                >
-                  ${amt}
-                </Button>
-              ))}
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Быстрый выбор суммы:</label>
+              <div className="grid grid-cols-5 gap-2">
+                {['20', '50', '100', '250', '500'].map((amt) => (
+                  <Button
+                    key={amt}
+                    type="button"
+                    variant={topUpAmount === amt ? 'default' : 'outline'}
+                    size="sm"
+                    className={`font-bold text-xs h-9 ${topUpAmount === amt ? 'bg-blue-600 text-white' : ''}`}
+                    onClick={() => setTopUpAmount(amt)}
+                  >
+                    ${amt}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold">Сумма пополнения ($ USD)</label>
-              <Input
-                type="number"
-                step="5"
-                min="5"
-                value={topUpAmount}
-                onChange={(e) => setTopUpAmount(e.target.value)}
-              />
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="number"
+                  step="5"
+                  min="5"
+                  value={topUpAmount}
+                  onChange={(e) => setTopUpAmount(e.target.value)}
+                  className="pl-9 font-mono text-base font-bold h-11"
+                  placeholder="50.00"
+                />
+              </div>
             </div>
 
-            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800 flex justify-between items-center">
-              <span>К оплате через Atmos:</span>
-              <span className="font-bold text-sm text-blue-900">
-                {(Math.round(parseFloat(topUpAmount || '0') * 12800)).toLocaleString()} UZS
-              </span>
+            <div className="rounded-xl bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-100 p-3.5 space-y-1 dark:from-blue-950/30 dark:to-indigo-950/20 dark:border-blue-900/50">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground font-medium">К оплате через Atmos:</span>
+                <span className="font-extrabold text-blue-700 dark:text-blue-400 text-base">
+                  {(Math.round(parseFloat(topUpAmount || '0') * 12800)).toLocaleString()} UZS
+                </span>
+              </div>
+              <div className="text-[10px] text-muted-foreground flex justify-between items-center pt-1 border-t border-blue-100/60 dark:border-blue-900/40">
+                <span>Курс: 1 USD = 12,800 UZS</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Комиссия 0%</span>
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setIsTopUpModalOpen(false)}>
               Отмена
             </Button>
@@ -780,13 +796,13 @@ export default function SwipiesAdsPage() {
               onClick={() => {
                 const num = parseFloat(topUpAmount);
                 if (isNaN(num) || num <= 0) {
-                  message.error('Укажите корректную сумму');
+                  message.error('Пожалуйста, укажите корректную сумму пополнения');
                   return;
                 }
                 setIsTopUpModalOpen(false);
                 setIsAtmosModalOpen(true);
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
             >
               <CreditCard className="h-4 w-4" />
               Оплатить картой (${parseFloat(topUpAmount || '0').toFixed(2)})
@@ -805,6 +821,7 @@ export default function SwipiesAdsPage() {
         onSuccess={() => {
           fetchDashboard();
           fetchTransactions();
+          message.success('Баланс рекламодателя успешно обновлен!');
         }}
       />
 
