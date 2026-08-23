@@ -101,6 +101,13 @@ class AdPolicyService:
         return cls.is_ad_eligible_user(tenant_id)
 
     @classmethod
+    def is_ad_exempt(cls, tenant_id: str, user_id: str = "") -> bool:
+        """
+        Returns True if the user/tenant is 100% exempt from ads (Plus, Pro, Enterprise).
+        """
+        return not cls.is_ad_eligible_user(tenant_id)
+
+    @classmethod
     def build_effective_system_prompt(
         cls,
         tenant_id: str,

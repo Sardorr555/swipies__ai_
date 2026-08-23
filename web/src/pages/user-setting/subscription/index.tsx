@@ -22,9 +22,11 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import { Routes } from '@/routes';
 import { getUserAiUsage, UserAIUsageSummary } from '@/services/ai-management-service';
+import AtmosPaymentModal from '@/components/atmos-payment-modal';
 
 const pricingTranslations: Record<string, any> = {
   en: {
@@ -178,12 +180,13 @@ const ALL_PLAN_CARDS = [
       '50 MB Dataset storage',
       '1 Team member',
       'Basic model support',
+      'Free with Swipies Ads & Attribution',
     ],
   },
   {
     key: 'plus',
     name: 'Plus Plan',
-    price: '199,000 UZS / mo',
+    price: '199,000 UZS / mo (~$9.99)',
     storage: '5 GB',
     apps: '50 Apps',
     team: '5 Members',
@@ -193,13 +196,15 @@ const ALL_PLAN_CARDS = [
       '5 GB Dataset storage',
       '5 Team members',
       '5,000 Credits / month',
+      '100% Ad-Free AI Responses',
+      'Zero Swipies Watermarks',
       'Fast processing priority',
     ],
   },
   {
     key: 'pro',
     name: 'Pro Plan',
-    price: '400,000 UZS / mo',
+    price: '400,000 UZS / mo (~$29.99)',
     storage: '15 GB',
     apps: 'Unlimited Apps',
     team: '15 Members',
@@ -210,6 +215,9 @@ const ALL_PLAN_CARDS = [
       '15 GB Dataset storage',
       '15 Team members',
       '10,000 Credits / month',
+      '100% Ad-Free AI Experience',
+      'Zero Platform Branding',
+      'BYOK Full Model Access (GPT-4o, Claude 3.5, Gemini)',
       'Priority GPU execution & support',
     ],
   },
@@ -234,8 +242,11 @@ const ALL_PLAN_CARDS = [
 const SubscriptionPage = () => {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: tenantInfo, loading } = useFetchTenantInfo();
   const [aiUsage, setAiUsage] = useState<UserAIUsageSummary | null>(null);
+  const [isAtmosModalOpen, setIsAtmosModalOpen] = useState(false);
+  const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'plus' | 'pro'>('pro');
 
   useEffect(() => {
     getUserAiUsage()
@@ -306,6 +317,9 @@ const SubscriptionPage = () => {
   const handleUpgradeRedirect = (targetPlan?: string) => {
     if (targetPlan === 'license') {
       navigate('/user-setting/license');
+    } else if (targetPlan === 'plus' || targetPlan === 'pro') {
+      setSelectedUpgradePlan(targetPlan);
+      setIsAtmosModalOpen(true);
     } else {
       navigate(Routes.Pricing);
     }
@@ -623,6 +637,18 @@ const SubscriptionPage = () => {
           </>
         )}
       </div>
+
+      {/* Atmos Payment Checkout Modal */}
+      <AtmosPaymentModal
+        open={isAtmosModalOpen}
+        onOpenChange={setIsAtmosModalOpen}
+        purpose="subscription_upgrade"
+        planId={selectedUpgradePlan}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['tenantInfo'] });
+          queryClient.invalidateQueries({ queryKey: ['userInfo'] });
+        }}
+      />
     </ProfileSettingWrapperCard>
   );
 };

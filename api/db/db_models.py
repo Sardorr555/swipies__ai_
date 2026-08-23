@@ -1765,6 +1765,30 @@ class UserOnboarding(DataBaseModel):
         db_table = "user_onboarding"
 
 
+class PaymentOrder(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    gateway = CharField(max_length=32, default="atmos", index=True)
+    external_transaction_id = CharField(max_length=64, null=True, index=True)
+    purpose = CharField(max_length=64, null=False, index=True)  # subscription_upgrade, advertiser_deposit
+    plan_id = CharField(max_length=32, null=True, index=True)   # plus, pro
+    advertiser_id = CharField(max_length=32, null=True, index=True)
+    amount_uzs = BigIntegerField(default=0)
+    amount_usd = FloatField(default=0.0)
+    currency = CharField(max_length=8, default="UZS")
+    status = CharField(max_length=32, default="pending", index=True)  # pending, waiting_otp, paid, failed, canceled
+    card_masked = CharField(max_length=32, null=True)
+    phone_masked = CharField(max_length=32, null=True)
+    error_message = TextField(null=True)
+    metadata = JSONField(null=True, default=dict)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "payment_orders"
+
+
 def alter_db_add_column(migrator, table_name, column_name, column_type):
     try:
         migrate(migrator.add_column(table_name, column_name, column_type))

@@ -110,6 +110,14 @@ ADS_ANALYTICS_ENABLED = True
 SWIPIES_APP_URL = os.getenv("SWIPIES_APP_URL", "https://swipies.app")
 SWIPIES_BRAND_NAME = os.getenv("SWIPIES_BRAND_NAME", "Swipies AI")
 
+# Atmos Payment Gateway settings (Uzcard / Humo / Visa / Mastercard)
+ATMOS_KEY = os.getenv("ATMOS_KEY", "TpLRLagJ1SXiZ0dT_om5BT_I3Nga")
+ATMOS_SECRET = os.getenv("ATMOS_SECRET", "bMH7gjat2EgI3fTXoLJX7CRUcbAa")
+ATMOS_STORE_ID = os.getenv("ATMOS_STORE_ID", "100506")
+ATMOS_BASE_URL = os.getenv("ATMOS_BASE_URL", "https://apigw.atmos.uz")
+ATMOS_MOCK_MODE = os.getenv("ATMOS_MOCK_MODE", "false").lower() in ["true", "1", "yes"]
+USD_TO_UZS_RATE = float(os.getenv("USD_TO_UZS_RATE", "12800.0"))
+
 # sandbox-executor-manager
 SANDBOX_HOST = None
 STRONG_TEST_COUNT = int(os.environ.get("STRONG_TEST_COUNT", "8"))

@@ -194,3 +194,11 @@ swipies_ads:
   app_url: '${SWIPIES_APP_URL:-https://swipies.app}'
   brand_name: '${SWIPIES_BRAND_NAME:-Swipies AI}'
 
+atmos_payment:
+  key: '${ATMOS_KEY:-TpLRLagJ1SXiZ0dT_om5BT_I3Nga}'
+  secret: '${ATMOS_SECRET:-bMH7gjat2EgI3fTXoLJX7CRUcbAa}'
+  store_id: '${ATMOS_STORE_ID:-100506}'
+  base_url: '${ATMOS_BASE_URL:-https://apigw.atmos.uz}'
+  mock_mode: ${ATMOS_MOCK_MODE:-false}
+  usd_to_uzs_rate: ${USD_TO_UZS_RATE:-12800.0}
+

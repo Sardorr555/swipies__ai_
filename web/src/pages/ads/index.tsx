@@ -42,6 +42,7 @@ import message from '@/components/ui/message';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import AtmosPaymentModal from '@/components/atmos-payment-modal';
 import adService, {
   AdCampaignItem,
   AdTransactionItem,
@@ -57,6 +58,7 @@ export default function SwipiesAdsPage() {
   // Modals state
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
+  const [isAtmosModalOpen, setIsAtmosModalOpen] = useState(false);
   const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<AdCampaignItem | null>(null);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -728,8 +730,13 @@ export default function SwipiesAdsPage() {
       <Dialog open={isTopUpModalOpen} onOpenChange={setIsTopUpModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Top-Up Advertising Balance</DialogTitle>
-            <DialogDescription>Add funds to your advertising account.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-emerald-600" />
+              Пополнение рекламного баланса
+            </DialogTitle>
+            <DialogDescription>
+              Выберите сумму для пополнения счета рекламодателя через Atmos.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -747,7 +754,7 @@ export default function SwipiesAdsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">Custom Deposit Amount ($ USD)</label>
+              <label className="text-xs font-semibold">Сумма пополнения ($ USD)</label>
               <Input
                 type="number"
                 step="5"
@@ -756,18 +763,50 @@ export default function SwipiesAdsPage() {
                 onChange={(e) => setTopUpAmount(e.target.value)}
               />
             </div>
+
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800 flex justify-between items-center">
+              <span>К оплате через Atmos:</span>
+              <span className="font-bold text-sm text-blue-900">
+                {(Math.round(parseFloat(topUpAmount || '0') * 12800)).toLocaleString()} UZS
+              </span>
+            </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsTopUpModalOpen(false)}>
-              Cancel
+              Отмена
             </Button>
-            <Button onClick={handleTopUp} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-              Confirm Top-Up (${parseFloat(topUpAmount || '0').toFixed(2)})
+            <Button
+              onClick={() => {
+                const num = parseFloat(topUpAmount);
+                if (isNaN(num) || num <= 0) {
+                  message.error('Укажите корректную сумму');
+                  return;
+                }
+                setIsTopUpModalOpen(false);
+                setIsAtmosModalOpen(true);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5"
+            >
+              <CreditCard className="h-4 w-4" />
+              Оплатить картой (${parseFloat(topUpAmount || '0').toFixed(2)})
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Atmos Payment Checkout Modal */}
+      <AtmosPaymentModal
+        open={isAtmosModalOpen}
+        onOpenChange={setIsAtmosModalOpen}
+        purpose="advertiser_deposit"
+        advertiserId={dashboard?.advertiser_id}
+        amountUsd={parseFloat(topUpAmount || '50')}
+        onSuccess={() => {
+          fetchDashboard();
+          fetchTransactions();
+        }}
+      />
 
       {/* Campaign Analytics Modal */}
       <Dialog open={isAnalyticsModalOpen} onOpenChange={setIsAnalyticsModalOpen}>
