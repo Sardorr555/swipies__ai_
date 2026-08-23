@@ -142,6 +142,7 @@ class AdPolicyService:
         user_id: str = "",
         message_id: str = "",
         lang: str = "en",
+        model_name: str = "",
     ) -> str:
         """
         Compose the final system prompt sent to the LLM.
@@ -164,6 +165,8 @@ class AdPolicyService:
                     user_query=user_query,
                     conversation_id=conversation_id,
                     message_id=message_id,
+                    lang=lang,
+                    model_name=model_name,
                 )
             except Exception as e:
                 logger.warning(f"AdEngine matching error (non-blocking fallback to clean prompt): {e}")

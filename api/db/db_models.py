@@ -1675,6 +1675,9 @@ class AdCampaign(DataBaseModel):
     landing_url = CharField(max_length=1024, null=False)
     target_categories = JSONField(null=True, default=list)  # list of str (e.g. ["crm", "business"])
     keywords = JSONField(null=True, default=list)  # list of str
+    target_languages = JSONField(null=True, default=list)  # ["uz", "ru", "en"] or [] for all
+    target_models = JSONField(null=True, default=list)  # ["gpt-4o", "deepseek-r1", "claude-3-5-sonnet"] or [] for all
+    target_countries = JSONField(null=True, default=list)  # ["UZ", "RU", "KZ"] or [] for all
     daily_budget = FloatField(default=10.0)
     total_budget = FloatField(default=100.0)
     spent_today = FloatField(default=0.0)

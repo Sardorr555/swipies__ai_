@@ -561,6 +561,21 @@ class AtmosService:
                 result["success"] = False
                 result["error"] = "Advertiser not found"
 
+        # Dispatch real-time Telegram notification to admin
+        try:
+            from api.db.services.telegram_notification_service import TelegramNotificationService
+            TelegramNotificationService.notify_admin_payment_received({
+                "order_id": order.id,
+                "user_id": order.user_id,
+                "amount_usd": order.amount_usd,
+                "amount_uzs": order.amount_uzs,
+                "purpose": order.purpose,
+                "plan_id": order.plan_id or "",
+                "card_masked": order.card_masked or "••••",
+            })
+        except Exception as e:
+            logger.warning(f"Failed to dispatch Telegram payment notification: {e}")
+
         return result
 
     @classmethod

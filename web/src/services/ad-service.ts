@@ -15,6 +15,9 @@ export interface AdCampaignItem {
   landing_url: string;
   target_categories: string[];
   keywords: string[];
+  target_languages?: string[];
+  target_models?: string[];
+  target_countries?: string[];
   daily_budget: number;
   total_budget: number;
   spent_today: number;

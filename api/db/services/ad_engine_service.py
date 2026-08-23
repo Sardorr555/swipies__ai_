@@ -130,11 +130,13 @@ class AdEngineService:
         user_query: str,
         conversation_id: str = "",
         message_id: str = "",
+        lang: str = "",
+        model_name: str = "",
     ) -> dict | None:
         """
         Evaluate candidate ad campaigns for an incoming user prompt.
-        Applies intent analysis, status/moderation checks, budget & balance verification,
-        and frequency capping before ranking candidates.
+        Applies intent analysis, language & model targeting, status/moderation checks,
+        budget & balance verification, and frequency capping before ranking candidates.
         """
         if not user_query or not user_query.strip():
             return None
@@ -147,6 +149,20 @@ class AdEngineService:
         clean_query = user_query.strip().lower()
         query_words = set(re.findall(r"\b\w{3,}\b", clean_query))
 
+        # Detect effective language (UZ, RU, EN)
+        effective_lang = (lang or "").lower().strip()
+        if not effective_lang:
+            if re.search(r"[\u0400-\u04FF]", clean_query):
+                if re.search(r"[ўғқҳЎҒҚҲ]", clean_query) or any(w in clean_query for w in ["salom", "qanday", "yordam", "kerak", "uchun"]):
+                    effective_lang = "uz"
+                else:
+                    effective_lang = "ru"
+            elif any(w in clean_query for w in ["salom", "qanday", "yordam", "kerak", "uchun", "qanaqa", "boladi", "haqida"]):
+                effective_lang = "uz"
+            else:
+                effective_lang = "en"
+
+        clean_model = (model_name or "").lower().strip()
         now_dt = datetime.now(timezone.utc)
         now_ts = current_timestamp()
         day_start_ts = int(time.time() - (time.time() % 86400)) * 1000
@@ -188,6 +204,18 @@ class AdEngineService:
             if cmp.end_date and cmp.end_date.replace(tzinfo=timezone.utc) < now_dt:
                 continue
 
+            # 2.5 Language Targeting Gate
+            cmp_langs = [l.lower().strip() for l in (getattr(cmp, "target_languages", []) or []) if l]
+            if cmp_langs and effective_lang:
+                if effective_lang not in cmp_langs and "all" not in cmp_langs:
+                    continue
+
+            # 2.6 Model-Level Targeting Gate
+            cmp_models = [m.lower().strip() for m in (getattr(cmp, "target_models", []) or []) if m]
+            if cmp_models and clean_model:
+                if not any(cm in clean_model or clean_model in cm for cm in cmp_models) and "all" not in cmp_models:
+                    continue
+
             # 3. Frequency Capping Gate (per user per day)
             if user_id:
                 user_impressions_today = (
@@ -224,8 +252,10 @@ class AdEngineService:
             if overlap_count <= 0:
                 continue
 
-            # Compute normalized score
-            relevance_score = min(1.0, overlap_count / 3.0)
+            # Compute normalized score with language & model bonuses
+            lang_bonus = 0.2 if (cmp_langs and effective_lang in cmp_langs) else 0.0
+            model_bonus = 0.1 if (cmp_models and any(cm in clean_model for cm in cmp_models)) else 0.0
+            relevance_score = min(1.0, (overlap_count / 3.0) + lang_bonus + model_bonus)
             normalized_bid = min(1.0, cost_per_event / 2.0)
             priority_score = min(1.0, cmp.priority / 10.0) if cmp.priority else 0.0
 
@@ -285,6 +315,7 @@ class AdEngineService:
 
         return {
             "id": winner_campaign.id,
+            "campaign_id": winner_campaign.id,
             "impression_id": impression_id,
             "advertiser": winner_campaign.advertiser.company_name or "Verified Sponsor",
             "product": winner_campaign.product_name,

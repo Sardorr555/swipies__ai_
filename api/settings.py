@@ -33,3 +33,8 @@ ATMOS_STORE_ID = os.getenv("ATMOS_STORE_ID", "100506")
 ATMOS_BASE_URL = os.getenv("ATMOS_BASE_URL", "https://apigw.atmos.uz")
 ATMOS_MOCK_MODE = os.getenv("ATMOS_MOCK_MODE", "false").lower() in ["true", "1", "yes"]
 USD_TO_UZS_RATE = float(os.getenv("USD_TO_UZS_RATE", "12800.0"))
+
+# Telegram Notifications settings
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
+TELEGRAM_NOTIFICATIONS_ENABLED = os.getenv("TELEGRAM_NOTIFICATIONS_ENABLED", "true").lower() in ["true", "1", "yes"]

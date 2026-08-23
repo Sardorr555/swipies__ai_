@@ -42,6 +42,7 @@ from api.db.services.ad_engine_service import (
     AttributionService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
+from api.db.services.telegram_notification_service import TelegramNotificationService
 from api.utils.api_utils import (
     get_data_error_result,
     get_json_result,
@@ -112,6 +113,9 @@ async def list_campaigns():
                 "landing_url": c.landing_url,
                 "target_categories": c.target_categories or [],
                 "keywords": c.keywords or [],
+                "target_languages": c.target_languages or [],
+                "target_models": c.target_models or [],
+                "target_countries": c.target_countries or [],
                 "daily_budget": c.daily_budget,
                 "total_budget": c.total_budget,
                 "spent_today": c.spent_today,
@@ -168,6 +172,9 @@ async def create_campaign():
             landing_url=landing_url,
             target_categories=req.get("target_categories", []),
             keywords=req.get("keywords", []),
+            target_languages=req.get("target_languages", []),
+            target_models=req.get("target_models", []),
+            target_countries=req.get("target_countries", []),
             daily_budget=float(req.get("daily_budget", 10.0)),
             total_budget=float(req.get("total_budget", 100.0)),
             spent_today=0.0,
@@ -180,6 +187,9 @@ async def create_campaign():
             create_time=current_timestamp(),
             update_time=current_timestamp(),
         )
+
+        # Dispatch real-time Telegram notification to admin
+        TelegramNotificationService.notify_admin_new_campaign(cmp, advertiser_name=adv.company_name)
 
         return get_json_result(data={"id": cmp.id, "name": cmp.name, "status": cmp.status})
     except Exception as e:
@@ -211,6 +221,12 @@ async def update_campaign(campaign_id):
             cmp.target_categories = req["target_categories"]
         if "keywords" in req:
             cmp.keywords = req["keywords"]
+        if "target_languages" in req:
+            cmp.target_languages = req["target_languages"]
+        if "target_models" in req:
+            cmp.target_models = req["target_models"]
+        if "target_countries" in req:
+            cmp.target_countries = req["target_countries"]
         if "daily_budget" in req:
             cmp.daily_budget = float(req["daily_budget"])
         if "total_budget" in req:
@@ -473,6 +489,9 @@ async def admin_moderation_queue():
             "description": c.description or "",
             "advertisement_text": c.advertisement_text,
             "landing_url": c.landing_url,
+            "target_languages": c.target_languages or [],
+            "target_models": c.target_models or [],
+            "target_countries": c.target_countries or [],
             "status": c.status,
             "moderation_status": c.moderation_status,
             "moderation_note": c.moderation_note or "",
@@ -502,6 +521,9 @@ async def admin_approve_campaign(campaign_id):
         cmp.update_time = current_timestamp()
         cmp.save()
 
+        # Send Telegram notification
+        TelegramNotificationService.notify_admin_campaign_moderated(cmp.name, "approved")
+
         return get_json_result(data={"id": cmp.id, "moderation_status": cmp.moderation_status})
     except Exception as e:
         logger.exception(f"Error approving campaign: {e}")
@@ -528,6 +550,9 @@ async def admin_reject_campaign(campaign_id):
         cmp.status = "paused"
         cmp.update_time = current_timestamp()
         cmp.save()
+
+        # Send Telegram notification
+        TelegramNotificationService.notify_admin_campaign_moderated(cmp.name, "rejected", note=note)
 
         return get_json_result(data={"id": cmp.id, "moderation_status": cmp.moderation_status, "note": note})
     except Exception as e:

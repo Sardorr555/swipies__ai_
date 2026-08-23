@@ -79,6 +79,8 @@ export default function SwipiesAdsPage() {
   });
   const [rawKeywords, setRawKeywords] = useState('');
   const [rawCategories, setRawCategories] = useState('');
+  const [targetLanguages, setTargetLanguages] = useState<string[]>(['all']);
+  const [targetModels, setTargetModels] = useState<string[]>(['all']);
   const [topUpAmount, setTopUpAmount] = useState('50');
 
   const fetchDashboard = async () => {
@@ -128,6 +130,8 @@ export default function SwipiesAdsPage() {
     });
     setRawKeywords('');
     setRawCategories('');
+    setTargetLanguages(['all']);
+    setTargetModels(['all']);
     setIsCampaignModalOpen(true);
   };
 
@@ -136,7 +140,37 @@ export default function SwipiesAdsPage() {
     setCampaignForm({ ...cmp });
     setRawKeywords((cmp.keywords || []).join(', '));
     setRawCategories((cmp.target_categories || []).join(', '));
+    setTargetLanguages(cmp.target_languages && cmp.target_languages.length > 0 ? cmp.target_languages : ['all']);
+    setTargetModels(cmp.target_models && cmp.target_models.length > 0 ? cmp.target_models : ['all']);
     setIsCampaignModalOpen(true);
+  };
+
+  const toggleLanguage = (langCode: string) => {
+    if (langCode === 'all') {
+      setTargetLanguages(['all']);
+      return;
+    }
+    const filtered = targetLanguages.filter((l) => l !== 'all');
+    if (filtered.includes(langCode)) {
+      const next = filtered.filter((l) => l !== langCode);
+      setTargetLanguages(next.length === 0 ? ['all'] : next);
+    } else {
+      setTargetLanguages([...filtered, langCode]);
+    }
+  };
+
+  const toggleModel = (modelCode: string) => {
+    if (modelCode === 'all') {
+      setTargetModels(['all']);
+      return;
+    }
+    const filtered = targetModels.filter((m) => m !== 'all');
+    if (filtered.includes(modelCode)) {
+      const next = filtered.filter((m) => m !== modelCode);
+      setTargetModels(next.length === 0 ? ['all'] : next);
+    } else {
+      setTargetModels([...filtered, modelCode]);
+    }
   };
 
   const handleSaveCampaign = async () => {
@@ -163,6 +197,8 @@ export default function SwipiesAdsPage() {
       ...campaignForm,
       keywords,
       target_categories,
+      target_languages: targetLanguages,
+      target_models: targetModels,
     };
 
     try {
@@ -394,6 +430,22 @@ export default function SwipiesAdsPage() {
                               >
                                 {cmp.landing_url} <ExternalLink className="h-2.5 w-2.5 inline" />
                               </a>
+                            </div>
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {(!cmp.target_languages || cmp.target_languages.includes('all') || cmp.target_languages.length === 0) ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-medium">🌐 Все языки</span>
+                              ) : (
+                                cmp.target_languages.map((l) => (
+                                  <span key={l} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 font-bold uppercase">
+                                    {l === 'uz' ? '🇺🇿 UZ' : l === 'ru' ? '🇷🇺 RU' : l === 'en' ? '🇬🇧 EN' : l}
+                                  </span>
+                                ))
+                              )}
+                              {cmp.target_models && cmp.target_models.length > 0 && !cmp.target_models.includes('all') && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 font-medium">
+                                  🤖 {cmp.target_models.join(', ')}
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="py-3 px-4">
@@ -673,6 +725,67 @@ export default function SwipiesAdsPage() {
                   value={rawCategories}
                   onChange={(e) => setRawCategories(e.target.value)}
                 />
+              </div>
+            </div>
+
+            {/* Language Targeting */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold">Целевые языки пользователей</label>
+                <span className="text-[11px] text-muted-foreground">Язык запроса в чате</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { code: 'all', label: '🌐 Все языки' },
+                  { code: 'uz', label: "🇺🇿 O'zbekcha" },
+                  { code: 'ru', label: '🇷🇺 Русский' },
+                  { code: 'en', label: '🇬🇧 English' },
+                ].map((item) => {
+                  const isSelected = targetLanguages.includes(item.code);
+                  return (
+                    <Button
+                      key={item.code}
+                      type="button"
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
+                      className={`h-8 text-xs font-medium ${isSelected ? 'bg-blue-600 text-white' : ''}`}
+                      onClick={() => toggleLanguage(item.code)}
+                    >
+                      {item.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Model-Level Targeting */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold">Таргетинг на AI-модели</label>
+                <span className="text-[11px] text-muted-foreground">В ответах каких моделей показывать</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { code: 'all', label: '🤖 Все модели' },
+                  { code: 'deepseek', label: '⚡ DeepSeek (V3/R1)' },
+                  { code: 'gpt-4o', label: '🧠 OpenAI (GPT-4o)' },
+                  { code: 'claude', label: '💎 Claude (Sonnet 3.5)' },
+                  { code: 'qwen', label: '🚀 Qwen & Llama' },
+                ].map((item) => {
+                  const isSelected = targetModels.includes(item.code);
+                  return (
+                    <Button
+                      key={item.code}
+                      type="button"
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
+                      className={`h-8 text-xs font-medium ${isSelected ? 'bg-purple-600 text-white' : ''}`}
+                      onClick={() => toggleModel(item.code)}
+                    >
+                      {item.label}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
 

@@ -440,6 +440,7 @@ class LLMBundle(LLM4Tenant):
                 user_query=user_query,
                 conversation_id=getattr(self, "langfuse_session_id", "") or "",
                 lang=getattr(self, "lang", "en"),
+                model_name=getattr(self, "llm_name", "") or str(getattr(self, "mdl", "")),
             )
         except Exception as e:
             logging.warning(f"AdPolicyService system prompt composition warning: {e}")

@@ -675,6 +675,123 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         tx = AdTransaction.get(AdTransaction.advertiser_id == adv.id, AdTransaction.type == "deposit")
         self.assertEqual(tx.amount, 50.0)
 
+    def test_08_language_and_model_targeting(self):
+        """Test 8: Language-aware and model-level ad targeting."""
+        adv = Advertiser.create(
+            id="adv_test_08",
+            tenant_id="tenant_adv_08",
+            user_id="user_adv_08",
+            company_name="Targeting Pro",
+            balance=20.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        # Campaign 1: targeted only to Uzbek language ('uz') and DeepSeek models
+        cmp_uz = AdCampaign.create(
+            id="cmp_uz_deepseek",
+            advertiser_id=adv.id,
+            name="Uzbek Logistics",
+            product_name="YetkazibBerish AI",
+            advertisement_text="Toshkent boylab tez yetkazib berish xizmati.",
+            landing_url="https://yetkazib.uz",
+            keywords=["dostavka", "yetkazib", "logistika"],
+            target_languages=["uz"],
+            target_models=["deepseek"],
+            daily_budget=10.0,
+            total_budget=100.0,
+            bid_amount=0.30,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        # Campaign 2: targeted only to Russian language ('ru') and GPT-4o
+        cmp_ru = AdCampaign.create(
+            id="cmp_ru_gpt",
+            advertiser_id=adv.id,
+            name="Russian Delivery",
+            product_name="БыстраяДоставка РФ",
+            advertisement_text="Курьерская доставка для бизнеса.",
+            landing_url="https://dostavka.ru",
+            keywords=["dostavka", "доставка", "курьер"],
+            target_languages=["ru"],
+            target_models=["gpt-4o"],
+            daily_budget=10.0,
+            total_budget=100.0,
+            bid_amount=0.30,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        # Query in Uzbek asking with DeepSeek model
+        match_uz = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_uz_user",
+            user_id="user_uz_1",
+            user_query="Menga toshkentda tez yetkazib berish va logistika kerak",
+            lang="uz",
+            model_name="deepseek-r1",
+        )
+        self.assertIsNotNone(match_uz)
+        self.assertEqual(match_uz["campaign_id"], cmp_uz.id)
+
+        # Query in Russian with DeepSeek model - should not match cmp_ru because model is deepseek not gpt-4o, and shouldn't match cmp_uz because language is ru
+        match_ru_mismatch = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_ru_user",
+            user_id="user_ru_1",
+            user_query="Мне нужна срочная доставка и логистика",
+            lang="ru",
+            model_name="claude-3-5-sonnet",
+        )
+        self.assertIsNone(match_ru_mismatch, "Should reject when model does not match campaign targeting")
+
+        # Query in Russian with GPT-4o model - should match cmp_ru
+        match_ru_correct = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_ru_user",
+            user_id="user_ru_1",
+            user_query="Мне нужна срочная доставка и курьер",
+            lang="ru",
+            model_name="gpt-4o",
+        )
+        self.assertIsNotNone(match_ru_correct)
+        self.assertEqual(match_ru_correct["campaign_id"], cmp_ru.id)
+
+    def test_09_telegram_notification_service(self):
+        """Test 9: Telegram notification dispatcher formatting and resilience."""
+        from api.db.services.telegram_notification_service import TelegramNotificationService
+        from unittest.mock import patch
+
+        cmp_mock = AdCampaign(
+            id="cmp_mock_tg",
+            name="Mock Promo",
+            product_name="Mock AI",
+            advertisement_text="Special offer 50% off",
+            landing_url="https://mock.ai",
+            daily_budget=25.0,
+            bid_amount=0.20,
+            target_languages=["uz", "ru"],
+            target_models=["deepseek"],
+        )
+
+        with patch("api.db.services.telegram_notification_service.requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+
+            # Test admin new campaign alert
+            res_cmp = TelegramNotificationService.notify_admin_new_campaign(cmp_mock, advertiser_name="Global Tech")
+            # If TELEGRAM_NOTIFICATIONS_ENABLED is True but token is empty, returns False safely
+            self.assertIsInstance(res_cmp, bool)
+
+            # Test admin payment notification
+            res_pay = TelegramNotificationService.notify_admin_payment_received({
+                "order_id": "ord_12345",
+                "amount_usd": 50.0,
+                "amount_uzs": 640000,
+                "purpose": "advertiser_deposit",
+                "card_masked": "8600 •••• •••• 1234",
+            })
+            self.assertIsInstance(res_pay, bool)
+
 
 if __name__ == "__main__":
     unittest.main()

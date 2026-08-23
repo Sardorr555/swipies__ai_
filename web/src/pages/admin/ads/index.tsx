@@ -230,6 +230,22 @@ export default function AdminAdsPage() {
                           <td className="py-3 px-4">
                             <div className="font-semibold">{cmp.name}</div>
                             <div className="text-xs text-muted-foreground font-medium">{cmp.company_name}</div>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {(!cmp.target_languages || cmp.target_languages.includes('all') || cmp.target_languages.length === 0) ? (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-medium">🌐 Все языки</span>
+                              ) : (
+                                cmp.target_languages.map((l: string) => (
+                                  <span key={l} className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 font-bold uppercase">
+                                    {l === 'uz' ? '🇺🇿 UZ' : l === 'ru' ? '🇷🇺 RU' : l === 'en' ? '🇬🇧 EN' : l}
+                                  </span>
+                                ))
+                              )}
+                              {cmp.target_models && cmp.target_models.length > 0 && !cmp.target_models.includes('all') && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 font-medium">
+                                  🤖 {cmp.target_models.join(', ')}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-4 max-w-sm">
                             <div className="text-xs line-clamp-2 text-foreground font-mono bg-muted/30 p-1.5 rounded">
