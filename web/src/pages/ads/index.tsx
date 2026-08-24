@@ -43,6 +43,8 @@ import {
   Lightbulb,
   Wand2,
   Sliders,
+  FileText,
+  Printer,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -1123,32 +1125,54 @@ export default function SwipiesAdsPage() {
                 Динамика показов, переходов, расходов и сегментация аудитории в реальном времени
               </p>
             </div>
-            <div className="flex items-center gap-1.5 self-start sm:self-auto bg-background p-1 rounded-lg border">
-              {[7, 14, 30].map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => {
-                    setTimelineDays(d);
-                    fetchTimeline(d);
-                  }}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                    timelineDays === d
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }`}
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+              <div className="flex items-center gap-1.5 bg-background p-1 rounded-lg border">
+                {[7, 14, 30].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => {
+                      setTimelineDays(d);
+                      fetchTimeline(d);
+                    }}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                      timelineDays === d
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {d === 7 ? '7 дней' : d === 14 ? '14 дней' : '30 дней'}
+                  </button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => fetchTimeline(timelineDays)}
+                  title="Обновить данные"
                 >
-                  {d === 7 ? '7 дней' : d === 14 ? '14 дней' : '30 дней'}
-                </button>
-              ))}
+                  <RefreshCw className={`h-3.5 w-3.5 ${loadingTimeline ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+
               <Button
                 size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-xs"
-                onClick={() => fetchTimeline(timelineDays)}
-                title="Обновить данные"
+                variant="outline"
+                className="h-8 text-xs flex items-center gap-1.5"
+                onClick={() => window.open(`/v1/ads/export/analytics?days=${timelineDays}`, '_blank')}
+                title="Экспорт динамики в CSV"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${loadingTimeline ? 'animate-spin' : ''}`} />
+                <Download className="h-3.5 w-3.5" /> CSV
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs flex items-center gap-1.5 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                onClick={() => window.open(`/v1/ads/export/report?days=${timelineDays}`, '_blank')}
+                title="Открыть PDF / Печатную версию отчета"
+              >
+                <Printer className="h-3.5 w-3.5" /> PDF Отчет
               </Button>
             </div>
           </div>

@@ -287,6 +287,7 @@ from api.db.services.ad_engine_service import (
     AdConversion,
     ConversionTrackingService,
     AdOptimizerService,
+    AdExportService,
     AdTransactionService,
     AdSettingsService,
     AdEngineService,
@@ -1762,6 +1763,77 @@ class TestSwipiesAdsSystem(unittest.TestCase):
 
         cmp_refreshed = AdCampaign.get_by_id(cmp.id)
         self.assertIn("Спецпредложение", cmp_refreshed.advertisement_text)
+
+    def test_18_export_reports_and_analytics_generation(self):
+        """
+        Phase 16 Test:
+        - Verify CSV campaigns export formatting & header contents
+        - Verify CSV transactions export formatting & header contents
+        - Verify CSV timeline analytics export
+        - Verify executive printable HTML report generation
+        """
+        adv = AdvertiserService.get_or_create_for_user(user_id="user_exp_18", tenant_id="tenant_exp_18")
+        adv.company_name = "Global Logistics Ltd"
+        adv.save()
+
+        cmp = AdCampaign.create(
+            id="cmp_exp_18",
+            advertiser_id=adv.id,
+            name="Air Cargo Express",
+            product_name="AirCargo",
+            description="Fast cargo delivery across CIS",
+            advertisement_text="Reliable air freight services",
+            landing_url="https://cargo.example.com",
+            target_categories=["logistics"],
+            keywords=["cargo", "freight", "delivery"],
+            negative_keywords=["free"],
+            pricing_model="cpc",
+            bid_amount=0.25,
+            daily_budget=20.0,
+            total_budget=200.0,
+            spent_today=15.0,
+            total_spent=145.50,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        AdTransaction.create(
+            id="tx_exp_18_1",
+            advertiser_id=adv.id,
+            amount=200.0,
+            type="deposit",
+            description="Bank card deposit",
+            reference_id="ref_18",
+            create_time=current_timestamp(),
+        )
+
+        # 1. Test Campaigns CSV Export
+        campaigns_csv = AdExportService.export_campaigns_csv(advertiser_id=adv.id)
+        self.assertIn("Campaign ID,Campaign Name,Product Name", campaigns_csv)
+        self.assertIn("Air Cargo Express", campaigns_csv)
+        self.assertIn("0.25", campaigns_csv)
+
+        # 2. Test Transactions CSV Export
+        tx_csv = AdExportService.export_transactions_csv(advertiser_id=adv.id)
+        self.assertIn("Transaction ID,Date (UTC),Type,Amount ($)", tx_csv)
+        self.assertIn("Bank card deposit", tx_csv)
+        self.assertIn("200.0", tx_csv)
+
+        # 3. Test Timeline Analytics CSV Export
+        timeline_csv = AdExportService.export_analytics_timeline_csv(
+            user_id="user_exp_18", tenant_id="tenant_exp_18", days=7
+        )
+        self.assertIn("Date,Impressions,Clicks,CTR (%),Spend / Revenue ($)", timeline_csv)
+
+        # 4. Test Executive HTML Report Generation
+        html_report = AdExportService.generate_executive_html_report(advertiser_id=adv.id, days=30)
+        self.assertIn("Executive Report", html_report)
+        self.assertIn("Global Logistics Ltd", html_report)
+        self.assertIn("Air Cargo Express", html_report)
+        self.assertIn("$145.50", html_report)
+        self.assertIn("window.print()", html_report)
 
 
 if __name__ == "__main__":

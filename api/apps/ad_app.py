@@ -640,6 +640,91 @@ async def list_transactions():
 
 
 # ==========================================
+# 2.5 Export & Analytics Reporting
+# ==========================================
+
+@manager.route("/export/campaigns", methods=["GET"])
+@login_required
+async def export_campaigns():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdExportService
+        csv_data = AdExportService.export_campaigns_csv(advertiser_id=adv.id)
+        from quart import Response
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=swipies_campaigns_{current_timestamp()}.csv"},
+        )
+    except Exception as e:
+        logger.exception(f"Error exporting campaigns CSV: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/export/transactions", methods=["GET"])
+@login_required
+async def export_transactions():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdExportService
+        csv_data = AdExportService.export_transactions_csv(advertiser_id=adv.id)
+        from quart import Response
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=swipies_transactions_{current_timestamp()}.csv"},
+        )
+    except Exception as e:
+        logger.exception(f"Error exporting transactions CSV: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/export/analytics", methods=["GET"])
+@login_required
+async def export_analytics_timeline():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        days = int(request.args.get("days", 30))
+        from api.db.services.ad_engine_service import AdExportService
+        csv_data = AdExportService.export_analytics_timeline_csv(user_id=user_id, tenant_id=tenant_id, days=days)
+        from quart import Response
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=swipies_analytics_{days}d_{current_timestamp()}.csv"},
+        )
+    except Exception as e:
+        logger.exception(f"Error exporting analytics CSV: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/export/report", methods=["GET"])
+@manager.route("/export/executive-summary", methods=["GET"])
+@login_required
+async def export_executive_report():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        days = int(request.args.get("days", 30))
+        from api.db.services.ad_engine_service import AdExportService
+        html_report = AdExportService.generate_executive_html_report(advertiser_id=adv.id, days=days)
+        from quart import Response
+        return Response(
+            html_report,
+            mimetype="text/html",
+        )
+    except Exception as e:
+        logger.exception(f"Error generating executive HTML report: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
 # 3. Public Click Tracking & Redirect
 # ==========================================
 

@@ -1645,3 +1645,275 @@ class AdOptimizerService:
         }
 
 
+class AdExportService:
+    @classmethod
+    @DB.connection_context()
+    def export_campaigns_csv(cls, advertiser_id: str) -> str:
+        import csv
+        import io
+        campaigns = list(
+            AdCampaign.select()
+            .where(AdCampaign.advertiser_id == advertiser_id)
+            .order_by(AdCampaign.create_time.desc())
+        )
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "Campaign ID",
+            "Campaign Name",
+            "Product Name",
+            "Pricing Model",
+            "Bid Amount ($)",
+            "Target CPA ($)",
+            "Daily Budget ($)",
+            "Total Budget ($)",
+            "Total Spent ($)",
+            "Spent Today ($)",
+            "Impressions",
+            "Clicks",
+            "CTR (%)",
+            "Conversions",
+            "CVR (%)",
+            "Total Conversion Value ($)",
+            "Status",
+            "Moderation Status",
+            "Created Date",
+        ])
+
+        for c in campaigns:
+            imps = AdImpression.select().where(AdImpression.campaign_id == c.id).count()
+            clicks = AdClick.select().where(AdClick.campaign_id == c.id).count()
+            ctr = round((clicks / imps * 100.0), 2) if imps > 0 else 0.0
+            convs = getattr(c, "conversions_count", 0) or AdConversion.select().where(AdConversion.campaign_id == c.id).count()
+            cvr = round(getattr(c, "conversion_rate", 0.0) or (convs / clicks * 100.0 if clicks > 0 else 0.0), 2)
+            created_str = datetime.fromtimestamp(c.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if c.create_time else ""
+
+            writer.writerow([
+                c.id,
+                c.name,
+                c.product_name,
+                c.pricing_model,
+                c.bid_amount,
+                getattr(c, "target_cpa", 0.0) or 0.0,
+                c.daily_budget,
+                c.total_budget,
+                c.total_spent,
+                c.spent_today,
+                imps,
+                clicks,
+                ctr,
+                convs,
+                cvr,
+                getattr(c, "total_conversion_value", 0.0) or 0.0,
+                c.status,
+                c.moderation_status,
+                created_str,
+            ])
+
+        return output.getvalue()
+
+    @classmethod
+    @DB.connection_context()
+    def export_transactions_csv(cls, advertiser_id: str) -> str:
+        import csv
+        import io
+        txs = list(
+            AdTransaction.select()
+            .where(AdTransaction.advertiser_id == advertiser_id)
+            .order_by(AdTransaction.create_time.desc())
+        )
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "Transaction ID",
+            "Date (UTC)",
+            "Type",
+            "Amount ($)",
+            "Description",
+            "Reference ID",
+        ])
+
+        for t in txs:
+            dt_str = datetime.fromtimestamp(t.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if t.create_time else ""
+            writer.writerow([
+                t.id,
+                dt_str,
+                t.type,
+                t.amount,
+                t.description or "",
+                t.reference_id or "",
+            ])
+
+        return output.getvalue()
+
+    @classmethod
+    @DB.connection_context()
+    def export_analytics_timeline_csv(cls, user_id: str, tenant_id: str, days: int = 30) -> str:
+        import csv
+        import io
+        timeline_data = AdEngineService.get_advertiser_timeline_analytics(user_id=user_id, tenant_id=tenant_id, days=days)
+        rows = timeline_data.get("timeline", [])
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "Date",
+            "Impressions",
+            "Clicks",
+            "CTR (%)",
+            "Spend / Revenue ($)",
+        ])
+
+        for r in rows:
+            writer.writerow([
+                r.get("date", ""),
+                r.get("impressions", 0),
+                r.get("clicks", 0),
+                r.get("ctr", 0.0),
+                r.get("revenue", 0.0),
+            ])
+
+        return output.getvalue()
+
+    @classmethod
+    @DB.connection_context()
+    def generate_executive_html_report(cls, advertiser_id: str, days: int = 30) -> str:
+        adv = Advertiser.get_or_none(Advertiser.id == advertiser_id)
+        if not adv:
+            return "<html><body><h1>Advertiser not found</h1></body></html>"
+
+        now_dt = datetime.now(timezone.utc)
+        generated_at = now_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        campaigns = list(
+            AdCampaign.select()
+            .where(AdCampaign.advertiser_id == advertiser_id)
+            .order_by(AdCampaign.create_time.desc())
+        )
+
+        total_imps = 0
+        total_clicks = 0
+        total_convs = 0
+        total_spent = sum(c.total_spent for c in campaigns)
+
+        camp_rows_html = ""
+        for c in campaigns:
+            imps = AdImpression.select().where(AdImpression.campaign_id == c.id).count()
+            clicks = AdClick.select().where(AdClick.campaign_id == c.id).count()
+            convs = getattr(c, "conversions_count", 0) or AdConversion.select().where(AdConversion.campaign_id == c.id).count()
+            ctr = round((clicks / imps * 100.0), 2) if imps > 0 else 0.0
+            cvr = round((convs / clicks * 100.0), 2) if clicks > 0 else 0.0
+            total_imps += imps
+            total_clicks += clicks
+            total_convs += convs
+
+            camp_rows_html += f"""
+            <tr>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">{c.name}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-transform: uppercase; font-size: 11px;">{c.pricing_model}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">{imps:,}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">{clicks:,}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #059669; font-weight: 600;">{ctr}%</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">{convs:,}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">{cvr}%</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold;">${c.total_spent:.2f}</td>
+            </tr>
+            """
+
+        overall_ctr = round((total_clicks / total_imps * 100.0), 2) if total_imps > 0 else 0.0
+        overall_cvr = round((total_convs / total_clicks * 100.0), 2) if total_clicks > 0 else 0.0
+
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Swipies Ads Executive Report — {adv.company_name}</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: 40px; background: #f8fafc; }}
+    .container {{ max-width: 900px; margin: 0 auto; background: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
+    .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; }}
+    .logo {{ font-size: 24px; font-weight: 800; color: #1e40af; letter-spacing: -0.5px; }}
+    .logo span {{ color: #3b82f6; }}
+    .meta {{ text-align: right; font-size: 12px; color: #64748b; }}
+    .kpi-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px; }}
+    .kpi-card {{ background: #f1f5f9; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; }}
+    .kpi-title {{ font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; margin-bottom: 4px; }}
+    .kpi-value {{ font-size: 22px; font-weight: 800; color: #0f172a; }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 30px; }}
+    th {{ background: #f8fafc; text-align: left; padding: 12px 10px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; color: #475569; }}
+    .footer {{ border-top: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; }}
+    @media print {{
+      body {{ background: #fff; padding: 0; }}
+      .container {{ box-shadow: none; padding: 0; }}
+      .no-print {{ display: none; }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+      <button onclick="window.print()" style="background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer;">🖨️ Печать / Сохранить в PDF</button>
+    </div>
+
+    <div class="header">
+      <div>
+        <div class="logo">Swipies<span>Ads</span> Executive Report</div>
+        <div style="font-size: 14px; color: #475569; margin-top: 4px;">Рекламодатель: <strong>{adv.company_name}</strong></div>
+      </div>
+      <div class="meta">
+        <div>Период: <strong>Последние {days} дней</strong></div>
+        <div>Дата генерации: {generated_at}</div>
+        <div>Статус аккаунта: <strong style="color: #16a34a;">Активен</strong></div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-title">Всего показов</div>
+        <div class="kpi-value">{total_imps:,}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Переходы (Клики)</div>
+        <div class="kpi-value">{total_clicks:,} <span style="font-size: 13px; color: #059669; font-weight: 600;">({overall_ctr}%)</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Конверсии (Лиды)</div>
+        <div class="kpi-value">{total_convs:,} <span style="font-size: 13px; color: #7c3aed; font-weight: 600;">({overall_cvr}%)</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Суммарный расход</div>
+        <div class="kpi-value">${total_spent:.2f}</div>
+      </div>
+    </div>
+
+    <h3 style="font-size: 16px; margin-bottom: 12px; color: #0f172a;">📊 Сводка по рекламным кампаниям</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Кампания</th>
+          <th>Модель</th>
+          <th style="text-align: right;">Показы</th>
+          <th style="text-align: right;">Клики</th>
+          <th style="text-align: right;">CTR</th>
+          <th style="text-align: right;">Конв.</th>
+          <th style="text-align: right;">CVR</th>
+          <th style="text-align: right;">Расход</th>
+        </tr>
+      </thead>
+      <tbody>
+        {camp_rows_html}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <div>Верифицированный отчет рекламной платформы Swipies AI Advertising Engine.</div>
+      <div>ID рекламодателя: {adv.id}</div>
+    </div>
+  </div>
+</body>
+</html>
+"""
+        return html
+
+
+
