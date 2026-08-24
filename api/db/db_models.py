@@ -1698,9 +1698,28 @@ class AdCampaign(DataBaseModel):
         db_table = "campaigns"
 
 
+class AdVariant(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    campaign_id = CharField(max_length=32, null=False, index=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=128, null=False)  # e.g. "Variant A (Direct)", "Variant B (Discount)"
+    advertisement_text = TextField(null=False)
+    landing_url = CharField(max_length=1024, null=True)
+    impressions = IntegerField(default=0)
+    clicks = IntegerField(default=0)
+    weight = FloatField(default=1.0)
+    is_active = BooleanField(default=True, index=True)
+    create_time = BigIntegerField(null=True, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "campaign_variants"
+
+
 class AdImpression(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     campaign_id = CharField(max_length=32, null=False, index=True)
+    variant_id = CharField(max_length=32, null=True, index=True)
     advertiser_id = CharField(max_length=32, null=False, index=True)
     user_id = CharField(max_length=32, null=True, index=True)
     tenant_id = CharField(max_length=32, null=True, index=True)
@@ -1721,6 +1740,7 @@ class AdImpression(DataBaseModel):
 class AdClick(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     campaign_id = CharField(max_length=32, null=False, index=True)
+    variant_id = CharField(max_length=32, null=True, index=True)
     impression_id = CharField(max_length=32, null=True, index=True)
     advertiser_id = CharField(max_length=32, null=False, index=True)
     user_id = CharField(max_length=32, null=True, index=True)

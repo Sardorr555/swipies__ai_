@@ -27,6 +27,7 @@ from api.db.db_models import (
     DB,
     Advertiser,
     AdCampaign,
+    AdVariant,
     AdImpression,
     AdClick,
     AdTransaction,
@@ -38,6 +39,7 @@ from api.db.db_models import (
 from api.db.services.ad_engine_service import (
     AdvertiserService,
     AdCampaignService,
+    AdVariantService,
     AdImpressionService,
     AdClickService,
     AdTransactionService,
@@ -921,3 +923,99 @@ async def export_campaigns_csv():
     except Exception as e:
         logger.exception(f"Error exporting campaigns: {e}")
         return get_data_error_result(message=str(e))
+
+
+# ------------------------------------------------------------------
+# A/B Testing & Ad Variants
+# ------------------------------------------------------------------
+
+
+@manager.route("/campaigns/<campaign_id>/variants", methods=["GET"])
+@login_required
+def get_campaign_variants(campaign_id):
+    try:
+        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        variants = AdVariantService.list_variants(campaign_id=campaign_id, advertiser_id=adv.id)
+        return get_json_result(data=variants)
+    except Exception as e:
+        logger.exception(f"Error fetching campaign variants: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/variants", methods=["POST"])
+@login_required
+def create_campaign_variant(campaign_id):
+    try:
+        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            return get_data_error_result(message="Campaign not found")
+
+        req = get_request_json() or {}
+        adv_text = req.get("advertisement_text", "").strip()
+        if not adv_text:
+            return get_data_error_result(message="Advertisement text is required for variant")
+
+        created = AdVariantService.create_variant(
+            campaign_id=campaign_id,
+            advertiser_id=adv.id,
+            data=req,
+        )
+        return get_json_result(data=created)
+    except Exception as e:
+        logger.exception(f"Error creating campaign variant: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/variants/<variant_id>", methods=["PUT"])
+@login_required
+def update_campaign_variant(campaign_id, variant_id):
+    try:
+        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        req = get_request_json() or {}
+        updated = AdVariantService.update_variant(
+            variant_id=variant_id,
+            advertiser_id=adv.id,
+            data=req,
+        )
+        if not updated:
+            return get_data_error_result(message="Variant not found")
+        return get_json_result(data=updated)
+    except Exception as e:
+        logger.exception(f"Error updating campaign variant: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/variants/<variant_id>/toggle", methods=["PUT"])
+@login_required
+def toggle_campaign_variant(campaign_id, variant_id):
+    try:
+        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        toggled = AdVariantService.toggle_variant(
+            variant_id=variant_id,
+            advertiser_id=adv.id,
+        )
+        if not toggled:
+            return get_data_error_result(message="Variant not found")
+        return get_json_result(data=toggled)
+    except Exception as e:
+        logger.exception(f"Error toggling campaign variant: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/variants/<variant_id>", methods=["DELETE"])
+@login_required
+def delete_campaign_variant(campaign_id, variant_id):
+    try:
+        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        success = AdVariantService.delete_variant(
+            variant_id=variant_id,
+            advertiser_id=adv.id,
+        )
+        if not success:
+            return get_data_error_result(message="Variant not found")
+        return get_json_result(data={"deleted": True})
+    except Exception as e:
+        logger.exception(f"Error deleting campaign variant: {e}")
+        return get_data_error_result(message=str(e))
+

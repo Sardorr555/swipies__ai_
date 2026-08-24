@@ -262,6 +262,7 @@ from api.db.db_models import (
     DB,
     Advertiser,
     AdCampaign,
+    AdVariant,
     AdImpression,
     AdClick,
     AdTransaction,
@@ -276,6 +277,7 @@ from api.db.db_models import (
 from api.db.services.ad_engine_service import (
     AdvertiserService,
     AdCampaignService,
+    AdVariantService,
     AdImpressionService,
     AdClickService,
     AdTransactionService,
@@ -301,6 +303,7 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         models = [
             Advertiser,
             AdCampaign,
+            AdVariant,
             AdImpression,
             AdClick,
             AdTransaction,
@@ -1126,7 +1129,128 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertGreaterEqual(admin_res["total_network_clicks"], 2)
         self.assertGreaterEqual(admin_res["total_network_revenue"], 1.00)
 
+    def test_13_ab_testing_variant_rotation_and_bandit_optimization(self):
+        """Test 13: A/B testing copy variants, impression/click metrics, and Multi-Armed Bandit CTR optimization."""
+        user_id = "user_ab_test_13"
+        tenant_id = "tenant_ab_test_13"
+        adv = Advertiser.create(
+            id="adv_ab_13",
+            tenant_id=tenant_id,
+            user_id=user_id,
+            company_name="AB Test Corp",
+            balance=300.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        cmp = AdCampaign.create(
+            id="cmp_ab_13",
+            advertiser_id=adv.id,
+            name="SaaS Analytics AB",
+            product_name="PulseMetrics",
+            advertisement_text="Default Copy: Monitor your metrics.",
+            landing_url="https://pulse.example.com",
+            target_categories=["analytics"],
+            keywords=["metrics", "analytics", "dashboard", "дашборд", "метрик"],
+            pricing_model="cpc",
+            bid_amount=0.40,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        # 1. Create 2 Variants for A/B Testing
+        var_a = AdVariantService.create_variant(
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            data={
+                "name": "Вариант A (Прямой оффер)",
+                "advertisement_text": "Оффер A: Увеличьте конверсию на 40% с PulseMetrics.",
+                "landing_url": "https://pulse.example.com/offer-a",
+                "weight": 1.0,
+                "is_active": True,
+            },
+        )
+        self.assertTrue(var_a["id"])
+        self.assertEqual(var_a["name"], "Вариант A (Прямой оффер)")
+
+        var_b = AdVariantService.create_variant(
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            data={
+                "name": "Вариант B (Скидка 20%)",
+                "advertisement_text": "Оффер B: Получите скидку 20% на PulseMetrics.",
+                "landing_url": "https://pulse.example.com/offer-b",
+                "weight": 1.0,
+                "is_active": True,
+            },
+        )
+        self.assertTrue(var_b["id"])
+
+        # 2. List variants
+        variants = AdVariantService.list_variants(campaign_id=cmp.id, advertiser_id=adv.id)
+        self.assertEqual(len(variants), 2)
+
+        # 3. Match query and verify variant selection
+        match = AdEngineService.match_campaign_for_query(
+            user_query="какой лучший дашборд для метрик бизнеса?",
+            user_id="user_query_13",
+            tenant_id="free_tenant_ab",
+            detected_lang="ru",
+            model_name="gpt-4o",
+        )
+        self.assertIsNotNone(match)
+        self.assertIn(match["variant_id"], [var_a["id"], var_b["id"]])
+        self.assertIn("PulseMetrics", match["advertisement_text"])
+        self.assertIn(match["variant_id"], match["tracking_url"])
+
+        # Check that the chosen variant incremented impressions
+        v_chosen = AdVariant.get_by_id(match["variant_id"])
+        self.assertGreaterEqual(v_chosen.impressions, 1)
+
+        # 4. Click tracking on the chosen variant
+        token = match["tracking_url"].replace("/v1/ads/r/", "")
+        dest_url = AdEngineService.track_click(click_token=token, user_id="user_query_13")
+        self.assertIn(dest_url, ["https://pulse.example.com/offer-a", "https://pulse.example.com/offer-b"])
+
+        # Verify click recorded on variant
+        v_clicked = AdVariant.get_by_id(match["variant_id"])
+        self.assertGreaterEqual(v_clicked.clicks, 1)
+        self.assertGreater(v_clicked.clicks / v_clicked.impressions, 0.0)
+
+        # 5. Multi-Armed Bandit CTR optimization test:
+        # Give Variant B very high CTR (10 clicks out of 10 impressions = 100%)
+        # Give Variant A low CTR (1 click out of 10 impressions = 10%)
+        var_a_obj = AdVariant.get_by_id(var_a["id"])
+        var_a_obj.impressions = 10
+        var_a_obj.clicks = 1
+        var_a_obj.save()
+
+        var_b_obj = AdVariant.get_by_id(var_b["id"])
+        var_b_obj.impressions = 10
+        var_b_obj.clicks = 10
+        var_b_obj.save()
+
+        # Run 50 selections: Bandit should exploit Variant B (highest CTR) for majority of selections
+        b_count = 0
+        for _ in range(50):
+            sel_var, _, _ = AdVariantService.select_variant_for_impression(cmp)
+            if sel_var and sel_var.id == var_b["id"]:
+                b_count += 1
+
+        # With 80% exploitation + random share in exploration, Variant B should win >= 35 times out of 50 (>= 70%)
+        self.assertGreaterEqual(b_count, 35, f"Variant B should be exploited by bandit (won {b_count}/50)")
+
+        # 6. Test Variant toggle and deletion
+        toggle_res = AdVariantService.toggle_variant(var_a["id"], adv.id)
+        self.assertFalse(toggle_res["is_active"])
+
+        del_res = AdVariantService.delete_variant(var_a["id"], adv.id)
+        self.assertTrue(del_res)
+        self.assertEqual(len(AdVariantService.list_variants(cmp.id, adv.id)), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

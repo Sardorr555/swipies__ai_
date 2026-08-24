@@ -15,6 +15,7 @@
 #
 import json
 import logging
+import random
 import re
 import time
 import uuid
@@ -26,6 +27,7 @@ from api.db.db_models import (
     DB,
     Advertiser,
     AdCampaign,
+    AdVariant,
     AdImpression,
     AdClick,
     AdTransaction,
@@ -65,6 +67,152 @@ class AdvertiserService(CommonService):
 
 class AdCampaignService(CommonService):
     model = AdCampaign
+
+
+class AdVariantService(CommonService):
+    model = AdVariant
+
+    @classmethod
+    @DB.connection_context()
+    def list_variants(cls, campaign_id: str, advertiser_id: str = "") -> list:
+        query = AdVariant.select().where(AdVariant.campaign_id == campaign_id)
+        if advertiser_id:
+            query = query.where(AdVariant.advertiser_id == advertiser_id)
+        variants = list(query.order_by(AdVariant.create_time.asc()))
+        res = []
+        for v in variants:
+            ctr = (v.clicks / v.impressions * 100.0) if v.impressions > 0 else 0.0
+            res.append({
+                "id": v.id,
+                "campaign_id": v.campaign_id,
+                "name": v.name,
+                "advertisement_text": v.advertisement_text,
+                "landing_url": v.landing_url or "",
+                "impressions": v.impressions,
+                "clicks": v.clicks,
+                "ctr": round(ctr, 2),
+                "weight": v.weight,
+                "is_active": v.is_active,
+                "create_time": v.create_time,
+            })
+        return res
+
+    @classmethod
+    @DB.connection_context()
+    def create_variant(cls, campaign_id: str, advertiser_id: str, data: dict) -> dict:
+        v_id = uuid.uuid4().hex[:32]
+        now_ts = current_timestamp()
+        variant = AdVariant.create(
+            id=v_id,
+            campaign_id=campaign_id,
+            advertiser_id=advertiser_id,
+            name=data.get("name") or "Вариант B",
+            advertisement_text=data.get("advertisement_text", ""),
+            landing_url=data.get("landing_url") or "",
+            weight=float(data.get("weight", 1.0) or 1.0),
+            is_active=bool(data.get("is_active", True)),
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+        return {
+            "id": variant.id,
+            "campaign_id": variant.campaign_id,
+            "name": variant.name,
+            "advertisement_text": variant.advertisement_text,
+            "landing_url": variant.landing_url or "",
+            "impressions": 0,
+            "clicks": 0,
+            "ctr": 0.0,
+            "weight": variant.weight,
+            "is_active": variant.is_active,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def update_variant(cls, variant_id: str, advertiser_id: str, data: dict) -> dict:
+        variant = AdVariant.get_or_none(AdVariant.id == variant_id, AdVariant.advertiser_id == advertiser_id)
+        if not variant:
+            return {}
+        if "name" in data:
+            variant.name = data["name"]
+        if "advertisement_text" in data:
+            variant.advertisement_text = data["advertisement_text"]
+        if "landing_url" in data:
+            variant.landing_url = data["landing_url"]
+        if "weight" in data:
+            variant.weight = float(data["weight"])
+        if "is_active" in data:
+            variant.is_active = bool(data["is_active"])
+        variant.update_time = current_timestamp()
+        variant.save()
+        ctr = (variant.clicks / variant.impressions * 100.0) if variant.impressions > 0 else 0.0
+        return {
+            "id": variant.id,
+            "campaign_id": variant.campaign_id,
+            "name": variant.name,
+            "advertisement_text": variant.advertisement_text,
+            "landing_url": variant.landing_url or "",
+            "impressions": variant.impressions,
+            "clicks": variant.clicks,
+            "ctr": round(ctr, 2),
+            "weight": variant.weight,
+            "is_active": variant.is_active,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def toggle_variant(cls, variant_id: str, advertiser_id: str) -> dict:
+        variant = AdVariant.get_or_none(AdVariant.id == variant_id, AdVariant.advertiser_id == advertiser_id)
+        if not variant:
+            return {}
+        variant.is_active = not variant.is_active
+        variant.update_time = current_timestamp()
+        variant.save()
+        return {"id": variant.id, "is_active": variant.is_active}
+
+    @classmethod
+    @DB.connection_context()
+    def delete_variant(cls, variant_id: str, advertiser_id: str) -> bool:
+        variant = AdVariant.get_or_none(AdVariant.id == variant_id, AdVariant.advertiser_id == advertiser_id)
+        if not variant:
+            return False
+        variant.delete_instance()
+        return True
+
+    @classmethod
+    @DB.connection_context()
+    def select_variant_for_impression(cls, campaign: AdCampaign) -> tuple:
+        """
+        Selects an ad variant for an impression using an Epsilon-Greedy Bandit strategy:
+        - 80% exploitation: selects the variant with highest CTR (min 10 impressions) or highest weight.
+        - 20% exploration: selects a random active variant to discover new high-performing copy.
+        Returns: (selected_variant, ad_text, landing_url)
+        """
+        variants = list(
+            AdVariant.select()
+            .where(AdVariant.campaign_id == campaign.id, AdVariant.is_active == True)
+        )
+        if not variants:
+            return None, campaign.advertisement_text, campaign.landing_url
+
+        if len(variants) == 1:
+            v = variants[0]
+            return v, v.advertisement_text, (v.landing_url or campaign.landing_url)
+
+        # Multi-variant Bandit Selection
+        # Explore (20%): random choice
+        if random.random() < 0.20:
+            v = random.choice(variants)
+            return v, v.advertisement_text, (v.landing_url or campaign.landing_url)
+
+        # Exploit (80%): pick variant with highest CTR (or highest weight if low data)
+        def variant_score(item: AdVariant) -> float:
+            if item.impressions >= 10:
+                return (item.clicks / item.impressions) * 100.0 * (item.weight or 1.0)
+            return (item.weight or 1.0) * 5.0
+
+        best_variant = max(variants, key=variant_score)
+        return best_variant, best_variant.advertisement_text, (best_variant.landing_url or campaign.landing_url)
 
 
 class AdImpressionService(CommonService):
@@ -125,12 +273,13 @@ class AdEngineService:
     @DB.connection_context()
     def match_campaign_for_query(
         cls,
-        tenant_id: str,
-        user_id: str,
-        user_query: str,
+        tenant_id: str = "",
+        user_id: str = "",
+        user_query: str = "",
         conversation_id: str = "",
         message_id: str = "",
         lang: str = "",
+        detected_lang: str = "",
         model_name: str = "",
     ) -> dict | None:
         """
@@ -150,7 +299,7 @@ class AdEngineService:
         query_words = set(re.findall(r"\b\w{3,}\b", clean_query))
 
         # Detect effective language (UZ, RU, EN)
-        effective_lang = (lang or "").lower().strip()
+        effective_lang = (lang or detected_lang or "").lower().strip()
         if not effective_lang:
             if re.search(r"[\u0400-\u04FF]", clean_query):
                 if re.search(r"[ўғқҳЎҒҚҲ]", clean_query) or any(w in clean_query for w in ["salom", "qanday", "yordam", "kerak", "uchun"]):
@@ -277,12 +426,16 @@ class AdEngineService:
         candidates.sort(key=lambda x: x[0], reverse=True)
         winner_score, winner_campaign, cost = candidates[0]
 
+        # Select active variant (A/B testing with Bandit strategy) or fallback to campaign defaults
+        selected_variant, ad_text, landing_url = AdVariantService.select_variant_for_impression(winner_campaign)
+
         # Record Impression
         impression_id = uuid.uuid4().hex[:32]
         try:
             AdImpression.create(
                 id=impression_id,
                 campaign_id=winner_campaign.id,
+                variant_id=(selected_variant.id if selected_variant else None),
                 advertiser_id=winner_campaign.advertiser_id,
                 user_id=user_id or "",
                 tenant_id=tenant_id or "",
@@ -296,6 +449,10 @@ class AdEngineService:
                 platform="web",
                 create_time=now_ts,
             )
+
+            if selected_variant:
+                selected_variant.impressions += 1
+                selected_variant.save()
 
             # Deduct balance if CPM model
             if winner_campaign.pricing_model == "cpm":
@@ -320,18 +477,20 @@ class AdEngineService:
             logger.warning(f"Failed to record AdImpression: {e}")
 
         # Build clean campaign context with click tracking token
-        click_token = f"{winner_campaign.id}_{impression_id}_{user_id or 'anon'}"
+        variant_tag = selected_variant.id if selected_variant else "main"
+        click_token = f"{winner_campaign.id}_{impression_id}_{user_id or 'anon'}_{variant_tag}"
         tracking_url = f"/v1/ads/r/{click_token}"
 
         return {
             "id": winner_campaign.id,
             "campaign_id": winner_campaign.id,
+            "variant_id": selected_variant.id if selected_variant else None,
             "impression_id": impression_id,
             "advertiser": winner_campaign.advertiser.company_name or "Verified Sponsor",
             "product": winner_campaign.product_name,
             "description": winner_campaign.description or "",
-            "advertisement_text": winner_campaign.advertisement_text,
-            "landing_url": winner_campaign.landing_url,
+            "advertisement_text": ad_text,
+            "landing_url": landing_url,
             "tracking_url": tracking_url,
             "target_categories": winner_campaign.target_categories or [],
         }
@@ -351,13 +510,23 @@ class AdEngineService:
         imp_model = "gpt-4o"
         imp_device = "desktop"
         imp_platform = "web"
+        target_variant_id = ""
 
         impression = AdImpression.get_or_none(AdImpression.id == click_token)
+        if not impression and "_" in click_token:
+            for part in click_token.split("_"):
+                if len(part) == 32:
+                    imp_cand = AdImpression.get_or_none(AdImpression.id == part)
+                    if imp_cand:
+                        impression = imp_cand
+                        break
+
         if impression:
             campaign = AdCampaign.get_or_none(AdCampaign.id == impression.campaign_id)
             campaign_id = impression.campaign_id
             impression_id = impression.id
-            token_user_id = impression.user_id
+            token_user_id = impression.user_id or user_id
+            target_variant_id = getattr(impression, "variant_id", "") or ""
             imp_lang = getattr(impression, "language", "ru") or "ru"
             imp_model = getattr(impression, "model_name", "gpt-4o") or "gpt-4o"
             imp_device = getattr(impression, "device_type", "desktop") or "desktop"
@@ -369,23 +538,22 @@ class AdEngineService:
                 impression_id = ""
                 token_user_id = user_id
             elif "_" in click_token:
-                parts = click_token.rsplit("_", 2)
-                if len(parts) == 3:
-                    campaign_id, impression_id, token_user_id = parts
-                elif len(parts) == 2:
-                    campaign_id, impression_id = parts
-                    token_user_id = user_id
-                else:
-                    campaign_id = parts[0]
+                campaign = None
+                for i in range(len(click_token.split("_")), 0, -1):
+                    prefix = "_".join(click_token.split("_")[:i])
+                    cand_cmp = AdCampaign.get_or_none(AdCampaign.id == prefix)
+                    if cand_cmp:
+                        campaign = cand_cmp
+                        campaign_id = cand_cmp.id
+                        rem_parts = click_token[len(prefix) + 1:].split("_")
+                        impression_id = rem_parts[0] if len(rem_parts) > 0 else ""
+                        token_user_id = rem_parts[1] if len(rem_parts) > 1 else user_id
+                        break
+                if not campaign:
+                    campaign_id = click_token
                     impression_id = ""
                     token_user_id = user_id
-                campaign = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
-                if impression_id:
-                    matched_imp = AdImpression.get_or_none(AdImpression.id == impression_id)
-                    if matched_imp:
-                        imp_lang = getattr(matched_imp, "language", "ru") or "ru"
-                        imp_model = getattr(matched_imp, "model_name", "gpt-4o") or "gpt-4o"
-                        imp_device = getattr(matched_imp, "device_type", "desktop") or "desktop"
+                    campaign = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
             else:
                 campaign_id = click_token
                 impression_id = ""
@@ -406,11 +574,16 @@ class AdEngineService:
             AdClick.create_time >= one_hour_ago,
         ).first()
 
+        variant_obj = None
+        if target_variant_id and target_variant_id != "main":
+            variant_obj = AdVariant.get_or_none(AdVariant.id == target_variant_id)
+
         if not recent_click:
             click_id = uuid.uuid4().hex[:32]
             AdClick.create(
                 id=click_id,
                 campaign_id=campaign.id,
+                variant_id=variant_obj.id if variant_obj else None,
                 impression_id=impression_id,
                 advertiser_id=campaign.advertiser_id,
                 user_id=token_user_id or "",
@@ -422,6 +595,10 @@ class AdEngineService:
                 platform=imp_platform,
                 create_time=now_ts,
             )
+
+            if variant_obj:
+                variant_obj.clicks += 1
+                variant_obj.save()
 
             if cost > 0:
                 campaign.spent_today += cost
@@ -442,6 +619,9 @@ class AdEngineService:
                         reference_id=click_id,
                         create_time=now_ts,
                     )
+
+        if variant_obj and variant_obj.landing_url:
+            return variant_obj.landing_url
 
         return campaign.landing_url or "https://swipies.app"
 

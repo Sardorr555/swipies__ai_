@@ -29,6 +29,9 @@ import {
   Smartphone,
   Laptop,
   Cpu,
+  FlaskConical,
+  Shuffle,
+  Trophy,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -62,6 +65,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AtmosPaymentModal from '@/components/atmos-payment-modal';
 import adService, {
   AdCampaignItem,
+  AdVariantItem,
   AdTransactionItem,
   AdvertiserDashboardData,
   TimelineAnalyticsData,
@@ -86,6 +90,17 @@ export default function SwipiesAdsPage() {
   const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<AdCampaignItem | null>(null);
   const [analyticsData, setAnalyticsData] = useState<CampaignDetailedAnalyticsData | any>(null);
+
+  // A/B Testing Modal state
+  const [isVariantsModalOpen, setIsVariantsModalOpen] = useState(false);
+  const [variantsCampaign, setVariantsCampaign] = useState<AdCampaignItem | null>(null);
+  const [variantsList, setVariantsList] = useState<AdVariantItem[]>([]);
+  const [loadingVariants, setLoadingVariants] = useState(false);
+  const [newVariantName, setNewVariantName] = useState('');
+  const [newVariantText, setNewVariantText] = useState('');
+  const [newVariantUrl, setNewVariantUrl] = useState('');
+  const [newVariantWeight, setNewVariantWeight] = useState('1.0');
+  const [isGeneratingVariantCopy, setIsGeneratingVariantCopy] = useState(false);
 
   // Form states
   const [campaignForm, setCampaignForm] = useState<Partial<AdCampaignItem>>({
@@ -335,6 +350,102 @@ export default function SwipiesAdsPage() {
       setAnalyticsData(res.data?.data || null);
     } catch (err: any) {
       message.error('Failed to load campaign analytics');
+    }
+  };
+
+  const fetchVariants = async (campaignId: string) => {
+    setLoadingVariants(true);
+    try {
+      const res = await adService.getCampaignVariants(campaignId);
+      if (res.data?.data) {
+        setVariantsList(res.data.data);
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка загрузки вариантов объявления');
+    } finally {
+      setLoadingVariants(false);
+    }
+  };
+
+  const handleOpenVariants = (cmp: AdCampaignItem) => {
+    setVariantsCampaign(cmp);
+    setNewVariantName('');
+    setNewVariantText('');
+    setNewVariantUrl(cmp.landing_url || '');
+    setNewVariantWeight('1.0');
+    setIsVariantsModalOpen(true);
+    fetchVariants(cmp.id);
+  };
+
+  const handleCreateVariant = async () => {
+    if (!variantsCampaign) return;
+    if (!newVariantText.trim()) {
+      message.error('Укажите текст рекламного объявления для нового варианта');
+      return;
+    }
+    try {
+      await adService.createCampaignVariant(variantsCampaign.id, {
+        name: newVariantName.trim() || `Вариант ${variantsList.length + 1}`,
+        advertisement_text: newVariantText.trim(),
+        landing_url: newVariantUrl.trim() || undefined,
+        weight: parseFloat(newVariantWeight) || 1.0,
+        is_active: true,
+      });
+      message.success('Новый вариант объявления добавлен в ротацию!');
+      setNewVariantName('');
+      setNewVariantText('');
+      setNewVariantUrl(variantsCampaign.landing_url || '');
+      setNewVariantWeight('1.0');
+      fetchVariants(variantsCampaign.id);
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка при создании варианта');
+    }
+  };
+
+  const handleToggleVariant = async (v: AdVariantItem) => {
+    if (!variantsCampaign) return;
+    try {
+      await adService.toggleCampaignVariant(variantsCampaign.id, v.id);
+      message.success(`Вариант «${v.name}» ${v.is_active ? 'поставлен на паузу' : 'активирован'}!`);
+      fetchVariants(variantsCampaign.id);
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка при изменении статуса варианта');
+    }
+  };
+
+  const handleDeleteVariant = async (v: AdVariantItem) => {
+    if (!variantsCampaign) return;
+    try {
+      await adService.deleteCampaignVariant(variantsCampaign.id, v.id);
+      message.success(`Вариант «${v.name}» удален!`);
+      fetchVariants(variantsCampaign.id);
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка при удалении варианта');
+    }
+  };
+
+  const handleGenerateVariantAI = async () => {
+    if (!variantsCampaign) return;
+    setIsGeneratingVariantCopy(true);
+    try {
+      const res = await adService.generateCopy({
+        product_name: variantsCampaign.product_name,
+        landing_url: variantsCampaign.landing_url,
+        description: `Альтернативный продающий оффер для A/B тестирования: ${variantsCampaign.name}`,
+        lang: 'ru',
+      });
+      if (res.data?.data?.ad_copy_variations && res.data.data.ad_copy_variations.length > 0) {
+        const altIndex = Math.min(1, res.data.data.ad_copy_variations.length - 1);
+        setNewVariantText(res.data.data.ad_copy_variations[altIndex] || res.data.data.ad_copy_variations[0]);
+        if (!newVariantName) {
+          setNewVariantName(`Вариант ${variantsList.length + 1} (AI Оффер)`);
+        }
+        message.success('AI сгенерировал новый вариант рекламного текста!');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка при генерации варианта');
+    } finally {
+      setIsGeneratingVariantCopy(false);
     }
   };
 
@@ -612,6 +723,15 @@ export default function SwipiesAdsPage() {
                                 ) : (
                                   <Play className="h-4 w-4 text-emerald-500" />
                                 )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenVariants(cmp)}
+                                title="A/B Тестирование & Варианты"
+                                className="text-purple-600 hover:text-purple-700 dark:text-purple-400"
+                              >
+                                <FlaskConical className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="sm"
@@ -1527,6 +1647,235 @@ export default function SwipiesAdsPage() {
 
           <DialogFooter>
             <Button onClick={() => setIsAnalyticsModalOpen(false)}>Закрыть</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* A/B Testing & Copy Variants Modal */}
+      <Dialog open={isVariantsModalOpen} onOpenChange={setIsVariantsModalOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                  <FlaskConical className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle>A/B Тестирование & Варианты объявлений</DialogTitle>
+                  <DialogDescription>
+                    Кампания: <span className="font-semibold text-foreground">{variantsCampaign?.name}</span> ({variantsCampaign?.product_name})
+                  </DialogDescription>
+                </div>
+              </div>
+              <Badge variant="outline" className="border-purple-500/30 text-purple-600 bg-purple-500/10 flex items-center gap-1">
+                <Shuffle className="h-3 w-3" /> Multi-Armed Bandit
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Info notice */}
+            <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/50 text-xs text-blue-800 dark:text-blue-200 flex items-start gap-2.5">
+              <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>Автоматическая CTR-оптимизация:</strong> Движок в реальном времени распределяет 80% показов варианту с наивысшим CTR, а 20% показов направляет на исследование новых вариантов текста.
+              </div>
+            </div>
+
+            {/* List of existing variants */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                  <Layers className="h-4 w-4 text-muted-foreground" /> Варианты в ротации ({variantsList.length})
+                </h4>
+                <Button size="sm" variant="ghost" onClick={() => variantsCampaign && fetchVariants(variantsCampaign.id)} disabled={loadingVariants} className="h-7 text-xs">
+                  <RefreshCw className={`h-3 w-3 mr-1 ${loadingVariants ? 'animate-spin' : ''}`} /> Обновить
+                </Button>
+              </div>
+
+              {loadingVariants ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">Загрузка вариантов...</div>
+              ) : variantsList.length === 0 ? (
+                <div className="p-4 rounded-lg border border-dashed text-center text-xs text-muted-foreground">
+                  У этой кампании пока нет дополнительных вариантов (используется основной текст по умолчанию).
+                  Добавьте альтернативные заголовки ниже для запуска A/B теста!
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {variantsList.map((v) => {
+                    const maxCtr = Math.max(...variantsList.map((x) => x.ctr));
+                    const isLeader = variantsList.length > 1 && v.impressions >= 5 && v.ctr === maxCtr && maxCtr > 0;
+                    return (
+                      <div
+                        key={v.id}
+                        className={`p-3.5 rounded-lg border transition-all ${
+                          !v.is_active
+                            ? 'bg-muted/20 border-muted opacity-60'
+                            : isLeader
+                            ? 'bg-purple-50/40 border-purple-300 dark:bg-purple-950/20 dark:border-purple-800'
+                            : 'bg-card border-border'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm">{v.name}</span>
+                              {isLeader && (
+                                <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] flex items-center gap-1 py-0 h-4">
+                                  <Trophy className="h-2.5 w-2.5" /> Топ CTR
+                                </Badge>
+                              )}
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] h-4 ${
+                                  v.is_active
+                                    ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/10'
+                                    : 'border-zinc-400 text-zinc-500 bg-zinc-500/10'
+                                }`}
+                              >
+                                {v.is_active ? 'В ротации' : 'На паузе'}
+                              </Badge>
+                              <span className="text-[11px] text-muted-foreground">Вес: {v.weight}x</span>
+                            </div>
+                            <p className="text-xs text-foreground bg-muted/30 p-2 rounded border border-muted/50 whitespace-pre-wrap font-sans">
+                              "{v.advertisement_text}"
+                            </p>
+                            {v.landing_url && (
+                              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <span>URL перехода:</span>
+                                <a href={v.landing_url} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline truncate max-w-[280px]">
+                                  {v.landing_url}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            {/* Metrics pill */}
+                            <div className="flex items-center gap-3 bg-muted/50 px-2.5 py-1 rounded text-xs">
+                              <div>
+                                <span className="text-muted-foreground text-[10px] block">Показы</span>
+                                <span className="font-semibold">{v.impressions.toLocaleString()}</span>
+                              </div>
+                              <div className="h-6 w-px bg-border" />
+                              <div>
+                                <span className="text-muted-foreground text-[10px] block">Клики</span>
+                                <span className="font-semibold text-emerald-600">{v.clicks.toLocaleString()}</span>
+                              </div>
+                              <div className="h-6 w-px bg-border" />
+                              <div>
+                                <span className="text-muted-foreground text-[10px] block">CTR</span>
+                                <span className="font-bold text-blue-600">{v.ctr}%</span>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handleToggleVariant(v)}
+                              >
+                                {v.is_active ? (
+                                  <span className="flex items-center gap-1 text-amber-600"><Pause className="h-3 w-3" /> Пауза</span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-emerald-600"><Play className="h-3 w-3" /> Включить</span>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs text-red-500 hover:text-red-600"
+                                onClick={() => handleDeleteVariant(v)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Form: Add New Variant */}
+            <div className="p-4 rounded-xl border bg-muted/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                  <Plus className="h-4 w-4 text-blue-500" /> Добавить вариант объявления
+                </h4>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-300"
+                  onClick={handleGenerateVariantAI}
+                  disabled={isGeneratingVariantCopy}
+                >
+                  <Sparkles className={`h-3 w-3 mr-1 ${isGeneratingVariantCopy ? 'animate-spin' : ''}`} />
+                  {isGeneratingVariantCopy ? 'Генерация...' : '✨ Сгенерировать AI-оффер'}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Название варианта</label>
+                  <Input
+                    placeholder="Например: Вариант B (Скидка 20%)"
+                    value={newVariantName}
+                    onChange={(e) => setNewVariantName(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Вес трафика (1.0 = 100%)</label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    max="5.0"
+                    value={newVariantWeight}
+                    onChange={(e) => setNewVariantWeight(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Текст рекламного объявления (A/B Copy)</label>
+                <Textarea
+                  placeholder="Введите привлекательный текст оффера..."
+                  value={newVariantText}
+                  onChange={(e) => setNewVariantText(e.target.value)}
+                  rows={2}
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Посадочная страница (Landing URL, опционально)</label>
+                <Input
+                  placeholder="https://yourbrand.com/promo-b"
+                  value={newVariantUrl}
+                  onChange={(e) => setNewVariantUrl(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <Button
+                onClick={handleCreateVariant}
+                disabled={!newVariantText.trim()}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs h-8"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Добавить вариант в A/B ротацию
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setIsVariantsModalOpen(false)}>Закрыть</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

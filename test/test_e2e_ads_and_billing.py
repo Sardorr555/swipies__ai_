@@ -265,6 +265,7 @@ from api.db.db_models import (
     UserTenant,
     Advertiser,
     AdCampaign,
+    AdVariant,
     AdImpression,
     AdClick,
     AdTransaction,
@@ -280,6 +281,7 @@ from api.db.services.ad_engine_service import (
     AdEngineService,
     AdvertiserService,
     AdCampaignService,
+    AdVariantService,
     AdSettingsService,
     AttributionService,
 )
@@ -298,6 +300,7 @@ def create_tenant(tenant_id: str, name: str = "Test Org", plan_type: str = "free
         img2txt_id="",
         rerank_id="",
         parser_ids="",
+        credit=0,
         plan_type=plan_type,
         create_time=current_timestamp(),
     )
@@ -315,7 +318,7 @@ def create_user(user_id: str, nickname: str = "John Doe", email: str = "user@swi
 
 def create_user_tenant(user_id: str, tenant_id: str, role: str = "owner"):
     return UserTenant.create(
-        id=uuid.uuid4().hex[:32],
+        id=f"ut_{user_id}_{tenant_id}"[:32],
         user_id=user_id,
         tenant_id=tenant_id,
         role=role,
@@ -341,6 +344,7 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             UserTenant,
             Advertiser,
             AdCampaign,
+            AdVariant,
             AdImpression,
             AdClick,
             AdTransaction,

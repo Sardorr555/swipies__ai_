@@ -148,6 +148,18 @@ const adService = {
   adminTogglePromoCode: (id: string) => request.put<ResponseData<{ id: string; is_active: boolean }>>(`/ads/admin/promo-codes/${id}/toggle`),
   adminDeletePromoCode: (id: string) => request.delete<ResponseData<boolean>>(`/ads/admin/promo-codes/${id}`),
 
+  // A/B Testing & Variants
+  getCampaignVariants: (campaignId: string) =>
+    request.get<ResponseData<AdVariantItem[]>>(`/ads/campaigns/${campaignId}/variants`),
+  createCampaignVariant: (campaignId: string, data: { name: string; advertisement_text: string; landing_url?: string; weight?: number; is_active?: boolean }) =>
+    request.post<ResponseData<AdVariantItem>>(`/ads/campaigns/${campaignId}/variants`, { data }),
+  updateCampaignVariant: (campaignId: string, variantId: string, data: Partial<AdVariantItem>) =>
+    request.put<ResponseData<AdVariantItem>>(`/ads/campaigns/${campaignId}/variants/${variantId}`, { data }),
+  toggleCampaignVariant: (campaignId: string, variantId: string) =>
+    request.put<ResponseData<{ id: string; is_active: boolean }>>(`/ads/campaigns/${campaignId}/variants/${variantId}/toggle`),
+  deleteCampaignVariant: (campaignId: string, variantId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/campaigns/${campaignId}/variants/${variantId}`),
+
   // Analytics & Charts
   getAdvertiserTimeline: (days: number = 14) =>
     request.get<ResponseData<TimelineAnalyticsData>>(`/ads/analytics/timeline?days=${days}`),
@@ -169,6 +181,20 @@ const adService = {
   // Attribution & Watermark Analytics
   getAttributionStats: () => request.get<ResponseData<AttributionStatsData>>('/ads/attribution/stats'),
 };
+
+export interface AdVariantItem {
+  id: string;
+  campaign_id: string;
+  name: string;
+  advertisement_text: string;
+  landing_url?: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  weight: number;
+  is_active: boolean;
+  create_time?: number;
+}
 
 export interface DailyTimelinePoint {
   date: string;
