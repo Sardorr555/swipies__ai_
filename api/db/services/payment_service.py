@@ -554,6 +554,44 @@ class AtmosService:
                 except Exception as ex:
                     logger.warning(f"Error calling handle_subscription_upgrade: {ex}")
 
+                # Save payment method & activate recurring subscription
+                try:
+                    from api.db.services.recurring_subscription_service import (
+                        RecurringSubscriptionService,
+                        SavedPaymentMethodService,
+                    )
+                    card_pm_id = ""
+                    meta = order.metadata or {}
+                    card_token = meta.get("card_token", "")
+                    card_pan = order.card_masked or meta.get("card_number", "8600 00** **** 0000")
+                    card_exp = meta.get("card_expiry", "12/28")
+                    card_type = meta.get("card_type", "uzcard")
+
+                    if card_token or order.card_masked:
+                        saved_card = SavedPaymentMethodService.save_card(
+                            user_id=order.user_id,
+                            tenant_id=order.tenant_id,
+                            card_pan_masked=order.card_masked or cls.mask_card(card_pan),
+                            card_expiry=card_exp,
+                            card_token=card_token or f"tok_{uuid.uuid4().hex[:16]}",
+                            card_type=card_type,
+                            set_default=True,
+                        )
+                        card_pm_id = saved_card.id
+
+                    sub = RecurringSubscriptionService.create_or_activate_subscription(
+                        user_id=order.user_id,
+                        tenant_id=order.tenant_id,
+                        plan_id=plan_name,
+                        payment_method_id=card_pm_id,
+                        price_usd=float(order.amount_usd or 0.0),
+                        auto_renew=True,
+                    )
+                    result["subscription_id"] = sub.id
+                    result["auto_renew"] = sub.auto_renew
+                except Exception as e:
+                    logger.warning(f"Error linking UserSubscription: {e}")
+
                 result["plan_type"] = plan_name
                 result["plan_expiry_date"] = tenant.plan_expiry_date.isoformat()
                 result["message"] = f"Подписка {plan_name.upper()} успешно активирована. Реклама и брендинг отключены на 100%."

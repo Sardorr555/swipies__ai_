@@ -1821,6 +1821,46 @@ class PaymentOrder(DataBaseModel):
         db_table = "payment_orders"
 
 
+class SavedPaymentMethod(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    card_pan_masked = CharField(max_length=32, null=False)  # e.g. "8600 06** **** 1234"
+    card_expiry = CharField(max_length=8, null=False)        # e.g. "12/28"
+    card_holder = CharField(max_length=128, null=True)
+    card_type = CharField(max_length=32, default="uzcard")   # uzcard, humo, visa, mastercard
+    card_token = CharField(max_length=255, null=False)       # token from Atmos for recurrent charges
+    is_default = BooleanField(default=True)
+    status = CharField(max_length=32, default="active", index=True)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "saved_payment_methods"
+
+
+class UserSubscription(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    plan_id = CharField(max_length=32, null=False, index=True)  # plus, pro
+    status = CharField(max_length=32, default="active", index=True)  # active, canceled, past_due, expired
+    current_period_start = BigIntegerField(null=False)
+    current_period_end = BigIntegerField(null=False, index=True)
+    auto_renew = BooleanField(default=True)
+    price_usd = FloatField(default=9.99)
+    payment_method_id = CharField(max_length=32, null=True)
+    last_billing_time = BigIntegerField(null=True)
+    next_billing_time = BigIntegerField(null=True, index=True)
+    cancel_at_period_end = BooleanField(default=False)
+    retry_count = IntegerField(default=0)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "user_subscriptions"
+
+
 class AdAttributionVisit(BaseModel):
     id = CharField(max_length=32, primary_key=True)
     user_id = CharField(max_length=32, null=False, index=True, help_text="Referrer account user id")

@@ -276,6 +276,8 @@ from api.db.db_models import (
     PromoCodeUsage,
     SubscriptionPlan,
     UserOnboarding,
+    SavedPaymentMethod,
+    UserSubscription,
 )
 from api.db.services.ad_engine_service import (
     AdEngineService,
@@ -284,6 +286,10 @@ from api.db.services.ad_engine_service import (
     AdVariantService,
     AdSettingsService,
     AttributionService,
+)
+from api.db.services.recurring_subscription_service import (
+    RecurringSubscriptionService,
+    SavedPaymentMethodService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.payment_service import AtmosService, PaymentOrderService
@@ -355,6 +361,8 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             PromoCodeUsage,
             SubscriptionPlan,
             UserOnboarding,
+            SavedPaymentMethod,
+            UserSubscription,
         ]
         for m in models:
             m._meta.database = test_db

@@ -32,6 +32,10 @@ import {
   FlaskConical,
   Shuffle,
   Trophy,
+  ShieldCheck,
+  Calendar,
+  RotateCw,
+  XCircle,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -70,6 +74,8 @@ import adService, {
   AdvertiserDashboardData,
   TimelineAnalyticsData,
   CampaignDetailedAnalyticsData,
+  UserSubscriptionData,
+  SavedPaymentMethodItem,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -77,6 +83,12 @@ export default function SwipiesAdsPage() {
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null);
   const [transactions, setTransactions] = useState<AdTransactionItem[]>([]);
   const [activeTab, setActiveTab] = useState('campaigns');
+
+  // Subscription & Saved Cards state
+  const [subscription, setSubscription] = useState<UserSubscriptionData | null>(null);
+  const [savedCards, setSavedCards] = useState<SavedPaymentMethodItem[]>([]);
+  const [isCardsModalOpen, setIsCardsModalOpen] = useState(false);
+  const [loadingSubscriptionAction, setLoadingSubscriptionAction] = useState(false);
 
   // Timeline Analytics state
   const [timelineData, setTimelineData] = useState<TimelineAnalyticsData | null>(null);
@@ -163,10 +175,74 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  const fetchSubscription = async () => {
+    try {
+      const res = await adService.getUserSubscription();
+      if (res.data?.data) {
+        setSubscription(res.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load subscription info', err);
+    }
+  };
+
+  const fetchSavedCards = async () => {
+    try {
+      const res = await adService.getSavedPaymentMethods();
+      if (res.data?.data) {
+        setSavedCards(res.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load saved cards', err);
+    }
+  };
+
+  const handleToggleAutoRenew = async () => {
+    if (!subscription) return;
+    setLoadingSubscriptionAction(true);
+    try {
+      if (subscription.auto_renew) {
+        await adService.cancelSubscription(false);
+        message.success('Автопродление подписки отключено. Подписка активна до окончания оплаченного периода.');
+      } else {
+        await adService.resumeSubscription();
+        message.success('Автопродление подписки успешно возобновлено!');
+      }
+      fetchSubscription();
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка обновления статуса автопродления');
+    } finally {
+      setLoadingSubscriptionAction(false);
+    }
+  };
+
+  const handleDeleteCard = async (cardId: string) => {
+    try {
+      await adService.deleteSavedPaymentMethod(cardId);
+      message.success('Карта успешно удалена');
+      fetchSavedCards();
+      fetchSubscription();
+    } catch (err: any) {
+      message.error(err.message || 'Не удалось удалить карту');
+    }
+  };
+
+  const handleTriggerRenewals = async () => {
+    try {
+      const res = await adService.adminProcessRenewals();
+      message.info(`Шедулер продления: обработано ${res.data?.data?.processed || 0}, продлено ${res.data?.data?.renewed || 0}`);
+      fetchSubscription();
+    } catch (err: any) {
+      message.error('Ошибка запуска шедулера');
+    }
+  };
+
   useEffect(() => {
     fetchDashboard();
     fetchTransactions();
     fetchTimeline(timelineDays);
+    fetchSubscription();
+    fetchSavedCards();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -1054,6 +1130,121 @@ export default function SwipiesAdsPage() {
         {/* 3. Billing Tab */}
         <TabsContent value="billing" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
+            {/* Subscription & Auto-Renewal Card */}
+            <Card className="md:col-span-1 border-blue-500/30 bg-gradient-to-br from-blue-950/20 via-background to-background">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-blue-500" />
+                    Тариф и Автопродление
+                  </CardTitle>
+                  <Badge
+                    variant={subscription?.plan_id === 'pro' ? 'default' : subscription?.plan_id === 'plus' ? 'secondary' : 'outline'}
+                    className="uppercase font-bold text-[10px]"
+                  >
+                    {subscription?.plan_id ? subscription.plan_id.toUpperCase() : 'FREE'}
+                  </Badge>
+                </div>
+                <CardDescription className="text-xs">
+                  Управление тарифным планом Swipies AI и привязанными картами
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="p-3 rounded-lg border bg-background/80 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Стоимость:</span>
+                    <span className="font-bold text-foreground">
+                      ${subscription?.price_usd ? subscription.price_usd.toFixed(2) : '0.00'} / мес
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Статус подписки:</span>
+                    {subscription?.status === 'active' ? (
+                      <span className="font-semibold text-emerald-500 flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Активна
+                      </span>
+                    ) : subscription?.status === 'past_due' ? (
+                      <span className="font-semibold text-rose-500 flex items-center gap-1">
+                        <AlertCircle className="h-3.5 w-3.5" /> Ошибка оплаты
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-zinc-400">Базовый (Free)</span>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Автопродление:</span>
+                    {subscription?.auto_renew ? (
+                      <Badge className="bg-emerald-600/20 text-emerald-500 hover:bg-emerald-600/30 border-emerald-500/30 text-[10px]">
+                        🟢 Включено (каждые 30 дн.)
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-zinc-400 text-[10px]">
+                        ⏸️ Отключено
+                      </Badge>
+                    )}
+                  </div>
+
+                  {subscription?.next_billing_time ? (
+                    <div className="flex justify-between items-center pt-1 border-t border-border/40">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3" /> Следующее списание:
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {new Date(subscription.next_billing_time).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {subscription?.card ? (
+                    <div className="flex justify-between items-center pt-1 border-t border-border/40">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <CreditCard className="h-3 w-3" /> Основная карта:
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {subscription.card.card_pan_masked}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col gap-2 pt-1">
+                  {subscription?.plan_id && subscription.plan_id !== 'free' && (
+                    <Button
+                      size="sm"
+                      variant={subscription.auto_renew ? 'outline' : 'default'}
+                      className="w-full text-xs"
+                      onClick={handleToggleAutoRenew}
+                      disabled={loadingSubscriptionAction}
+                    >
+                      {loadingSubscriptionAction ? (
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : subscription.auto_renew ? (
+                        <>
+                          <Pause className="mr-1.5 h-3.5 w-3.5 text-amber-500" /> Отключить автопродление
+                        </>
+                      ) : (
+                        <>
+                          <Play className="mr-1.5 h-3.5 w-3.5 text-emerald-500" /> Возобновить автопродление
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs flex items-center justify-center gap-1.5"
+                    onClick={() => setIsCardsModalOpen(true)}
+                  >
+                    <CreditCard className="h-3.5 w-3.5 text-blue-500" />
+                    Сохранённые карты ({savedCards.length})
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="md:col-span-1">
               <CardHeader>
                 <CardTitle>Advertiser Wallet</CardTitle>
@@ -1072,6 +1263,30 @@ export default function SwipiesAdsPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            <Card className="md:col-span-1">
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold">Уведомления и Безопасность</CardTitle>
+                <CardDescription className="text-xs">Защищённые транзакции и СМС-оповещения</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2.5 text-xs text-muted-foreground">
+                <div className="p-2.5 rounded border bg-muted/20 space-y-1">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-blue-500" /> Безопасная токенизация
+                  </div>
+                  <p>Все платежи обрабатываются через сертифицированный шлюз Atmos. Данные карт зашифрованы.</p>
+                </div>
+                <div className="p-2.5 rounded border bg-muted/20 space-y-1">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5 text-amber-500" /> Мгновенный перерасчёт
+                  </div>
+                  <p>При автопродлении все преимущества тарифа (лимиты токенов, отсутствие рекламы) продлеваются без пауз.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4">
 
             <Card className="md:col-span-2">
               <CardHeader className="flex flex-row items-center justify-between">
@@ -1876,6 +2091,68 @@ export default function SwipiesAdsPage() {
 
           <DialogFooter>
             <Button onClick={() => setIsVariantsModalOpen(false)}>Закрыть</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Saved Cards Modal */}
+      <Dialog open={isCardsModalOpen} onOpenChange={setIsCardsModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-blue-500" /> Сохранённые банковские карты
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Карты Uzcard, Humo, Visa и Mastercard, сохранённые для автопродления подписки и пополнения баланса.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-3 space-y-3">
+            {savedCards.length === 0 ? (
+              <div className="py-8 text-center text-xs text-muted-foreground border rounded-lg bg-muted/20">
+                <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                Нет сохранённых карт. При следующей оплате подписки или пополнении кошелька карта сохранится автоматически.
+              </div>
+            ) : (
+              savedCards.map((card) => (
+                <div
+                  key={card.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded bg-blue-500/10 text-blue-500 font-bold uppercase text-[11px]">
+                      {card.card_type || 'UZCARD'}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-foreground flex items-center gap-2">
+                        {card.card_pan_masked}
+                        {card.is_default && (
+                          <Badge variant="outline" className="text-[9px] py-0 px-1 text-blue-500 border-blue-500/30">
+                            Основная
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Срок действия: {card.card_expiry}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                    onClick={() => handleDeleteCard(card.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setIsCardsModalOpen(false)}>Готово</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

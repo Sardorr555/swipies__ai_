@@ -180,7 +180,52 @@ const adService = {
 
   // Attribution & Watermark Analytics
   getAttributionStats: () => request.get<ResponseData<AttributionStatsData>>('/ads/attribution/stats'),
+
+  // Recurring Subscriptions & Saved Cards
+  getUserSubscription: () =>
+    request.get<ResponseData<UserSubscriptionData>>('/ads/billing/subscription'),
+  cancelSubscription: (immediate: boolean = false) =>
+    request.post<ResponseData<{ success: boolean; status: string; cancel_at_period_end?: boolean; valid_until?: number }>>('/ads/billing/subscription/cancel', { data: { immediate } }),
+  resumeSubscription: () =>
+    request.post<ResponseData<{ success: boolean; status: string; auto_renew: boolean; next_billing_time: number }>>('/ads/billing/subscription/resume'),
+  getSavedPaymentMethods: () =>
+    request.get<ResponseData<SavedPaymentMethodItem[]>>('/ads/billing/payment-methods'),
+  deleteSavedPaymentMethod: (cardId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/billing/payment-methods/${cardId}`),
+  adminProcessRenewals: () =>
+    request.post<ResponseData<{ processed: number; renewed: number; failed: number }>>('/ads/admin/subscriptions/process-renewals'),
 };
+
+export interface SavedPaymentMethodItem {
+  id: string;
+  card_pan_masked: string;
+  card_expiry: string;
+  card_holder?: string;
+  card_type: string;
+  is_default: boolean;
+  create_time: number;
+}
+
+export interface UserSubscriptionData {
+  id: string;
+  user_id?: string;
+  tenant_id?: string;
+  plan_id: string;
+  status: string;
+  auto_renew: boolean;
+  price_usd: number;
+  current_period_start: number;
+  current_period_end: number;
+  next_billing_time: number;
+  cancel_at_period_end: boolean;
+  retry_count?: number;
+  card?: {
+    id: string;
+    card_pan_masked: string;
+    card_type: string;
+    card_expiry: string;
+  };
+}
 
 export interface AdVariantItem {
   id: string;

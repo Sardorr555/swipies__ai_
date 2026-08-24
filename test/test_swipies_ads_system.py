@@ -273,6 +273,9 @@ from api.db.db_models import (
     Tenant,
     SubscriptionPlan,
     UserOnboarding,
+    PaymentOrder,
+    SavedPaymentMethod,
+    UserSubscription,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -283,6 +286,10 @@ from api.db.services.ad_engine_service import (
     AdTransactionService,
     AdSettingsService,
     AdEngineService,
+)
+from api.db.services.recurring_subscription_service import (
+    RecurringSubscriptionService,
+    SavedPaymentMethodService,
 )
 from api.db.services.ad_policy_service import AdPolicyService, SWIPIES_ADVERTISING_RULES
 from common.time_utils import current_timestamp
@@ -314,6 +321,9 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             Tenant,
             SubscriptionPlan,
             UserOnboarding,
+            PaymentOrder,
+            SavedPaymentMethod,
+            UserSubscription,
         ]
         for m in models:
             m._meta.database = test_db
@@ -1249,8 +1259,124 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertTrue(del_res)
         self.assertEqual(len(AdVariantService.list_variants(cmp.id, adv.id)), 1)
 
+    def test_14_auto_recurring_subscription_and_renewal_engine(self):
+        """Test 14: Card tokenization, automatic subscription renewal, cancellation, and retry downgrade."""
+        user_id = "user_rec_14"
+        tenant_id = "tenant_rec_14"
+
+        tenant = Tenant.create(
+            id=tenant_id,
+            name="Recurring Test Org",
+            llm_id="",
+            embd_id="",
+            asr_id="",
+            img2txt_id="",
+            rerank_id="",
+            parser_ids="",
+            credit=0,
+            plan_type="free",
+            create_time=current_timestamp(),
+        )
+
+        # 1. Save Card Payment Method
+        card = SavedPaymentMethodService.save_card(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            card_pan_masked="8600 06** **** 5555",
+            card_expiry="08/29",
+            card_token="tok_uzcard_test_14",
+            card_type="uzcard",
+            set_default=True,
+        )
+        self.assertTrue(card.id)
+        self.assertEqual(card.card_pan_masked, "8600 06** **** 5555")
+
+        cards = SavedPaymentMethodService.list_user_cards(user_id=user_id)
+        self.assertEqual(len(cards), 1)
+
+        # 2. Activate Plus Subscription with auto_renew=True
+        sub = RecurringSubscriptionService.create_or_activate_subscription(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            plan_id="plus",
+            payment_method_id=card.id,
+            price_usd=9.99,
+            auto_renew=True,
+        )
+        self.assertEqual(sub.plan_id, "plus")
+        self.assertEqual(sub.status, "active")
+        self.assertTrue(sub.auto_renew)
+        self.assertEqual(sub.price_usd, 9.99)
+        self.assertIsNotNone(sub.next_billing_time)
+
+        # Check tenant plan updated
+        t_ref = Tenant.get_by_id(tenant_id)
+        self.assertEqual(t_ref.plan_type, "plus")
+
+        # 3. Get Subscription API response
+        sub_info = RecurringSubscriptionService.get_user_subscription(user_id=user_id, tenant_id=tenant_id)
+        self.assertEqual(sub_info["plan_id"], "plus")
+        self.assertEqual(sub_info["status"], "active")
+        self.assertIsNotNone(sub_info["card"])
+        self.assertEqual(sub_info["card"]["card_pan_masked"], "8600 06** **** 5555")
+
+        # 4. Test Cancellation (Grace Period until period end)
+        cancel_res = RecurringSubscriptionService.cancel_subscription(user_id=user_id, tenant_id=tenant_id, cancel_immediately=False)
+        self.assertTrue(cancel_res["success"])
+        self.assertTrue(cancel_res["cancel_at_period_end"])
+
+        sub_canceled = UserSubscription.get_by_id(sub.id)
+        self.assertFalse(sub_canceled.auto_renew)
+        self.assertIsNone(sub_canceled.next_billing_time)
+
+        # 5. Test Resume Subscription
+        resume_res = RecurringSubscriptionService.resume_subscription(user_id=user_id, tenant_id=tenant_id)
+        self.assertTrue(resume_res["success"])
+        self.assertTrue(resume_res["auto_renew"])
+
+        sub_resumed = UserSubscription.get_by_id(sub.id)
+        self.assertTrue(sub_resumed.auto_renew)
+        self.assertIsNotNone(sub_resumed.next_billing_time)
+
+        # 6. Test Automated Renewal Worker Execution
+        # Set next_billing_time in past to simulate due renewal
+        now_ts = current_timestamp()
+        sub_resumed.next_billing_time = now_ts - 5000
+        sub_resumed.save()
+
+        renewal_report = RecurringSubscriptionService.process_subscription_renewals()
+        self.assertGreaterEqual(renewal_report["processed"], 1)
+        self.assertGreaterEqual(renewal_report["renewed"], 1)
+
+        # Verify subscription was extended by 30 days
+        sub_after = UserSubscription.get_by_id(sub.id)
+        self.assertGreater(sub_after.current_period_end, now_ts)
+        self.assertEqual(sub_after.retry_count, 0)
+        self.assertEqual(sub_after.status, "active")
+
+        # 7. Test Payment Failure Retries & Downgrade on Repeated Failure
+        # Mark card as deleted
+        SavedPaymentMethodService.delete_card(card.id, user_id=user_id)
+
+        # Force due renewal with no valid card
+        sub_after.next_billing_time = now_ts - 5000
+        sub_after.retry_count = 2  # Already failed twice
+        sub_after.save()
+
+        fail_report = RecurringSubscriptionService.process_subscription_renewals()
+        self.assertGreaterEqual(fail_report["failed"], 1)
+
+        sub_failed = UserSubscription.get_by_id(sub.id)
+        self.assertEqual(sub_failed.status, "past_due")
+        self.assertEqual(sub_failed.retry_count, 3)
+
+        # Verify tenant was automatically downgraded to free
+        t_downgraded = Tenant.get_by_id(tenant_id)
+        self.assertEqual(t_downgraded.plan_type, "free")
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 

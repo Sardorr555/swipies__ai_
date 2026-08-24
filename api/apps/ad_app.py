@@ -1019,3 +1019,92 @@ def delete_campaign_variant(campaign_id, variant_id):
         logger.exception(f"Error deleting campaign variant: {e}")
         return get_data_error_result(message=str(e))
 
+
+# ------------------------------------------------------------------
+# Recurring Subscriptions & Saved Cards
+# ------------------------------------------------------------------
+
+
+@manager.route("/billing/subscription", methods=["GET"])
+@login_required
+def get_user_subscription():
+    try:
+        from api.db.services.recurring_subscription_service import RecurringSubscriptionService
+        sub = RecurringSubscriptionService.get_user_subscription(current_user.id, current_user.tenant_id)
+        return get_json_result(data=sub)
+    except Exception as e:
+        logger.exception(f"Error fetching subscription: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/billing/subscription/cancel", methods=["POST"])
+@login_required
+def cancel_user_subscription():
+    try:
+        from api.db.services.recurring_subscription_service import RecurringSubscriptionService
+        req = get_request_json() or {}
+        immediate = bool(req.get("immediate", False))
+        res = RecurringSubscriptionService.cancel_subscription(
+            user_id=current_user.id,
+            tenant_id=current_user.tenant_id,
+            cancel_immediately=immediate,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error canceling subscription: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/billing/subscription/resume", methods=["POST"])
+@login_required
+def resume_user_subscription():
+    try:
+        from api.db.services.recurring_subscription_service import RecurringSubscriptionService
+        res = RecurringSubscriptionService.resume_subscription(
+            user_id=current_user.id,
+            tenant_id=current_user.tenant_id,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error resuming subscription: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/billing/payment-methods", methods=["GET"])
+@login_required
+def get_user_payment_methods():
+    try:
+        from api.db.services.recurring_subscription_service import SavedPaymentMethodService
+        cards = SavedPaymentMethodService.list_user_cards(current_user.id, current_user.tenant_id)
+        return get_json_result(data=cards)
+    except Exception as e:
+        logger.exception(f"Error listing payment methods: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/billing/payment-methods/<card_id>", methods=["DELETE"])
+@login_required
+def delete_user_payment_method(card_id):
+    try:
+        from api.db.services.recurring_subscription_service import SavedPaymentMethodService
+        success = SavedPaymentMethodService.delete_card(card_id, current_user.id)
+        if not success:
+            return get_data_error_result(message="Card not found")
+        return get_json_result(data={"deleted": True})
+    except Exception as e:
+        logger.exception(f"Error deleting payment method: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/admin/subscriptions/process-renewals", methods=["POST"])
+@login_required
+def admin_process_subscription_renewals():
+    try:
+        from api.db.services.recurring_subscription_service import RecurringSubscriptionService
+        res = RecurringSubscriptionService.process_subscription_renewals()
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error processing subscription renewals: {e}")
+        return get_data_error_result(message=str(e))
+
+
