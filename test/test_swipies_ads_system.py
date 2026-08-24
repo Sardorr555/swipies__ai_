@@ -262,6 +262,8 @@ from api.db.db_models import (
     DB,
     Advertiser,
     AdvertiserTeamMember,
+    AdvertiserNotificationSettings,
+    AdvertiserNotification,
     AdCampaign,
     AdVariant,
     AdImpression,
@@ -282,6 +284,7 @@ from api.db.db_models import (
 from api.db.services.ad_engine_service import (
     AdvertiserService,
     AdvertiserTeamService,
+    AdvertiserNotificationService,
     AdCampaignService,
     AdVariantService,
     AdImpressionService,
@@ -317,6 +320,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         models = [
             Advertiser,
             AdvertiserTeamMember,
+            AdvertiserNotificationSettings,
+            AdvertiserNotification,
             AdCampaign,
             AdVariant,
             AdImpression,
@@ -363,6 +368,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         test_db.drop_tables([
             Advertiser,
             AdvertiserTeamMember,
+            AdvertiserNotificationSettings,
+            AdvertiserNotification,
             AdCampaign,
             AdVariant,
             AdImpression,
@@ -1924,6 +1931,76 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertTrue(del_res)
         members_after = AdvertiserTeamService.get_team_members(advertiser_id=adv.id)
         self.assertEqual(len(members_after), 2)
+
+    def test_20_advertiser_notifications_and_alert_channels(self):
+        """
+        Phase 18 Test:
+        - Get and update alert settings (Telegram, Webhook, Email, threshold)
+        - Create notifications with varying severity (warning, info, success)
+        - Retrieve unread notification counts and feed list
+        - Mark notifications as read individually and in bulk
+        - Dispatch test channel alerts
+        """
+        user = User.create(id="user_notif_20", email="notif@corp.com", nickname="NotifUser", create_time=current_timestamp())
+        adv = AdvertiserService.get_or_create_for_user(user_id=user.id, tenant_id="tenant_notif_20")
+
+        # 1. Default settings
+        settings = AdvertiserNotificationService.get_or_create_settings(advertiser_id=adv.id)
+        self.assertEqual(settings["low_balance_threshold"], 10.0)
+        self.assertFalse(settings["telegram_alerts_enabled"])
+
+        # 2. Update settings
+        updated_settings = AdvertiserNotificationService.update_settings(
+            advertiser_id=adv.id,
+            payload={
+                "telegram_alerts_enabled": True,
+                "telegram_chat_id": "987654321",
+                "webhook_url": "https://hooks.mycorp.com/swipies-ads",
+                "low_balance_threshold": 30.0,
+                "notify_low_balance": True,
+            }
+        )
+        self.assertTrue(updated_settings["telegram_alerts_enabled"])
+        self.assertEqual(updated_settings["telegram_chat_id"], "987654321")
+        self.assertEqual(updated_settings["low_balance_threshold"], 30.0)
+
+        # 3. Create notifications
+        n1 = AdvertiserNotificationService.create_notification(
+            advertiser_id=adv.id,
+            type="low_balance",
+            title="Низкий баланс рекламодателя",
+            message="Остаток средств составляет $5.00, пополните счет во избежание остановки аукционов.",
+            severity="warning",
+            data={"balance": 5.0, "threshold": 30.0},
+        )
+        self.assertEqual(n1["severity"], "warning")
+        self.assertFalse(n1["is_read"])
+
+        n2 = AdvertiserNotificationService.create_notification(
+            advertiser_id=adv.id,
+            type="budget_reached",
+            title="Дневной бюджет исчерпан",
+            message="Кампания 'Summer Sale' израсходовала суточный лимит $100.00.",
+            severity="info",
+        )
+
+        n3 = AdvertiserNotificationService.send_test_alert(advertiser_id=adv.id, channel="telegram")
+        self.assertEqual(n3["severity"], "success")
+
+        # 4. Check feed & unread count
+        feed = AdvertiserNotificationService.get_notifications(advertiser_id=adv.id)
+        self.assertEqual(feed["unread_count"], 3)
+        self.assertEqual(len(feed["notifications"]), 3)
+
+        # 5. Mark single notification as read
+        AdvertiserNotificationService.mark_as_read(advertiser_id=adv.id, notification_id=n1["id"])
+        feed_after_one = AdvertiserNotificationService.get_notifications(advertiser_id=adv.id)
+        self.assertEqual(feed_after_one["unread_count"], 2)
+
+        # 6. Mark all as read
+        AdvertiserNotificationService.mark_as_read(advertiser_id=adv.id, all_unread=True)
+        feed_after_all = AdvertiserNotificationService.get_notifications(advertiser_id=adv.id)
+        self.assertEqual(feed_after_all["unread_count"], 0)
 
 
 if __name__ == "__main__":

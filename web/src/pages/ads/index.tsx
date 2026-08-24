@@ -49,6 +49,12 @@ import {
   UserPlus,
   ShieldAlert,
   KeyRound,
+  Bell,
+  BellRing,
+  Settings2,
+  Send,
+  Radio,
+  Webhook,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -90,6 +96,8 @@ import adService, {
   UserSubscriptionData,
   SavedPaymentMethodItem,
   TeamMemberItem,
+  NotificationItem,
+  NotificationSettingsData,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -250,6 +258,83 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  const fetchNotifications = async () => {
+    setLoadingNotifs(true);
+    try {
+      const res = await adService.getNotifications();
+      if (res.data?.data) {
+        setNotifications(res.data.data.notifications || []);
+        setUnreadNotifCount(res.data.data.unread_count || 0);
+      }
+    } catch (err: any) {
+      // silent
+    } finally {
+      setLoadingNotifs(false);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await adService.markNotificationsRead({ all: true });
+      setUnreadNotifCount(0);
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      message.success('Все уведомления прочитаны');
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка');
+    }
+  };
+
+  const handleMarkSingleRead = async (id: string) => {
+    try {
+      await adService.markNotificationsRead({ notification_id: id });
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+      setUnreadNotifCount((prev) => Math.max(0, prev - 1));
+    } catch (err: any) {
+      // silent
+    }
+  };
+
+  const fetchNotificationSettings = async () => {
+    try {
+      const res = await adService.getNotificationSettings();
+      if (res.data?.data) {
+        setNotifSettings(res.data.data);
+      }
+    } catch (err: any) {
+      // silent
+    }
+  };
+
+  const handleSaveNotificationSettings = async () => {
+    if (!notifSettings) return;
+    setSavingNotifSettings(true);
+    try {
+      const res = await adService.updateNotificationSettings(notifSettings);
+      if (res.data?.data) {
+        setNotifSettings(res.data.data);
+      }
+      message.success('Настройки оповещений сохранены');
+      setIsNotifSettingsModalOpen(false);
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка сохранения настроек');
+    } finally {
+      setSavingNotifSettings(false);
+    }
+  };
+
+  const handleSendTestNotification = async (channel: string) => {
+    setTestingNotifChannel(channel);
+    try {
+      await adService.sendTestNotification(channel);
+      message.success(`Тестовое уведомление отправлено в канал [${channel}]`);
+      fetchNotifications();
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка отправки тестового алерта');
+    } finally {
+      setTestingNotifChannel(null);
+    }
+  };
+
   const fetchInsights = async () => {
     setLoadingInsights(true);
     try {
@@ -378,6 +463,8 @@ export default function SwipiesAdsPage() {
     fetchSubscription();
     fetchSavedCards();
     fetchTeam();
+    fetchNotifications();
+    fetchNotificationSettings();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -781,6 +868,42 @@ export default function SwipiesAdsPage() {
             className="border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
           >
             <Code2 className="mr-1.5 h-4 w-4" /> Пиксель конверсий
+          </Button>
+
+          {/* Notification Bell Button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              setIsNotifModalOpen(true);
+              fetchNotifications();
+            }}
+            className="relative"
+            title="Уведомления и алерты"
+          >
+            {unreadNotifCount > 0 ? (
+              <BellRing className="h-4 w-4 text-amber-500 animate-bounce" />
+            ) : (
+              <Bell className="h-4 w-4" />
+            )}
+            {unreadNotifCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow">
+                {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+              </span>
+            )}
+          </Button>
+
+          {/* Alert Settings Button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              fetchNotificationSettings();
+              setIsNotifSettingsModalOpen(true);
+            }}
+            title="Настройки каналов оповещений (Telegram, Webhooks, Email)"
+          >
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
           </Button>
 
           <Button onClick={handleOpenCreateCampaign} className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -2907,6 +3030,274 @@ export default function SwipiesAdsPage() {
             >
               {invitingMember ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <UserPlus className="mr-1.5 h-4 w-4" />}
               {invitingMember ? 'Отправка...' : 'Пригласить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Notification Center Dialog */}
+      <Dialog open={isNotifModalOpen} onOpenChange={setIsNotifModalOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Bell className="h-5 w-5 text-blue-500" />
+                Центр уведомлений
+                {unreadNotifCount > 0 && (
+                  <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs">
+                    {unreadNotifCount} новых
+                  </Badge>
+                )}
+              </DialogTitle>
+              {unreadNotifCount > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleMarkAllRead}
+                  className="text-xs text-blue-600 hover:text-blue-700 h-7 px-2"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Прочитать все
+                </Button>
+              )}
+            </div>
+            <DialogDescription className="text-xs">
+              История важных событий рекламного кабинета и системных оповещений
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-2.5 py-3 pr-1">
+            {notifications.length === 0 ? (
+              <div className="p-8 text-center text-xs text-muted-foreground">
+                <Bell className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                У вас нет новых уведомлений
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  onClick={() => !n.is_read && handleMarkSingleRead(n.id)}
+                  className={`p-3 rounded-lg border text-xs transition-colors cursor-pointer ${
+                    n.is_read
+                      ? 'bg-background text-muted-foreground opacity-75'
+                      : 'bg-muted/40 text-foreground border-blue-500/30 shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {n.severity === 'critical' && <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />}
+                      {n.severity === 'warning' && <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />}
+                      {n.severity === 'success' && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
+                      {n.severity === 'info' && <Sparkles className="h-4 w-4 text-blue-500 shrink-0" />}
+                      <span className="font-semibold text-foreground">{n.title}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                      {new Date(n.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })},{' '}
+                      {new Date(n.create_time).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed pl-6">{n.message}</p>
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter className="border-t pt-3 flex justify-between sm:justify-between items-center">
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs flex items-center gap-1.5"
+              onClick={() => {
+                setIsNotifModalOpen(false);
+                setIsNotifSettingsModalOpen(true);
+              }}
+            >
+              <Settings2 className="h-3.5 w-3.5" /> Настройки каналов
+            </Button>
+            <Button size="sm" onClick={() => setIsNotifModalOpen(false)}>Закрыть</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alert Channel Settings Dialog */}
+      <Dialog open={isNotifSettingsModalOpen} onOpenChange={setIsNotifSettingsModalOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Settings2 className="h-5 w-5 text-blue-500" />
+              Каналы оповещений и алерты
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Настройте автоматические уведомления в Telegram, на Email или по Webhook
+            </DialogDescription>
+          </DialogHeader>
+
+          {notifSettings && (
+            <div className="space-y-4 py-2 text-xs">
+              {/* Telegram Channel */}
+              <div className="rounded-lg border p-3.5 bg-muted/20 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold flex items-center gap-1.5">
+                    <Send className="h-4 w-4 text-sky-500" /> Telegram Оповещения
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifSettings.telegram_alerts_enabled}
+                    onChange={(e) =>
+                      setNotifSettings({ ...notifSettings, telegram_alerts_enabled: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Telegram Chat ID / User ID</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="123456789"
+                      value={notifSettings.telegram_chat_id}
+                      onChange={(e) =>
+                        setNotifSettings({ ...notifSettings, telegram_chat_id: e.target.value })
+                      }
+                      className="h-8 text-xs font-mono"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={testingNotifChannel === 'telegram' || !notifSettings.telegram_chat_id}
+                      onClick={() => handleSendTestNotification('telegram')}
+                      className="h-8 text-xs shrink-0"
+                    >
+                      {testingNotifChannel === 'telegram' ? <RefreshCw className="h-3 w-3 animate-spin" /> : 'Тест'}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Напишите нашему боту <code className="bg-muted px-1 rounded">@SwipiesAlertsBot</code> команду /start, чтобы получить свой Chat ID.
+                  </p>
+                </div>
+              </div>
+
+              {/* Webhook Channel */}
+              <div className="rounded-lg border p-3.5 bg-muted/20 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold flex items-center gap-1.5">
+                    <Webhook className="h-4 w-4 text-emerald-500" /> Webhook интеграция (JSON POST)
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Webhook URL эндпоинт</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="https://api.yourdomain.com/webhooks/swipies-ads"
+                      value={notifSettings.webhook_url}
+                      onChange={(e) =>
+                        setNotifSettings({ ...notifSettings, webhook_url: e.target.value })
+                      }
+                      className="h-8 text-xs font-mono"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={testingNotifChannel === 'webhook' || !notifSettings.webhook_url}
+                      onClick={() => handleSendTestNotification('webhook')}
+                      className="h-8 text-xs shrink-0"
+                    >
+                      {testingNotifChannel === 'webhook' ? <RefreshCw className="h-3 w-3 animate-spin" /> : 'Тест'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Email Alerts */}
+              <div className="rounded-lg border p-3.5 bg-muted/20 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold flex items-center gap-1.5">
+                    ✉️ Email оповещения
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifSettings.email_alerts_enabled}
+                    onChange={(e) =>
+                      setNotifSettings({ ...notifSettings, email_alerts_enabled: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Email для отчетов</label>
+                  <Input
+                    type="email"
+                    placeholder="marketing@company.com"
+                    value={notifSettings.email_target}
+                    onChange={(e) =>
+                      setNotifSettings({ ...notifSettings, email_target: e.target.value })
+                    }
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Event Triggers & Thresholds */}
+              <div className="rounded-lg border p-3.5 bg-muted/20 space-y-3">
+                <div className="font-semibold">Триггеры и пороги срабатывания</div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-foreground">Порог малого баланса ($)</div>
+                    <p className="text-[10px] text-muted-foreground">Отправлять алерт, когда остаток средств опускается ниже</p>
+                  </div>
+                  <div className="w-20">
+                    <Input
+                      type="number"
+                      value={notifSettings.low_balance_threshold}
+                      onChange={(e) =>
+                        setNotifSettings({ ...notifSettings, low_balance_threshold: parseFloat(e.target.value) || 10 })
+                      }
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <div className="font-medium text-foreground">Исчерпание дневного бюджета</div>
+                    <p className="text-[10px] text-muted-foreground">Уведомлять при достижении суточного лимита расходов</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifSettings.notify_daily_budget_reached}
+                    onChange={(e) =>
+                      setNotifSettings({ ...notifSettings, notify_daily_budget_reached: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <div className="font-medium text-foreground">Результаты модерации</div>
+                    <p className="text-[10px] text-muted-foreground">Оповещать об одобрении или отклонении объявлений</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifSettings.notify_moderation_status}
+                    onChange={(e) =>
+                      setNotifSettings({ ...notifSettings, notify_moderation_status: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNotifSettingsModalOpen(false)}>Отмена</Button>
+            <Button
+              onClick={handleSaveNotificationSettings}
+              disabled={savingNotifSettings}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {savingNotifSettings ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
+              {savingNotifSettings ? 'Сохранение...' : 'Сохранить настройки'}
             </Button>
           </DialogFooter>
         </DialogContent>

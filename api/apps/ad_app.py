@@ -827,6 +827,110 @@ async def remove_team_member(member_id):
 
 
 # ==========================================
+# 2.9 Notification Center & Multi-Channel Alerts
+# ==========================================
+
+@manager.route("/notifications", methods=["GET"])
+@login_required
+async def get_advertiser_notifications():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        limit = int(request.args.get("limit", 50))
+        unread_only = request.args.get("unread_only", "false").lower() == "true"
+        from api.db.services.ad_engine_service import AdvertiserNotificationService
+        data = AdvertiserNotificationService.get_notifications(
+            advertiser_id=adv.id,
+            limit=limit,
+            unread_only=unread_only,
+        )
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error fetching notifications: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/notifications/read", methods=["POST"])
+@login_required
+async def mark_notifications_read():
+    req = await get_request_json() or {}
+    notification_id = req.get("notification_id")
+    all_unread = bool(req.get("all", False))
+
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserNotificationService
+        count = AdvertiserNotificationService.mark_as_read(
+            advertiser_id=adv.id,
+            notification_id=notification_id,
+            all_unread=all_unread,
+        )
+        return get_json_result(data={"updated_count": count})
+    except Exception as e:
+        logger.exception(f"Error marking notifications as read: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/notifications/settings", methods=["GET"])
+@login_required
+async def get_notification_settings():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserNotificationService
+        data = AdvertiserNotificationService.get_or_create_settings(advertiser_id=adv.id)
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error fetching notification settings: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/notifications/settings", methods=["POST"])
+@login_required
+async def update_notification_settings():
+    req = await get_request_json()
+    if not req:
+        return get_json_result(data=False, message="Empty payload", code=RetCode.ARGUMENT_ERROR)
+
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserTeamService, AdvertiserNotificationService
+
+        if not AdvertiserTeamService.has_permission(user_id, adv.id, "manage_team"):
+            return get_json_result(data=False, message="Недостаточно прав для изменения настроек оповещений", code=RetCode.UNAUTHORIZED)
+
+        updated = AdvertiserNotificationService.update_settings(advertiser_id=adv.id, payload=req)
+        return get_json_result(data=updated)
+    except Exception as e:
+        logger.exception(f"Error updating notification settings: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/notifications/test", methods=["POST"])
+@login_required
+async def send_test_notification():
+    req = await get_request_json() or {}
+    channel = req.get("channel", "all")
+
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserNotificationService
+        res = AdvertiserNotificationService.send_test_alert(advertiser_id=adv.id, channel=channel)
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error sending test notification: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
 # 3. Public Click Tracking & Redirect
 # ==========================================
 

@@ -227,7 +227,52 @@ const adService = {
     request.put<ResponseData<TeamMemberItem>>(`/ads/team/${memberId}/role`, { data: { role } }),
   deleteTeamMember: (memberId: string) =>
     request.delete<ResponseData<{ deleted: boolean }>>(`/ads/team/${memberId}`),
+
+  // Notification Center & Multi-Channel Alerts
+  getNotifications: (params?: { limit?: number; unread_only?: boolean }) =>
+    request.get<ResponseData<NotificationData>>('/ads/notifications', { params }),
+  markNotificationsRead: (data?: { notification_id?: string; all?: boolean }) =>
+    request.post<ResponseData<{ updated_count: number }>>('/ads/notifications/read', { data }),
+  getNotificationSettings: () =>
+    request.get<ResponseData<NotificationSettingsData>>('/ads/notifications/settings'),
+  updateNotificationSettings: (data: Partial<NotificationSettingsData>) =>
+    request.post<ResponseData<NotificationSettingsData>>('/ads/notifications/settings', { data }),
+  sendTestNotification: (channel: string = 'all') =>
+    request.post<ResponseData<NotificationItem>>('/ads/notifications/test', { data: { channel } }),
 };
+
+export interface NotificationItem {
+  id: string;
+  advertiser_id: string;
+  type: string;
+  severity: 'info' | 'warning' | 'critical' | 'success';
+  title: string;
+  message: string;
+  is_read: boolean;
+  data?: any;
+  create_time: number;
+}
+
+export interface NotificationData {
+  unread_count: number;
+  notifications: NotificationItem[];
+}
+
+export interface NotificationSettingsData {
+  id?: string;
+  advertiser_id?: string;
+  email_alerts_enabled: boolean;
+  email_target: string;
+  telegram_alerts_enabled: boolean;
+  telegram_chat_id: string;
+  webhook_url: string;
+  webhook_secret: string;
+  notify_low_balance: boolean;
+  low_balance_threshold: number;
+  notify_daily_budget_reached: boolean;
+  notify_moderation_status: boolean;
+  notify_conversion_milestone: boolean;
+}
 
 export interface TeamMemberItem {
   id: string;

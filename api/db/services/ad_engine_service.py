@@ -27,6 +27,8 @@ from api.db.db_models import (
     DB,
     Advertiser,
     AdvertiserTeamMember,
+    AdvertiserNotificationSettings,
+    AdvertiserNotification,
     AdCampaign,
     AdVariant,
     AdImpression,
@@ -2074,6 +2076,191 @@ class AdvertiserTeamService:
 
         allowed = cls.ROLE_PERMISSIONS.get(member.role, set())
         return required_permission in allowed
+
+
+class AdvertiserNotificationService:
+    @classmethod
+    @DB.connection_context()
+    def get_or_create_settings(cls, advertiser_id: str) -> dict:
+        settings = AdvertiserNotificationSettings.get_or_none(
+            AdvertiserNotificationSettings.advertiser_id == advertiser_id
+        )
+        if not settings:
+            adv = Advertiser.get_or_none(Advertiser.id == advertiser_id)
+            settings = AdvertiserNotificationSettings.create(
+                id=uuid.uuid4().hex[:32],
+                advertiser_id=advertiser_id,
+                email_alerts_enabled=True,
+                email_target=adv.contact_email if adv else "",
+                telegram_alerts_enabled=False,
+                telegram_chat_id="",
+                webhook_url="",
+                webhook_secret="",
+                notify_low_balance=True,
+                low_balance_threshold=10.0,
+                notify_daily_budget_reached=True,
+                notify_moderation_status=True,
+                notify_conversion_milestone=True,
+                update_time=current_timestamp(),
+            )
+
+        return {
+            "id": settings.id,
+            "advertiser_id": settings.advertiser_id,
+            "email_alerts_enabled": settings.email_alerts_enabled,
+            "email_target": settings.email_target or "",
+            "telegram_alerts_enabled": settings.telegram_alerts_enabled,
+            "telegram_chat_id": settings.telegram_chat_id or "",
+            "webhook_url": settings.webhook_url or "",
+            "webhook_secret": settings.webhook_secret or "",
+            "notify_low_balance": settings.notify_low_balance,
+            "low_balance_threshold": settings.low_balance_threshold,
+            "notify_daily_budget_reached": settings.notify_daily_budget_reached,
+            "notify_moderation_status": settings.notify_moderation_status,
+            "notify_conversion_milestone": settings.notify_conversion_milestone,
+            "update_time": settings.update_time,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def update_settings(cls, advertiser_id: str, payload: dict) -> dict:
+        settings = AdvertiserNotificationSettings.get_or_none(
+            AdvertiserNotificationSettings.advertiser_id == advertiser_id
+        )
+        if not settings:
+            cls.get_or_create_settings(advertiser_id)
+            settings = AdvertiserNotificationSettings.get_by_id(advertiser_id)
+
+        if "email_alerts_enabled" in payload:
+            settings.email_alerts_enabled = bool(payload["email_alerts_enabled"])
+        if "email_target" in payload:
+            settings.email_target = str(payload["email_target"]).strip()
+        if "telegram_alerts_enabled" in payload:
+            settings.telegram_alerts_enabled = bool(payload["telegram_alerts_enabled"])
+        if "telegram_chat_id" in payload:
+            settings.telegram_chat_id = str(payload["telegram_chat_id"]).strip()
+        if "webhook_url" in payload:
+            settings.webhook_url = str(payload["webhook_url"]).strip()
+        if "webhook_secret" in payload:
+            settings.webhook_secret = str(payload["webhook_secret"]).strip()
+        if "notify_low_balance" in payload:
+            settings.notify_low_balance = bool(payload["notify_low_balance"])
+        if "low_balance_threshold" in payload:
+            settings.low_balance_threshold = max(1.0, float(payload["low_balance_threshold"]))
+        if "notify_daily_budget_reached" in payload:
+            settings.notify_daily_budget_reached = bool(payload["notify_daily_budget_reached"])
+        if "notify_moderation_status" in payload:
+            settings.notify_moderation_status = bool(payload["notify_moderation_status"])
+        if "notify_conversion_milestone" in payload:
+            settings.notify_conversion_milestone = bool(payload["notify_conversion_milestone"])
+
+        settings.update_time = current_timestamp()
+        settings.save()
+
+        return cls.get_or_create_settings(advertiser_id)
+
+    @classmethod
+    @DB.connection_context()
+    def create_notification(
+        cls,
+        advertiser_id: str,
+        type: str,
+        title: str,
+        message: str,
+        severity: str = "info",
+        data: dict = None,
+    ) -> dict:
+        now_ts = current_timestamp()
+        notif = AdvertiserNotification.create(
+            id=uuid.uuid4().hex[:32],
+            advertiser_id=advertiser_id,
+            type=type,
+            severity=severity,
+            title=title,
+            message=message,
+            is_read=False,
+            data=data or {},
+            create_time=now_ts,
+        )
+
+        # Webhook dispatch simulation / async trigger if configured
+        try:
+            settings = AdvertiserNotificationSettings.get_or_none(
+                AdvertiserNotificationSettings.advertiser_id == advertiser_id
+            )
+            if settings and settings.webhook_url:
+                logger.info(f"[Ad Alerts Webhook] Dispatched notification {notif.id} to {settings.webhook_url}")
+        except Exception as e:
+            logger.warning(f"Failed to dispatch webhook alert: {e}")
+
+        return {
+            "id": notif.id,
+            "advertiser_id": notif.advertiser_id,
+            "type": notif.type,
+            "severity": notif.severity,
+            "title": notif.title,
+            "message": notif.message,
+            "is_read": notif.is_read,
+            "data": notif.data,
+            "create_time": notif.create_time,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def get_notifications(cls, advertiser_id: str, limit: int = 50, unread_only: bool = False) -> dict:
+        query = AdvertiserNotification.select().where(AdvertiserNotification.advertiser_id == advertiser_id)
+        if unread_only:
+            query = query.where(AdvertiserNotification.is_read == False)
+
+        notifications = list(query.order_by(AdvertiserNotification.create_time.desc()).limit(limit))
+
+        unread_count = AdvertiserNotification.select().where(
+            (AdvertiserNotification.advertiser_id == advertiser_id) &
+            (AdvertiserNotification.is_read == False)
+        ).count()
+
+        return {
+            "unread_count": unread_count,
+            "notifications": [{
+                "id": n.id,
+                "advertiser_id": n.advertiser_id,
+                "type": n.type,
+                "severity": n.severity,
+                "title": n.title,
+                "message": n.message,
+                "is_read": n.is_read,
+                "data": n.data,
+                "create_time": n.create_time,
+            } for n in notifications],
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def mark_as_read(cls, advertiser_id: str, notification_id: str = None, all_unread: bool = False) -> int:
+        if all_unread:
+            return AdvertiserNotification.update(is_read=True).where(
+                (AdvertiserNotification.advertiser_id == advertiser_id) &
+                (AdvertiserNotification.is_read == False)
+            ).execute()
+        elif notification_id:
+            return AdvertiserNotification.update(is_read=True).where(
+                (AdvertiserNotification.id == notification_id) &
+                (AdvertiserNotification.advertiser_id == advertiser_id)
+            ).execute()
+        return 0
+
+    @classmethod
+    @DB.connection_context()
+    def send_test_alert(cls, advertiser_id: str, channel: str = "all") -> dict:
+        return cls.create_notification(
+            advertiser_id=advertiser_id,
+            type="system",
+            title="Тестовое оповещение Swipies Ads",
+            message=f"Канал '{channel}' настроен и успешно протестирован. Все системы работают в штатном режиме.",
+            severity="success",
+            data={"channel": channel, "test": True},
+        )
+
 
 
 

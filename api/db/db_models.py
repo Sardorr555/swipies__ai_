@@ -1681,6 +1681,41 @@ class AdvertiserTeamMember(DataBaseModel):
         db_table = "advertiser_team_members"
 
 
+class AdvertiserNotificationSettings(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, unique=True, index=True)
+    email_alerts_enabled = BooleanField(default=True)
+    email_target = CharField(max_length=255, null=True)
+    telegram_alerts_enabled = BooleanField(default=False)
+    telegram_chat_id = CharField(max_length=64, null=True)
+    webhook_url = CharField(max_length=1024, null=True)
+    webhook_secret = CharField(max_length=64, null=True)
+    notify_low_balance = BooleanField(default=True)
+    low_balance_threshold = FloatField(default=10.0)
+    notify_daily_budget_reached = BooleanField(default=True)
+    notify_moderation_status = BooleanField(default=True)
+    notify_conversion_milestone = BooleanField(default=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "advertiser_notification_settings"
+
+
+class AdvertiserNotification(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    type = CharField(max_length=32, default="system", index=True)
+    severity = CharField(max_length=16, default="info")  # info, warning, critical, success
+    title = CharField(max_length=255, null=False)
+    message = TextField(null=False)
+    is_read = BooleanField(default=False, index=True)
+    data = JSONField(null=True, default=dict)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "advertiser_notifications"
+
+
 class AdCampaign(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     advertiser_id = CharField(max_length=32, null=False, index=True)
