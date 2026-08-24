@@ -19,6 +19,8 @@ export interface AdCampaignItem {
   target_languages?: string[];
   target_models?: string[];
   target_countries?: string[];
+  target_regions?: string[];
+  target_cities?: string[];
   daily_budget: number;
   total_budget: number;
   spent_today: number;
@@ -181,6 +183,9 @@ const adService = {
   // Attribution & Watermark Analytics
   getAttributionStats: () => request.get<ResponseData<AttributionStatsData>>('/ads/attribution/stats'),
 
+  // Geo Targeting
+  getGeoRegions: () => request.get<ResponseData<GeoRegionItem[]>>('/ads/geo/regions'),
+
   // Recurring Subscriptions & Saved Cards
   getUserSubscription: () =>
     request.get<ResponseData<UserSubscriptionData>>('/ads/billing/subscription'),
@@ -195,6 +200,13 @@ const adService = {
   adminProcessRenewals: () =>
     request.post<ResponseData<{ processed: number; renewed: number; failed: number }>>('/ads/admin/subscriptions/process-renewals'),
 };
+
+export interface GeoRegionItem {
+  id: string;
+  name_ru: string;
+  name_uz: string;
+  name_en: string;
+}
 
 export interface SavedPaymentMethodItem {
   id: string;
@@ -260,6 +272,7 @@ export interface TimelineAnalyticsData {
   languages: Record<string, number>;
   models: Record<string, number>;
   devices: Record<string, number>;
+  regions?: Record<string, number>;
 }
 
 export interface CampaignDetailedAnalyticsData extends TimelineAnalyticsData {
@@ -275,6 +288,7 @@ export interface AdminTimelineData {
   total_network_impressions: number;
   total_network_clicks: number;
   total_network_revenue: number;
+  regions?: Record<string, number>;
 }
 
 export interface AttributionStatsData {

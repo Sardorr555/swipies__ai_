@@ -234,6 +234,8 @@ async def create_campaign():
             target_languages=req.get("target_languages", []),
             target_models=req.get("target_models", []),
             target_countries=req.get("target_countries", []),
+            target_regions=req.get("target_regions", []),
+            target_cities=req.get("target_cities", []),
             daily_budget=float(req.get("daily_budget", 10.0)),
             total_budget=float(req.get("total_budget", 100.0)),
             spent_today=0.0,
@@ -253,6 +255,17 @@ async def create_campaign():
         return get_json_result(data={"id": cmp.id, "name": cmp.name, "status": cmp.status})
     except Exception as e:
         logger.exception(f"Error creating campaign: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/geo/regions", methods=["GET"])
+def get_supported_geo_regions():
+    try:
+        from api.db.services.ad_engine_service import GeoIPService
+        regions = GeoIPService.list_supported_regions()
+        return get_json_result(data=regions)
+    except Exception as e:
+        logger.exception(f"Error getting geo regions: {e}")
         return get_data_error_result(message=str(e))
 
 
@@ -288,6 +301,10 @@ async def update_campaign(campaign_id):
             cmp.target_models = req["target_models"]
         if "target_countries" in req:
             cmp.target_countries = req["target_countries"]
+        if "target_regions" in req:
+            cmp.target_regions = req["target_regions"]
+        if "target_cities" in req:
+            cmp.target_cities = req["target_cities"]
         if "daily_budget" in req:
             cmp.daily_budget = float(req["daily_budget"])
         if "total_budget" in req:

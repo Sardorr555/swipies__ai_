@@ -36,6 +36,7 @@ import {
   Calendar,
   RotateCw,
   XCircle,
+  MapPin,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -133,6 +134,7 @@ export default function SwipiesAdsPage() {
   const [rawNegativeKeywords, setRawNegativeKeywords] = useState('');
   const [targetLanguages, setTargetLanguages] = useState<string[]>(['all']);
   const [targetModels, setTargetModels] = useState<string[]>(['all']);
+  const [targetRegions, setTargetRegions] = useState<string[]>(['all']);
   const [topUpAmount, setTopUpAmount] = useState('50');
   const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
 
@@ -266,6 +268,7 @@ export default function SwipiesAdsPage() {
     setRawNegativeKeywords('');
     setTargetLanguages(['all']);
     setTargetModels(['all']);
+    setTargetRegions(['all']);
     setIsCampaignModalOpen(true);
   };
 
@@ -277,6 +280,7 @@ export default function SwipiesAdsPage() {
     setRawNegativeKeywords((cmp.negative_keywords || []).join(', '));
     setTargetLanguages(cmp.target_languages && cmp.target_languages.length > 0 ? cmp.target_languages : ['all']);
     setTargetModels(cmp.target_models && cmp.target_models.length > 0 ? cmp.target_models : ['all']);
+    setTargetRegions(cmp.target_regions && cmp.target_regions.length > 0 ? cmp.target_regions : ['all']);
     setIsCampaignModalOpen(true);
   };
 
@@ -349,6 +353,20 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  const toggleRegion = (regionCode: string) => {
+    if (regionCode === 'all') {
+      setTargetRegions(['all']);
+      return;
+    }
+    const filtered = targetRegions.filter((r) => r !== 'all');
+    if (filtered.includes(regionCode)) {
+      const next = filtered.filter((r) => r !== regionCode);
+      setTargetRegions(next.length === 0 ? ['all'] : next);
+    } else {
+      setTargetRegions([...filtered, regionCode]);
+    }
+  };
+
   const handleSaveCampaign = async () => {
     if (
       !campaignForm.name ||
@@ -380,6 +398,7 @@ export default function SwipiesAdsPage() {
       negative_keywords,
       target_languages: targetLanguages,
       target_models: targetModels,
+      target_regions: targetRegions,
     };
 
     try {
@@ -1016,8 +1035,8 @@ export default function SwipiesAdsPage() {
             </CardContent>
           </Card>
 
-          {/* Breakdown Cards: Languages, Models, Devices */}
-          <div className="grid gap-4 md:grid-cols-3">
+          {/* Breakdown Cards: Languages, Models, Devices, Regions */}
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             {/* Language Breakdown */}
             <Card>
               <CardHeader className="pb-3">
@@ -1116,6 +1135,44 @@ export default function SwipiesAdsPage() {
                           <span className="text-muted-foreground">{item.count} ({pct}%)</span>
                         </div>
                         <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div className={`h-full ${item.color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </CardContent>
+            </Card>
+
+            {/* Regional Breakdown */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-rose-500" />
+                  Регионы Узбекистана
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2.5">
+                {(() => {
+                  const regions = timelineData?.regions || {};
+                  const total = Object.values(regions).reduce((a, b) => a + b, 0) || 1;
+                  const items = [
+                    { code: 'tashkent', label: '📍 Ташкент', count: regions['tashkent'] || 0, color: 'bg-rose-500' },
+                    { code: 'samarkand', label: '📍 Самарканд', count: regions['samarkand'] || 0, color: 'bg-blue-500' },
+                    { code: 'fergana', label: '📍 Фергана', count: regions['fergana'] || 0, color: 'bg-emerald-500' },
+                    { code: 'bukhara', label: '📍 Бухара', count: regions['bukhara'] || 0, color: 'bg-amber-500' },
+                    { code: 'andijan', label: '📍 Андижан', count: regions['andijan'] || 0, color: 'bg-indigo-500' },
+                    { code: 'other', label: '🌐 Другие регионы', count: (regions['namangan'] || 0) + (regions['other'] || 0), color: 'bg-zinc-400' },
+                  ];
+                  return items.map((item) => {
+                    const pct = Math.round((item.count / total) * 100);
+                    return (
+                      <div key={item.code} className="space-y-1">
+                        <div className="flex justify-between text-xs font-medium">
+                          <span>{item.label}</span>
+                          <span className="text-muted-foreground">{item.count} ({pct}%)</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                           <div className={`h-full ${item.color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
@@ -1542,6 +1599,45 @@ export default function SwipiesAdsPage() {
                       size="sm"
                       className={`h-8 text-xs font-medium ${isSelected ? 'bg-purple-600 text-white' : ''}`}
                       onClick={() => toggleModel(item.code)}
+                    >
+                      {item.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Geo Regional Targeting */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-rose-500" /> Гео-таргетинг (Регионы Узбекистана)
+                </label>
+                <span className="text-[11px] text-muted-foreground">Локализация показов по городам и областям</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { code: 'all', label: '🇺🇿 Все регионы' },
+                  { code: 'tashkent', label: '📍 Ташкент' },
+                  { code: 'samarkand', label: '📍 Самарканд' },
+                  { code: 'bukhara', label: '📍 Бухара' },
+                  { code: 'fergana', label: '📍 Фергана' },
+                  { code: 'andijan', label: '📍 Андижан' },
+                  { code: 'namangan', label: '📍 Наманган' },
+                  { code: 'khorezm', label: '📍 Хорезм' },
+                  { code: 'kashkadarya', label: '📍 Кашкадарья' },
+                  { code: 'karakalpakstan', label: '📍 Каракалпакстан' },
+                  { code: 'global', label: '🌐 Международный' },
+                ].map((item) => {
+                  const isSelected = targetRegions.includes(item.code);
+                  return (
+                    <Button
+                      key={item.code}
+                      type="button"
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
+                      className={`h-7 text-xs font-medium ${isSelected ? 'bg-rose-600 text-white' : ''}`}
+                      onClick={() => toggleRegion(item.code)}
                     >
                       {item.label}
                     </Button>

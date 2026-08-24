@@ -1374,6 +1374,148 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         t_downgraded = Tenant.get_by_id(tenant_id)
         self.assertEqual(t_downgraded.plan_type, "free")
 
+    def test_15_geo_ip_targeting_and_regional_auction_matching(self):
+        """Test 15: Geo IP targeting, regional auction matching and telemetry breakdown."""
+        from api.db.services.ad_engine_service import GeoIPService
+
+        # 1. Test GeoIPService
+        regions = GeoIPService.list_supported_regions()
+        self.assertGreaterEqual(len(regions), 10)
+        self.assertTrue(any(r["id"] == "tashkent" for r in regions))
+        self.assertTrue(any(r["id"] == "samarkand" for r in regions))
+
+        # Resolution by header and IP
+        loc_header = GeoIPService.resolve_location(headers={"x-region-code": "samarkand", "x-city": "Samarkand"})
+        self.assertEqual(loc_header["region"], "samarkand")
+        self.assertEqual(loc_header["city"], "Samarkand")
+
+        loc_local = GeoIPService.resolve_location(ip="127.0.0.1")
+        self.assertEqual(loc_local["region"], "tashkent")
+
+        # 2. Setup Advertiser and Campaigns with Region Constraints
+        adv = Advertiser.create(
+            id="adv_geo_15",
+            tenant_id="tenant_geo_15",
+            user_id="user_geo_15",
+            company_name="Geo Logistics Samarkand",
+            balance=50.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        cmp_samarkand = AdCampaign.create(
+            id="cmp_geo_samarkand",
+            advertiser_id=adv.id,
+            name="Samarkand Delivery",
+            product_name="Samarkand Express",
+            advertisement_text="Fast express delivery in Samarkand!",
+            landing_url="https://samarkand.example.com",
+            keywords=["delivery", "express", "courier"],
+            target_regions=["samarkand"],
+            daily_budget=20.0,
+            total_budget=100.0,
+            bid_amount=0.50,
+            pricing_model="cpc",
+            priority=5,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        cmp_tashkent = AdCampaign.create(
+            id="cmp_geo_tashkent",
+            advertiser_id=adv.id,
+            name="Tashkent Delivery",
+            product_name="Tashkent Express",
+            advertisement_text="Fast express delivery in Tashkent City!",
+            landing_url="https://tashkent.example.com",
+            keywords=["delivery", "express", "courier"],
+            target_regions=["tashkent"],
+            daily_budget=20.0,
+            total_budget=100.0,
+            bid_amount=0.50,
+            pricing_model="cpc",
+            priority=5,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        cmp_all = AdCampaign.create(
+            id="cmp_geo_all",
+            advertiser_id=adv.id,
+            name="National Delivery",
+            product_name="Uzbekistan Post",
+            advertisement_text="Delivery across all regions of Uzbekistan!",
+            landing_url="https://alluz.example.com",
+            keywords=["delivery", "express", "courier"],
+            target_regions=["all"],
+            daily_budget=20.0,
+            total_budget=100.0,
+            bid_amount=0.20,
+            pricing_model="cpc",
+            priority=1,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        # 3. Test Regional Auction Isolation
+        # Case A: User from Samarkand searches for delivery -> Should match cmp_samarkand (higher bid than cmp_all)
+        match_samarkand = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_geo_15",
+            user_id="user_sam_1",
+            user_query="Need express delivery courier",
+            user_region="samarkand",
+        )
+        self.assertIsNotNone(match_samarkand)
+        self.assertEqual(match_samarkand["campaign_id"], cmp_samarkand.id)
+
+        # Case B: User from Tashkent searches for delivery -> Should match cmp_tashkent
+        match_tashkent = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_geo_15",
+            user_id="user_tsh_1",
+            user_query="Need express delivery courier",
+            user_region="tashkent",
+        )
+        self.assertIsNotNone(match_tashkent)
+        self.assertEqual(match_tashkent["campaign_id"], cmp_tashkent.id)
+
+        # Case C: User from Bukhara searches for delivery -> cmp_samarkand & cmp_tashkent are filtered out, cmp_all wins
+        match_bukhara = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_geo_15",
+            user_id="user_bkh_1",
+            user_query="Need express delivery courier",
+            user_region="bukhara",
+        )
+        self.assertIsNotNone(match_bukhara)
+        self.assertEqual(match_bukhara["campaign_id"], cmp_all.id)
+
+        # 4. Verify Impression Recorded Geo Location
+        imp_sam = AdImpression.get_or_none(AdImpression.campaign_id == cmp_samarkand.id)
+        self.assertIsNotNone(imp_sam)
+        self.assertEqual(imp_sam.region, "samarkand")
+        self.assertEqual(imp_sam.country, "UZ")
+
+        # 5. Verify Click Tracking Propagates Geo Telemetry
+        click_token = f"{cmp_samarkand.id}_{imp_sam.id}_user_sam_1"
+        dest = AdEngineService.track_click(click_token=click_token, user_id="user_sam_1")
+        self.assertEqual(dest, "https://samarkand.example.com")
+
+        clk = AdClick.get_or_none(AdClick.impression_id == imp_sam.id)
+        self.assertIsNotNone(clk)
+        self.assertEqual(clk.region, "samarkand")
+        self.assertEqual(clk.country, "UZ")
+
+        # 6. Verify Timeline Analytics Regional Breakdown
+        timeline = AdEngineService.get_advertiser_timeline_analytics(user_id="user_geo_15", tenant_id="tenant_geo_15", days=7)
+        self.assertIn("regions", timeline)
+        self.assertGreaterEqual(timeline["regions"].get("samarkand", 0), 1)
+
+        admin_timeline = AdEngineService.get_admin_network_timeline(days=7)
+        self.assertIn("regions", admin_timeline)
+        self.assertGreaterEqual(admin_timeline["regions"].get("samarkand", 0), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

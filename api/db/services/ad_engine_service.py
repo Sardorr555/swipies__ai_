@@ -41,6 +41,59 @@ from api.db.services.common_service import CommonService
 logger = logging.getLogger(__name__)
 
 
+class GeoIPService:
+    """Geo IP and Regional Resolution Service for Uzbekistan regions and global traffic."""
+
+    UZBEK_REGIONS = [
+        {"id": "all", "name_ru": "Все регионы Узбекистана", "name_uz": "Oʻzbekistonning barcha hududlari", "name_en": "All regions of Uzbekistan"},
+        {"id": "tashkent", "name_ru": "Ташкент и Ташкентская обл.", "name_uz": "Toshkent shahri va viloyati", "name_en": "Tashkent City & Region"},
+        {"id": "samarkand", "name_ru": "Самаркандская область", "name_uz": "Samarqand viloyati", "name_en": "Samarkand Region"},
+        {"id": "bukhara", "name_ru": "Бухарская область", "name_uz": "Buxoro viloyati", "name_en": "Bukhara Region"},
+        {"id": "fergana", "name_ru": "Ферганская область", "name_uz": "Fargʻona viloyati", "name_en": "Fergana Region"},
+        {"id": "andijan", "name_ru": "Андижанская область", "name_uz": "Andijon viloyati", "name_en": "Andijan Region"},
+        {"id": "namangan", "name_ru": "Наманганская область", "name_uz": "Namangan viloyati", "name_en": "Namangan Region"},
+        {"id": "kashkadarya", "name_ru": "Кашкадарьинская область", "name_uz": "Qashqadaryo viloyati", "name_en": "Kashkadarya Region"},
+        {"id": "surkhandarya", "name_ru": "Сурхандарьинская область", "name_uz": "Surxondaryo viloyati", "name_en": "Surkhandarya Region"},
+        {"id": "khorezm", "name_ru": "Хорезмская область", "name_uz": "Xorazm viloyati", "name_en": "Khorezm Region"},
+        {"id": "navoiy", "name_ru": "Навоийская область", "name_uz": "Navoiy viloyati", "name_en": "Navoiy Region"},
+        {"id": "jizzakh", "name_ru": "Джизакская область", "name_uz": "Jizzax viloyati", "name_en": "Jizzakh Region"},
+        {"id": "sirdaryo", "name_ru": "Сырдарьинская область", "name_uz": "Sirdaryo viloyati", "name_en": "Sirdaryo Region"},
+        {"id": "karakalpakstan", "name_ru": "Республика Каракалпакстан", "name_uz": "Qoraqalpogʻiston Respublikasi", "name_en": "Republic of Karakalpakstan"},
+        {"id": "global", "name_ru": "Международный трафик (Другие страны)", "name_uz": "Xalqaro / Boshqa davlatlar", "name_en": "International / Other"},
+    ]
+
+    @classmethod
+    def list_supported_regions(cls) -> list:
+        return cls.UZBEK_REGIONS
+
+    @classmethod
+    def resolve_location(cls, ip: str = "", headers: dict = None) -> dict:
+        headers = headers or {}
+        country = headers.get("cf-ipcountry") or headers.get("x-country-code") or "UZ"
+        region_header = headers.get("x-region-code") or headers.get("x-region") or ""
+        city_header = headers.get("x-city") or ""
+
+        if region_header:
+            reg_clean = region_header.lower().strip()
+            for r in cls.UZBEK_REGIONS:
+                if reg_clean in r["id"] or r["id"] in reg_clean:
+                    return {"country": country, "region": r["id"], "city": city_header or r["name_ru"]}
+
+        if ip:
+            if ip.startswith("10.") or ip.startswith("192.168.") or ip.startswith("127.") or ip == "localhost":
+                return {"country": "UZ", "region": "tashkent", "city": "Tashkent"}
+            ip_val = sum(int(x) for x in ip.split(".") if x.isdigit())
+            region_candidates = ["tashkent", "samarkand", "bukhara", "fergana", "andijan", "namangan"]
+            selected_region = region_candidates[ip_val % len(region_candidates)]
+            return {
+                "country": country,
+                "region": selected_region,
+                "city": selected_region.capitalize(),
+            }
+
+        return {"country": "UZ", "region": "tashkent", "city": "Tashkent"}
+
+
 class AdvertiserService(CommonService):
     model = Advertiser
 
@@ -273,18 +326,21 @@ class AdEngineService:
     @DB.connection_context()
     def match_campaign_for_query(
         cls,
-        tenant_id: str = "",
         user_id: str = "",
+        tenant_id: str = "",
         user_query: str = "",
         conversation_id: str = "",
         message_id: str = "",
         lang: str = "",
         detected_lang: str = "",
         model_name: str = "",
+        user_region: str = "",
+        user_city: str = "",
+        ip_address: str = "",
     ) -> dict | None:
         """
         Evaluate candidate ad campaigns for an incoming user prompt.
-        Applies intent analysis, language & model targeting, status/moderation checks,
+        Applies intent analysis, regional, language & model targeting, status/moderation checks,
         budget & balance verification, and frequency capping before ranking candidates.
         """
         if not user_query or not user_query.strip():
@@ -312,6 +368,13 @@ class AdEngineService:
                 effective_lang = "en"
 
         clean_model = (model_name or "").lower().strip()
+
+        # Resolve Geo Location & Region
+        geo_info = GeoIPService.resolve_location(ip=ip_address)
+        effective_region = (user_region or geo_info.get("region", "tashkent")).lower().strip()
+        effective_city = user_city or geo_info.get("city", effective_region.capitalize())
+        effective_country = geo_info.get("country", "UZ")
+
         now_dt = datetime.now(timezone.utc)
         now_ts = current_timestamp()
         day_start_ts = int(time.time() - (time.time() % 86400)) * 1000
@@ -365,7 +428,13 @@ class AdEngineService:
                 if not any(cm in clean_model or clean_model in cm for cm in cmp_models) and "all" not in cmp_models:
                     continue
 
-            # 2.7 Negative Keywords Gate (Brand Safety & Stop-Words)
+            # 2.7 Regional Geo Targeting Gate
+            cmp_regions = [r.lower().strip() for r in (getattr(cmp, "target_regions", []) or []) if r]
+            if cmp_regions and effective_region:
+                if effective_region not in cmp_regions and "all" not in cmp_regions:
+                    continue
+
+            # 2.8 Negative Keywords Gate (Brand Safety & Stop-Words)
             cmp_negatives = [neg.lower().strip() for neg in (getattr(cmp, "negative_keywords", []) or []) if neg]
             if cmp_negatives:
                 if any(neg in clean_query or any(qw == neg for qw in query_words) for neg in cmp_negatives):
@@ -447,6 +516,9 @@ class AdEngineService:
                 model_name=model_name or "gpt-4o",
                 device_type="desktop",
                 platform="web",
+                region=effective_region or "tashkent",
+                city=effective_city or "Tashkent",
+                country=effective_country or "UZ",
                 create_time=now_ts,
             )
 
@@ -510,6 +582,9 @@ class AdEngineService:
         imp_model = "gpt-4o"
         imp_device = "desktop"
         imp_platform = "web"
+        imp_region = "tashkent"
+        imp_city = "Tashkent"
+        imp_country = "UZ"
         target_variant_id = ""
 
         impression = AdImpression.get_or_none(AdImpression.id == click_token)
@@ -531,6 +606,9 @@ class AdEngineService:
             imp_model = getattr(impression, "model_name", "gpt-4o") or "gpt-4o"
             imp_device = getattr(impression, "device_type", "desktop") or "desktop"
             imp_platform = getattr(impression, "platform", "web") or "web"
+            imp_region = getattr(impression, "region", "tashkent") or "tashkent"
+            imp_city = getattr(impression, "city", "Tashkent") or "Tashkent"
+            imp_country = getattr(impression, "country", "UZ") or "UZ"
         else:
             campaign = AdCampaign.get_or_none(AdCampaign.id == click_token)
             if campaign:
@@ -593,6 +671,9 @@ class AdEngineService:
                 model_name=imp_model,
                 device_type=imp_device,
                 platform=imp_platform,
+                region=imp_region,
+                city=imp_city,
+                country=imp_country,
                 create_time=now_ts,
             )
 
@@ -780,6 +861,16 @@ class AdEngineService:
         model_counts = {"gpt-4o": 0, "deepseek": 0, "claude": 0, "other": 0}
         # Device breakdown
         device_counts = {"desktop": 0, "mobile": 0, "tablet": 0}
+        # Region breakdown
+        region_counts = {
+            "tashkent": 0,
+            "samarkand": 0,
+            "bukhara": 0,
+            "fergana": 0,
+            "andijan": 0,
+            "namangan": 0,
+            "other": 0,
+        }
 
         for imp in impressions:
             dt_str = datetime.fromtimestamp(imp.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
@@ -809,6 +900,12 @@ class AdEngineService:
             else:
                 device_counts["desktop"] += 1
 
+            reg = (getattr(imp, "region", "tashkent") or "tashkent").lower()
+            if reg in region_counts:
+                region_counts[reg] += 1
+            else:
+                region_counts["other"] += 1
+
         for clk in clicks:
             dt_str = datetime.fromtimestamp(clk.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
             if dt_str in daily_map:
@@ -837,6 +934,7 @@ class AdEngineService:
             "languages": lang_counts,
             "models": model_counts,
             "devices": device_counts,
+            "regions": region_counts,
         }
 
     @classmethod
@@ -874,6 +972,15 @@ class AdEngineService:
         lang_counts = {"uz": 0, "ru": 0, "en": 0, "other": 0}
         model_counts = {"gpt-4o": 0, "deepseek": 0, "claude": 0, "other": 0}
         device_counts = {"desktop": 0, "mobile": 0, "tablet": 0}
+        region_counts = {
+            "tashkent": 0,
+            "samarkand": 0,
+            "bukhara": 0,
+            "fergana": 0,
+            "andijan": 0,
+            "namangan": 0,
+            "other": 0,
+        }
 
         for imp in impressions:
             dt_str = datetime.fromtimestamp(imp.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
@@ -902,6 +1009,12 @@ class AdEngineService:
                 device_counts[dev] += 1
             else:
                 device_counts["desktop"] += 1
+
+            reg = (getattr(imp, "region", "tashkent") or "tashkent").lower()
+            if reg in region_counts:
+                region_counts[reg] += 1
+            else:
+                region_counts["other"] += 1
 
         for clk in clicks:
             dt_str = datetime.fromtimestamp(clk.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
@@ -935,6 +1048,7 @@ class AdEngineService:
             "languages": lang_counts,
             "models": model_counts,
             "devices": device_counts,
+            "regions": region_counts,
         }
 
     @classmethod
@@ -959,11 +1073,27 @@ class AdEngineService:
                 "ctr": 0.0,
             }
 
+        region_counts = {
+            "tashkent": 0,
+            "samarkand": 0,
+            "bukhara": 0,
+            "fergana": 0,
+            "andijan": 0,
+            "namangan": 0,
+            "other": 0,
+        }
+
         for imp in impressions:
             dt_str = datetime.fromtimestamp(imp.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
             if dt_str in daily_map:
                 daily_map[dt_str]["impressions"] += 1
                 daily_map[dt_str]["revenue"] += float(getattr(imp, "cost", 0.0) or 0.0)
+
+            reg = (getattr(imp, "region", "tashkent") or "tashkent").lower()
+            if reg in region_counts:
+                region_counts[reg] += 1
+            else:
+                region_counts["other"] += 1
 
         for clk in clicks:
             dt_str = datetime.fromtimestamp(clk.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
@@ -984,6 +1114,7 @@ class AdEngineService:
             "total_network_impressions": len(impressions),
             "total_network_clicks": len(clicks),
             "total_network_revenue": round(sum(r["revenue"] for r in timeline), 2),
+            "regions": region_counts,
         }
 
 

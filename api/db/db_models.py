@@ -1679,6 +1679,8 @@ class AdCampaign(DataBaseModel):
     target_languages = JSONField(null=True, default=list)  # ["uz", "ru", "en"] or [] for all
     target_models = JSONField(null=True, default=list)  # ["gpt-4o", "deepseek-r1", "claude-3-5-sonnet"] or [] for all
     target_countries = JSONField(null=True, default=list)  # ["UZ", "RU", "KZ"] or [] for all
+    target_regions = JSONField(null=True, default=list)  # ["tashkent", "samarkand", "bukhara", "fergana", "andijan", "namangan", "all"]
+    target_cities = JSONField(null=True, default=list)  # list of city names
     daily_budget = FloatField(default=10.0)
     total_budget = FloatField(default=100.0)
     spent_today = FloatField(default=0.0)
@@ -1731,6 +1733,9 @@ class AdImpression(DataBaseModel):
     model_name = CharField(max_length=64, default="gpt-4o", null=True, index=True)
     device_type = CharField(max_length=32, default="desktop", null=True, index=True)
     platform = CharField(max_length=32, default="web", null=True)
+    region = CharField(max_length=64, default="tashkent", null=True, index=True)
+    city = CharField(max_length=64, default="Tashkent", null=True, index=True)
+    country = CharField(max_length=8, default="UZ", null=True, index=True)
     create_time = BigIntegerField(null=False, index=True)
 
     class Meta:
@@ -1750,6 +1755,9 @@ class AdClick(DataBaseModel):
     model_name = CharField(max_length=64, default="gpt-4o", null=True, index=True)
     device_type = CharField(max_length=32, default="desktop", null=True, index=True)
     platform = CharField(max_length=32, default="web", null=True)
+    region = CharField(max_length=64, default="tashkent", null=True, index=True)
+    city = CharField(max_length=64, default="Tashkent", null=True, index=True)
+    country = CharField(max_length=8, default="UZ", null=True, index=True)
     create_time = BigIntegerField(null=False, index=True)
 
     class Meta:
