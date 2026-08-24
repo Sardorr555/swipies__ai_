@@ -1655,6 +1655,7 @@ class Advertiser(DataBaseModel):
     company_name = CharField(max_length=255, null=False, default="")
     contact_email = CharField(max_length=255, null=True)
     website_url = CharField(max_length=1024, null=True)
+    pixel_id = CharField(max_length=32, null=True, unique=True, index=True)
     balance = FloatField(default=0.0)
     currency = CharField(max_length=8, default="USD")
     status = CharField(max_length=32, default="active", index=True)  # active, suspended, pending
@@ -1685,8 +1686,12 @@ class AdCampaign(DataBaseModel):
     total_budget = FloatField(default=100.0)
     spent_today = FloatField(default=0.0)
     total_spent = FloatField(default=0.0)
-    pricing_model = CharField(max_length=16, default="cpc", index=True)  # cpc, cpm
+    pricing_model = CharField(max_length=16, default="cpc", index=True)  # cpc, cpm, cpa
     bid_amount = FloatField(default=0.10)
+    target_cpa = FloatField(default=0.0)  # Smart auto-bidding Target Cost Per Action ($)
+    conversions_count = IntegerField(default=0)
+    conversion_rate = FloatField(default=0.0)
+    total_conversion_value = FloatField(default=0.0)
     priority = IntegerField(default=0)
     status = CharField(max_length=32, default="active", index=True)  # draft, active, paused, completed, archived
     moderation_status = CharField(max_length=32, default="approved", index=True)  # pending, approved, rejected
@@ -1762,6 +1767,27 @@ class AdClick(DataBaseModel):
 
     class Meta:
         db_table = "campaign_clicks"
+
+
+class AdConversion(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    campaign_id = CharField(max_length=32, null=False, index=True)
+    variant_id = CharField(max_length=32, null=True, index=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    click_id = CharField(max_length=32, null=True, index=True)
+    impression_id = CharField(max_length=32, null=True, index=True)
+    user_id = CharField(max_length=32, null=True, index=True)
+    conversion_event = CharField(max_length=64, default="purchase", index=True)  # purchase, lead, signup, custom
+    conversion_value = FloatField(default=0.0)
+    currency = CharField(max_length=8, default="USD")
+    order_id = CharField(max_length=128, null=True, index=True)
+    cost = FloatField(default=0.0)
+    ip_hash = CharField(max_length=64, null=True)
+    status = CharField(max_length=32, default="confirmed", index=True)  # confirmed, pending, rejected
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "campaign_conversions"
 
 
 class AdTransaction(DataBaseModel):

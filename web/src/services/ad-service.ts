@@ -25,8 +25,12 @@ export interface AdCampaignItem {
   total_budget: number;
   spent_today: number;
   total_spent: number;
-  pricing_model: 'cpc' | 'cpm';
+  pricing_model: 'cpc' | 'cpm' | 'cpa';
   bid_amount: number;
+  target_cpa?: number;
+  conversions_count?: number;
+  conversion_rate?: number;
+  total_conversion_value?: number;
   priority?: number;
   status: 'active' | 'paused' | 'completed' | 'archived';
   moderation_status: 'pending' | 'approved' | 'rejected';
@@ -180,6 +184,11 @@ const adService = {
   updateAdminSettings: (data: Partial<AdminAdsSettings>) =>
     request.post<ResponseData<boolean>>('/ads/admin/settings', { data }),
 
+  // Conversion Pixel & Smart Bidding
+  getPixelSnippet: () => request.get<ResponseData<PixelSnippetData>>('/ads/pixel/snippet'),
+  testPixelTrack: (data: { pixel_id: string; event: string; value?: number; order_id?: string }) =>
+    request.post<ResponseData<any>>('/ads/pixel/track', { data }),
+
   // Attribution & Watermark Analytics
   getAttributionStats: () => request.get<ResponseData<AttributionStatsData>>('/ads/attribution/stats'),
 
@@ -200,6 +209,12 @@ const adService = {
   adminProcessRenewals: () =>
     request.post<ResponseData<{ processed: number; renewed: number; failed: number }>>('/ads/admin/subscriptions/process-renewals'),
 };
+
+export interface PixelSnippetData {
+  pixel_id: string;
+  snippet: string;
+  example_usage: string;
+}
 
 export interface GeoRegionItem {
   id: string;

@@ -265,6 +265,7 @@ from api.db.db_models import (
     AdVariant,
     AdImpression,
     AdClick,
+    AdConversion,
     AdTransaction,
     AdSettings,
     PromoCode,
@@ -283,6 +284,8 @@ from api.db.services.ad_engine_service import (
     AdVariantService,
     AdImpressionService,
     AdClickService,
+    AdConversion,
+    ConversionTrackingService,
     AdTransactionService,
     AdSettingsService,
     AdEngineService,
@@ -313,6 +316,7 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdVariant,
             AdImpression,
             AdClick,
+            AdConversion,
             AdTransaction,
             AdSettings,
             PromoCode,
@@ -1515,6 +1519,127 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         admin_timeline = AdEngineService.get_admin_network_timeline(days=7)
         self.assertIn("regions", admin_timeline)
         self.assertGreaterEqual(admin_timeline["regions"].get("samarkand", 0), 1)
+
+    def test_16_cpa_conversions_smart_bidding_and_pixel_engine(self):
+        """
+        Phase 14 Test:
+        - Verify Advertiser Pixel ID generation & JS snippet creation
+        - Verify Smart Auto-Bidding formula in match_campaign_for_query (eCPC = Target CPA * CVR)
+        - Record impression and click
+        - Record conversion with order ID and value
+        - Verify CPA fee deduction from balance upon conversion
+        - Verify campaign CVR & total_conversion_value metrics update
+        - Verify duplicate conversion protection
+        """
+        adv = AdvertiserService.get_or_create_for_user(user_id="user_cpa_16", tenant_id="tenant_cpa_16")
+        adv.balance = 100.0
+        adv.save()
+
+        # 1. Verify Pixel ID & Snippet
+        pixel_id = ConversionTrackingService.get_or_create_pixel_id(adv.id)
+        self.assertTrue(pixel_id.startswith("px_"))
+
+        snippet_data = ConversionTrackingService.generate_pixel_snippet(pixel_id=pixel_id, host="https://swipies.app")
+        self.assertIn(pixel_id, snippet_data["snippet"])
+        self.assertIn("swipiesTrack", snippet_data["snippet"])
+
+        # 2. Create CPA Campaign with Target CPA $4.00 and 5% initial CVR
+        cmp_cpa = AdCampaign.create(
+            id="cmp_cpa_16",
+            advertiser_id=adv.id,
+            name="NordVPN Security Offer",
+            product_name="NordVPN High Speed",
+            description="Ultra secure private browsing with fast encryption",
+            advertisement_text="Get NordVPN with 70% off - Secure your AI workflows",
+            landing_url="https://nordvpn.example.com/ai-offer",
+            target_categories=["security", "software"],
+            keywords=["vpn", "security", "privacy"],
+            pricing_model="cpa",
+            bid_amount=0.20,
+            target_cpa=4.00,
+            conversions_count=1,
+            conversion_rate=5.0,  # 5.0% CVR -> eCPC = 4.00 * 0.05 = 0.20
+            total_conversion_value=49.99,
+            daily_budget=20.0,
+            total_budget=200.0,
+            spent_today=0.0,
+            total_spent=0.0,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # 3. Match CPA Campaign in Auction
+        match = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_cpa_16",
+            user_id="user_buyer_16",
+            user_query="I need the best vpn security tool for my laptop",
+        )
+        self.assertIsNotNone(match)
+        self.assertEqual(match["campaign_id"], cmp_cpa.id)
+        self.assertEqual(match["pricing_model"], "cpa")
+
+        # 4. Record Click
+        click_token = f"{cmp_cpa.id}_{match['impression_id']}_user_buyer_16"
+        dest_url = AdEngineService.track_click(click_token=click_token, user_id="user_buyer_16")
+        self.assertEqual(dest_url, "https://nordvpn.example.com/ai-offer")
+
+        # Verify Click was recorded
+        clk = AdClick.get_or_none(AdClick.impression_id == match["impression_id"])
+        self.assertIsNotNone(clk)
+
+        # Advertiser balance should NOT be charged yet on impression or click for CPA pricing
+        adv_fresh = Advertiser.get_by_id(adv.id)
+        self.assertEqual(adv_fresh.balance, 100.0)
+
+        # 5. Record Conversion Event from Advertiser Pixel
+        conv_res = ConversionTrackingService.record_conversion(
+            pixel_id=pixel_id,
+            event="purchase",
+            value=79.99,
+            currency="USD",
+            order_id="ORD-NORD-8812",
+            click_token=click_token,
+            ip="185.139.137.10",
+            user_id="user_buyer_16",
+        )
+        self.assertTrue(conv_res["success"])
+        self.assertEqual(conv_res["cost"], 4.00)
+
+        # 6. Verify Database State
+        conv_record = AdConversion.get_or_none(AdConversion.order_id == "ORD-NORD-8812")
+        self.assertIsNotNone(conv_record)
+        self.assertEqual(conv_record.campaign_id, cmp_cpa.id)
+        self.assertEqual(conv_record.conversion_value, 79.99)
+        self.assertEqual(conv_record.cost, 4.00)
+        self.assertEqual(conv_record.status, "confirmed")
+
+        # Verify CPA Fee was billed to advertiser
+        adv_billed = Advertiser.get_by_id(adv.id)
+        self.assertEqual(adv_billed.balance, 96.00)
+
+        # Verify Campaign Metrics Updated
+        cmp_updated = AdCampaign.get_by_id(cmp_cpa.id)
+        self.assertEqual(cmp_updated.conversions_count, 2)
+        self.assertAlmostEqual(cmp_updated.total_conversion_value, 129.98, places=2)
+        self.assertEqual(cmp_updated.total_spent, 4.00)
+
+        # 7. Verify Duplicate Conversion Protection
+        dup_res = ConversionTrackingService.record_conversion(
+            pixel_id=pixel_id,
+            event="purchase",
+            value=79.99,
+            currency="USD",
+            order_id="ORD-NORD-8812",
+            click_token=click_token,
+        )
+        self.assertTrue(dup_res["success"])
+        self.assertTrue(dup_res.get("duplicate"))
+
+        # Balance remains 96.00 (not charged twice)
+        adv_dup = Advertiser.get_by_id(adv.id)
+        self.assertEqual(adv_dup.balance, 96.00)
 
 
 if __name__ == "__main__":

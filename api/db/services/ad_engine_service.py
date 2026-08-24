@@ -30,6 +30,7 @@ from api.db.db_models import (
     AdVariant,
     AdImpression,
     AdClick,
+    AdConversion,
     AdTransaction,
     AdSettings,
     AdAttributionVisit,
@@ -103,18 +104,23 @@ class AdvertiserService(CommonService):
         adv = cls.model.get_or_none(cls.model.user_id == user_id)
         if not adv:
             adv_id = uuid.uuid4().hex[:32]
+            pixel_id = "px_" + uuid.uuid4().hex[:16]
             adv = cls.model.create(
                 id=adv_id,
                 tenant_id=tenant_id,
                 user_id=user_id,
                 company_name=company_name or f"Advertiser {user_id[:6]}",
                 contact_email=contact_email,
+                pixel_id=pixel_id,
                 balance=0.0,
                 currency="USD",
                 status="active",
                 create_time=current_timestamp(),
                 update_time=current_timestamp(),
             )
+        elif not adv.pixel_id:
+            adv.pixel_id = "px_" + uuid.uuid4().hex[:16]
+            adv.save()
         return adv
 
 
@@ -399,9 +405,21 @@ class AdEngineService:
         for cmp in active_campaigns:
             adv = cmp.advertiser
 
-            # 1. Budget and Balance Gate
-            cost_per_event = float(cmp.bid_amount or 0.10)
-            if adv.balance < cost_per_event:
+            # 1. Budget and Balance Gate & Smart Auto-Bidding Calculation
+            is_cpa = getattr(cmp, "pricing_model", "cpc") == "cpa"
+            target_cpa = float(getattr(cmp, "target_cpa", 0.0) or 0.0)
+
+            if is_cpa or target_cpa > 0:
+                # Smart CPA Auto-Bidding Formula: eCPC = Target CPA * max(0.01, Campaign CVR / 100.0)
+                raw_cvr = float(getattr(cmp, "conversion_rate", 0.0) or 2.5) / 100.0
+                calc_cpa = target_cpa if target_cpa > 0 else float(cmp.bid_amount or 5.0)
+                cost_per_event = round(max(0.05, min(calc_cpa * raw_cvr, 5.0)), 2)
+            else:
+                cost_per_event = float(cmp.bid_amount or 0.10)
+
+            if not is_cpa and adv.balance < cost_per_event:
+                continue
+            if is_cpa and adv.balance < (target_cpa if target_cpa > 0 else float(cmp.bid_amount or 1.0)):
                 continue
 
             if cmp.total_budget > 0 and cmp.total_spent + cost_per_event > cmp.total_budget:
@@ -565,6 +583,7 @@ class AdEngineService:
             "landing_url": landing_url,
             "tracking_url": tracking_url,
             "target_categories": winner_campaign.target_categories or [],
+            "pricing_model": getattr(winner_campaign, "pricing_model", "cpc"),
         }
 
     @classmethod
@@ -1210,3 +1229,208 @@ class AttributionService(CommonService):
             "utm_link": AdPolicyService.build_attribution_url(user_id=user_id),
             "recent_visits": recent_visits,
         }
+
+
+class ConversionTrackingService(CommonService):
+    model = AdConversion
+
+    @classmethod
+    @DB.connection_context()
+    def get_or_create_pixel_id(cls, advertiser_id: str) -> str:
+        adv = Advertiser.get_or_none(Advertiser.id == advertiser_id)
+        if not adv:
+            return ""
+        if not adv.pixel_id:
+            adv.pixel_id = "px_" + uuid.uuid4().hex[:16]
+            adv.save()
+        return adv.pixel_id
+
+    @classmethod
+    def generate_pixel_snippet(cls, pixel_id: str, host: str = "https://swipies.app") -> dict:
+        """Generates embeddable JS tracking snippet and integration guide for advertiser website."""
+        snippet = (
+            f'<!-- Swipies Conversion Pixel -->\n'
+            f'<script src="{host}/api/v1/ads/pixel.js?id={pixel_id}" async></script>\n'
+            f'<script>\n'
+            f'  window.swipiesTrack = window.swipiesTrack || function(event, data) {{\n'
+            f'    try {{\n'
+            f'      var urlParams = new URLSearchParams(window.location.search);\n'
+            f'      var clickToken = urlParams.get("swipies_click") || localStorage.getItem("swipies_click_token") || "";\n'
+            f'      fetch("{host}/api/v1/ads/pixel/track", {{\n'
+            f'        method: "POST",\n'
+            f'        headers: {{"Content-Type": "application/json"}},\n'
+            f'        body: JSON.stringify({{\n'
+            f'          pixel_id: "{pixel_id}",\n'
+            f'          event: event || "purchase",\n'
+            f'          value: data && data.value ? Number(data.value) : 0,\n'
+            f'          currency: (data && data.currency) || "USD",\n'
+            f'          order_id: (data && data.order_id) || "",\n'
+            f'          click_token: clickToken\n'
+            f'        }})\n'
+            f'      }});\n'
+            f'    }} catch(e) {{ console.error("Swipies pixel error", e); }}\n'
+            f'  }};\n'
+            f'</script>'
+        )
+        example_usage = "swipiesTrack('purchase', { value: 49.99, order_id: 'ORD-12345', currency: 'USD' });"
+        return {
+            "pixel_id": pixel_id,
+            "snippet": snippet,
+            "example_usage": example_usage,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def record_conversion(
+        cls,
+        pixel_id: str,
+        event: str = "purchase",
+        value: float = 0.0,
+        currency: str = "USD",
+        order_id: str = "",
+        click_id: str = "",
+        click_token: str = "",
+        ip: str = "",
+        user_id: str = "",
+    ) -> dict:
+        """
+        Match incoming conversion to a recent AdClick / AdImpression within attribution window (30 days),
+        record AdConversion, update campaign CVR metrics, and bill CPA if applicable.
+        """
+        adv = Advertiser.get_or_none(Advertiser.pixel_id == pixel_id)
+        if not adv:
+            return {"success": False, "message": "Invalid pixel ID"}
+
+        now_ts = current_timestamp()
+        thirty_days_ago = now_ts - (30 * 86400 * 1000)
+
+        # Attempt to find matching click
+        matched_click = None
+        matched_imp = None
+        target_cmp = None
+
+        if click_id:
+            matched_click = AdClick.get_or_none(AdClick.id == click_id, AdClick.advertiser_id == adv.id)
+
+        if not matched_click and click_token:
+            matched_click = AdClick.get_or_none(AdClick.id == click_token, AdClick.advertiser_id == adv.id)
+            if not matched_click and "_" in click_token:
+                for part in click_token.split("_"):
+                    if len(part) == 32:
+                        c_cand = AdClick.get_or_none(AdClick.impression_id == part, AdClick.advertiser_id == adv.id)
+                        if c_cand:
+                            matched_click = c_cand
+                            break
+                        i_cand = AdImpression.get_or_none(AdImpression.id == part, AdImpression.advertiser_id == adv.id)
+                        if i_cand:
+                            matched_imp = i_cand
+                            break
+
+            if not matched_click and not matched_imp:
+                matched_imp = AdImpression.get_or_none(AdImpression.id == click_token, AdImpression.advertiser_id == adv.id)
+
+        if not matched_click and not matched_imp and ip:
+            import hashlib
+            ip_hash = hashlib.sha256(ip.encode()).hexdigest()[:64]
+            matched_click = (
+                AdClick.select()
+                .where(
+                    AdClick.advertiser_id == adv.id,
+                    AdClick.ip_hash == ip_hash,
+                    AdClick.create_time >= thirty_days_ago,
+                )
+                .order_by(AdClick.create_time.desc())
+                .first()
+            )
+
+        if matched_click:
+            target_cmp = AdCampaign.get_or_none(AdCampaign.id == matched_click.campaign_id)
+            matched_variant_id = getattr(matched_click, "variant_id", None)
+            matched_imp_id = getattr(matched_click, "impression_id", None)
+            matched_click_id = matched_click.id
+            matched_user_id = matched_click.user_id or user_id
+        elif matched_imp:
+            target_cmp = AdCampaign.get_or_none(AdCampaign.id == matched_imp.campaign_id)
+            matched_variant_id = getattr(matched_imp, "variant_id", None)
+            matched_imp_id = matched_imp.id
+            matched_click_id = None
+            matched_user_id = matched_imp.user_id or user_id
+        else:
+            # Fallback to most recent active campaign of advertiser
+            target_cmp = (
+                AdCampaign.select()
+                .where(AdCampaign.advertiser_id == adv.id, AdCampaign.status == "active")
+                .order_by(AdCampaign.create_time.desc())
+                .first()
+            )
+            matched_variant_id = None
+            matched_imp_id = None
+            matched_click_id = None
+            matched_user_id = user_id
+
+        if not target_cmp:
+            return {"success": False, "message": "No active campaign found for conversion"}
+
+        # Prevent duplicate conversion for same order_id
+        if order_id:
+            dup = AdConversion.get_or_none(AdConversion.advertiser_id == adv.id, AdConversion.order_id == order_id)
+            if dup:
+                return {"success": True, "conversion_id": dup.id, "duplicate": True}
+
+        # Calculate billable CPA cost if campaign is CPA pricing model
+        cpa_cost = 0.0
+        if getattr(target_cmp, "pricing_model", "cpc") == "cpa":
+            cpa_cost = float(getattr(target_cmp, "target_cpa", 0.0) or target_cmp.bid_amount or 1.0)
+            if adv.balance >= cpa_cost:
+                adv.balance = max(0.0, adv.balance - cpa_cost)
+                adv.save()
+                target_cmp.spent_today += cpa_cost
+                target_cmp.total_spent += cpa_cost
+                AdTransaction.create(
+                    id=uuid.uuid4().hex[:32],
+                    advertiser_id=adv.id,
+                    amount=-cpa_cost,
+                    type="spend_cpa",
+                    description=f"CPA Conversion fee for order {order_id or target_cmp.name}",
+                    reference_id=order_id or target_cmp.id,
+                    create_time=now_ts,
+                )
+
+        conversion_id = uuid.uuid4().hex[:32]
+        conv = AdConversion.create(
+            id=conversion_id,
+            campaign_id=target_cmp.id,
+            variant_id=matched_variant_id,
+            advertiser_id=adv.id,
+            click_id=matched_click_id,
+            impression_id=matched_imp_id,
+            user_id=matched_user_id or "",
+            conversion_event=event,
+            conversion_value=float(value or 0.0),
+            currency=currency,
+            order_id=order_id or None,
+            cost=cpa_cost,
+            ip_hash=ip[:64] if ip else None,
+            status="confirmed",
+            create_time=now_ts,
+        )
+
+        # Update Campaign Conversion Metrics
+        target_cmp.conversions_count = (target_cmp.conversions_count or 0) + 1
+        target_cmp.total_conversion_value = float(target_cmp.total_conversion_value or 0.0) + float(value or 0.0)
+
+        # Calculate CVR = conversions / clicks * 100
+        clicks_cnt = AdClick.select().where(AdClick.campaign_id == target_cmp.id).count()
+        if clicks_cnt > 0:
+            target_cmp.conversion_rate = round((target_cmp.conversions_count / clicks_cnt) * 100.0, 2)
+        target_cmp.save()
+
+        return {
+            "success": True,
+            "conversion_id": conv.id,
+            "campaign_id": target_cmp.id,
+            "event": event,
+            "value": value,
+            "cost": cpa_cost,
+        }
+

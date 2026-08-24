@@ -268,6 +268,7 @@ from api.db.db_models import (
     AdVariant,
     AdImpression,
     AdClick,
+    AdConversion,
     AdTransaction,
     AdSettings,
     AdAttributionVisit,
@@ -286,6 +287,7 @@ from api.db.services.ad_engine_service import (
     AdVariantService,
     AdSettingsService,
     AttributionService,
+    ConversionTrackingService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -353,6 +355,7 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             AdVariant,
             AdImpression,
             AdClick,
+            AdConversion,
             AdTransaction,
             AdSettings,
             AdAttributionVisit,
@@ -382,14 +385,20 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             UserTenant,
             Advertiser,
             AdCampaign,
+            AdVariant,
             AdImpression,
             AdClick,
+            AdConversion,
             AdTransaction,
             AdSettings,
             AdAttributionVisit,
             PaymentOrder,
+            PromoCode,
+            PromoCodeUsage,
             SubscriptionPlan,
             UserOnboarding,
+            SavedPaymentMethod,
+            UserSubscription,
         ]
         test_db.drop_tables(models, safe=True)
         test_db.close()

@@ -37,6 +37,9 @@ import {
   RotateCw,
   XCircle,
   MapPin,
+  Code2,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -128,6 +131,7 @@ export default function SwipiesAdsPage() {
     total_budget: 100,
     pricing_model: 'cpc',
     bid_amount: 0.15,
+    target_cpa: 5.0,
   });
   const [rawKeywords, setRawKeywords] = useState('');
   const [rawCategories, setRawCategories] = useState('');
@@ -137,6 +141,14 @@ export default function SwipiesAdsPage() {
   const [targetRegions, setTargetRegions] = useState<string[]>(['all']);
   const [topUpAmount, setTopUpAmount] = useState('50');
   const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
+
+  // Conversion Pixel State
+  const [isPixelModalOpen, setIsPixelModalOpen] = useState(false);
+  const [pixelData, setPixelData] = useState<PixelSnippetData | null>(null);
+  const [loadingPixel, setLoadingPixel] = useState(false);
+  const [copiedSnippet, setCopiedSnippet] = useState(false);
+  const [testOrderValue, setTestOrderValue] = useState('49.99');
+  const [isSendingTestEvent, setIsSendingTestEvent] = useState(false);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -544,6 +556,52 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  const handleOpenPixelModal = async () => {
+    setIsPixelModalOpen(true);
+    setLoadingPixel(true);
+    try {
+      const res = await adService.getPixelSnippet();
+      if (res.data?.data) {
+        setPixelData(res.data.data);
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Failed to load pixel snippet');
+    } finally {
+      setLoadingPixel(false);
+    }
+  };
+
+  const handleCopySnippet = () => {
+    if (pixelData?.snippet) {
+      navigator.clipboard.writeText(pixelData.snippet);
+      setCopiedSnippet(true);
+      message.success('JS-код пикселя скопирован в буфер обмена!');
+      setTimeout(() => setCopiedSnippet(false), 3000);
+    }
+  };
+
+  const handleTestPixelEvent = async () => {
+    if (!pixelData?.pixel_id) return;
+    setIsSendingTestEvent(true);
+    try {
+      const val = parseFloat(testOrderValue) || 10.0;
+      const res = await adService.testPixelTrack({
+        pixel_id: pixelData.pixel_id,
+        event: 'purchase',
+        value: val,
+        order_id: 'TEST-' + Math.floor(100000 + Math.random() * 900000),
+      });
+      if (res.data?.data) {
+        message.success(`Тестовая конверсия ($${val}) успешно зарегистрирована!`);
+        fetchDashboard();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка тестовой отправки');
+    } finally {
+      setIsSendingTestEvent(false);
+    }
+  };
+
   const handleTopUp = async () => {
     const num = parseFloat(topUpAmount);
     if (isNaN(num) || num <= 0) {
@@ -595,6 +653,14 @@ export default function SwipiesAdsPage() {
               <CreditCard className="mr-1 h-3.5 w-3.5" /> Top-Up
             </Button>
           </div>
+
+          <Button
+            variant="outline"
+            onClick={handleOpenPixelModal}
+            className="border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
+          >
+            <Code2 className="mr-1.5 h-4 w-4" /> Пиксель конверсий
+          </Button>
 
           <Button onClick={handleOpenCreateCampaign} className="bg-blue-600 hover:bg-blue-700 text-white">
             <Plus className="mr-1.5 h-4 w-4" /> New Campaign
@@ -787,9 +853,18 @@ export default function SwipiesAdsPage() {
                             </div>
                           </td>
                           <td className="py-3 px-4">
-                            <div className="font-medium uppercase text-xs">{cmp.pricing_model}</div>
+                            <div className="font-medium uppercase text-xs flex items-center gap-1">
+                              {cmp.pricing_model}
+                              {cmp.pricing_model === 'cpa' && (
+                                <span className="inline-flex items-center px-1 rounded text-[9px] bg-purple-500/20 text-purple-600 dark:text-purple-300 font-bold">
+                                  ⚡ AUTO
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground font-semibold">
-                              ${cmp.bid_amount.toFixed(2)} / {cmp.pricing_model === 'cpc' ? 'click' : '1k imp'}
+                              {cmp.pricing_model === 'cpa'
+                                ? `$${(cmp.target_cpa || 5.0).toFixed(2)} Target CPA`
+                                : `$${cmp.bid_amount.toFixed(2)} / ${cmp.pricing_model === 'cpc' ? 'click' : '1k imp'}`}
                             </div>
                           </td>
                           <td className="py-3 px-4">
@@ -804,6 +879,11 @@ export default function SwipiesAdsPage() {
                           <td className="py-3 px-4">
                             <div className="font-semibold text-emerald-600 dark:text-emerald-400">{cmp.clicks.toLocaleString()}</div>
                             <div className="text-xs text-muted-foreground">{cmp.ctr}% CTR</div>
+                            {((cmp.conversions_count && cmp.conversions_count > 0) || cmp.pricing_model === 'cpa') && (
+                              <div className="text-[11px] font-medium text-purple-600 dark:text-purple-400 mt-0.5">
+                                🎯 {cmp.conversions_count || 0} conv ({cmp.conversion_rate || 0}% CVR)
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
@@ -1648,7 +1728,7 @@ export default function SwipiesAdsPage() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Pricing Model</label>
+                <label className="text-xs font-semibold">Модель оплаты</label>
                 <Select
                   value={campaignForm.pricing_model}
                   onValueChange={(val: any) => setCampaignForm({ ...campaignForm, pricing_model: val })}
@@ -1657,21 +1737,35 @@ export default function SwipiesAdsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cpc">CPC (Cost Per Click)</SelectItem>
-                    <SelectItem value="cpm">CPM (Cost Per 1,000 Views)</SelectItem>
+                    <SelectItem value="cpc">CPC (Оплата за клик)</SelectItem>
+                    <SelectItem value="cpm">CPM (За 1000 показов)</SelectItem>
+                    <SelectItem value="cpa">CPA (За конверсию / лид)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Bid Amount ($)</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={campaignForm.bid_amount}
-                  onChange={(e) => setCampaignForm({ ...campaignForm, bid_amount: parseFloat(e.target.value) })}
-                />
-              </div>
+              {campaignForm.pricing_model === 'cpa' ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-purple-600 dark:text-purple-400">Target CPA ($)</label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={campaignForm.target_cpa || 5.0}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, target_cpa: parseFloat(e.target.value) })}
+                    placeholder="5.00"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Ставка / Bid ($)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={campaignForm.bid_amount}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, bid_amount: parseFloat(e.target.value) })}
+                  />
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold">Daily Budget ($)</label>
@@ -1683,6 +1777,15 @@ export default function SwipiesAdsPage() {
                 />
               </div>
             </div>
+
+            {campaignForm.pricing_model === 'cpa' && (
+              <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg text-xs text-purple-700 dark:text-purple-300 flex items-start gap-2">
+                <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-purple-500" />
+                <div>
+                  <span className="font-semibold">⚡ AI Smart Auto-Bidding (Target CPA):</span> Алгоритм автоматически оптимизирует ставку участия в аукционе на основе исторического CR (коэффициента конверсий вашего сайта), чтобы удерживать стоимость целевого действия в рамках указанного Target CPA.
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -2249,6 +2352,99 @@ export default function SwipiesAdsPage() {
 
           <DialogFooter>
             <Button onClick={() => setIsCardsModalOpen(false)}>Готово</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Conversion Pixel & Smart Bidding Modal */}
+      <Dialog open={isPixelModalOpen} onOpenChange={setIsPixelModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Code2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              Пиксель конверсий Swipies & Smart Auto-Bidding
+            </DialogTitle>
+            <DialogDescription>
+              Установите код пикселя на ваш сайт, чтобы отслеживать покупки, лиды и регистрации, а также автоматически обучать алгоритм Smart CPA ставок.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingPixel ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-purple-500 mb-2" />
+              <p className="text-sm text-muted-foreground">Генерация кода пикселя...</p>
+            </div>
+          ) : pixelData ? (
+            <div className="space-y-4">
+              {/* Pixel ID Card */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800">
+                <div>
+                  <div className="text-xs font-semibold text-purple-700 dark:text-purple-300">Ваш Pixel ID</div>
+                  <div className="text-sm font-mono font-bold">{pixelData.pixel_id}</div>
+                </div>
+                <Badge variant="outline" className="bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
+                  Активен
+                </Badge>
+              </div>
+
+              {/* Code Snippet Box */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold">HTML-код для вставки перед &lt;/head&gt;</label>
+                  <Button size="sm" variant="ghost" onClick={handleCopySnippet} className="h-7 text-xs flex items-center gap-1 text-purple-600">
+                    {copiedSnippet ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copiedSnippet ? 'Скопировано' : 'Копировать код'}
+                  </Button>
+                </div>
+                <pre className="p-3 bg-zinc-950 text-zinc-100 text-xs font-mono rounded-lg overflow-x-auto border border-zinc-800">
+                  <code>{pixelData.snippet}</code>
+                </pre>
+              </div>
+
+              {/* Integration Instructions */}
+              <div className="space-y-2 p-3 bg-muted/40 rounded-lg text-xs">
+                <div className="font-semibold text-foreground">💡 Как вызывать регистрацию конверсии на сайте (JS):</div>
+                <pre className="p-2 bg-background border rounded font-mono text-[11px] overflow-x-auto">
+                  <code>{pixelData.example_usage}</code>
+                </pre>
+                <div className="text-muted-foreground text-[11px]">
+                  Поддерживаемые события: <code className="bg-muted px-1 rounded">purchase</code>, <code className="bg-muted px-1 rounded">lead</code>, <code className="bg-muted px-1 rounded">signup</code>, <code className="bg-muted px-1 rounded">add_to_cart</code>.
+                </div>
+              </div>
+
+              {/* Live Test Event Simulation */}
+              <div className="border-t pt-3 space-y-2">
+                <div className="text-xs font-semibold flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5 text-amber-500" /> Проверить интеграцию (Отправить тестовую конверсию)
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-32">
+                    <Input
+                      type="number"
+                      placeholder="Сумма ($)"
+                      value={testOrderValue}
+                      onChange={(e) => setTestOrderValue(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border-purple-300"
+                    onClick={handleTestPixelEvent}
+                    disabled={isSendingTestEvent}
+                  >
+                    {isSendingTestEvent ? 'Отправка...' : '⚡ Отправить тестовое событие'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-red-500 py-4 text-center">Не удалось загрузить данные пикселя.</p>
+          )}
+
+          <DialogFooter>
+            <Button onClick={() => setIsPixelModalOpen(false)}>Закрыть</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

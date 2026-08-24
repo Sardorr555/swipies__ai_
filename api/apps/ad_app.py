@@ -124,12 +124,18 @@ async def list_campaigns():
                 "target_languages": c.target_languages or [],
                 "target_models": c.target_models or [],
                 "target_countries": c.target_countries or [],
+                "target_regions": getattr(c, "target_regions", []) or [],
+                "target_cities": getattr(c, "target_cities", []) or [],
                 "daily_budget": c.daily_budget,
                 "total_budget": c.total_budget,
                 "spent_today": c.spent_today,
                 "total_spent": c.total_spent,
                 "pricing_model": c.pricing_model,
                 "bid_amount": c.bid_amount,
+                "target_cpa": getattr(c, "target_cpa", 0.0) or 0.0,
+                "conversions_count": getattr(c, "conversions_count", 0) or 0,
+                "conversion_rate": getattr(c, "conversion_rate", 0.0) or 0.0,
+                "total_conversion_value": getattr(c, "total_conversion_value", 0.0) or 0.0,
                 "priority": c.priority,
                 "status": c.status,
                 "moderation_status": c.moderation_status,
@@ -242,6 +248,7 @@ async def create_campaign():
             total_spent=0.0,
             pricing_model=req.get("pricing_model", "cpc"),
             bid_amount=float(req.get("bid_amount", 0.10)),
+            target_cpa=float(req.get("target_cpa", 0.0)),
             priority=int(req.get("priority", 0)),
             status="active",
             moderation_status="approved",  # Auto-approve for seamless self-serve demo; admin can reject
@@ -267,6 +274,96 @@ def get_supported_geo_regions():
     except Exception as e:
         logger.exception(f"Error getting geo regions: {e}")
         return get_data_error_result(message=str(e))
+
+
+@manager.route("/pixel/snippet", methods=["GET"])
+@login_required
+async def get_pixel_snippet():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import ConversionTrackingService
+        pixel_id = ConversionTrackingService.get_or_create_pixel_id(adv.id)
+        host = request.host_url.rstrip("/")
+        data = ConversionTrackingService.generate_pixel_snippet(pixel_id=pixel_id, host=host)
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error getting pixel snippet: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/pixel/track", methods=["POST"])
+async def track_conversion():
+    try:
+        req = await get_request_json() or {}
+        pixel_id = req.get("pixel_id", "").strip()
+        if not pixel_id:
+            return get_json_result(data=False, message="pixel_id is required", code=RetCode.ARGUMENT_ERROR)
+
+        event = req.get("event", "purchase").strip()
+        value = float(req.get("value", 0.0) or 0.0)
+        currency = req.get("currency", "USD").strip()
+        order_id = req.get("order_id", "").strip()
+        click_token = req.get("click_token", "").strip()
+        ip = request.remote_addr or ""
+
+        from api.db.services.ad_engine_service import ConversionTrackingService
+        res = ConversionTrackingService.record_conversion(
+            pixel_id=pixel_id,
+            event=event,
+            value=value,
+            currency=currency,
+            order_id=order_id,
+            click_token=click_token,
+            ip=ip,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error recording conversion: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/pixel.js", methods=["GET"])
+def serve_pixel_script():
+    try:
+        pixel_id = request.args.get("id", "")
+        host = request.host_url.rstrip("/")
+        js_content = f"""
+(function() {{
+  try {{
+    var params = new URLSearchParams(window.location.search);
+    var clickToken = params.get('swipies_click') || params.get('utm_term') || '';
+    if (clickToken) {{
+      try {{ localStorage.setItem('swipies_click_token', clickToken); }} catch(e) {{}}
+    }}
+    window.swipiesPixelId = "{pixel_id}";
+    window.swipiesTrack = function(event, data) {{
+      try {{
+        var token = '';
+        try {{ token = localStorage.getItem('swipies_click_token') || ''; }} catch(e) {{}}
+        fetch('{host}/api/v1/ads/pixel/track', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{
+            pixel_id: "{pixel_id}",
+            event: event || 'purchase',
+            value: data && data.value ? Number(data.value) : 0,
+            currency: (data && data.currency) || 'USD',
+            order_id: (data && data.order_id) || '',
+            click_token: token
+          }})
+        }}).catch(function(err) {{}});
+      }} catch(e) {{}}
+    }};
+  }} catch(e) {{}}
+}})();
+"""
+        from quart import Response
+        return Response(js_content, mimetype="application/javascript")
+    except Exception as e:
+        logger.exception(f"Error serving pixel script: {e}")
+        return "/* error */", 500
 
 
 @manager.route("/campaigns/<campaign_id>", methods=["PUT"])
@@ -311,6 +408,8 @@ async def update_campaign(campaign_id):
             cmp.total_budget = float(req["total_budget"])
         if "bid_amount" in req:
             cmp.bid_amount = float(req["bid_amount"])
+        if "target_cpa" in req:
+            cmp.target_cpa = float(req["target_cpa"])
         if "status" in req and req["status"] in ["active", "paused", "archived"]:
             cmp.status = req["status"]
 
