@@ -1434,3 +1434,214 @@ class ConversionTrackingService(CommonService):
             "cost": cpa_cost,
         }
 
+
+class AdOptimizerService:
+    @classmethod
+    @DB.connection_context()
+    def generate_campaign_insights(cls, campaign_id: str) -> list:
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
+        if not cmp:
+            return []
+
+        insights = []
+        imps_count = AdImpression.select().where(AdImpression.campaign_id == cmp.id).count()
+        clicks_count = AdClick.select().where(AdClick.campaign_id == cmp.id).count()
+        ctr = (clicks_count / imps_count * 100.0) if imps_count > 0 else 0.0
+        conversions_count = AdConversion.select().where(AdConversion.campaign_id == cmp.id).count()
+        keywords = cmp.keywords or []
+        negative_keywords = getattr(cmp, "negative_keywords", []) or []
+        variants_count = AdVariant.select().where(AdVariant.campaign_id == cmp.id, AdVariant.is_active == True).count()
+
+        # 1. Low CTR / Ad Copy Refresh
+        if imps_count >= 20 and ctr < 2.0:
+            suggested_text = f"🔥 Спецпредложение: {cmp.product_name}! Успейте оформить с выгодой до 20%. Быстрая доставка и гарантия качества."
+            insights.append({
+                "id": f"ins_copy_{cmp.id}",
+                "campaign_id": cmp.id,
+                "campaign_name": cmp.name,
+                "type": "ad_copy_refresh",
+                "category": "quality",
+                "severity": "high",
+                "title": "Оптимизация рекламного текста (Повышение CTR)",
+                "description": f"Текущий CTR кампании составляет {round(ctr, 2)}% при {imps_count} показах. Добавление триггера выгоды и четкого CTA может поднять кликабельность на +35-50%.",
+                "estimated_impact": "+35% CTR",
+                "suggested_action": "Заменить рекламный текст на вариант с повышенным intent-откликом",
+                "action_payload": {
+                    "advertisement_text": suggested_text
+                }
+            })
+
+        # 2. Keyword Expansion
+        if len(keywords) < 6:
+            base_kw = [k.lower() for k in keywords]
+            rec_kw = []
+            candidates = ["купить", "заказать", "лучший", "доставка", "онлайн", "цена", "скидка", "отзывы", "акция"]
+            for cand in candidates:
+                cand_phrase = f"{cmp.product_name.lower()} {cand}"
+                if cand_phrase not in base_kw and len(rec_kw) < 4:
+                    rec_kw.append(cand_phrase)
+
+            if rec_kw:
+                insights.append({
+                    "id": f"ins_kw_{cmp.id}",
+                    "campaign_id": cmp.id,
+                    "campaign_name": cmp.name,
+                    "type": "keyword_expansion",
+                    "category": "reach",
+                    "severity": "medium",
+                    "title": "Расширение охвата ключевых слов",
+                    "description": f"В кампании настроено всего {len(keywords)} ключевых слов. Добавление транзакционных запросов увеличит объем целевых показов.",
+                    "estimated_impact": "+45% Показов",
+                    "suggested_action": f"Добавить релевантные фразы: {', '.join(rec_kw)}",
+                    "action_payload": {
+                        "add_keywords": rec_kw
+                    }
+                })
+
+        # 3. Negative Keywords / Budget Protection
+        if len(negative_keywords) < 2:
+            default_negatives = ["бесплатно", "кряк", "торрент", "слив", "взлом", "free", "crack"]
+            to_add_neg = [n for n in default_negatives if n not in negative_keywords][:4]
+            if to_add_neg:
+                insights.append({
+                    "id": f"ins_neg_{cmp.id}",
+                    "campaign_id": cmp.id,
+                    "campaign_name": cmp.name,
+                    "type": "negative_keywords",
+                    "category": "cost",
+                    "severity": "medium",
+                    "title": "Защита бюджета стоп-словами (Negative Keywords)",
+                    "description": "У кампании не настроены минус-слова. Пользователи, ищущие бесплатные взломы или нерелевантный контент, могут скликивать бюджет.",
+                    "estimated_impact": "-25% Нецелевого расхода",
+                    "suggested_action": f"Добавить стоп-слова: {', '.join(to_add_neg)}",
+                    "action_payload": {
+                        "add_negative_keywords": to_add_neg
+                    }
+                })
+
+        # 4. A/B Testing Bandit Variant Recommendation
+        if variants_count < 2:
+            insights.append({
+                "id": f"ins_ab_{cmp.id}",
+                "campaign_id": cmp.id,
+                "campaign_name": cmp.name,
+                "type": "ab_test_recommendation",
+                "category": "growth",
+                "severity": "low",
+                "title": "Запуск A/B тестирования офферов",
+                "description": "У вас только один вариант объявления. Подключение 2-го варианта позволит алгоритму Bandit автоматически отдавать трафик самому эффективному офферу.",
+                "estimated_impact": "+28% Конверсий",
+                "suggested_action": "Создать оптимизируемый Вариант B (AI Оффер)",
+                "action_payload": {
+                    "create_variant": True,
+                    "variant_name": "Вариант B (AI Smart Оффер)",
+                    "variant_text": f"✨ Ищете {cmp.product_name}? Премиум качество, официальная гарантия и мгновенный доступ. Узнайте подробности!",
+                    "landing_url": cmp.landing_url,
+                }
+            })
+
+        # 5. Smart CPA / Target CPA Recommendation
+        if cmp.pricing_model != "cpa" and (conversions_count >= 2 or float(getattr(cmp, "conversions_count", 0) or 0) >= 2):
+            insights.append({
+                "id": f"ins_cpa_{cmp.id}",
+                "campaign_id": cmp.id,
+                "campaign_name": cmp.name,
+                "type": "switch_to_cpa",
+                "category": "bidding",
+                "severity": "high",
+                "title": "Переход на Smart CPA Auto-Bidding",
+                "description": f"Кампания стабильно генерирует конверсии ({conversions_count} подтверждено). Переход на Smart CPA защитит от переплат и будет платить только за результат.",
+                "estimated_impact": "Оплата за результат",
+                "suggested_action": "Включить модель CPA с Target CPA $5.00",
+                "action_payload": {
+                    "pricing_model": "cpa",
+                    "target_cpa": 5.0,
+                }
+            })
+
+        return insights
+
+    @classmethod
+    @DB.connection_context()
+    def generate_advertiser_insights(cls, advertiser_id: str) -> dict:
+        campaigns = list(AdCampaign.select().where(AdCampaign.advertiser_id == advertiser_id, AdCampaign.status == "active"))
+        all_insights = []
+        for cmp in campaigns:
+            all_insights.extend(cls.generate_campaign_insights(cmp.id))
+
+        # Overall Optimization Score (0 - 100)
+        penalty = len(all_insights) * 12
+        score = max(35, min(100, 100 - penalty)) if campaigns else 100
+
+        return {
+            "score": score,
+            "total_insights": len(all_insights),
+            "insights": all_insights,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def apply_insight(cls, campaign_id: str, advertiser_id: str, insight_type: str, action_payload: dict) -> dict:
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == advertiser_id)
+        if not cmp:
+            return {"success": False, "message": "Campaign not found"}
+
+        now_ts = current_timestamp()
+
+        if insight_type == "ad_copy_refresh":
+            if "advertisement_text" in action_payload:
+                cmp.advertisement_text = action_payload["advertisement_text"]
+                cmp.update_time = now_ts
+                cmp.save()
+
+        elif insight_type == "keyword_expansion":
+            add_kw = action_payload.get("add_keywords", [])
+            current_kw = cmp.keywords or []
+            merged = list(set(current_kw + add_kw))
+            cmp.keywords = merged
+            cmp.update_time = now_ts
+            cmp.save()
+
+        elif insight_type == "negative_keywords":
+            add_neg = action_payload.get("add_negative_keywords", [])
+            current_neg = getattr(cmp, "negative_keywords", []) or []
+            merged = list(set(current_neg + add_neg))
+            cmp.negative_keywords = merged
+            cmp.update_time = now_ts
+            cmp.save()
+
+        elif insight_type == "ab_test_recommendation":
+            AdVariantService.create_variant(
+                campaign_id=cmp.id,
+                advertiser_id=advertiser_id,
+                data={
+                    "name": action_payload.get("variant_name", "Вариант B (AI Smart Оффер)"),
+                    "advertisement_text": action_payload.get("variant_text", f"Узнайте больше о {cmp.product_name}"),
+                    "landing_url": action_payload.get("landing_url", cmp.landing_url),
+                    "weight": 1.0,
+                    "is_active": True,
+                }
+            )
+
+        elif insight_type == "switch_to_cpa":
+            cmp.pricing_model = "cpa"
+            cmp.target_cpa = float(action_payload.get("target_cpa", 5.0) or 5.0)
+            cmp.update_time = now_ts
+            cmp.save()
+
+        elif insight_type == "bid_optimization":
+            if "update_daily_budget" in action_payload:
+                cmp.daily_budget = float(action_payload["update_daily_budget"])
+            if "update_bid" in action_payload:
+                cmp.bid_amount = float(action_payload["update_bid"])
+            cmp.update_time = now_ts
+            cmp.save()
+
+        return {
+            "success": True,
+            "campaign_id": cmp.id,
+            "insight_type": insight_type,
+            "message": "Рекомендация успешно применена!",
+        }
+
+

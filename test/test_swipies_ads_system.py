@@ -286,6 +286,7 @@ from api.db.services.ad_engine_service import (
     AdClickService,
     AdConversion,
     ConversionTrackingService,
+    AdOptimizerService,
     AdTransactionService,
     AdSettingsService,
     AdEngineService,
@@ -1640,6 +1641,127 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         # Balance remains 96.00 (not charged twice)
         adv_dup = Advertiser.get_by_id(adv.id)
         self.assertEqual(adv_dup.balance, 96.00)
+
+    def test_17_ai_campaign_insights_and_auto_optimizer(self):
+        """
+        Phase 15 Test:
+        - Create a sub-optimal campaign (low CTR, no negative keywords, few keywords, no A/B variants)
+        - Generate campaign & advertiser level insights
+        - Verify identified improvement opportunities
+        - Apply negative keywords insight via 1-click
+        - Apply keyword expansion insight via 1-click
+        - Apply A/B testing bandit variant creation via 1-click
+        - Apply ad copy refresh via 1-click
+        - Verify database state updates correctly
+        - Verify optimizer score recalculates
+        """
+        adv = AdvertiserService.get_or_create_for_user(user_id="user_opt_17", tenant_id="tenant_opt_17")
+        adv.balance = 50.0
+        adv.save()
+
+        cmp = AdCampaign.create(
+            id="cmp_opt_17",
+            advertiser_id=adv.id,
+            name="Cloud Storage Pro",
+            product_name="CloudStorage",
+            description="Online cloud file backup storage",
+            advertisement_text="Store files safely on the cloud",
+            landing_url="https://cloud.example.com",
+            target_categories=["cloud"],
+            keywords=["cloud", "storage"],
+            negative_keywords=[],  # Empty -> triggers negative_keywords insight
+            pricing_model="cpc",
+            bid_amount=0.15,
+            daily_budget=10.0,
+            total_budget=100.0,
+            spent_today=0.0,
+            total_spent=0.0,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # Simulate 25 impressions and 0 clicks (CTR = 0.0% -> triggers ad_copy_refresh insight)
+        for i in range(25):
+            AdImpression.create(
+                id=uuid.uuid4().hex[:32],
+                campaign_id=cmp.id,
+                advertiser_id=adv.id,
+                user_id="u_test",
+                query_intent="cloud storage online",
+                cost=0.0,
+                create_time=current_timestamp(),
+            )
+
+        # 1. Generate Campaign Insights
+        insights = AdOptimizerService.generate_campaign_insights(cmp.id)
+        insight_types = [ins["type"] for ins in insights]
+
+        self.assertIn("ad_copy_refresh", insight_types)
+        self.assertIn("keyword_expansion", insight_types)
+        self.assertIn("negative_keywords", insight_types)
+        self.assertIn("ab_test_recommendation", insight_types)
+
+        # 2. Generate Advertiser Score
+        adv_insights = AdOptimizerService.generate_advertiser_insights(adv.id)
+        self.assertGreaterEqual(adv_insights["total_insights"], 4)
+        self.assertLess(adv_insights["score"], 100)
+
+        # 3. Apply Negative Keywords Insight
+        neg_ins = next(ins for ins in insights if ins["type"] == "negative_keywords")
+        res_neg = AdOptimizerService.apply_insight(
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            insight_type="negative_keywords",
+            action_payload=neg_ins["action_payload"],
+        )
+        self.assertTrue(res_neg["success"])
+
+        # Verify negative keywords applied to campaign
+        cmp_refreshed = AdCampaign.get_by_id(cmp.id)
+        self.assertGreaterEqual(len(cmp_refreshed.negative_keywords or []), 2)
+        self.assertIn("бесплатно", cmp_refreshed.negative_keywords)
+
+        # 4. Apply Keyword Expansion Insight
+        kw_ins = next(ins for ins in insights if ins["type"] == "keyword_expansion")
+        res_kw = AdOptimizerService.apply_insight(
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            insight_type="keyword_expansion",
+            action_payload=kw_ins["action_payload"],
+        )
+        self.assertTrue(res_kw["success"])
+
+        cmp_refreshed = AdCampaign.get_by_id(cmp.id)
+        self.assertGreaterEqual(len(cmp_refreshed.keywords or []), 4)
+
+        # 5. Apply A/B Test Variant Creation Insight
+        ab_ins = next(ins for ins in insights if ins["type"] == "ab_test_recommendation")
+        res_ab = AdOptimizerService.apply_insight(
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            insight_type="ab_test_recommendation",
+            action_payload=ab_ins["action_payload"],
+        )
+        self.assertTrue(res_ab["success"])
+
+        # Verify variant was created in database
+        variants = AdVariant.select().where(AdVariant.campaign_id == cmp.id)
+        self.assertGreaterEqual(variants.count(), 1)
+
+        # 6. Apply Ad Copy Refresh Insight
+        copy_ins = next(ins for ins in insights if ins["type"] == "ad_copy_refresh")
+        res_copy = AdOptimizerService.apply_insight(
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            insight_type="ad_copy_refresh",
+            action_payload=copy_ins["action_payload"],
+        )
+        self.assertTrue(res_copy["success"])
+
+        cmp_refreshed = AdCampaign.get_by_id(cmp.id)
+        self.assertIn("Спецпредложение", cmp_refreshed.advertisement_text)
 
 
 if __name__ == "__main__":

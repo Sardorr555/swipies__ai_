@@ -184,6 +184,16 @@ const adService = {
   updateAdminSettings: (data: Partial<AdminAdsSettings>) =>
     request.post<ResponseData<boolean>>('/ads/admin/settings', { data }),
 
+  // AI Campaign Optimizer & Copilot
+  getAdvertiserInsights: () =>
+    request.get<ResponseData<AdvertiserInsightsData>>('/ads/insights'),
+  getCampaignInsights: (campaignId: string) =>
+    request.get<ResponseData<CampaignInsightItem[]>>(`/ads/campaigns/${campaignId}/insights`),
+  applyCampaignInsight: (campaignId: string, insightType: string, actionPayload: any) =>
+    request.post<ResponseData<{ success: boolean; message: string }>>(`/ads/campaigns/${campaignId}/apply-insight`, {
+      data: { insight_type: insightType, action_payload: actionPayload },
+    }),
+
   // Conversion Pixel & Smart Bidding
   getPixelSnippet: () => request.get<ResponseData<PixelSnippetData>>('/ads/pixel/snippet'),
   testPixelTrack: (data: { pixel_id: string; event: string; value?: number; order_id?: string }) =>
@@ -214,6 +224,26 @@ export interface PixelSnippetData {
   pixel_id: string;
   snippet: string;
   example_usage: string;
+}
+
+export interface CampaignInsightItem {
+  id: string;
+  campaign_id: string;
+  campaign_name: string;
+  type: 'ad_copy_refresh' | 'keyword_expansion' | 'negative_keywords' | 'ab_test_recommendation' | 'switch_to_cpa' | 'bid_optimization';
+  category: 'quality' | 'reach' | 'cost' | 'growth' | 'bidding';
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  estimated_impact: string;
+  suggested_action: string;
+  action_payload: any;
+}
+
+export interface AdvertiserInsightsData {
+  score: number;
+  total_insights: number;
+  insights: CampaignInsightItem[];
 }
 
 export interface GeoRegionItem {

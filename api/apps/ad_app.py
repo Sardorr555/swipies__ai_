@@ -466,6 +466,57 @@ async def delete_campaign(campaign_id):
         return get_data_error_result(message=str(e))
 
 
+@manager.route("/insights", methods=["GET"])
+@login_required
+async def get_advertiser_insights():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdOptimizerService
+        data = AdOptimizerService.generate_advertiser_insights(advertiser_id=adv.id)
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error getting advertiser insights: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/insights", methods=["GET"])
+@login_required
+async def get_campaign_insights(campaign_id):
+    try:
+        from api.db.services.ad_engine_service import AdOptimizerService
+        insights = AdOptimizerService.generate_campaign_insights(campaign_id=campaign_id)
+        return get_json_result(data=insights)
+    except Exception as e:
+        logger.exception(f"Error getting campaign insights: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/apply-insight", methods=["POST"])
+@login_required
+async def apply_campaign_insight(campaign_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        req = await get_request_json() or {}
+        insight_type = req.get("insight_type", "").strip()
+        action_payload = req.get("action_payload", {})
+
+        from api.db.services.ad_engine_service import AdOptimizerService
+        res = AdOptimizerService.apply_insight(
+            campaign_id=campaign_id,
+            advertiser_id=adv.id,
+            insight_type=insight_type,
+            action_payload=action_payload,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error applying campaign insight: {e}")
+        return get_data_error_result(message=str(e))
+
+
 @manager.route("/campaigns/<campaign_id>/analytics", methods=["GET"])
 @login_required
 async def get_campaign_analytics(campaign_id):
