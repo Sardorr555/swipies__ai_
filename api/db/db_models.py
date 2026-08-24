@@ -1742,6 +1742,10 @@ class AdCampaign(DataBaseModel):
     conversions_count = IntegerField(default=0)
     conversion_rate = FloatField(default=0.0)
     total_conversion_value = FloatField(default=0.0)
+    frequency_cap_impressions = IntegerField(default=0)  # 0 = unlimited impressions
+    frequency_cap_hours = IntegerField(default=24)  # Frequency capping time window (hours)
+    target_audience_segment_ids = JSONField(null=True, default=list)  # Segment IDs to include
+    exclude_audience_segment_ids = JSONField(null=True, default=list)  # Segment IDs to exclude
     priority = IntegerField(default=0)
     status = CharField(max_length=32, default="active", index=True)  # draft, active, paused, completed, archived
     moderation_status = CharField(max_length=32, default="approved", index=True)  # pending, approved, rejected
@@ -1753,6 +1757,34 @@ class AdCampaign(DataBaseModel):
 
     class Meta:
         db_table = "campaigns"
+
+
+class AdAudienceSegment(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=255, null=False)
+    description = TextField(null=True)
+    rule_type = CharField(max_length=32, default="pixel_event", index=True)  # pixel_event, intent_keyword, custom_list
+    rule_config = JSONField(null=True, default=dict)
+    member_count = IntegerField(default=0)
+    status = CharField(max_length=32, default="active", index=True)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_audience_segments"
+
+
+class AdAudienceMember(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    segment_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=True, index=True)
+    anonymous_id = CharField(max_length=64, null=True, index=True)  # IP hash or visitor token
+    source_event = CharField(max_length=64, null=True)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "ad_audience_members"
 
 
 class AdVariant(DataBaseModel):

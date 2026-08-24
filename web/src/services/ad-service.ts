@@ -31,6 +31,10 @@ export interface AdCampaignItem {
   conversions_count?: number;
   conversion_rate?: number;
   total_conversion_value?: number;
+  frequency_cap_impressions?: number;
+  frequency_cap_hours?: number;
+  target_audience_segment_ids?: string[];
+  exclude_audience_segment_ids?: string[];
   priority?: number;
   status: 'active' | 'paused' | 'completed' | 'archived';
   moderation_status: 'pending' | 'approved' | 'rejected';
@@ -239,7 +243,29 @@ const adService = {
     request.post<ResponseData<NotificationSettingsData>>('/ads/notifications/settings', { data }),
   sendTestNotification: (channel: string = 'all') =>
     request.post<ResponseData<NotificationItem>>('/ads/notifications/test', { data: { channel } }),
+
+  // Audience Retargeting & Segments
+  getAudienceSegments: () =>
+    request.get<ResponseData<AudienceSegmentItem[]>>('/ads/audiences'),
+  createAudienceSegment: (data: { name: string; description?: string; rule_type: string; rule_config?: any }) =>
+    request.post<ResponseData<AudienceSegmentItem>>('/ads/audiences', { data }),
+  deleteAudienceSegment: (segmentId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/audiences/${segmentId}`),
+  addAudienceMember: (segmentId: string, data: { user_id?: string; anonymous_id?: string; source_event?: string }) =>
+    request.post<ResponseData<any>>(`/ads/audiences/${segmentId}/members`, { data }),
 };
+
+export interface AudienceSegmentItem {
+  id: string;
+  advertiser_id: string;
+  name: string;
+  description: string;
+  rule_type: 'pixel_event' | 'intent_keyword' | 'custom_list';
+  rule_config: any;
+  member_count: number;
+  status: string;
+  create_time: number;
+}
 
 export interface NotificationItem {
   id: string;

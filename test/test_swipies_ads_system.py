@@ -264,6 +264,8 @@ from api.db.db_models import (
     AdvertiserTeamMember,
     AdvertiserNotificationSettings,
     AdvertiserNotification,
+    AdAudienceSegment,
+    AdAudienceMember,
     AdCampaign,
     AdVariant,
     AdImpression,
@@ -285,6 +287,7 @@ from api.db.services.ad_engine_service import (
     AdvertiserService,
     AdvertiserTeamService,
     AdvertiserNotificationService,
+    AdAudienceService,
     AdCampaignService,
     AdVariantService,
     AdImpressionService,
@@ -322,6 +325,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdvertiserTeamMember,
             AdvertiserNotificationSettings,
             AdvertiserNotification,
+            AdAudienceSegment,
+            AdAudienceMember,
             AdCampaign,
             AdVariant,
             AdImpression,
@@ -353,8 +358,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         SubscriptionPlan.create(
             id="plus",
             name="Plus",
-            daily_token_limit=200000,
-            monthly_token_limit=5000000,
+            daily_token_limit=300000,
+            monthly_token_limit=6000000,
         )
         SubscriptionPlan.create(
             id="pro",
@@ -370,6 +375,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdvertiserTeamMember,
             AdvertiserNotificationSettings,
             AdvertiserNotification,
+            AdAudienceSegment,
+            AdAudienceMember,
             AdCampaign,
             AdVariant,
             AdImpression,
@@ -2001,6 +2008,193 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         AdvertiserNotificationService.mark_as_read(advertiser_id=adv.id, all_unread=True)
         feed_after_all = AdvertiserNotificationService.get_notifications(advertiser_id=adv.id)
         self.assertEqual(feed_after_all["unread_count"], 0)
+
+    def test_21_frequency_capping_and_retargeting_audiences(self):
+        """Test Phase 19: Frequency Capping & Audience Retargeting Pixels."""
+        adv = Advertiser.create(
+            id=uuid.uuid4().hex[:32],
+            user_id="user_freq_adv",
+            tenant_id="tenant_freq_adv",
+            company_name="Retargeting Corp",
+            balance=100.0,
+            status="active",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # 1. Create Audience Segments
+        seg_buyers = AdAudienceService.create_segment(
+            advertiser_id=adv.id,
+            name="Recent Purchasers",
+            description="Users who completed purchase",
+            rule_type="pixel_event",
+            rule_config={"event_type": "purchase"},
+        )
+        self.assertEqual(seg_buyers["name"], "Recent Purchasers")
+        self.assertEqual(seg_buyers["member_count"], 0)
+
+        seg_leads = AdAudienceService.create_segment(
+            advertiser_id=adv.id,
+            name="Warm Leads",
+            description="Users who registered or left lead",
+            rule_type="pixel_event",
+            rule_config={"event_type": "lead"},
+        )
+
+        # 2. Add manual member to buyers segment
+        m1 = AdAudienceService.add_member(
+            segment_id=seg_buyers["id"],
+            user_id="buyer_user_1",
+            source_event="manual",
+        )
+        self.assertEqual(m1["user_id"], "buyer_user_1")
+
+        # Verify member count updated
+        segs = AdAudienceService.list_segments(advertiser_id=adv.id)
+        buyer_seg_db = next(s for s in segs if s["id"] == seg_buyers["id"])
+        self.assertEqual(buyer_seg_db["member_count"], 1)
+
+        # 3. Test Auto Sync Pixel Conversion to Segments
+        AdAudienceService.sync_pixel_conversion_to_segments(
+            advertiser_id=adv.id,
+            event_type="purchase",
+            user_id="pixel_purchaser_2",
+            anonymous_id="anon_ip_hash",
+        )
+        segs_after_sync = AdAudienceService.list_segments(advertiser_id=adv.id)
+        buyer_seg_after_sync = next(s for s in segs_after_sync if s["id"] == seg_buyers["id"])
+        self.assertEqual(buyer_seg_after_sync["member_count"], 2)
+
+        # 4. Test Frequency Capping in AdEngineService
+        cmp_capped = AdCampaign.create(
+            id=uuid.uuid4().hex[:32],
+            advertiser_id=adv.id,
+            name="Frequency Capped Campaign",
+            product_name="Limited Gadget",
+            advertisement_text="Buy Limited Gadget!",
+            landing_url="https://gadget.com",
+            target_categories=["gadgets"],
+            keywords=["gadget", "phone"],
+            daily_budget=50.0,
+            total_budget=500.0,
+            bid_amount=0.5,
+            pricing_model="cpc",
+            frequency_cap_impressions=2,
+            frequency_cap_hours=24,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # 1st Query -> Under cap (limit is 2) -> Matches & records 1st impression
+        cands_1 = AdEngineService.match_campaign_for_query(
+            user_query="buy gadget now",
+            user_id="freq_capped_user",
+        )
+        self.assertIsNotNone(cands_1)
+        self.assertEqual(cands_1["campaign_id"], cmp_capped.id)
+
+        # 2nd Query -> Under cap (limit is 2) -> Matches & records 2nd impression
+        cands_2 = AdEngineService.match_campaign_for_query(
+            user_query="buy gadget now",
+            user_id="freq_capped_user",
+        )
+        self.assertIsNotNone(cands_2)
+        self.assertEqual(cands_2["campaign_id"], cmp_capped.id)
+
+        # 3rd Query -> REACHED CAP (2 impressions already recorded) -> Excluded!
+        cands_3 = AdEngineService.match_campaign_for_query(
+            user_query="buy gadget now",
+            user_id="freq_capped_user",
+        )
+        self.assertIsNone(cands_3)
+
+        # Another user without impressions should still see it
+        cands_other = AdEngineService.match_campaign_for_query(
+            user_query="buy gadget now",
+            user_id="fresh_other_user",
+        )
+        self.assertIsNotNone(cands_other)
+        self.assertEqual(cands_other["campaign_id"], cmp_capped.id)
+
+        # 5. Test Audience Inclusion Targeting
+        cmp_retarget = AdCampaign.create(
+            id=uuid.uuid4().hex[:32],
+            advertiser_id=adv.id,
+            name="Buyers Only Upsell",
+            product_name="Gadget VIP Warranty",
+            advertisement_text="Get VIP Warranty for your gadget!",
+            landing_url="https://gadget.com/vip",
+            target_categories=["protection_plans"],
+            keywords=["warranty"],
+            daily_budget=50.0,
+            total_budget=500.0,
+            bid_amount=0.8,
+            pricing_model="cpc",
+            target_audience_segment_ids=[seg_buyers["id"]],
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # Buyer user in segment -> matches
+        cands_buyer = AdEngineService.match_campaign_for_query(
+            user_query="need warranty protection plan",
+            user_id="buyer_user_1",
+        )
+        self.assertIsNotNone(cands_buyer)
+        self.assertEqual(cands_buyer["campaign_id"], cmp_retarget.id)
+
+        # Non-buyer user -> excluded from targeting
+        cands_non_buyer = AdEngineService.match_campaign_for_query(
+            user_query="need warranty protection plan",
+            user_id="unknown_random_user",
+        )
+        self.assertIsNone(cands_non_buyer)
+
+        # 6. Test Audience Exclusion Gate
+        cmp_prospecting = AdCampaign.create(
+            id=uuid.uuid4().hex[:32],
+            advertiser_id=adv.id,
+            name="New Customer Acquisition",
+            product_name="New Customer Intro",
+            advertisement_text="Get your first gadget with 20% off!",
+            landing_url="https://gadget.com/first",
+            target_categories=["coupons"],
+            keywords=["promo_voucher"],
+            daily_budget=50.0,
+            total_budget=500.0,
+            bid_amount=0.6,
+            pricing_model="cpc",
+            exclude_audience_segment_ids=[seg_buyers["id"]],
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # Buyer user -> EXCLUDED from new customer acquisition
+        cands_buyer_prospecting = AdEngineService.match_campaign_for_query(
+            user_query="obtain promo_voucher coupon",
+            user_id="buyer_user_1",
+        )
+        self.assertIsNone(cands_buyer_prospecting)
+
+        # Non-buyer user -> INCLUDED
+        cands_new_user = AdEngineService.match_campaign_for_query(
+            user_query="obtain promo_voucher coupon",
+            user_id="fresh_prospect_user",
+        )
+        self.assertIsNotNone(cands_new_user)
+        self.assertEqual(cands_new_user["campaign_id"], cmp_prospecting.id)
+
+        # 7. Delete Segment
+        del_res = AdAudienceService.delete_segment(segment_id=seg_leads["id"], advertiser_id=adv.id)
+        self.assertTrue(del_res)
+        segs_after_del = AdAudienceService.list_segments(advertiser_id=adv.id)
+        self.assertFalse(any(s["id"] == seg_leads["id"] for s in segs_after_del))
 
 
 if __name__ == "__main__":

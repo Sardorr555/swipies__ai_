@@ -267,6 +267,8 @@ from api.db.db_models import (
     AdvertiserTeamMember,
     AdvertiserNotificationSettings,
     AdvertiserNotification,
+    AdAudienceSegment,
+    AdAudienceMember,
     AdCampaign,
     AdVariant,
     AdImpression,
@@ -322,8 +324,11 @@ def create_user(user_id: str, nickname: str = "John Doe", email: str = "user@swi
         id=user_id,
         nickname=nickname,
         email=email,
+        password="hashed_secret_password",
         is_superuser=is_superuser,
+        status="1",
         create_time=current_timestamp(),
+        update_time=current_timestamp(),
     )
 
 
@@ -357,6 +362,8 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             AdvertiserTeamMember,
             AdvertiserNotificationSettings,
             AdvertiserNotification,
+            AdAudienceSegment,
+            AdAudienceMember,
             AdCampaign,
             AdVariant,
             AdImpression,
@@ -393,6 +400,8 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             AdvertiserTeamMember,
             AdvertiserNotificationSettings,
             AdvertiserNotification,
+            AdAudienceSegment,
+            AdAudienceMember,
             AdCampaign,
             AdVariant,
             AdImpression,

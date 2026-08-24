@@ -931,6 +931,91 @@ async def send_test_notification():
 
 
 # ==========================================
+# 2.10 Audience Retargeting & Segments
+# ==========================================
+
+@manager.route("/audiences", methods=["GET"])
+@login_required
+async def list_audiences():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdAudienceService
+        segments = AdAudienceService.list_segments(advertiser_id=adv.id)
+        return get_json_result(data=segments)
+    except Exception as e:
+        logger.exception(f"Error listing audiences: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/audiences", methods=["POST"])
+@login_required
+async def create_audience():
+    req = await get_request_json()
+    if not req or not req.get("name"):
+        return get_json_result(data=False, message="Name is required", code=RetCode.ARGUMENT_ERROR)
+
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdAudienceService, AdvertiserTeamService
+
+        if not AdvertiserTeamService.has_permission(user_id, adv.id, "manage_campaigns"):
+            return get_json_result(data=False, message="Недостаточно прав для создания аудиторий", code=RetCode.UNAUTHORIZED)
+
+        seg = AdAudienceService.create_segment(
+            advertiser_id=adv.id,
+            name=str(req.get("name")).strip(),
+            description=str(req.get("description", "")).strip(),
+            rule_type=str(req.get("rule_type", "pixel_event")),
+            rule_config=req.get("rule_config", {}),
+        )
+        return get_json_result(data=seg)
+    except Exception as e:
+        logger.exception(f"Error creating audience segment: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/audiences/<segment_id>", methods=["DELETE"])
+@login_required
+async def delete_audience(segment_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdAudienceService, AdvertiserTeamService
+
+        if not AdvertiserTeamService.has_permission(user_id, adv.id, "manage_campaigns"):
+            return get_json_result(data=False, message="Недостаточно прав для удаления аудиторий", code=RetCode.UNAUTHORIZED)
+
+        success = AdAudienceService.delete_segment(segment_id=segment_id, advertiser_id=adv.id)
+        return get_json_result(data={"deleted": success})
+    except Exception as e:
+        logger.exception(f"Error deleting audience: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/audiences/<segment_id>/members", methods=["POST"])
+@login_required
+async def add_audience_member(segment_id):
+    req = await get_request_json() or {}
+    try:
+        from api.db.services.ad_engine_service import AdAudienceService
+        member = AdAudienceService.add_member(
+            segment_id=segment_id,
+            user_id=req.get("user_id"),
+            anonymous_id=req.get("anonymous_id"),
+            source_event=req.get("source_event", "manual"),
+        )
+        return get_json_result(data=member)
+    except Exception as e:
+        logger.exception(f"Error adding audience member: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
 # 3. Public Click Tracking & Redirect
 # ==========================================
 

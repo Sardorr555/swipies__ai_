@@ -37,6 +37,8 @@ from api.db.db_models import (
     AdTransaction,
     AdSettings,
     AdAttributionVisit,
+    AdAudienceSegment,
+    AdAudienceMember,
     User,
     Tenant,
 )
@@ -461,8 +463,27 @@ class AdEngineService:
                 if any(neg in clean_query or any(qw == neg for qw in query_words) for neg in cmp_negatives):
                     continue
 
-            # 3. Frequency Capping Gate (per user per day)
+            # 3. Frequency Capping Gate (Campaign specific & Global)
+            cmp_freq_cap = int(getattr(cmp, "frequency_cap_impressions", 0) or 0)
+            cmp_freq_hours = max(1, int(getattr(cmp, "frequency_cap_hours", 24) or 24))
+
             if user_id:
+                # 3.1 Campaign specific frequency cap
+                if cmp_freq_cap > 0:
+                    window_ts = now_ts - (cmp_freq_hours * 3600 * 1000)
+                    user_cmp_imps = (
+                        AdImpression.select()
+                        .where(
+                            AdImpression.campaign_id == cmp.id,
+                            AdImpression.user_id == user_id,
+                            AdImpression.create_time >= window_ts,
+                        )
+                        .count()
+                    )
+                    if user_cmp_imps >= cmp_freq_cap:
+                        continue
+
+                # 3.2 Global daily impressions cap
                 user_impressions_today = (
                     AdImpression.select()
                     .where(
@@ -475,6 +496,30 @@ class AdEngineService:
                 if user_impressions_today >= max_impressions:
                     continue
 
+            # 3.5 Audience Targeting & Exclusion Gate
+            target_segs = getattr(cmp, "target_audience_segment_ids", []) or []
+            exclude_segs = getattr(cmp, "exclude_audience_segment_ids", []) or []
+
+            if target_segs:
+                if not user_id:
+                    continue
+                # User must belong to AT LEAST ONE target segment
+                in_target = AdAudienceMember.select().where(
+                    (AdAudienceMember.segment_id.in_(target_segs)) &
+                    (AdAudienceMember.user_id == user_id)
+                ).exists()
+                if not in_target:
+                    continue
+
+            if exclude_segs and user_id:
+                # User must NOT belong to ANY excluded segment
+                is_excluded = AdAudienceMember.select().where(
+                    (AdAudienceMember.segment_id.in_(exclude_segs)) &
+                    (AdAudienceMember.user_id == user_id)
+                ).exists()
+                if is_excluded:
+                    continue
+
             # 4. Relevance & Intent Match
             keywords = [k.lower().strip() for k in (cmp.keywords or []) if k]
             categories = [c.lower().strip() for c in (cmp.target_categories or []) if c]
@@ -485,7 +530,7 @@ class AdEngineService:
             for term in target_terms:
                 if term in clean_query:
                     overlap_count += 2
-                elif any(word in term or term in word for word in query_words):
+                elif any(word == term or (len(word) >= 4 and word in term) or (len(term) >= 4 and term in word) for word in query_words):
                     overlap_count += 1
 
             # Description / Product relevance
@@ -1428,6 +1473,17 @@ class ConversionTrackingService(CommonService):
             target_cmp.conversion_rate = round((target_cmp.conversions_count / clicks_cnt) * 100.0, 2)
         target_cmp.save()
 
+        # Auto sync conversion event to audience retargeting segments
+        try:
+            AdAudienceService.sync_pixel_conversion_to_segments(
+                advertiser_id=adv.id,
+                event_type=event,
+                user_id=matched_user_id,
+                anonymous_id=ip[:64] if ip else None,
+            )
+        except Exception as e:
+            logger.warning(f"Error syncing conversion to audience segments: {e}")
+
         return {
             "success": True,
             "conversion_id": conv.id,
@@ -2260,6 +2316,156 @@ class AdvertiserNotificationService:
             severity="success",
             data={"channel": channel, "test": True},
         )
+
+
+class AdAudienceService:
+    @classmethod
+    @DB.connection_context()
+    def list_segments(cls, advertiser_id: str) -> list:
+        segments = list(
+            AdAudienceSegment.select()
+            .where(
+                AdAudienceSegment.advertiser_id == advertiser_id,
+                AdAudienceSegment.status != "deleted",
+            )
+            .order_by(AdAudienceSegment.create_time.desc())
+        )
+        res = []
+        for s in segments:
+            count = AdAudienceMember.select().where(AdAudienceMember.segment_id == s.id).count()
+            if count != s.member_count:
+                s.member_count = count
+                s.save()
+
+            res.append({
+                "id": s.id,
+                "advertiser_id": s.advertiser_id,
+                "name": s.name,
+                "description": s.description or "",
+                "rule_type": s.rule_type,
+                "rule_config": s.rule_config or {},
+                "member_count": count,
+                "status": s.status,
+                "create_time": s.create_time,
+            })
+        return res
+
+    @classmethod
+    @DB.connection_context()
+    def create_segment(
+        cls,
+        advertiser_id: str,
+        name: str,
+        description: str = "",
+        rule_type: str = "pixel_event",
+        rule_config: dict = None,
+    ) -> dict:
+        now_ts = current_timestamp()
+        seg_id = uuid.uuid4().hex[:32]
+        seg = AdAudienceSegment.create(
+            id=seg_id,
+            advertiser_id=advertiser_id,
+            name=name,
+            description=description,
+            rule_type=rule_type,
+            rule_config=rule_config or {},
+            member_count=0,
+            status="active",
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+        return {
+            "id": seg.id,
+            "advertiser_id": seg.advertiser_id,
+            "name": seg.name,
+            "description": seg.description,
+            "rule_type": seg.rule_type,
+            "rule_config": seg.rule_config,
+            "member_count": 0,
+            "status": seg.status,
+            "create_time": seg.create_time,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def delete_segment(cls, segment_id: str, advertiser_id: str) -> bool:
+        seg = AdAudienceSegment.get_or_none(
+            AdAudienceSegment.id == segment_id,
+            AdAudienceSegment.advertiser_id == advertiser_id,
+        )
+        if not seg:
+            return False
+        seg.status = "deleted"
+        seg.update_time = current_timestamp()
+        seg.save()
+        return True
+
+    @classmethod
+    @DB.connection_context()
+    def add_member(
+        cls,
+        segment_id: str,
+        user_id: str = None,
+        anonymous_id: str = None,
+        source_event: str = "manual",
+    ) -> dict:
+        existing = AdAudienceMember.get_or_none(
+            (AdAudienceMember.segment_id == segment_id) &
+            (((AdAudienceMember.user_id == user_id) & (AdAudienceMember.user_id.is_null(False))) |
+             ((AdAudienceMember.anonymous_id == anonymous_id) & (AdAudienceMember.anonymous_id.is_null(False))))
+        )
+        if existing:
+            return {"id": existing.id, "segment_id": existing.segment_id, "user_id": existing.user_id, "exists": True}
+
+        member = AdAudienceMember.create(
+            id=uuid.uuid4().hex[:32],
+            segment_id=segment_id,
+            user_id=user_id,
+            anonymous_id=anonymous_id,
+            source_event=source_event,
+            create_time=current_timestamp(),
+        )
+        AdAudienceSegment.update(
+            member_count=AdAudienceSegment.member_count + 1
+        ).where(AdAudienceSegment.id == segment_id).execute()
+
+        return {
+            "id": member.id,
+            "segment_id": member.segment_id,
+            "user_id": member.user_id,
+            "anonymous_id": member.anonymous_id,
+            "source_event": member.source_event,
+            "create_time": member.create_time,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def sync_pixel_conversion_to_segments(
+        cls,
+        advertiser_id: str,
+        event_type: str,
+        user_id: str = None,
+        anonymous_id: str = None,
+    ):
+        segments = list(
+            AdAudienceSegment.select()
+            .where(
+                AdAudienceSegment.advertiser_id == advertiser_id,
+                AdAudienceSegment.rule_type == "pixel_event",
+                AdAudienceSegment.status == "active",
+            )
+        )
+        for s in segments:
+            cfg = s.rule_config or {}
+            target_event = cfg.get("event_type", "all")
+            if target_event == "all" or target_event == event_type:
+                cls.add_member(
+                    segment_id=s.id,
+                    user_id=user_id,
+                    anonymous_id=anonymous_id,
+                    source_event=f"pixel:{event_type}",
+                )
+
 
 
 

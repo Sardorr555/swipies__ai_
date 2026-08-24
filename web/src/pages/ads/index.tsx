@@ -55,6 +55,9 @@ import {
   Send,
   Radio,
   Webhook,
+  Fingerprint,
+  Crosshair,
+  UserCheck,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -98,6 +101,7 @@ import adService, {
   TeamMemberItem,
   NotificationItem,
   NotificationSettingsData,
+  AudienceSegmentItem,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -150,6 +154,10 @@ export default function SwipiesAdsPage() {
     pricing_model: 'cpc',
     bid_amount: 0.15,
     target_cpa: 5.0,
+    frequency_cap_impressions: 0,
+    frequency_cap_hours: 24,
+    target_audience_segment_ids: [],
+    exclude_audience_segment_ids: [],
   });
   const [rawKeywords, setRawKeywords] = useState('');
   const [rawCategories, setRawCategories] = useState('');
@@ -159,6 +167,16 @@ export default function SwipiesAdsPage() {
   const [targetRegions, setTargetRegions] = useState<string[]>(['all']);
   const [topUpAmount, setTopUpAmount] = useState('50');
   const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
+
+  // Audience Retargeting State
+  const [audiences, setAudiences] = useState<AudienceSegmentItem[]>([]);
+  const [loadingAudiences, setLoadingAudiences] = useState(false);
+  const [isAudienceModalOpen, setIsAudienceModalOpen] = useState(false);
+  const [audienceName, setAudienceName] = useState('');
+  const [audienceDescription, setAudienceDescription] = useState('');
+  const [audienceRuleType, setAudienceRuleType] = useState<'pixel_event' | 'intent_keyword' | 'custom_list'>('pixel_event');
+  const [audienceEvent, setAudienceEvent] = useState('all');
+  const [creatingAudience, setCreatingAudience] = useState(false);
 
   // Conversion Pixel State
   const [isPixelModalOpen, setIsPixelModalOpen] = useState(false);
@@ -255,6 +273,59 @@ export default function SwipiesAdsPage() {
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка отзыва доступа');
+    }
+  };
+
+  const fetchAudiences = async () => {
+    setLoadingAudiences(true);
+    try {
+      const res = await adService.getAudienceSegments();
+      if (res.data?.data) {
+        setAudiences(res.data.data);
+      }
+    } catch (err: any) {
+      // silent
+    } finally {
+      setLoadingAudiences(false);
+    }
+  };
+
+  const handleCreateAudience = async () => {
+    if (!audienceName.trim()) {
+      message.error('Укажите название аудитории');
+      return;
+    }
+    setCreatingAudience(true);
+    try {
+      const res = await adService.createAudienceSegment({
+        name: audienceName.trim(),
+        description: audienceDescription.trim(),
+        rule_type: audienceRuleType,
+        rule_config: audienceRuleType === 'pixel_event' ? { event_type: audienceEvent } : {},
+      });
+      if (res.data?.data) {
+        message.success('Сегмент аудитории создан!');
+        setIsAudienceModalOpen(false);
+        setAudienceName('');
+        setAudienceDescription('');
+        fetchAudiences();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка создания аудитории');
+    } finally {
+      setCreatingAudience(false);
+    }
+  };
+
+  const handleDeleteAudience = async (id: string) => {
+    try {
+      const res = await adService.deleteAudienceSegment(id);
+      if (res.data?.data?.deleted) {
+        message.success('Сегмент аудитории удален');
+        fetchAudiences();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка удаления сегмента');
     }
   };
 
@@ -465,6 +536,7 @@ export default function SwipiesAdsPage() {
     fetchTeam();
     fetchNotifications();
     fetchNotificationSettings();
+    fetchAudiences();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -482,6 +554,10 @@ export default function SwipiesAdsPage() {
       total_budget: 100,
       pricing_model: 'cpc',
       bid_amount: 0.15,
+      frequency_cap_impressions: 0,
+      frequency_cap_hours: 24,
+      target_audience_segment_ids: [],
+      exclude_audience_segment_ids: [],
     });
     setRawKeywords('');
     setRawCategories('');
@@ -494,7 +570,13 @@ export default function SwipiesAdsPage() {
 
   const handleOpenEditCampaign = (cmp: AdCampaignItem) => {
     setSelectedCampaign(cmp);
-    setCampaignForm({ ...cmp });
+    setCampaignForm({
+      ...cmp,
+      frequency_cap_impressions: cmp.frequency_cap_impressions ?? 0,
+      frequency_cap_hours: cmp.frequency_cap_hours ?? 24,
+      target_audience_segment_ids: cmp.target_audience_segment_ids ?? [],
+      exclude_audience_segment_ids: cmp.exclude_audience_segment_ids ?? [],
+    });
     setRawKeywords((cmp.keywords || []).join(', '));
     setRawCategories((cmp.target_categories || []).join(', '));
     setRawNegativeKeywords((cmp.negative_keywords || []).join(', '));
@@ -989,6 +1071,9 @@ export default function SwipiesAdsPage() {
           </TabsTrigger>
           <TabsTrigger value="billing" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" /> Billing & Transactions
+          </TabsTrigger>
+          <TabsTrigger value="audiences" className="flex items-center gap-2">
+            <Fingerprint className="h-4 w-4 text-emerald-500" /> Аудитории ({audiences.length})
           </TabsTrigger>
           <TabsTrigger value="team" className="flex items-center gap-2">
             <Users className="h-4 w-4" /> Команда ({teamMembers.length})
@@ -1871,6 +1956,130 @@ export default function SwipiesAdsPage() {
           </div>
         </TabsContent>
 
+        {/* Audience Retargeting & Segments Tab */}
+        <TabsContent value="audiences" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border">
+            <div>
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <Fingerprint className="h-5 w-5 text-emerald-500" />
+                Сегменты аудиторий и Ретаргетинг
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Автоматический сбор аудиторий по конверсиям пикселя и поведению для повторного вовлечения (Retargeting)
+              </p>
+            </div>
+            <Button
+              onClick={() => setIsAudienceModalOpen(true)}
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs flex items-center gap-1.5"
+            >
+              <Plus className="h-3.5 w-3.5" /> + Создать аудиторию
+            </Button>
+          </div>
+
+          {/* Audience Segments Grid / Cards */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border p-3 bg-muted/20 text-xs">
+              <div className="font-semibold text-foreground flex items-center gap-1.5 mb-1">
+                🎯 Пиксель-ретаргетинг
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Посетители, совершившие purchase, lead или добавление в корзину на вашем сайте.
+              </p>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/20 text-xs">
+              <div className="font-semibold text-foreground flex items-center gap-1.5 mb-1">
+                ⚡ Исключение покупателей
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Исключайте пользователей, которые уже купили товар, чтобы экономить бюджет.
+              </p>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/20 text-xs">
+              <div className="font-semibold text-foreground flex items-center gap-1.5 mb-1">
+                🔄 Частота Frequency Capping
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Защита от выгорания креативов: не более N показов на 1 пользователя в сутки.
+              </p>
+            </div>
+          </div>
+
+          {/* Audiences Table */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between py-4">
+              <div>
+                <CardTitle className="text-sm font-semibold">Ваши сегменты аудиторий</CardTitle>
+                <CardDescription className="text-xs">
+                  Списки пользователей для таргетинга или исключения в кампаниях
+                </CardDescription>
+              </div>
+              <Button size="sm" variant="ghost" onClick={fetchAudiences} disabled={loadingAudiences}>
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingAudiences ? 'animate-spin' : ''}`} />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {audiences.length === 0 ? (
+                <div className="p-8 text-center text-xs text-muted-foreground">
+                  <Fingerprint className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                  У вас пока нет созданных сегментов аудиторий. Создайте первую аудиторию ретаргетинга!
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-2.5 px-4">Название аудитории</th>
+                        <th className="py-2.5 px-4">Тип сбора</th>
+                        <th className="py-2.5 px-4">Правило / Событие</th>
+                        <th className="py-2.5 px-4">Участников (Users)</th>
+                        <th className="py-2.5 px-4">Дата создания</th>
+                        <th className="py-2.5 px-4 text-right">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {audiences.map((aud) => (
+                        <tr key={aud.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4 font-medium">
+                            <div>{aud.name}</div>
+                            {aud.description && (
+                              <div className="text-[11px] text-muted-foreground">{aud.description}</div>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className="text-[10px]">
+                              {aud.rule_type === 'pixel_event' ? '🌐 Событие Пикселя' : '📝 Пользовательский'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 font-mono text-[11px]">
+                            {aud.rule_config?.event_type || 'all_events'}
+                          </td>
+                          <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
+                            {aud.member_count.toLocaleString()}
+                          </td>
+                          <td className="py-3 px-4 text-muted-foreground">
+                            {new Date(aud.create_time).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteAudience(aud.id)}
+                              className="text-red-500 hover:text-red-700 h-7 px-2 text-xs"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" /> Удалить
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Team Collaboration & Roles Tab */}
         <TabsContent value="team" className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border">
@@ -2308,6 +2517,116 @@ export default function SwipiesAdsPage() {
                 />
               </div>
             </div>
+
+            {/* Frequency Capping */}
+            <div className="rounded-lg border p-3 bg-muted/20 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold flex items-center gap-1.5">
+                  <RotateCw className="h-3.5 w-3.5 text-blue-500" /> Ограничение частоты показов (Frequency Capping)
+                </label>
+                <span className="text-[11px] text-muted-foreground">Защита от выгорания креативов</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Макс. показов на 1 пользователя</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="0 = без ограничений"
+                    value={campaignForm.frequency_cap_impressions ?? 0}
+                    onChange={(e) =>
+                      setCampaignForm({
+                        ...campaignForm,
+                        frequency_cap_impressions: parseInt(e.target.value) || 0,
+                      })
+                    }
+                    className="h-8 text-xs"
+                  />
+                  <span className="text-[10px] text-muted-foreground">0 — не ограничивать показы</span>
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Временное окно (часов)</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={campaignForm.frequency_cap_hours ?? 24}
+                    onChange={(e) =>
+                      setCampaignForm({
+                        ...campaignForm,
+                        frequency_cap_hours: parseInt(e.target.value) || 24,
+                      })
+                    }
+                    className="h-8 text-xs"
+                  />
+                  <span className="text-[10px] text-muted-foreground">Например, 3 показа за 24 ч</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Audience Targeting & Exclusion */}
+            {audiences.length > 0 && (
+              <div className="rounded-lg border p-3 bg-muted/20 space-y-3 text-xs">
+                <div className="font-semibold flex items-center gap-1.5">
+                  <Fingerprint className="h-3.5 w-3.5 text-emerald-500" /> Ретаргетинг аудиторий
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1.5">
+                    🎯 Таргетинг на аудитории (показывать ТОЛЬКО этим сегментам):
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {audiences.map((aud) => {
+                      const isIncluded = (campaignForm.target_audience_segment_ids || []).includes(aud.id);
+                      return (
+                        <Button
+                          key={aud.id}
+                          type="button"
+                          variant={isIncluded ? 'default' : 'outline'}
+                          size="sm"
+                          className={`h-7 text-xs ${isIncluded ? 'bg-emerald-600 text-white' : ''}`}
+                          onClick={() => {
+                            const cur = campaignForm.target_audience_segment_ids || [];
+                            const next = isIncluded ? cur.filter((id) => id !== aud.id) : [...cur, aud.id];
+                            setCampaignForm({ ...campaignForm, target_audience_segment_ids: next });
+                          }}
+                        >
+                          <UserCheck className="h-3 w-3 mr-1" />
+                          {aud.name} ({aud.member_count})
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1.5">
+                    🚫 Исключение аудиторий (НЕ показывать этим пользователям):
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {audiences.map((aud) => {
+                      const isExcluded = (campaignForm.exclude_audience_segment_ids || []).includes(aud.id);
+                      return (
+                        <Button
+                          key={aud.id}
+                          type="button"
+                          variant={isExcluded ? 'default' : 'outline'}
+                          size="sm"
+                          className={`h-7 text-xs ${isExcluded ? 'bg-rose-600 text-white' : ''}`}
+                          onClick={() => {
+                            const cur = campaignForm.exclude_audience_segment_ids || [];
+                            const next = isExcluded ? cur.filter((id) => id !== aud.id) : [...cur, aud.id];
+                            setCampaignForm({ ...campaignForm, exclude_audience_segment_ids: next });
+                          }}
+                        >
+                          <XCircle className="h-3 w-3 mr-1" />
+                          {aud.name} ({aud.member_count})
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {campaignForm.pricing_model === 'cpa' && (
               <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg text-xs text-purple-700 dark:text-purple-300 flex items-start gap-2">
@@ -3298,6 +3617,86 @@ export default function SwipiesAdsPage() {
             >
               {savingNotifSettings ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
               {savingNotifSettings ? 'Сохранение...' : 'Сохранить настройки'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Audience Segment Dialog */}
+      <Dialog open={isAudienceModalOpen} onOpenChange={setIsAudienceModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Fingerprint className="h-5 w-5 text-emerald-500" />
+              Создать сегмент аудитории
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Настройте автоматический сбор пользователей по событиям или правилам для ретаргетинга
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Название аудитории</label>
+              <Input
+                placeholder="например, Покупатели (Purchasers 30d)"
+                value={audienceName}
+                onChange={(e) => setAudienceName(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Описание (опционально)</label>
+              <Input
+                placeholder="Пользователи, совершившие заказ на сайте"
+                value={audienceDescription}
+                onChange={(e) => setAudienceDescription(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Тип правила сбора</label>
+              <Select value={audienceRuleType} onValueChange={(val: any) => setAudienceRuleType(val)}>
+                <SelectTrigger className="w-full text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pixel_event">🌐 Событие Пикселя Конверсий</SelectItem>
+                  <SelectItem value="custom_list">📝 Ручной / Пользовательский список</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {audienceRuleType === 'pixel_event' && (
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">Событие пикселя</label>
+                <Select value={audienceEvent} onValueChange={setAudienceEvent}>
+                  <SelectTrigger className="w-full text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">⚡ Любая конверсия (All events)</SelectItem>
+                    <SelectItem value="purchase">🛒 Оплата заказа (purchase)</SelectItem>
+                    <SelectItem value="lead">📋 Лид / Заявка (lead)</SelectItem>
+                    <SelectItem value="signup">👤 Регистрация (signup)</SelectItem>
+                    <SelectItem value="add_to_cart">🛍️ Добавление в корзину (add_to_cart)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAudienceModalOpen(false)}>Отмена</Button>
+            <Button
+              onClick={handleCreateAudience}
+              disabled={creatingAudience || !audienceName.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {creatingAudience ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
+              {creatingAudience ? 'Создание...' : 'Создать аудиторию'}
             </Button>
           </DialogFooter>
         </DialogContent>
