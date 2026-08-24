@@ -148,6 +148,14 @@ const adService = {
   adminTogglePromoCode: (id: string) => request.put<ResponseData<{ id: string; is_active: boolean }>>(`/ads/admin/promo-codes/${id}/toggle`),
   adminDeletePromoCode: (id: string) => request.delete<ResponseData<boolean>>(`/ads/admin/promo-codes/${id}`),
 
+  // Analytics & Charts
+  getAdvertiserTimeline: (days: number = 14) =>
+    request.get<ResponseData<TimelineAnalyticsData>>(`/ads/analytics/timeline?days=${days}`),
+  getCampaignAnalyticsDetailed: (campaignId: string, days: number = 14) =>
+    request.get<ResponseData<CampaignDetailedAnalyticsData>>(`/ads/campaigns/${campaignId}/analytics/detailed?days=${days}`),
+  getAdminOverviewTimeline: (days: number = 14) =>
+    request.get<ResponseData<AdminTimelineData>>(`/ads/admin/analytics/overview-timeline?days=${days}`),
+
   // Admin Controls
   getAdminOverview: () => request.get<ResponseData<AdminAdsOverview>>('/ads/admin/overview'),
   getAdminModerationQueue: () => request.get<ResponseData<any[]>>('/ads/admin/moderation'),
@@ -161,6 +169,42 @@ const adService = {
   // Attribution & Watermark Analytics
   getAttributionStats: () => request.get<ResponseData<AttributionStatsData>>('/ads/attribution/stats'),
 };
+
+export interface DailyTimelinePoint {
+  date: string;
+  impressions: number;
+  clicks: number;
+  spend?: number;
+  revenue?: number;
+  ctr: number;
+}
+
+export interface TimelineAnalyticsData {
+  days: number;
+  total_impressions: number;
+  total_clicks: number;
+  total_spend: number;
+  ctr: number;
+  timeline: DailyTimelinePoint[];
+  languages: Record<string, number>;
+  models: Record<string, number>;
+  devices: Record<string, number>;
+}
+
+export interface CampaignDetailedAnalyticsData extends TimelineAnalyticsData {
+  campaign_id: string;
+  campaign_name: string;
+  product_name: string;
+  status: string;
+}
+
+export interface AdminTimelineData {
+  days: number;
+  timeline: DailyTimelinePoint[];
+  total_network_impressions: number;
+  total_network_clicks: number;
+  total_network_revenue: number;
+}
 
 export interface AttributionStatsData {
   total_visits: number;

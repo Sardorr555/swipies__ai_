@@ -45,7 +45,24 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import adService, { AdminAdsOverview, AdminAdsSettings, PromoCodeItem } from '@/services/ad-service';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+import adService, {
+  AdminAdsOverview,
+  AdminAdsSettings,
+  AdminTimelineData,
+  PromoCodeItem,
+} from '@/services/ad-service';
 
 export default function AdminAdsPage() {
   const [loading, setLoading] = useState(true);
@@ -53,6 +70,8 @@ export default function AdminAdsPage() {
   const [moderationQueue, setModerationQueue] = useState<any[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCodeItem[]>([]);
   const [settings, setSettings] = useState<AdminAdsSettings | null>(null);
+  const [adminTimeline, setAdminTimeline] = useState<AdminTimelineData | null>(null);
+  const [timelineDays, setTimelineDays] = useState<number>(14);
   const [activeTab, setActiveTab] = useState('moderation');
 
   // Reject modal state
@@ -72,20 +91,33 @@ export default function AdminAdsPage() {
     expires_days: 30,
   });
 
+  const fetchAdminTimeline = async (days: number = timelineDays) => {
+    try {
+      const res = await adService.getAdminOverviewTimeline(days);
+      if (res.data?.data) {
+        setAdminTimeline(res.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load admin timeline', err);
+    }
+  };
+
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const [ovRes, modRes, setRes, promoRes] = await Promise.all([
+      const [ovRes, modRes, setRes, promoRes, timeRes] = await Promise.all([
         adService.getAdminOverview(),
         adService.getAdminModerationQueue(),
         adService.getAdminSettings(),
         adService.adminListPromoCodes(),
+        adService.getAdminOverviewTimeline(timelineDays),
       ]);
 
       if (ovRes.data?.data) setOverview(ovRes.data.data);
       if (modRes.data?.data) setModerationQueue(modRes.data.data);
       if (setRes.data?.data) setSettings(setRes.data.data);
       if (promoRes.data?.data) setPromoCodes(promoRes.data.data);
+      if (timeRes.data?.data) setAdminTimeline(timeRes.data.data);
     } catch (err: any) {
       message.error(err.message || 'Failed to load ads admin data');
     } finally {
@@ -269,6 +301,9 @@ export default function AdminAdsPage() {
         <TabsList>
           <TabsTrigger value="moderation" className="flex items-center gap-2">
             <Shield className="h-4 w-4" /> Moderation Queue ({moderationQueue.length})
+          </TabsTrigger>
+          <TabsTrigger value="network_analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-blue-500" /> Сетевая аналитика
           </TabsTrigger>
           <TabsTrigger value="promos" className="flex items-center gap-2">
             <Ticket className="h-4 w-4" /> Promo Codes ({promoCodes.length})
@@ -519,6 +554,161 @@ export default function AdminAdsPage() {
                   </table>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 2. Network Analytics Tab */}
+        <TabsContent value="network_analytics" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 p-4 rounded-xl border">
+            <div>
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-blue-500" />
+                Сводная аналитика рекламной сети Swipies
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Глобальные показы, клики, CTR и доход платформы в разрезе дней
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 self-start sm:self-auto bg-background p-1 rounded-lg border">
+              {[7, 14, 30].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => {
+                    setTimelineDays(d);
+                    fetchAdminTimeline(d);
+                  }}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                    timelineDays === d
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {d === 7 ? '7 дней' : d === 14 ? '14 дней' : '30 дней'}
+                </button>
+              ))}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={() => fetchAdminTimeline(timelineDays)}
+                title="Обновить"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Глобальные показы</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                  {(adminTimeline?.total_network_impressions || 0).toLocaleString()}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Охват по всей сети</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Глобальные клики</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                  {(adminTimeline?.total_network_clicks || 0).toLocaleString()}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Переходы на сайты партнеров</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Доход платформы</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
+                  ${(adminTimeline?.total_network_revenue || 0).toFixed(2)}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Суммарный доход за период</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">Динамика показов и переходов сети</CardTitle>
+              <CardDescription className="text-xs">
+                Показатели платформы за последние {timelineDays} дней
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] w-full">
+                {adminTimeline?.timeline && adminTimeline.timeline.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={adminTimeline.timeline}
+                      margin={{ top: 10, right: 20, left: -10, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="adminImpGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                        </linearGradient>
+                        <linearGradient id="adminClkGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 11 }}
+                        tickFormatter={(val) => {
+                          const parts = val.split('-');
+                          return parts.length === 3 ? `${parts[1]}.${parts[2]}` : val;
+                        }}
+                      />
+                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: '#fff',
+                          fontSize: '12px',
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                      <Area
+                        type="monotone"
+                        dataKey="impressions"
+                        name="Показы сети"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#adminImpGradient)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="clicks"
+                        name="Клики сети"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#adminClkGradient)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                    За выбранный период данных нет
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

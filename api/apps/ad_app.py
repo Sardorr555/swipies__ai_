@@ -377,6 +377,35 @@ async def get_campaign_analytics(campaign_id):
         return get_data_error_result(message=str(e))
 
 
+@manager.route("/analytics/timeline", methods=["GET"])
+@login_required
+async def get_advertiser_timeline():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        days = int(request.args.get("days", 14))
+        data = AdEngineService.get_advertiser_timeline_analytics(user_id=user_id, tenant_id=tenant_id, days=days)
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error fetching advertiser timeline analytics: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/analytics/detailed", methods=["GET"])
+@login_required
+async def get_campaign_analytics_detailed(campaign_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        days = int(request.args.get("days", 14))
+        data = AdEngineService.get_campaign_analytics_detailed(campaign_id=campaign_id, advertiser_id=adv.id, days=days)
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error fetching detailed campaign analytics: {e}")
+        return get_data_error_result(message=str(e))
+
+
 # ==========================================
 # 2. Billing & Wallet Endpoints
 # ==========================================
@@ -616,6 +645,21 @@ async def admin_reject_campaign(campaign_id):
         return get_json_result(data={"id": cmp.id, "moderation_status": cmp.moderation_status, "note": note})
     except Exception as e:
         logger.exception(f"Error rejecting campaign: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/admin/analytics/overview-timeline", methods=["GET"])
+@login_required
+async def get_admin_analytics_timeline():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+    try:
+        days = int(request.args.get("days", 14))
+        data = AdEngineService.get_admin_network_timeline(days=days)
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error fetching admin timeline analytics: {e}")
         return get_data_error_result(message=str(e))
 
 

@@ -1708,6 +1708,10 @@ class AdImpression(DataBaseModel):
     message_id = CharField(max_length=32, null=True)
     cost = FloatField(default=0.0)
     query_intent = CharField(max_length=255, null=True)
+    language = CharField(max_length=16, default="ru", null=True, index=True)
+    model_name = CharField(max_length=64, default="gpt-4o", null=True, index=True)
+    device_type = CharField(max_length=32, default="desktop", null=True, index=True)
+    platform = CharField(max_length=32, default="web", null=True)
     create_time = BigIntegerField(null=False, index=True)
 
     class Meta:
@@ -1722,6 +1726,10 @@ class AdClick(DataBaseModel):
     user_id = CharField(max_length=32, null=True, index=True)
     cost = FloatField(default=0.0)
     ip_hash = CharField(max_length=64, null=True)
+    language = CharField(max_length=16, default="ru", null=True, index=True)
+    model_name = CharField(max_length=64, default="gpt-4o", null=True, index=True)
+    device_type = CharField(max_length=32, default="desktop", null=True, index=True)
+    platform = CharField(max_length=32, default="web", null=True)
     create_time = BigIntegerField(null=False, index=True)
 
     class Meta:

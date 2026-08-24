@@ -956,6 +956,177 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertEqual(res_bonus["bonus_usd"], 25.0)
         self.assertEqual(res_bonus["final_amount_usd"], 50.0)
 
+    def test_12_timeline_analytics_and_demographic_breakdowns(self):
+        """Test 12: Daily timeline aggregation, CTR calculations, and language/model/device breakdowns."""
+        user_id = "user_timeline_12"
+        tenant_id = "tenant_timeline_12"
+        adv = Advertiser.create(
+            id="adv_timeline_12",
+            tenant_id=tenant_id,
+            user_id=user_id,
+            company_name="Timeline Analytics Corp",
+            balance=200.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        cmp = AdCampaign.create(
+            id="cmp_timeline_12",
+            advertiser_id=adv.id,
+            name="Cloud ERP",
+            product_name="Swipies ERP",
+            advertisement_text="All-in-one ERP system.",
+            landing_url="https://erp.example.com",
+            target_categories=["erp", "business"],
+            keywords=["erp", "crm"],
+            pricing_model="cpc",
+            bid_amount=0.50,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        now_ts = current_timestamp()
+        day_ms = 86400 * 1000
+
+        # Create impressions across different days, languages, models, and devices
+        # Day 0 (today): 3 impressions (2 RU, 1 UZ; 2 gpt-4o, 1 deepseek-r1; 2 desktop, 1 mobile)
+        imp1 = AdImpression.create(
+            id="imp_t1",
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            user_id="u1",
+            language="ru",
+            model_name="gpt-4o",
+            device_type="desktop",
+            cost=0.0,
+            query_intent="лучшая erp система",
+            create_time=now_ts,
+        )
+        imp2 = AdImpression.create(
+            id="imp_t2",
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            user_id="u2",
+            language="ru",
+            model_name="gpt-4o",
+            device_type="desktop",
+            cost=0.0,
+            query_intent="автоматизация бизнеса",
+            create_time=now_ts,
+        )
+        imp3 = AdImpression.create(
+            id="imp_t3",
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            user_id="u3",
+            language="uz",
+            model_name="deepseek-r1",
+            device_type="mobile",
+            cost=0.0,
+            query_intent="biznes uchun erp dasturi",
+            create_time=now_ts,
+        )
+
+        # Day 1 ago: 2 impressions (1 EN, 1 UZ; 1 claude-3-5, 1 gpt-4o; 1 mobile, 1 tablet)
+        imp4 = AdImpression.create(
+            id="imp_t4",
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            user_id="u4",
+            language="en",
+            model_name="claude-3-5-sonnet",
+            device_type="mobile",
+            cost=0.0,
+            query_intent="cloud erp solution",
+            create_time=now_ts - day_ms,
+        )
+        imp5 = AdImpression.create(
+            id="imp_t5",
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            user_id="u5",
+            language="uz",
+            model_name="gpt-4o",
+            device_type="tablet",
+            cost=0.0,
+            query_intent="ombor hisobi dasturi",
+            create_time=now_ts - day_ms,
+        )
+
+        # Clicks: 1 click on Day 0 (imp1) and 1 click on Day 1 (imp4)
+        AdClick.create(
+            id="clk_t1",
+            campaign_id=cmp.id,
+            impression_id=imp1.id,
+            advertiser_id=adv.id,
+            user_id="u1",
+            cost=0.50,
+            language="ru",
+            model_name="gpt-4o",
+            device_type="desktop",
+            create_time=now_ts,
+        )
+        AdClick.create(
+            id="clk_t2",
+            campaign_id=cmp.id,
+            impression_id=imp4.id,
+            advertiser_id=adv.id,
+            user_id="u4",
+            cost=0.50,
+            language="en",
+            model_name="claude-3-5-sonnet",
+            device_type="mobile",
+            create_time=now_ts - day_ms,
+        )
+
+        # 1. Test Advertiser Timeline Analytics
+        timeline_res = AdEngineService.get_advertiser_timeline_analytics(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            days=14,
+        )
+        self.assertEqual(timeline_res["days"], 14)
+        self.assertEqual(timeline_res["total_impressions"], 5)
+        self.assertEqual(timeline_res["total_clicks"], 2)
+        self.assertEqual(timeline_res["total_spend"], 1.00)
+        self.assertAlmostEqual(timeline_res["ctr"], 40.0, places=1)
+        self.assertEqual(len(timeline_res["timeline"]), 14)
+
+        # Verify language counts: RU=2, UZ=2, EN=1
+        self.assertEqual(timeline_res["languages"]["ru"], 2)
+        self.assertEqual(timeline_res["languages"]["uz"], 2)
+        self.assertEqual(timeline_res["languages"]["en"], 1)
+
+        # Verify models counts: gpt-4o=3, deepseek=1, claude=1
+        self.assertEqual(timeline_res["models"]["gpt-4o"], 3)
+        self.assertEqual(timeline_res["models"]["deepseek"], 1)
+        self.assertEqual(timeline_res["models"]["claude"], 1)
+
+        # Verify devices: desktop=2, mobile=2, tablet=1
+        self.assertEqual(timeline_res["devices"]["desktop"], 2)
+        self.assertEqual(timeline_res["devices"]["mobile"], 2)
+        self.assertEqual(timeline_res["devices"]["tablet"], 1)
+
+        # 2. Test Campaign Detailed Analytics
+        camp_res = AdEngineService.get_campaign_analytics_detailed(
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            days=7,
+        )
+        self.assertEqual(camp_res["campaign_id"], cmp.id)
+        self.assertEqual(camp_res["total_impressions"], 5)
+        self.assertEqual(camp_res["total_clicks"], 2)
+        self.assertEqual(len(camp_res["timeline"]), 7)
+
+        # 3. Test Admin Global Timeline
+        admin_res = AdEngineService.get_admin_network_timeline(days=14)
+        self.assertEqual(admin_res["days"], 14)
+        self.assertGreaterEqual(admin_res["total_network_impressions"], 5)
+        self.assertGreaterEqual(admin_res["total_network_clicks"], 2)
+        self.assertGreaterEqual(admin_res["total_network_revenue"], 1.00)
+
 
 if __name__ == "__main__":
     unittest.main()
+

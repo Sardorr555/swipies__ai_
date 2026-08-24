@@ -18,7 +18,7 @@ import logging
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from peewee import fn
 
 from common.time_utils import current_timestamp
@@ -290,6 +290,10 @@ class AdEngineService:
                 message_id=message_id or "",
                 cost=(cost if winner_campaign.pricing_model == "cpm" else 0.0),
                 query_intent=clean_query[:250],
+                language=effective_lang or "ru",
+                model_name=model_name or "gpt-4o",
+                device_type="desktop",
+                platform="web",
                 create_time=now_ts,
             )
 
@@ -343,12 +347,21 @@ class AdEngineService:
             return "https://swipies.app"
 
         campaign = None
+        imp_lang = "ru"
+        imp_model = "gpt-4o"
+        imp_device = "desktop"
+        imp_platform = "web"
+
         impression = AdImpression.get_or_none(AdImpression.id == click_token)
         if impression:
             campaign = AdCampaign.get_or_none(AdCampaign.id == impression.campaign_id)
             campaign_id = impression.campaign_id
             impression_id = impression.id
             token_user_id = impression.user_id
+            imp_lang = getattr(impression, "language", "ru") or "ru"
+            imp_model = getattr(impression, "model_name", "gpt-4o") or "gpt-4o"
+            imp_device = getattr(impression, "device_type", "desktop") or "desktop"
+            imp_platform = getattr(impression, "platform", "web") or "web"
         else:
             campaign = AdCampaign.get_or_none(AdCampaign.id == click_token)
             if campaign:
@@ -367,6 +380,12 @@ class AdEngineService:
                     impression_id = ""
                     token_user_id = user_id
                 campaign = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
+                if impression_id:
+                    matched_imp = AdImpression.get_or_none(AdImpression.id == impression_id)
+                    if matched_imp:
+                        imp_lang = getattr(matched_imp, "language", "ru") or "ru"
+                        imp_model = getattr(matched_imp, "model_name", "gpt-4o") or "gpt-4o"
+                        imp_device = getattr(matched_imp, "device_type", "desktop") or "desktop"
             else:
                 campaign_id = click_token
                 impression_id = ""
@@ -397,6 +416,10 @@ class AdEngineService:
                 user_id=token_user_id or "",
                 cost=cost,
                 ip_hash=ip_hash[:64] if ip_hash else "",
+                language=imp_lang,
+                model_name=imp_model,
+                device_type=imp_device,
+                platform=imp_platform,
                 create_time=now_ts,
             )
 
@@ -535,6 +558,252 @@ class AdEngineService:
             "total_clicks": total_clicks,
             "total_revenue": round(total_revenue, 2),
             "network_ctr": round(ctr, 2),
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def get_advertiser_timeline_analytics(cls, user_id: str, tenant_id: str, days: int = 14) -> dict:
+        """
+        Calculates daily bucketed performance (impressions, clicks, ctr, spend) over the last N days,
+        plus breakdowns by language, model, and device for an advertiser.
+        """
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        now = datetime.now(timezone.utc)
+        start_date = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_ts = int(start_date.timestamp() * 1000)
+
+        # 1. Fetch impressions and clicks in the window
+        impressions = list(
+            AdImpression.select()
+            .where(AdImpression.advertiser_id == adv.id, AdImpression.create_time >= start_ts)
+        )
+        clicks = list(
+            AdClick.select()
+            .where(AdClick.advertiser_id == adv.id, AdClick.create_time >= start_ts)
+        )
+
+        # 2. Build daily bucket map
+        daily_map = {}
+        for i in range(days):
+            d = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+            daily_map[d] = {
+                "date": d,
+                "impressions": 0,
+                "clicks": 0,
+                "spend": 0.0,
+                "ctr": 0.0,
+            }
+
+        # Language breakdown
+        lang_counts = {"uz": 0, "ru": 0, "en": 0, "other": 0}
+        # Model breakdown
+        model_counts = {"gpt-4o": 0, "deepseek": 0, "claude": 0, "other": 0}
+        # Device breakdown
+        device_counts = {"desktop": 0, "mobile": 0, "tablet": 0}
+
+        for imp in impressions:
+            dt_str = datetime.fromtimestamp(imp.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            if dt_str in daily_map:
+                daily_map[dt_str]["impressions"] += 1
+                daily_map[dt_str]["spend"] += float(getattr(imp, "cost", 0.0) or 0.0)
+
+            lang = (getattr(imp, "language", "ru") or "ru").lower()
+            if lang in lang_counts:
+                lang_counts[lang] += 1
+            else:
+                lang_counts["other"] += 1
+
+            model = (getattr(imp, "model_name", "gpt-4o") or "gpt-4o").lower()
+            if "deepseek" in model:
+                model_counts["deepseek"] += 1
+            elif "claude" in model:
+                model_counts["claude"] += 1
+            elif "gpt" in model:
+                model_counts["gpt-4o"] += 1
+            else:
+                model_counts["other"] += 1
+
+            dev = (getattr(imp, "device_type", "desktop") or "desktop").lower()
+            if dev in device_counts:
+                device_counts[dev] += 1
+            else:
+                device_counts["desktop"] += 1
+
+        for clk in clicks:
+            dt_str = datetime.fromtimestamp(clk.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            if dt_str in daily_map:
+                daily_map[dt_str]["clicks"] += 1
+                daily_map[dt_str]["spend"] += float(getattr(clk, "cost", 0.0) or 0.0)
+
+        timeline = []
+        for d in sorted(daily_map.keys()):
+            row = daily_map[d]
+            row["spend"] = round(row["spend"], 2)
+            row["ctr"] = round((row["clicks"] / row["impressions"] * 100.0), 2) if row["impressions"] > 0 else 0.0
+            timeline.append(row)
+
+        total_imps = len(impressions)
+        total_clks = len(clicks)
+        total_spend = sum(r["spend"] for r in timeline)
+        overall_ctr = round((total_clks / total_imps * 100.0), 2) if total_imps > 0 else 0.0
+
+        return {
+            "days": days,
+            "total_impressions": total_imps,
+            "total_clicks": total_clks,
+            "total_spend": round(total_spend, 2),
+            "ctr": overall_ctr,
+            "timeline": timeline,
+            "languages": lang_counts,
+            "models": model_counts,
+            "devices": device_counts,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def get_campaign_analytics_detailed(cls, campaign_id: str, advertiser_id: str, days: int = 14) -> dict:
+        """Detailed daily analytics and breakdowns for a specific campaign."""
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == advertiser_id)
+        if not cmp:
+            return {}
+
+        now = datetime.now(timezone.utc)
+        start_date = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_ts = int(start_date.timestamp() * 1000)
+
+        impressions = list(
+            AdImpression.select()
+            .where(AdImpression.campaign_id == campaign_id, AdImpression.create_time >= start_ts)
+        )
+        clicks = list(
+            AdClick.select()
+            .where(AdClick.campaign_id == campaign_id, AdClick.create_time >= start_ts)
+        )
+
+        daily_map = {}
+        for i in range(days):
+            d = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+            daily_map[d] = {
+                "date": d,
+                "impressions": 0,
+                "clicks": 0,
+                "spend": 0.0,
+                "ctr": 0.0,
+            }
+
+        lang_counts = {"uz": 0, "ru": 0, "en": 0, "other": 0}
+        model_counts = {"gpt-4o": 0, "deepseek": 0, "claude": 0, "other": 0}
+        device_counts = {"desktop": 0, "mobile": 0, "tablet": 0}
+
+        for imp in impressions:
+            dt_str = datetime.fromtimestamp(imp.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            if dt_str in daily_map:
+                daily_map[dt_str]["impressions"] += 1
+                daily_map[dt_str]["spend"] += float(getattr(imp, "cost", 0.0) or 0.0)
+
+            lang = (getattr(imp, "language", "ru") or "ru").lower()
+            if lang in lang_counts:
+                lang_counts[lang] += 1
+            else:
+                lang_counts["other"] += 1
+
+            model = (getattr(imp, "model_name", "gpt-4o") or "gpt-4o").lower()
+            if "deepseek" in model:
+                model_counts["deepseek"] += 1
+            elif "claude" in model:
+                model_counts["claude"] += 1
+            elif "gpt" in model:
+                model_counts["gpt-4o"] += 1
+            else:
+                model_counts["other"] += 1
+
+            dev = (getattr(imp, "device_type", "desktop") or "desktop").lower()
+            if dev in device_counts:
+                device_counts[dev] += 1
+            else:
+                device_counts["desktop"] += 1
+
+        for clk in clicks:
+            dt_str = datetime.fromtimestamp(clk.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            if dt_str in daily_map:
+                daily_map[dt_str]["clicks"] += 1
+                daily_map[dt_str]["spend"] += float(getattr(clk, "cost", 0.0) or 0.0)
+
+        timeline = []
+        for d in sorted(daily_map.keys()):
+            row = daily_map[d]
+            row["spend"] = round(row["spend"], 2)
+            row["ctr"] = round((row["clicks"] / row["impressions"] * 100.0), 2) if row["impressions"] > 0 else 0.0
+            timeline.append(row)
+
+        total_imps = len(impressions)
+        total_clks = len(clicks)
+        total_spend = sum(r["spend"] for r in timeline)
+        overall_ctr = round((total_clks / total_imps * 100.0), 2) if total_imps > 0 else 0.0
+
+        return {
+            "campaign_id": cmp.id,
+            "campaign_name": cmp.name,
+            "product_name": cmp.product_name,
+            "status": cmp.status,
+            "days": days,
+            "total_impressions": total_imps,
+            "total_clicks": total_clks,
+            "total_spend": round(total_spend, 2),
+            "ctr": overall_ctr,
+            "timeline": timeline,
+            "languages": lang_counts,
+            "models": model_counts,
+            "devices": device_counts,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def get_admin_network_timeline(cls, days: int = 14) -> dict:
+        """Network-wide daily timeline of impressions, clicks, spend and CTR for admin panel."""
+        now = datetime.now(timezone.utc)
+        start_date = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_ts = int(start_date.timestamp() * 1000)
+
+        impressions = list(AdImpression.select().where(AdImpression.create_time >= start_ts))
+        clicks = list(AdClick.select().where(AdClick.create_time >= start_ts))
+
+        daily_map = {}
+        for i in range(days):
+            d = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+            daily_map[d] = {
+                "date": d,
+                "impressions": 0,
+                "clicks": 0,
+                "revenue": 0.0,
+                "ctr": 0.0,
+            }
+
+        for imp in impressions:
+            dt_str = datetime.fromtimestamp(imp.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            if dt_str in daily_map:
+                daily_map[dt_str]["impressions"] += 1
+                daily_map[dt_str]["revenue"] += float(getattr(imp, "cost", 0.0) or 0.0)
+
+        for clk in clicks:
+            dt_str = datetime.fromtimestamp(clk.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            if dt_str in daily_map:
+                daily_map[dt_str]["clicks"] += 1
+                daily_map[dt_str]["revenue"] += float(getattr(clk, "cost", 0.0) or 0.0)
+
+        timeline = []
+        for d in sorted(daily_map.keys()):
+            row = daily_map[d]
+            row["revenue"] = round(row["revenue"], 2)
+            row["ctr"] = round((row["clicks"] / row["impressions"] * 100.0), 2) if row["impressions"] > 0 else 0.0
+            timeline.append(row)
+
+        return {
+            "days": days,
+            "timeline": timeline,
+            "total_network_impressions": len(impressions),
+            "total_network_clicks": len(clicks),
+            "total_network_revenue": round(sum(r["revenue"] for r in timeline), 2),
         }
 
 

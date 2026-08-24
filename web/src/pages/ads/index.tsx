@@ -25,7 +25,23 @@ import {
   TrendingUp,
   Wallet,
   Zap,
+  Globe,
+  Smartphone,
+  Laptop,
+  Cpu,
 } from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,6 +64,8 @@ import adService, {
   AdCampaignItem,
   AdTransactionItem,
   AdvertiserDashboardData,
+  TimelineAnalyticsData,
+  CampaignDetailedAnalyticsData,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -56,13 +74,18 @@ export default function SwipiesAdsPage() {
   const [transactions, setTransactions] = useState<AdTransactionItem[]>([]);
   const [activeTab, setActiveTab] = useState('campaigns');
 
+  // Timeline Analytics state
+  const [timelineData, setTimelineData] = useState<TimelineAnalyticsData | null>(null);
+  const [timelineDays, setTimelineDays] = useState<number>(14);
+  const [loadingTimeline, setLoadingTimeline] = useState<boolean>(false);
+
   // Modals state
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
   const [isAtmosModalOpen, setIsAtmosModalOpen] = useState(false);
   const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<AdCampaignItem | null>(null);
-  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [analyticsData, setAnalyticsData] = useState<CampaignDetailedAnalyticsData | any>(null);
 
   // Form states
   const [campaignForm, setCampaignForm] = useState<Partial<AdCampaignItem>>({
@@ -100,6 +123,20 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  const fetchTimeline = async (days: number = timelineDays) => {
+    setLoadingTimeline(true);
+    try {
+      const res = await adService.getAdvertiserTimeline(days);
+      if (res.data?.data) {
+        setTimelineData(res.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load timeline analytics', err);
+    } finally {
+      setLoadingTimeline(false);
+    }
+  };
+
   const fetchTransactions = async () => {
     try {
       const res = await adService.listTransactions();
@@ -114,6 +151,7 @@ export default function SwipiesAdsPage() {
   useEffect(() => {
     fetchDashboard();
     fetchTransactions();
+    fetchTimeline(timelineDays);
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -291,10 +329,10 @@ export default function SwipiesAdsPage() {
 
   const handleOpenAnalytics = async (cmp: AdCampaignItem) => {
     setSelectedCampaign(cmp);
+    setIsAnalyticsModalOpen(true);
     try {
-      const res = await adService.getCampaignAnalytics(cmp.id);
+      const res = await adService.getCampaignAnalyticsDetailed(cmp.id, 14);
       setAnalyticsData(res.data?.data || null);
-      setIsAnalyticsModalOpen(true);
     } catch (err: any) {
       message.error('Failed to load campaign analytics');
     }
@@ -420,6 +458,9 @@ export default function SwipiesAdsPage() {
         <TabsList>
           <TabsTrigger value="campaigns" className="flex items-center gap-2">
             <Layers className="h-4 w-4" /> Campaigns ({dashboard?.campaigns?.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-blue-500" /> Аналитика & Графики
           </TabsTrigger>
           <TabsTrigger value="billing" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" /> Billing & Transactions
@@ -608,7 +649,289 @@ export default function SwipiesAdsPage() {
           </Card>
         </TabsContent>
 
-        {/* 2. Billing Tab */}
+        {/* 2. Interactive Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-6">
+          {/* Header with Date Range filter */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 p-4 rounded-xl border">
+            <div>
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-blue-500" />
+                Интерактивная статистика эффективности
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Динамика показов, переходов, расходов и сегментация аудитории в реальном времени
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 self-start sm:self-auto bg-background p-1 rounded-lg border">
+              {[7, 14, 30].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => {
+                    setTimelineDays(d);
+                    fetchTimeline(d);
+                  }}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                    timelineDays === d
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {d === 7 ? '7 дней' : d === 14 ? '14 дней' : '30 дней'}
+                </button>
+              ))}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={() => fetchTimeline(timelineDays)}
+                title="Обновить данные"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingTimeline ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
+
+          {/* Quick Metrics in Analytics Tab */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card className="bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Показы за период</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                  {(timelineData?.total_impressions || 0).toLocaleString()}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Охват рекомендаций в чате</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Клики за период</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                  {(timelineData?.total_clicks || 0).toLocaleString()}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Переходы на ваш сайт</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-50/50 to-transparent dark:from-purple-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Средний CTR</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-black text-purple-600 dark:text-purple-400">
+                  {timelineData?.ctr || 0}%
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Конверсия показов в клики</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Расходы за период</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
+                  ${(timelineData?.total_spend || 0).toFixed(2)}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">CPC / CPM инвестиции</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Chart Area */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <div>
+                <CardTitle className="text-sm font-semibold">График показов и переходов по дням</CardTitle>
+                <CardDescription className="text-xs">
+                  Динамика вовлеченности аудитории за последние {timelineDays} дней
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[280px] w-full">
+                {timelineData?.timeline && timelineData.timeline.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={timelineData.timeline}
+                      margin={{ top: 10, right: 20, left: -10, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="impGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                        </linearGradient>
+                        <linearGradient id="clkGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 11 }}
+                        tickFormatter={(val) => {
+                          const parts = val.split('-');
+                          return parts.length === 3 ? `${parts[1]}.${parts[2]}` : val;
+                        }}
+                      />
+                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: '#fff',
+                          fontSize: '12px',
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                      <Area
+                        type="monotone"
+                        dataKey="impressions"
+                        name="Показы (Impressions)"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#impGradient)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="clicks"
+                        name="Клики (Clicks)"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#clkGradient)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                    За выбранный период данных нет
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Breakdown Cards: Languages, Models, Devices */}
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* Language Breakdown */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-blue-500" />
+                  Языки запросов пользователей
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {(() => {
+                  const langs = timelineData?.languages || {};
+                  const total = Object.values(langs).reduce((a, b) => a + b, 0) || 1;
+                  const items = [
+                    { code: 'ru', label: '🇷🇺 Русский', count: langs['ru'] || 0, color: 'bg-blue-500' },
+                    { code: 'uz', label: '🇺🇿 Oʻzbekcha', count: langs['uz'] || 0, color: 'bg-emerald-500' },
+                    { code: 'en', label: '🇬🇧 English', count: langs['en'] || 0, color: 'bg-purple-500' },
+                    { code: 'other', label: '🌐 Другие', count: langs['other'] || 0, color: 'bg-zinc-400' },
+                  ];
+                  return items.map((item) => {
+                    const pct = Math.round((item.count / total) * 100);
+                    return (
+                      <div key={item.code} className="space-y-1">
+                        <div className="flex justify-between text-xs font-medium">
+                          <span>{item.label}</span>
+                          <span className="text-muted-foreground">{item.count} ({pct}%)</span>
+                        </div>
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div className={`h-full ${item.color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </CardContent>
+            </Card>
+
+            {/* AI Models Breakdown */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                  <Cpu className="h-4 w-4 text-purple-500" />
+                  Используемые модели LLM
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {(() => {
+                  const models = timelineData?.models || {};
+                  const total = Object.values(models).reduce((a, b) => a + b, 0) || 1;
+                  const items = [
+                    { code: 'gpt-4o', label: '🤖 GPT-4o / Mini', count: models['gpt-4o'] || 0, color: 'bg-emerald-500' },
+                    { code: 'deepseek', label: '⚡ DeepSeek R1 / V3', count: models['deepseek'] || 0, color: 'bg-blue-500' },
+                    { code: 'claude', label: '🧠 Claude 3.5 Sonnet', count: models['claude'] || 0, color: 'bg-purple-500' },
+                    { code: 'other', label: '🌐 Другие модели', count: models['other'] || 0, color: 'bg-zinc-400' },
+                  ];
+                  return items.map((item) => {
+                    const pct = Math.round((item.count / total) * 100);
+                    return (
+                      <div key={item.code} className="space-y-1">
+                        <div className="flex justify-between text-xs font-medium">
+                          <span>{item.label}</span>
+                          <span className="text-muted-foreground">{item.count} ({pct}%)</span>
+                        </div>
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div className={`h-full ${item.color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </CardContent>
+            </Card>
+
+            {/* Devices Breakdown */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                  <Laptop className="h-4 w-4 text-emerald-500" />
+                  Устройства и платформы
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {(() => {
+                  const devs = timelineData?.devices || {};
+                  const total = Object.values(devs).reduce((a, b) => a + b, 0) || 1;
+                  const items = [
+                    { code: 'desktop', label: '🖥️ Desktop (ПК)', count: devs['desktop'] || 0, color: 'bg-blue-500' },
+                    { code: 'mobile', label: '📱 Mobile (Смартфоны)', count: devs['mobile'] || 0, color: 'bg-emerald-500' },
+                    { code: 'tablet', label: '📟 Планшеты', count: devs['tablet'] || 0, color: 'bg-amber-500' },
+                  ];
+                  return items.map((item) => {
+                    const pct = Math.round((item.count / total) * 100);
+                    return (
+                      <div key={item.code} className="space-y-1">
+                        <div className="flex justify-between text-xs font-medium">
+                          <span>{item.label}</span>
+                          <span className="text-muted-foreground">{item.count} ({pct}%)</span>
+                        </div>
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div className={`h-full ${item.color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* 3. Billing Tab */}
         <TabsContent value="billing" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <Card className="md:col-span-1">
@@ -1043,49 +1366,167 @@ export default function SwipiesAdsPage() {
 
       {/* Campaign Analytics Modal */}
       <Dialog open={isAnalyticsModalOpen} onOpenChange={setIsAnalyticsModalOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Analytics: {selectedCampaign?.name}</DialogTitle>
-            <DialogDescription>Recent user intent matches and engagement telemetry.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="h-5 w-5 text-blue-500" />
+              Аналитика кампании: {selectedCampaign?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Продукт: <span className="font-semibold text-foreground">{selectedCampaign?.product_name}</span> | Статус:{' '}
+              <span className="font-semibold uppercase text-emerald-500">{selectedCampaign?.status}</span>
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-3">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded border bg-muted/20 p-2.5">
-                <div className="text-xs text-muted-foreground">Impressions</div>
-                <div className="text-lg font-bold">{analyticsData?.total_impressions || 0}</div>
+          <div className="space-y-4 py-2">
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="rounded-lg border bg-blue-50/50 dark:bg-blue-950/20 p-2.5">
+                <div className="text-[11px] text-muted-foreground">Показы</div>
+                <div className="text-base font-bold text-blue-600 dark:text-blue-400">
+                  {analyticsData?.total_impressions || 0}
+                </div>
               </div>
-              <div className="rounded border bg-muted/20 p-2.5">
-                <div className="text-xs text-muted-foreground">Clicks</div>
-                <div className="text-lg font-bold text-emerald-500">{analyticsData?.total_clicks || 0}</div>
+              <div className="rounded-lg border bg-emerald-50/50 dark:bg-emerald-950/20 p-2.5">
+                <div className="text-[11px] text-muted-foreground">Клики</div>
+                <div className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                  {analyticsData?.total_clicks || 0}
+                </div>
               </div>
-              <div className="rounded border bg-muted/20 p-2.5">
-                <div className="text-xs text-muted-foreground">Total Spent</div>
-                <div className="text-lg font-bold">${(analyticsData?.total_spent || 0).toFixed(2)}</div>
+              <div className="rounded-lg border bg-purple-50/50 dark:bg-purple-950/20 p-2.5">
+                <div className="text-[11px] text-muted-foreground">CTR</div>
+                <div className="text-base font-bold text-purple-600 dark:text-purple-400">
+                  {analyticsData?.ctr || 0}%
+                </div>
+              </div>
+              <div className="rounded-lg border bg-amber-50/50 dark:bg-amber-950/20 p-2.5">
+                <div className="text-[11px] text-muted-foreground">Расход</div>
+                <div className="text-base font-bold text-amber-600 dark:text-amber-400">
+                  ${(analyticsData?.total_spend || analyticsData?.total_spent || 0).toFixed(2)}
+                </div>
               </div>
             </div>
 
-            <div>
-              <div className="text-xs font-semibold mb-2">Recent Matching Query Intents</div>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {analyticsData?.recent_impressions?.length === 0 ? (
-                  <div className="text-xs text-muted-foreground py-2 text-center">No impressions recorded yet.</div>
-                ) : (
-                  analyticsData?.recent_impressions?.map((imp: any) => (
-                    <div key={imp.id} className="rounded border p-2 text-xs flex justify-between items-center">
-                      <span className="truncate max-w-[320px] italic">"{imp.query_intent}"</span>
-                      <span className="text-muted-foreground text-[10px]">
-                        {new Date(imp.time).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  ))
-                )}
+            {/* Campaign Daily Timeline Mini Chart */}
+            {analyticsData?.timeline && analyticsData.timeline.length > 0 && (
+              <div className="rounded-lg border p-3 bg-muted/10 space-y-1">
+                <div className="text-xs font-semibold text-muted-foreground mb-1">
+                  Динамика за последние 14 дней
+                </div>
+                <div className="h-44 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={analyticsData.timeline}
+                      margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="modalImpGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                        </linearGradient>
+                        <linearGradient id="modalClkGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 10 }}
+                        tickFormatter={(val) => {
+                          const parts = val.split('-');
+                          return parts.length === 3 ? `${parts[1]}.${parts[2]}` : val;
+                        }}
+                      />
+                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: '#fff',
+                          fontSize: '11px',
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="impressions"
+                        name="Показы"
+                        stroke="#3b82f6"
+                        strokeWidth={1.5}
+                        fillOpacity={1}
+                        fill="url(#modalImpGradient)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="clicks"
+                        name="Клики"
+                        stroke="#10b981"
+                        strokeWidth={1.5}
+                        fillOpacity={1}
+                        fill="url(#modalClkGradient)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Demographics / Devices info */}
+            {analyticsData?.languages && (
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 border rounded-lg bg-muted/20 space-y-1">
+                  <div className="font-semibold text-muted-foreground text-[11px] flex items-center gap-1">
+                    <Globe className="h-3.5 w-3.5 text-blue-500" /> Языки аудитории
+                  </div>
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {Object.entries(analyticsData.languages).map(([l, count]: any) => (
+                      <span key={l} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-background border font-mono">
+                        {l.toUpperCase()}: {count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-2.5 border rounded-lg bg-muted/20 space-y-1">
+                  <div className="font-semibold text-muted-foreground text-[11px] flex items-center gap-1">
+                    <Laptop className="h-3.5 w-3.5 text-emerald-500" /> Устройства
+                  </div>
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {Object.entries(analyticsData.devices || {}).map(([d, count]: any) => (
+                      <span key={d} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-background border font-mono">
+                        {d}: {count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Matching Query Intents if available */}
+            {analyticsData?.recent_impressions && (
+              <div>
+                <div className="text-xs font-semibold mb-1.5">Недавние поисковые намерения</div>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {analyticsData.recent_impressions.length === 0 ? (
+                    <div className="text-xs text-muted-foreground py-1 text-center">Нет записанных показов</div>
+                  ) : (
+                    analyticsData.recent_impressions.map((imp: any) => (
+                      <div key={imp.id} className="rounded border p-1.5 text-xs flex justify-between items-center bg-background/50">
+                        <span className="truncate max-w-[340px] italic">"{imp.query_intent}"</span>
+                        <span className="text-muted-foreground text-[10px]">
+                          {new Date(imp.time).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
-            <Button onClick={() => setIsAnalyticsModalOpen(false)}>Close</Button>
+            <Button onClick={() => setIsAnalyticsModalOpen(false)}>Закрыть</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
