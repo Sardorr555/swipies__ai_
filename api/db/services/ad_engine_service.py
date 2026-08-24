@@ -26,6 +26,7 @@ from common.time_utils import current_timestamp
 from api.db.db_models import (
     DB,
     Advertiser,
+    AdvertiserTeamMember,
     AdCampaign,
     AdVariant,
     AdImpression,
@@ -1914,6 +1915,166 @@ class AdExportService:
 </html>
 """
         return html
+
+
+class AdvertiserTeamService:
+    ROLE_PERMISSIONS = {
+        "admin": {"manage_campaigns", "view_analytics", "manage_billing", "manage_team", "export_reports", "apply_optimizer"},
+        "manager": {"manage_campaigns", "view_analytics", "export_reports", "apply_optimizer"},
+        "analyst": {"view_analytics", "export_reports"},
+        "billing": {"manage_billing", "view_analytics", "export_reports"},
+    }
+
+    @classmethod
+    @DB.connection_context()
+    def get_team_members(cls, advertiser_id: str) -> list[dict]:
+        members = list(
+            AdvertiserTeamMember.select()
+            .where((AdvertiserTeamMember.advertiser_id == advertiser_id) & (AdvertiserTeamMember.status != "revoked"))
+            .order_by(AdvertiserTeamMember.create_time.asc())
+        )
+        return [{
+            "id": m.id,
+            "advertiser_id": m.advertiser_id,
+            "user_id": m.user_id,
+            "email": m.email,
+            "role": m.role,
+            "status": m.status,
+            "invited_by": m.invited_by,
+            "create_time": m.create_time,
+        } for m in members]
+
+    @classmethod
+    @DB.connection_context()
+    def invite_member(cls, advertiser_id: str, email: str, role: str = "manager", inviter_user_id: str = "") -> dict:
+        email = (email or "").strip().lower()
+        if not email or "@" not in email:
+            raise ValueError("Некорректный адрес электронной почты")
+
+        role = role.lower()
+        if role not in cls.ROLE_PERMISSIONS:
+            role = "manager"
+
+        now_ts = current_timestamp()
+
+        # Check existing member
+        existing = AdvertiserTeamMember.get_or_none(
+            (AdvertiserTeamMember.advertiser_id == advertiser_id) &
+            (AdvertiserTeamMember.email == email)
+        )
+
+        matched_user = User.get_or_none(User.email == email)
+        user_id = matched_user.id if matched_user else None
+
+        if existing:
+            existing.role = role
+            existing.status = "active"
+            if user_id:
+                existing.user_id = user_id
+            existing.update_time = now_ts
+            existing.save()
+            return {
+                "id": existing.id,
+                "advertiser_id": existing.advertiser_id,
+                "user_id": existing.user_id,
+                "email": existing.email,
+                "role": existing.role,
+                "status": existing.status,
+                "invited_by": existing.invited_by,
+                "create_time": existing.create_time,
+            }
+
+        member = AdvertiserTeamMember.create(
+            id=uuid.uuid4().hex[:32],
+            advertiser_id=advertiser_id,
+            user_id=user_id,
+            email=email,
+            role=role,
+            status="active",
+            invited_by=inviter_user_id,
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+
+        return {
+            "id": member.id,
+            "advertiser_id": member.advertiser_id,
+            "user_id": member.user_id,
+            "email": member.email,
+            "role": member.role,
+            "status": member.status,
+            "invited_by": member.invited_by,
+            "create_time": member.create_time,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def update_member_role(cls, member_id: str, advertiser_id: str, new_role: str) -> dict:
+        new_role = new_role.lower()
+        if new_role not in cls.ROLE_PERMISSIONS:
+            raise ValueError(f"Недопустимая роль: {new_role}")
+
+        member = AdvertiserTeamMember.get_or_none(
+            (AdvertiserTeamMember.id == member_id) &
+            (AdvertiserTeamMember.advertiser_id == advertiser_id)
+        )
+        if not member:
+            raise ValueError("Участник команды не найден")
+
+        member.role = new_role
+        member.update_time = current_timestamp()
+        member.save()
+
+        return {
+            "id": member.id,
+            "advertiser_id": member.advertiser_id,
+            "user_id": member.user_id,
+            "email": member.email,
+            "role": member.role,
+            "status": member.status,
+            "invited_by": member.invited_by,
+            "create_time": member.create_time,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def remove_member(cls, member_id: str, advertiser_id: str) -> bool:
+        member = AdvertiserTeamMember.get_or_none(
+            (AdvertiserTeamMember.id == member_id) &
+            (AdvertiserTeamMember.advertiser_id == advertiser_id)
+        )
+        if not member:
+            return False
+
+        member.delete_instance()
+        return True
+
+    @classmethod
+    @DB.connection_context()
+    def has_permission(cls, user_id: str, advertiser_id: str, required_permission: str) -> bool:
+        adv = Advertiser.get_or_none(Advertiser.id == advertiser_id)
+        if not adv:
+            return False
+
+        # Primary owner has all permissions
+        if adv.user_id == user_id:
+            return True
+
+        user = User.get_or_none(User.id == user_id)
+        email = user.email.lower() if user and user.email else ""
+
+        member = AdvertiserTeamMember.get_or_none(
+            (AdvertiserTeamMember.advertiser_id == advertiser_id) &
+            (AdvertiserTeamMember.status == "active") &
+            ((AdvertiserTeamMember.user_id == user_id) | (AdvertiserTeamMember.email == email))
+        )
+
+        if not member:
+            return False
+
+        allowed = cls.ROLE_PERMISSIONS.get(member.role, set())
+        return required_permission in allowed
+
 
 
 

@@ -218,7 +218,27 @@ const adService = {
     request.delete<ResponseData<{ deleted: boolean }>>(`/ads/billing/payment-methods/${cardId}`),
   adminProcessRenewals: () =>
     request.post<ResponseData<{ processed: number; renewed: number; failed: number }>>('/ads/admin/subscriptions/process-renewals'),
+  // Team Collaboration & Granular Permissions
+  getTeamMembers: () =>
+    request.get<ResponseData<TeamMemberItem[]>>('/ads/team'),
+  inviteTeamMember: (data: { email: string; role: string }) =>
+    request.post<ResponseData<TeamMemberItem>>('/ads/team/invite', { data }),
+  updateTeamMemberRole: (memberId: string, role: string) =>
+    request.put<ResponseData<TeamMemberItem>>(`/ads/team/${memberId}/role`, { data: { role } }),
+  deleteTeamMember: (memberId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/team/${memberId}`),
 };
+
+export interface TeamMemberItem {
+  id: string;
+  advertiser_id: string;
+  user_id?: string;
+  email: string;
+  role: 'admin' | 'manager' | 'analyst' | 'billing';
+  status: 'active' | 'pending' | 'revoked';
+  invited_by?: string;
+  create_time: number;
+}
 
 export interface PixelSnippetData {
   pixel_id: string;

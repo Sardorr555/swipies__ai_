@@ -725,6 +725,108 @@ async def export_executive_report():
 
 
 # ==========================================
+# 2.8 Team Collaboration & Roles Endpoints
+# ==========================================
+
+@manager.route("/team", methods=["GET"])
+@login_required
+async def get_team_members():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserTeamService
+        members = AdvertiserTeamService.get_team_members(advertiser_id=adv.id)
+        return get_json_result(data=members)
+    except Exception as e:
+        logger.exception(f"Error fetching team members: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/team/invite", methods=["POST"])
+@login_required
+async def invite_team_member():
+    req = await get_request_json()
+    if not req:
+        return get_json_result(data=False, message="Empty payload", code=RetCode.ARGUMENT_ERROR)
+
+    email = req.get("email", "").strip()
+    role = req.get("role", "manager").strip()
+    if not email:
+        return get_json_result(data=False, message="Email обязателен", code=RetCode.ARGUMENT_ERROR)
+
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserTeamService
+
+        if not AdvertiserTeamService.has_permission(user_id, adv.id, "manage_team"):
+            return get_json_result(data=False, message="Недостаточно прав для управления командой", code=RetCode.UNAUTHORIZED)
+
+        member = AdvertiserTeamService.invite_member(
+            advertiser_id=adv.id,
+            email=email,
+            role=role,
+            inviter_user_id=user_id,
+        )
+        return get_json_result(data=member)
+    except Exception as e:
+        logger.exception(f"Error inviting team member: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/team/<member_id>/role", methods=["PUT"])
+@login_required
+async def update_team_member_role(member_id):
+    req = await get_request_json()
+    if not req:
+        return get_json_result(data=False, message="Empty payload", code=RetCode.ARGUMENT_ERROR)
+
+    role = req.get("role", "").strip()
+    if not role:
+        return get_json_result(data=False, message="Роль обязательна", code=RetCode.ARGUMENT_ERROR)
+
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserTeamService
+
+        if not AdvertiserTeamService.has_permission(user_id, adv.id, "manage_team"):
+            return get_json_result(data=False, message="Недостаточно прав для изменения ролей", code=RetCode.UNAUTHORIZED)
+
+        member = AdvertiserTeamService.update_member_role(
+            member_id=member_id,
+            advertiser_id=adv.id,
+            new_role=role,
+        )
+        return get_json_result(data=member)
+    except Exception as e:
+        logger.exception(f"Error updating member role: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/team/<member_id>", methods=["DELETE"])
+@login_required
+async def remove_team_member(member_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserTeamService
+
+        if not AdvertiserTeamService.has_permission(user_id, adv.id, "manage_team"):
+            return get_json_result(data=False, message="Недостаточно прав для удаления участников", code=RetCode.UNAUTHORIZED)
+
+        success = AdvertiserTeamService.remove_member(member_id=member_id, advertiser_id=adv.id)
+        return get_json_result(data={"deleted": success})
+    except Exception as e:
+        logger.exception(f"Error removing team member: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
 # 3. Public Click Tracking & Redirect
 # ==========================================
 

@@ -261,6 +261,7 @@ test_db = SqliteDatabase(TEST_DB_FILE)
 from api.db.db_models import (
     DB,
     Advertiser,
+    AdvertiserTeamMember,
     AdCampaign,
     AdVariant,
     AdImpression,
@@ -280,6 +281,7 @@ from api.db.db_models import (
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
+    AdvertiserTeamService,
     AdCampaignService,
     AdVariantService,
     AdImpressionService,
@@ -314,6 +316,7 @@ class TestSwipiesAdsSystem(unittest.TestCase):
 
         models = [
             Advertiser,
+            AdvertiserTeamMember,
             AdCampaign,
             AdVariant,
             AdImpression,
@@ -359,15 +362,23 @@ class TestSwipiesAdsSystem(unittest.TestCase):
     def tearDownClass(cls):
         test_db.drop_tables([
             Advertiser,
+            AdvertiserTeamMember,
             AdCampaign,
+            AdVariant,
             AdImpression,
             AdClick,
+            AdConversion,
             AdTransaction,
             AdSettings,
+            PromoCode,
+            PromoCodeUsage,
             User,
             Tenant,
             SubscriptionPlan,
             UserOnboarding,
+            PaymentOrder,
+            SavedPaymentMethod,
+            UserSubscription,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -1834,6 +1845,85 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertIn("Air Cargo Express", html_report)
         self.assertIn("$145.50", html_report)
         self.assertIn("window.print()", html_report)
+
+    def test_19_advertiser_team_collaboration_and_role_permissions(self):
+        """
+        Phase 17 Test:
+        - Invite team members with various roles (manager, analyst, billing, admin)
+        - Validate granular permissions matrix for each role
+        - Update member role and verify updated permission access
+        - Remove member and verify revoked access
+        """
+        owner = User.create(id="user_owner_19", email="owner@agency.com", nickname="Owner", create_time=current_timestamp())
+        marketer_user = User.create(id="user_marketer_19", email="marketer@agency.com", nickname="Marketer", create_time=current_timestamp())
+        analyst_user = User.create(id="user_analyst_19", email="analyst@agency.com", nickname="Analyst", create_time=current_timestamp())
+
+        adv = AdvertiserService.get_or_create_for_user(user_id=owner.id, tenant_id="tenant_team_19")
+        adv.company_name = "Digital Growth Agency"
+        adv.save()
+
+        # 1. Invite team members
+        m_marketer = AdvertiserTeamService.invite_member(
+            advertiser_id=adv.id,
+            email="marketer@agency.com",
+            role="manager",
+            inviter_user_id=owner.id,
+        )
+        self.assertEqual(m_marketer["role"], "manager")
+        self.assertEqual(m_marketer["user_id"], marketer_user.id)
+
+        m_analyst = AdvertiserTeamService.invite_member(
+            advertiser_id=adv.id,
+            email="analyst@agency.com",
+            role="analyst",
+            inviter_user_id=owner.id,
+        )
+        self.assertEqual(m_analyst["role"], "analyst")
+
+        m_billing = AdvertiserTeamService.invite_member(
+            advertiser_id=adv.id,
+            email="finance@agency.com",
+            role="billing",
+            inviter_user_id=owner.id,
+        )
+        self.assertEqual(m_billing["role"], "billing")
+
+        # 2. Check team listing
+        members = AdvertiserTeamService.get_team_members(advertiser_id=adv.id)
+        self.assertEqual(len(members), 3)
+
+        # 3. Check Granular Permissions
+        # Owner has full access
+        self.assertTrue(AdvertiserTeamService.has_permission(owner.id, adv.id, "manage_campaigns"))
+        self.assertTrue(AdvertiserTeamService.has_permission(owner.id, adv.id, "manage_billing"))
+        self.assertTrue(AdvertiserTeamService.has_permission(owner.id, adv.id, "manage_team"))
+
+        # Marketer has manage_campaigns, but NOT manage_billing or manage_team
+        self.assertTrue(AdvertiserTeamService.has_permission(marketer_user.id, adv.id, "manage_campaigns"))
+        self.assertTrue(AdvertiserTeamService.has_permission(marketer_user.id, adv.id, "view_analytics"))
+        self.assertFalse(AdvertiserTeamService.has_permission(marketer_user.id, adv.id, "manage_billing"))
+        self.assertFalse(AdvertiserTeamService.has_permission(marketer_user.id, adv.id, "manage_team"))
+
+        # Analyst has view_analytics, but NOT manage_campaigns or manage_billing
+        self.assertTrue(AdvertiserTeamService.has_permission(analyst_user.id, adv.id, "view_analytics"))
+        self.assertFalse(AdvertiserTeamService.has_permission(analyst_user.id, adv.id, "manage_campaigns"))
+        self.assertFalse(AdvertiserTeamService.has_permission(analyst_user.id, adv.id, "manage_billing"))
+
+        # 4. Promote Marketer to Admin
+        updated_m = AdvertiserTeamService.update_member_role(
+            member_id=m_marketer["id"],
+            advertiser_id=adv.id,
+            new_role="admin",
+        )
+        self.assertEqual(updated_m["role"], "admin")
+        self.assertTrue(AdvertiserTeamService.has_permission(marketer_user.id, adv.id, "manage_billing"))
+        self.assertTrue(AdvertiserTeamService.has_permission(marketer_user.id, adv.id, "manage_team"))
+
+        # 5. Remove member
+        del_res = AdvertiserTeamService.remove_member(member_id=m_billing["id"], advertiser_id=adv.id)
+        self.assertTrue(del_res)
+        members_after = AdvertiserTeamService.get_team_members(advertiser_id=adv.id)
+        self.assertEqual(len(members_after), 2)
 
 
 if __name__ == "__main__":

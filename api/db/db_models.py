@@ -1666,6 +1666,21 @@ class Advertiser(DataBaseModel):
         db_table = "advertisers"
 
 
+class AdvertiserTeamMember(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=True, index=True)
+    email = CharField(max_length=255, null=False, index=True)
+    role = CharField(max_length=32, default="manager", index=True)  # admin, manager, analyst, billing
+    status = CharField(max_length=32, default="active", index=True)  # active, pending, revoked
+    invited_by = CharField(max_length=32, null=True)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "advertiser_team_members"
+
+
 class AdCampaign(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     advertiser_id = CharField(max_length=32, null=False, index=True)
