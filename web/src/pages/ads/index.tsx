@@ -58,6 +58,11 @@ import {
   Fingerprint,
   Crosshair,
   UserCheck,
+  Bot,
+  ArrowUpRight,
+  Key,
+  Code,
+  Globe2,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -102,6 +107,9 @@ import adService, {
   NotificationItem,
   NotificationSettingsData,
   AudienceSegmentItem,
+  PublisherProfileData,
+  PlacementItem,
+  PublisherPayoutItem,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -199,6 +207,25 @@ export default function SwipiesAdsPage() {
   const [inviteRole, setInviteRole] = useState<'admin' | 'manager' | 'analyst' | 'billing'>('manager');
   const [invitingMember, setInvitingMember] = useState(false);
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
+
+  // Publisher Monetization & Partner SDK State
+  const [publisher, setPublisher] = useState<PublisherProfileData | null>(null);
+  const [placements, setPlacements] = useState<PlacementItem[]>([]);
+  const [payouts, setPayouts] = useState<PublisherPayoutItem[]>([]);
+  const [loadingPublisher, setLoadingPublisher] = useState(false);
+  const [isPlacementModalOpen, setIsPlacementModalOpen] = useState(false);
+  const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
+  const [isSdkSnippetModalOpen, setIsSdkSnippetModalOpen] = useState(false);
+  const [selectedPlacementForSnippet, setSelectedPlacementForSnippet] = useState<PlacementItem | null>(null);
+  const [newPlacementName, setNewPlacementName] = useState('');
+  const [newPlacementType, setNewPlacementType] = useState<'telegram_bot' | 'web_widget' | 'mobile_app' | 'api_agent'>('telegram_bot');
+  const [newPlacementDomain, setNewPlacementDomain] = useState('');
+  const [newPlacementRevShare, setNewPlacementRevShare] = useState('0.70');
+  const [creatingPlacement, setCreatingPlacement] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState('50');
+  const [payoutCard, setPayoutCard] = useState('');
+  const [payoutHolder, setPayoutHolder] = useState('');
+  const [requestingPayout, setRequestingPayout] = useState(false);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -326,6 +353,106 @@ export default function SwipiesAdsPage() {
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка удаления сегмента');
+    }
+  };
+
+  const fetchPublisher = async () => {
+    setLoadingPublisher(true);
+    try {
+      const [pubRes, plcRes, payRes] = await Promise.all([
+        adService.getPublisherProfile(),
+        adService.getPublisherPlacements(),
+        adService.getPublisherPayouts(),
+      ]);
+      if (pubRes.data?.data) setPublisher(pubRes.data.data);
+      if (plcRes.data?.data) setPlacements(plcRes.data.data);
+      if (payRes.data?.data) setPayouts(payRes.data.data);
+    } catch (err: any) {
+      // silent
+    } finally {
+      setLoadingPublisher(false);
+    }
+  };
+
+  const handleRegenerateKey = async () => {
+    try {
+      const res = await adService.regeneratePublisherKey();
+      if (res.data?.data?.api_key) {
+        setPublisher((prev) => (prev ? { ...prev, api_key: res.data.data.api_key } : null));
+        message.success('Новый API-ключ паблишера сгенерирован!');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка обновления ключа');
+    }
+  };
+
+  const handleCreatePlacement = async () => {
+    if (!newPlacementName.trim()) {
+      message.error('Укажите название рекламного места');
+      return;
+    }
+    setCreatingPlacement(true);
+    try {
+      const res = await adService.createPublisherPlacement({
+        name: newPlacementName.trim(),
+        placement_type: newPlacementType,
+        domain_or_bot: newPlacementDomain.trim(),
+        rev_share_rate: parseFloat(newPlacementRevShare) || 0.70,
+      });
+      if (res.data?.data) {
+        message.success('Рекламное место успешно создано!');
+        setIsPlacementModalOpen(false);
+        setNewPlacementName('');
+        setNewPlacementDomain('');
+        fetchPublisher();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка создания размещения');
+    } finally {
+      setCreatingPlacement(false);
+    }
+  };
+
+  const handleDeletePlacement = async (id: string) => {
+    try {
+      const res = await adService.deletePublisherPlacement(id);
+      if (res.data?.data?.deleted) {
+        message.success('Размещение удалено');
+        fetchPublisher();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка удаления размещения');
+    }
+  };
+
+  const handleRequestPayout = async () => {
+    const amt = parseFloat(payoutAmount);
+    if (!amt || amt <= 0) {
+      message.error('Укажите корректную сумму выплаты');
+      return;
+    }
+    if (!payoutCard.trim()) {
+      message.error('Укажите номер банковской карты для выплаты');
+      return;
+    }
+    setRequestingPayout(true);
+    try {
+      const res = await adService.requestPublisherPayout({
+        amount: amt,
+        destination_card: payoutCard.trim(),
+        destination_holder: payoutHolder.trim(),
+      });
+      if (res.data?.data) {
+        message.success('Заявка на выплату успешно создана и передана в обработку!');
+        setIsPayoutModalOpen(false);
+        setPayoutCard('');
+        setPayoutHolder('');
+        fetchPublisher();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка создания заявки на выплату');
+    } finally {
+      setRequestingPayout(false);
     }
   };
 
@@ -537,6 +664,7 @@ export default function SwipiesAdsPage() {
     fetchNotifications();
     fetchNotificationSettings();
     fetchAudiences();
+    fetchPublisher();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -1077,6 +1205,9 @@ export default function SwipiesAdsPage() {
           </TabsTrigger>
           <TabsTrigger value="team" className="flex items-center gap-2">
             <Users className="h-4 w-4" /> Команда ({teamMembers.length})
+          </TabsTrigger>
+          <TabsTrigger value="publisher" className="flex items-center gap-2">
+            <Bot className="h-4 w-4 text-cyan-500" /> Монетизация & SDK ({placements.length})
           </TabsTrigger>
           <TabsTrigger value="guide" className="flex items-center gap-2">
             <HelpCircle className="h-4 w-4" /> How Swipies Ads Work
@@ -2207,6 +2338,275 @@ export default function SwipiesAdsPage() {
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-1" /> Удалить
                             </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Publisher Monetization & Partner SDK Tab */}
+        <TabsContent value="publisher" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border">
+            <div>
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <Bot className="h-5 w-5 text-cyan-500" />
+                Монетизация & Партнёрская сеть (Publisher SDK)
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Подключайте свои Telegram-боты, сайты и AI-агенты, показывайте релевантные рекомендации и получайте 70% Revenue Share
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setIsPayoutModalOpen(true)}
+                size="sm"
+                variant="outline"
+                className="text-xs flex items-center gap-1.5 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+              >
+                <Coins className="h-3.5 w-3.5" /> Вывести доход (${publisher?.balance ? publisher.balance.toFixed(2) : '0.00'})
+              </Button>
+              <Button
+                onClick={() => setIsPlacementModalOpen(true)}
+                size="sm"
+                className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs flex items-center gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" /> + Создать размещение
+              </Button>
+            </div>
+          </div>
+
+          {/* Publisher KPI Cards */}
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Доступно к выводу</CardTitle>
+                <Coins className="h-4 w-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  ${publisher?.balance ? publisher.balance.toFixed(2) : '0.00'}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Мгновенный вывод на карты Uzcard / Humo / Visa</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Всего заработано</CardTitle>
+                <ArrowUpRight className="h-4 w-4 text-cyan-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ${publisher?.total_earned ? publisher.total_earned.toFixed(2) : '0.00'}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">За всё время монетизации</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Выплачено</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ${publisher?.total_withdrawn ? publisher.total_withdrawn.toFixed(2) : '0.00'}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{payouts.length} заявок на выплату</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Доля дохода (RevShare)</CardTitle>
+                <Sparkles className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {((publisher?.default_rev_share || 0.70) * 100).toFixed(0)}%
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">От каждого платного клика и показа</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* API Key Banner */}
+          <div className="p-4 bg-muted/40 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <Key className="h-4 w-4 text-cyan-500 shrink-0" />
+              <div>
+                <span className="font-semibold text-foreground">Ваш уникальный API-ключ паблишера:</span>
+                <div className="font-mono bg-background border px-2.5 py-1 rounded mt-1 text-[11px] select-all">
+                  {publisher?.api_key || 'Загрузка...'}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (publisher?.api_key) {
+                    navigator.clipboard.writeText(publisher.api_key);
+                    message.success('API-ключ скопирован в буфер обмена');
+                  }
+                }}
+                className="h-8 text-xs"
+              >
+                <Copy className="h-3.5 w-3.5 mr-1" /> Скопировать
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleRegenerateKey}
+                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Перевыпустить
+              </Button>
+            </div>
+          </div>
+
+          {/* Placements Table */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between py-4">
+              <div>
+                <CardTitle className="text-sm font-semibold">Рекламные места (Placements)</CardTitle>
+                <CardDescription className="text-xs">
+                  Подключенные боты, сайты и приложения для показа объявлений
+                </CardDescription>
+              </div>
+              <Button size="sm" variant="ghost" onClick={fetchPublisher} disabled={loadingPublisher}>
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingPublisher ? 'animate-spin' : ''}`} />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {placements.length === 0 ? (
+                <div className="p-8 text-center text-xs text-muted-foreground">
+                  <Bot className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                  У вас пока нет созданных рекламных мест. Создайте первое размещение для своего Telegram-бота или сайта!
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-2.5 px-4">Название & Канал</th>
+                        <th className="py-2.5 px-4">Тип интеграции</th>
+                        <th className="py-2.5 px-4">Доля (RevShare)</th>
+                        <th className="py-2.5 px-4">Показов</th>
+                        <th className="py-2.5 px-4">Кликов</th>
+                        <th className="py-2.5 px-4">Заработано ($)</th>
+                        <th className="py-2.5 px-4 text-right">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {placements.map((plc) => (
+                        <tr key={plc.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4 font-medium">
+                            <div>{plc.name}</div>
+                            {plc.domain_or_bot && (
+                              <div className="text-[11px] text-muted-foreground font-mono">{plc.domain_or_bot}</div>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              {plc.placement_type === 'telegram_bot' && '🤖 Telegram Bot'}
+                              {plc.placement_type === 'web_widget' && '🌐 Web Widget'}
+                              {plc.placement_type === 'mobile_app' && '📱 Mobile App'}
+                              {plc.placement_type === 'api_agent' && '⚡ AI Agent API'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-amber-600">
+                            {(plc.rev_share_rate * 100).toFixed(0)}%
+                          </td>
+                          <td className="py-3 px-4 font-mono">{plc.impressions.toLocaleString()}</td>
+                          <td className="py-3 px-4 font-mono">{plc.clicks.toLocaleString()}</td>
+                          <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
+                            ${plc.earnings.toFixed(4)}
+                          </td>
+                          <td className="py-3 px-4 text-right flex items-center justify-end gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedPlacementForSnippet(plc);
+                                setIsSdkSnippetModalOpen(true);
+                              }}
+                              className="h-7 px-2 text-xs"
+                            >
+                              <Code className="h-3.5 w-3.5 mr-1" /> Код SDK
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeletePlacement(plc.id)}
+                              className="text-red-500 hover:text-red-700 h-7 px-2 text-xs"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payouts History Card */}
+          <Card>
+            <CardHeader className="py-4">
+              <CardTitle className="text-sm font-semibold">История выплат</CardTitle>
+              <CardDescription className="text-xs">
+                Все запросы на перевод заработанных средств на банковские карты
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {payouts.length === 0 ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">
+                  Заявок на выплату пока не было. Накопите минимальный баланс и нажмите «Вывести доход».
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-2.5 px-4">Дата запроса</th>
+                        <th className="py-2.5 px-4">Сумма</th>
+                        <th className="py-2.5 px-4">Карта получателя</th>
+                        <th className="py-2.5 px-4">Статус</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {payouts.map((pay) => (
+                        <tr key={pay.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4 text-muted-foreground">
+                            {new Date(pay.create_time).toLocaleDateString()} {new Date(pay.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="py-3 px-4 font-bold text-foreground">
+                            ${pay.amount.toFixed(2)} {pay.currency}
+                          </td>
+                          <td className="py-3 px-4 font-mono text-[11px]">
+                            {pay.destination_card} {pay.destination_holder && `(${pay.destination_holder})`}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              variant={
+                                pay.status === 'paid' ? 'default' : pay.status === 'pending' ? 'secondary' : 'destructive'
+                              }
+                              className="text-[10px]"
+                            >
+                              {pay.status === 'paid' && '✅ Выплачено'}
+                              {pay.status === 'pending' && '⏳ В обработке'}
+                              {pay.status === 'approved' && '👍 Одобрено'}
+                              {pay.status === 'rejected' && '❌ Отклонено'}
+                            </Badge>
                           </td>
                         </tr>
                       ))}
@@ -3698,6 +4098,257 @@ export default function SwipiesAdsPage() {
               {creatingAudience ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
               {creatingAudience ? 'Создание...' : 'Создать аудиторию'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Placement Dialog */}
+      <Dialog open={isPlacementModalOpen} onOpenChange={setIsPlacementModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5 text-cyan-500" /> Создать рекламное место
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Зарегистрируйте свой Telegram-бот, сайт или AI-приложение для показа спонсорских рекомендаций
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Название размещения *</label>
+              <Input
+                placeholder="например: AI Helper Bot (@my_ai_bot)"
+                value={newPlacementName}
+                onChange={(e) => setNewPlacementName(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Тип интеграции</label>
+              <Select value={newPlacementType} onValueChange={(val: any) => setNewPlacementType(val)}>
+                <SelectTrigger className="w-full text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="telegram_bot">🤖 Telegram Bot</SelectItem>
+                  <SelectItem value="web_widget">🌐 Web Widget / Website</SelectItem>
+                  <SelectItem value="mobile_app">📱 Mobile Application</SelectItem>
+                  <SelectItem value="api_agent">⚡ AI Agent / Backend API</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Юзернейм бота или домен сайта</label>
+              <Input
+                placeholder="@my_channel_bot или https://my-site.uz"
+                value={newPlacementDomain}
+                onChange={(e) => setNewPlacementDomain(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Доля дохода (RevShare)</label>
+              <Input
+                value="70% (Фиксированная ставка сети)"
+                disabled
+                className="text-sm bg-muted text-muted-foreground font-semibold"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Вы получаете 70% от каждого аукционного клика/показа в вашем канале.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPlacementModalOpen(false)}>Отмена</Button>
+            <Button
+              onClick={handleCreatePlacement}
+              disabled={creatingPlacement || !newPlacementName.trim()}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white"
+            >
+              {creatingPlacement ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
+              {creatingPlacement ? 'Создание...' : 'Создать размещение'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Payout Dialog */}
+      <Dialog open={isPayoutModalOpen} onOpenChange={setIsPayoutModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-emerald-500" /> Запрос выплаты дохода
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Вывод заработанных средств на банковскую карту (Uzcard, Humo, Visa)
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-lg flex items-center justify-between">
+              <span className="text-emerald-700 dark:text-emerald-400 font-medium">Доступный баланс:</span>
+              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-300">
+                ${publisher?.balance ? publisher.balance.toFixed(2) : '0.00'} USD
+              </span>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Сумма к выводу ($ USD) *</label>
+              <Input
+                type="number"
+                min="5"
+                step="1"
+                placeholder="50"
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
+                className="text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">Минимальная сумма для вывода: $5.00</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Номер карты получателя *</label>
+              <Input
+                placeholder="8600 0000 0000 0000 (Uzcard / Humo / Visa)"
+                value={payoutCard}
+                onChange={(e) => setPayoutCard(e.target.value)}
+                className="text-sm font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">ФИО держателя карты (опционально)</label>
+              <Input
+                placeholder="IVANOV IVAN"
+                value={payoutHolder}
+                onChange={(e) => setPayoutHolder(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPayoutModalOpen(false)}>Отмена</Button>
+            <Button
+              onClick={handleRequestPayout}
+              disabled={requestingPayout || !payoutCard.trim() || parseFloat(payoutAmount) <= 0}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {requestingPayout ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Coins className="mr-1.5 h-4 w-4" />}
+              {requestingPayout ? 'Отправка...' : 'Запросить выплату'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SDK Snippet Dialog */}
+      <Dialog open={isSdkSnippetModalOpen} onOpenChange={setIsSdkSnippetModalOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Code className="h-5 w-5 text-cyan-500" /> Интеграция SDK & API
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Подключите показ контекстной рекламы в ваш проект за 2 строки кода
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="bg-muted/30 p-3 rounded-lg border">
+              <div className="font-semibold text-foreground mb-1">Размещение: {selectedPlacementForSnippet?.name}</div>
+              <div className="text-[11px] text-muted-foreground font-mono">
+                Placement ID: {selectedPlacementForSnippet?.id}
+              </div>
+            </div>
+
+            {/* Python / Telegram Bot Snippet */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  🤖 Python (Telegram Bot / aiogram):
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-[10px]"
+                  onClick={() => {
+                    const code = `import aiohttp
+
+async def get_swipies_ad(user_query: str):
+    url = "https://swipies.ai/v1/ads/partner/serve"
+    headers = {"X-Publisher-Key": "${publisher?.api_key || 'YOUR_PUBLISHER_KEY'}"}
+    params = {
+        "query": user_query,
+        "placement_id": "${selectedPlacementForSnippet?.id || ''}",
+        "lang": "ru"
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers, params=params) as resp:
+            data = await resp.json()
+            if data.get("data", {}).get("matched"):
+                ad = data["data"]["ad"]
+                return f"\\n\\n💡 <i>Рекомендация:</i> <a href='{ad['tracking_url']}'>{ad['advertisement_text']}</a>"
+    return ""`;
+                    navigator.clipboard.writeText(code);
+                    message.success('Python код скопирован');
+                  }}
+                >
+                  <Copy className="h-3 w-3 mr-1" /> Копировать
+                </Button>
+              </div>
+              <pre className="p-3 bg-zinc-950 text-emerald-400 font-mono text-[11px] rounded-lg overflow-x-auto leading-relaxed border border-zinc-800">
+{`import aiohttp
+
+async def get_swipies_ad(user_query: str):
+    url = "https://swipies.ai/v1/ads/partner/serve"
+    headers = {"X-Publisher-Key": "${publisher?.api_key || 'YOUR_PUBLISHER_KEY'}"}
+    params = {
+        "query": user_query,
+        "placement_id": "${selectedPlacementForSnippet?.id || ''}",
+        "lang": "ru"
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers, params=params) as resp:
+            data = await resp.json()
+            if data.get("data", {}).get("matched"):
+                ad = data["data"]["ad"]
+                return f"\\n\\n💡 <i>Рекомендация:</i> <a href='{ad['tracking_url']}'>{ad['advertisement_text']}</a>"
+    return ""`}</pre>
+            </div>
+
+            {/* cURL Snippet */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  ⚡ cURL / REST API:
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-[10px]"
+                  onClick={() => {
+                    const curl = `curl "https://swipies.ai/v1/ads/partner/serve?query=crm&placement_id=${selectedPlacementForSnippet?.id || ''}&lang=ru" \\
+  -H "X-Publisher-Key: ${publisher?.api_key || 'YOUR_PUBLISHER_KEY'}"`;
+                    navigator.clipboard.writeText(curl);
+                    message.success('cURL команда скопирована');
+                  }}
+                >
+                  <Copy className="h-3 w-3 mr-1" /> Копировать
+                </Button>
+              </div>
+              <pre className="p-3 bg-zinc-950 text-emerald-400 font-mono text-[11px] rounded-lg overflow-x-auto leading-relaxed border border-zinc-800">
+{`curl "https://swipies.ai/v1/ads/partner/serve?query=crm&placement_id=${selectedPlacementForSnippet?.id || ''}&lang=ru" \\
+  -H "X-Publisher-Key: ${publisher?.api_key || 'YOUR_PUBLISHER_KEY'}"`}</pre>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => setIsSdkSnippetModalOpen(false)}>Готово</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

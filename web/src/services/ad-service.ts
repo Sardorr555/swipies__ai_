@@ -253,7 +253,62 @@ const adService = {
     request.delete<ResponseData<{ deleted: boolean }>>(`/ads/audiences/${segmentId}`),
   addAudienceMember: (segmentId: string, data: { user_id?: string; anonymous_id?: string; source_event?: string }) =>
     request.post<ResponseData<any>>(`/ads/audiences/${segmentId}/members`, { data }),
+
+  // Publisher Monetization & Partner SDK
+  getPublisherProfile: () =>
+    request.get<ResponseData<PublisherProfileData>>('/ads/publisher'),
+  regeneratePublisherKey: () =>
+    request.post<ResponseData<{ api_key: string }>>('/ads/publisher/key/regenerate'),
+  getPublisherPlacements: () =>
+    request.get<ResponseData<PlacementItem[]>>('/ads/publisher/placements'),
+  createPublisherPlacement: (data: { name: string; placement_type: string; domain_or_bot?: string; rev_share_rate?: number }) =>
+    request.post<ResponseData<PlacementItem>>('/ads/publisher/placements', { data }),
+  deletePublisherPlacement: (placementId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/publisher/placements/${placementId}`),
+  getPublisherPayouts: () =>
+    request.get<ResponseData<PublisherPayoutItem[]>>('/ads/publisher/payouts'),
+  requestPublisherPayout: (data: { amount: number; destination_card: string; destination_holder?: string }) =>
+    request.post<ResponseData<PublisherPayoutItem>>('/ads/publisher/payouts', { data }),
 };
+
+export interface PublisherProfileData {
+  id: string;
+  name: string;
+  api_key: string;
+  balance: number;
+  total_earned: number;
+  total_withdrawn: number;
+  default_rev_share: number;
+  payout_card: string;
+  payout_holder: string;
+  status: string;
+}
+
+export interface PlacementItem {
+  id: string;
+  publisher_id: string;
+  name: string;
+  placement_type: 'telegram_bot' | 'web_widget' | 'mobile_app' | 'api_agent';
+  domain_or_bot: string;
+  rev_share_rate: number;
+  impressions: number;
+  clicks: number;
+  earnings: number;
+  status: string;
+  create_time: number;
+}
+
+export interface PublisherPayoutItem {
+  id: string;
+  publisher_id: string;
+  amount: number;
+  currency: string;
+  destination_card: string;
+  destination_holder: string;
+  status: 'pending' | 'approved' | 'paid' | 'rejected';
+  note: string;
+  create_time: number;
+}
 
 export interface AudienceSegmentItem {
   id: string;

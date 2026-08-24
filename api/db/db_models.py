@@ -1994,6 +1994,60 @@ class AdAttributionVisit(BaseModel):
         db_table = "ad_attribution_visits"
 
 
+class AdPublisher(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=255, null=False, default="")
+    api_key = CharField(max_length=64, null=False, unique=True, index=True)
+    balance = FloatField(default=0.0)
+    total_earned = FloatField(default=0.0)
+    total_withdrawn = FloatField(default=0.0)
+    default_rev_share = FloatField(default=0.70)  # 70% to publisher, 30% platform
+    payout_card = CharField(max_length=64, null=True)
+    payout_holder = CharField(max_length=128, null=True)
+    status = CharField(max_length=32, default="active", index=True)  # active, suspended
+    create_time = BigIntegerField(null=True, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_publishers"
+
+
+class AdPlacement(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    publisher_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=128, null=False)
+    placement_type = CharField(max_length=32, default="telegram_bot", index=True)  # telegram_bot, web_widget, mobile_app, api_agent
+    domain_or_bot = CharField(max_length=255, null=True)
+    rev_share_rate = FloatField(default=0.70)
+    impressions = IntegerField(default=0)
+    clicks = IntegerField(default=0)
+    earnings = FloatField(default=0.0)
+    status = CharField(max_length=32, default="active", index=True)  # active, paused, archived
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_placements"
+
+
+class AdPublisherPayout(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    publisher_id = CharField(max_length=32, null=False, index=True)
+    amount = FloatField(null=False)
+    currency = CharField(max_length=8, default="USD")
+    destination_card = CharField(max_length=64, null=False)
+    destination_holder = CharField(max_length=128, null=True)
+    status = CharField(max_length=32, default="pending", index=True)  # pending, approved, paid, rejected
+    note = TextField(null=True)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_publisher_payouts"
+
+
 class PromoCode(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     code = CharField(max_length=64, unique=True, index=True)

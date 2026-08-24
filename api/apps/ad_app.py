@@ -1016,6 +1016,177 @@ async def add_audience_member(segment_id):
 
 
 # ==========================================
+# 2.11 Publisher Monetization & Partner SDK
+# ==========================================
+
+@manager.route("/publisher", methods=["GET"])
+@login_required
+async def get_publisher_profile():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        from api.db.services.ad_engine_service import AdPublisherService
+        pub = AdPublisherService.get_or_create_publisher(user_id=user_id, tenant_id=tenant_id)
+        return get_json_result(data={
+            "id": pub.id,
+            "name": pub.name,
+            "api_key": pub.api_key,
+            "balance": round(pub.balance, 4),
+            "total_earned": round(pub.total_earned, 4),
+            "total_withdrawn": round(pub.total_withdrawn, 4),
+            "default_rev_share": pub.default_rev_share,
+            "payout_card": pub.payout_card or "",
+            "payout_holder": pub.payout_holder or "",
+            "status": pub.status,
+        })
+    except Exception as e:
+        logger.exception(f"Error fetching publisher profile: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/publisher/key/regenerate", methods=["POST"])
+@login_required
+async def regenerate_publisher_key():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        from api.db.services.ad_engine_service import AdPublisherService
+        pub = AdPublisherService.get_or_create_publisher(user_id=user_id, tenant_id=tenant_id)
+        new_key = AdPublisherService.regenerate_api_key(publisher_id=pub.id, user_id=user_id)
+        return get_json_result(data={"api_key": new_key})
+    except Exception as e:
+        logger.exception(f"Error regenerating publisher key: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/publisher/placements", methods=["GET"])
+@login_required
+async def list_publisher_placements():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        from api.db.services.ad_engine_service import AdPublisherService
+        pub = AdPublisherService.get_or_create_publisher(user_id=user_id, tenant_id=tenant_id)
+        placements = AdPublisherService.list_placements(publisher_id=pub.id)
+        return get_json_result(data=placements)
+    except Exception as e:
+        logger.exception(f"Error listing placements: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/publisher/placements", methods=["POST"])
+@login_required
+async def create_publisher_placement():
+    req = await get_request_json()
+    if not req or not req.get("name"):
+        return get_json_result(data=False, message="Name is required", code=RetCode.ARGUMENT_ERROR)
+
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        from api.db.services.ad_engine_service import AdPublisherService
+        pub = AdPublisherService.get_or_create_publisher(user_id=user_id, tenant_id=tenant_id)
+        placement = AdPublisherService.create_placement(
+            publisher_id=pub.id,
+            name=str(req.get("name")).strip(),
+            placement_type=str(req.get("placement_type", "telegram_bot")),
+            domain_or_bot=str(req.get("domain_or_bot", "")).strip(),
+            rev_share_rate=float(req.get("rev_share_rate", 0.70)),
+        )
+        return get_json_result(data=placement)
+    except Exception as e:
+        logger.exception(f"Error creating placement: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/publisher/placements/<placement_id>", methods=["DELETE"])
+@login_required
+async def delete_publisher_placement(placement_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        from api.db.services.ad_engine_service import AdPublisherService
+        pub = AdPublisherService.get_or_create_publisher(user_id=user_id, tenant_id=tenant_id)
+        deleted = AdPublisherService.delete_placement(placement_id=placement_id, publisher_id=pub.id)
+        return get_json_result(data={"deleted": deleted})
+    except Exception as e:
+        logger.exception(f"Error deleting placement: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/publisher/payouts", methods=["GET"])
+@login_required
+async def list_publisher_payouts():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        from api.db.services.ad_engine_service import AdPublisherService
+        pub = AdPublisherService.get_or_create_publisher(user_id=user_id, tenant_id=tenant_id)
+        payouts = AdPublisherService.list_payouts(publisher_id=pub.id)
+        return get_json_result(data=payouts)
+    except Exception as e:
+        logger.exception(f"Error listing payouts: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/publisher/payouts", methods=["POST"])
+@login_required
+async def request_publisher_payout():
+    req = await get_request_json()
+    if not req or not req.get("amount") or not req.get("destination_card"):
+        return get_json_result(data=False, message="Amount and destination card are required", code=RetCode.ARGUMENT_ERROR)
+
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        from api.db.services.ad_engine_service import AdPublisherService
+        pub = AdPublisherService.get_or_create_publisher(user_id=user_id, tenant_id=tenant_id)
+        payout = AdPublisherService.request_payout(
+            publisher_id=pub.id,
+            amount=float(req.get("amount")),
+            destination_card=str(req.get("destination_card")).strip(),
+            destination_holder=str(req.get("destination_holder", "")).strip(),
+        )
+        return get_json_result(data=payout)
+    except Exception as e:
+        logger.exception(f"Error requesting payout: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
+# 2.12 Public Partner Ad Serving SDK Endpoint
+# ==========================================
+
+@manager.route("/partner/serve", methods=["GET"])
+async def serve_partner_ad():
+    """Public contextual ad delivery endpoint for Telegram bots, web widgets, and AI agents."""
+    try:
+        api_key = request.headers.get("X-Publisher-Key") or request.args.get("key") or ""
+        if not api_key:
+            return get_json_result(data={"error": "Missing publisher API key"}, code=RetCode.UNAUTHORIZED)
+
+        query = request.args.get("query", "").strip()
+        placement_id = request.args.get("placement_id", "").strip() or None
+        lang = request.args.get("lang", "ru").strip()
+        user_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+        user_id = request.args.get("user_id", "").strip()
+
+        from api.db.services.ad_engine_service import AdPublisherService
+        res = AdPublisherService.serve_partner_ad(
+            api_key=api_key,
+            query=query,
+            placement_id=placement_id,
+            lang=lang,
+            user_ip=user_ip,
+            user_id=user_id,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error serving partner ad: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
 # 3. Public Click Tracking & Redirect
 # ==========================================
 

@@ -39,6 +39,9 @@ from api.db.db_models import (
     AdAttributionVisit,
     AdAudienceSegment,
     AdAudienceMember,
+    AdPublisher,
+    AdPlacement,
+    AdPublisherPayout,
     User,
     Tenant,
 )
@@ -2465,6 +2468,274 @@ class AdAudienceService:
                     anonymous_id=anonymous_id,
                     source_event=f"pixel:{event_type}",
                 )
+
+
+class AdPublisherService:
+    @classmethod
+    def _generate_api_key(cls) -> str:
+        return f"sw_pub_live_{uuid.uuid4().hex[:24]}"
+
+    @classmethod
+    @DB.connection_context()
+    def get_or_create_publisher(cls, user_id: str, tenant_id: str, name: str = "") -> AdPublisher:
+        pub = AdPublisher.get_or_none(AdPublisher.user_id == user_id)
+        if not pub:
+            now_ts = current_timestamp()
+            pub = AdPublisher.create(
+                id=uuid.uuid4().hex[:32],
+                tenant_id=tenant_id,
+                user_id=user_id,
+                name=name or "Publisher Account",
+                api_key=cls._generate_api_key(),
+                balance=0.0,
+                total_earned=0.0,
+                total_withdrawn=0.0,
+                default_rev_share=0.70,
+                status="active",
+                create_time=now_ts,
+                update_time=now_ts,
+            )
+            # Create a default placement
+            cls.create_placement(
+                publisher_id=pub.id,
+                name="Default Telegram Bot Placement",
+                placement_type="telegram_bot",
+                rev_share_rate=0.70,
+            )
+        return pub
+
+    @classmethod
+    @DB.connection_context()
+    def regenerate_api_key(cls, publisher_id: str, user_id: str) -> str:
+        pub = AdPublisher.get_or_none(AdPublisher.id == publisher_id, AdPublisher.user_id == user_id)
+        if not pub:
+            raise ValueError("Publisher not found")
+        pub.api_key = cls._generate_api_key()
+        pub.update_time = current_timestamp()
+        pub.save()
+        return pub.api_key
+
+    @classmethod
+    @DB.connection_context()
+    def list_placements(cls, publisher_id: str) -> list:
+        placements = list(
+            AdPlacement.select()
+            .where(
+                AdPlacement.publisher_id == publisher_id,
+                AdPlacement.status != "archived",
+            )
+            .order_by(AdPlacement.create_time.desc())
+        )
+        return [{
+            "id": p.id,
+            "publisher_id": p.publisher_id,
+            "name": p.name,
+            "placement_type": p.placement_type,
+            "domain_or_bot": p.domain_or_bot or "",
+            "rev_share_rate": p.rev_share_rate,
+            "impressions": p.impressions,
+            "clicks": p.clicks,
+            "earnings": round(p.earnings, 4),
+            "status": p.status,
+            "create_time": p.create_time,
+        } for p in placements]
+
+    @classmethod
+    @DB.connection_context()
+    def create_placement(
+        cls,
+        publisher_id: str,
+        name: str,
+        placement_type: str = "telegram_bot",
+        domain_or_bot: str = "",
+        rev_share_rate: float = 0.70,
+    ) -> dict:
+        now_ts = current_timestamp()
+        placement = AdPlacement.create(
+            id=uuid.uuid4().hex[:32],
+            publisher_id=publisher_id,
+            name=name,
+            placement_type=placement_type,
+            domain_or_bot=domain_or_bot or "",
+            rev_share_rate=float(rev_share_rate or 0.70),
+            impressions=0,
+            clicks=0,
+            earnings=0.0,
+            status="active",
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+        return {
+            "id": placement.id,
+            "publisher_id": placement.publisher_id,
+            "name": placement.name,
+            "placement_type": placement.placement_type,
+            "domain_or_bot": placement.domain_or_bot,
+            "rev_share_rate": placement.rev_share_rate,
+            "impressions": 0,
+            "clicks": 0,
+            "earnings": 0.0,
+            "status": placement.status,
+            "create_time": placement.create_time,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def delete_placement(cls, placement_id: str, publisher_id: str) -> bool:
+        placement = AdPlacement.get_or_none(
+            AdPlacement.id == placement_id,
+            AdPlacement.publisher_id == publisher_id,
+        )
+        if not placement:
+            return False
+        placement.status = "archived"
+        placement.update_time = current_timestamp()
+        placement.save()
+        return True
+
+    @classmethod
+    @DB.connection_context()
+    def request_payout(
+        cls,
+        publisher_id: str,
+        amount: float,
+        destination_card: str,
+        destination_holder: str = "",
+    ) -> dict:
+        pub = AdPublisher.get_or_none(AdPublisher.id == publisher_id)
+        if not pub:
+            raise ValueError("Publisher not found")
+        if amount <= 0:
+            raise ValueError("Сумма выплаты должна быть больше 0")
+        if pub.balance < amount:
+            raise ValueError(f"Недостаточно средств на балансе. Доступно: ${pub.balance:.2f}")
+
+        now_ts = current_timestamp()
+        pub.balance = max(0.0, pub.balance - amount)
+        pub.total_withdrawn += amount
+        pub.payout_card = destination_card
+        pub.payout_holder = destination_holder
+        pub.update_time = now_ts
+        pub.save()
+
+        payout = AdPublisherPayout.create(
+            id=uuid.uuid4().hex[:32],
+            publisher_id=publisher_id,
+            amount=amount,
+            currency="USD",
+            destination_card=destination_card,
+            destination_holder=destination_holder or "",
+            status="pending",
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+        return {
+            "id": payout.id,
+            "publisher_id": payout.publisher_id,
+            "amount": payout.amount,
+            "currency": payout.currency,
+            "destination_card": payout.destination_card,
+            "status": payout.status,
+            "new_balance": round(pub.balance, 4),
+            "create_time": payout.create_time,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def list_payouts(cls, publisher_id: str) -> list:
+        payouts = list(
+            AdPublisherPayout.select()
+            .where(AdPublisherPayout.publisher_id == publisher_id)
+            .order_by(AdPublisherPayout.create_time.desc())
+        )
+        return [{
+            "id": p.id,
+            "publisher_id": p.publisher_id,
+            "amount": p.amount,
+            "currency": p.currency,
+            "destination_card": p.destination_card,
+            "destination_holder": p.destination_holder or "",
+            "status": p.status,
+            "note": p.note or "",
+            "create_time": p.create_time,
+        } for p in payouts]
+
+    @classmethod
+    @DB.connection_context()
+    def serve_partner_ad(
+        cls,
+        api_key: str,
+        query: str,
+        placement_id: str = None,
+        lang: str = "ru",
+        user_ip: str = "",
+        user_id: str = "",
+    ) -> dict:
+        """
+        Public partner ad serving engine.
+        Authenticates publisher API key, selects contextual ad match, accrues rev share earnings, and returns payload.
+        """
+        pub = AdPublisher.get_or_none(AdPublisher.api_key == api_key, AdPublisher.status == "active")
+        if not pub:
+            return {"error": "Invalid or inactive publisher API key", "matched": False}
+
+        placement = None
+        if placement_id:
+            placement = AdPlacement.get_or_none(
+                AdPlacement.id == placement_id,
+                AdPlacement.publisher_id == pub.id,
+                AdPlacement.status == "active",
+            )
+        if not placement:
+            # Fallback to first active placement of publisher
+            placement = AdPlacement.select().where(
+                AdPlacement.publisher_id == pub.id,
+                AdPlacement.status == "active",
+            ).order_by(AdPlacement.create_time.asc()).first()
+
+        rev_share_rate = placement.rev_share_rate if placement else (pub.default_rev_share or 0.70)
+
+        # Match contextual campaign
+        matched = AdEngineService.match_campaign_for_query(
+            user_query=query,
+            lang=lang,
+            ip_address=user_ip,
+            user_id=user_id or f"pub_{pub.id[:8]}",
+        )
+        if not matched:
+            return {"matched": False, "ad": None}
+
+        # Calculate publisher revenue share
+        # Base event revenue
+        cost_event = float(matched.get("cost", 0.0) or 0.10)
+        pub_earnings = round(cost_event * rev_share_rate, 4)
+
+        if pub_earnings > 0:
+            pub.balance = round(pub.balance + pub_earnings, 4)
+            pub.total_earned = round(pub.total_earned + pub_earnings, 4)
+            pub.update_time = current_timestamp()
+            pub.save()
+
+            if placement:
+                placement.impressions += 1
+                placement.earnings = round(placement.earnings + pub_earnings, 4)
+                placement.update_time = current_timestamp()
+                placement.save()
+
+        return {
+            "matched": True,
+            "placement_id": placement.id if placement else None,
+            "ad": {
+                "campaign_id": matched.get("campaign_id"),
+                "product": matched.get("product"),
+                "advertisement_text": matched.get("advertisement_text"),
+                "landing_url": matched.get("landing_url"),
+                "tracking_url": matched.get("tracking_url"),
+            },
+            "publisher_earnings": pub_earnings,
+            "rev_share_rate": rev_share_rate,
+        }
+
 
 
 

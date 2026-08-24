@@ -282,6 +282,9 @@ from api.db.db_models import (
     PaymentOrder,
     SavedPaymentMethod,
     UserSubscription,
+    AdPublisher,
+    AdPlacement,
+    AdPublisherPayout,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -299,6 +302,7 @@ from api.db.services.ad_engine_service import (
     AdTransactionService,
     AdSettingsService,
     AdEngineService,
+    AdPublisherService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -343,6 +347,9 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             PaymentOrder,
             SavedPaymentMethod,
             UserSubscription,
+            AdPublisher,
+            AdPlacement,
+            AdPublisherPayout,
         ]
         for m in models:
             m._meta.database = test_db
@@ -393,6 +400,9 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             PaymentOrder,
             SavedPaymentMethod,
             UserSubscription,
+            AdPublisher,
+            AdPlacement,
+            AdPublisherPayout,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -402,6 +412,9 @@ class TestSwipiesAdsSystem(unittest.TestCase):
                 pass
 
     def setUp(self):
+        AdPublisherPayout.delete().execute()
+        AdPlacement.delete().execute()
+        AdPublisher.delete().execute()
         AdClick.delete().execute()
         AdImpression.delete().execute()
         AdCampaign.delete().execute()
@@ -2195,6 +2208,142 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertTrue(del_res)
         segs_after_del = AdAudienceService.list_segments(advertiser_id=adv.id)
         self.assertFalse(any(s["id"] == seg_leads["id"] for s in segs_after_del))
+
+    def test_22_publisher_monetization_and_partner_sdk(self):
+        """Test 22: Publisher Monetization, Placements, Partner SDK Ad Serving, RevShare & Payouts."""
+        # 1. Register / Get Publisher Account
+        pub = AdPublisherService.get_or_create_publisher(
+            user_id="publisher_user_01",
+            tenant_id="publisher_tenant_01",
+            name="Telegram Bot Developer",
+        )
+        self.assertIsNotNone(pub.id)
+        self.assertTrue(pub.api_key.startswith("sw_pub_live_"))
+        self.assertEqual(pub.balance, 0.0)
+        self.assertEqual(pub.default_rev_share, 0.70)
+
+        # Verify auto-created default placement
+        placements = AdPublisherService.list_placements(publisher_id=pub.id)
+        self.assertGreaterEqual(len(placements), 1)
+
+        # 2. Key Regeneration
+        old_key = pub.api_key
+        new_key = AdPublisherService.regenerate_api_key(publisher_id=pub.id, user_id="publisher_user_01")
+        self.assertNotEqual(old_key, new_key)
+        self.assertTrue(new_key.startswith("sw_pub_live_"))
+
+        # 3. Create Custom Placement
+        plc = AdPublisherService.create_placement(
+            publisher_id=pub.id,
+            name="AI Assistant Bot",
+            placement_type="telegram_bot",
+            domain_or_bot="@ai_tashkent_bot",
+            rev_share_rate=0.75,
+        )
+        self.assertIsNotNone(plc["id"])
+        self.assertEqual(plc["placement_type"], "telegram_bot")
+        self.assertEqual(plc["rev_share_rate"], 0.75)
+
+        # 4. Create Advertiser & Campaign to participate in auction
+        adv = Advertiser.create(
+            id="adv_partner_sdk_test",
+            tenant_id="tenant_adv_sdk",
+            user_id="user_adv_sdk",
+            company_name="FinTech Solutions",
+            balance=100.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+        cmp = AdCampaign.create(
+            id="cmp_partner_sdk_1",
+            advertiser_id=adv.id,
+            name="Fintech Pro Ad",
+            product_name="Fintech Master",
+            description="Best billing app",
+            advertisement_text="Try Fintech Master for rapid invoicing!",
+            landing_url="https://fintech.uz/master",
+            target_categories=["finance", "accounting"],
+            keywords=["invoicing", "accounting_software"],
+            daily_budget=20.0,
+            total_budget=200.0,
+            bid_amount=0.40,
+            pricing_model="cpc",
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # 5. Serve Partner Ad via SDK
+        # Invalid API key
+        err_res = AdPublisherService.serve_partner_ad(
+            api_key="invalid_key",
+            query="best accounting_software for company",
+        )
+        self.assertIn("error", err_res)
+        self.assertFalse(err_res["matched"])
+
+        # Valid API key & matching query
+        res = AdPublisherService.serve_partner_ad(
+            api_key=new_key,
+            query="best accounting_software for company",
+            placement_id=plc["id"],
+            lang="ru",
+            user_ip="185.139.137.10",
+        )
+        self.assertTrue(res["matched"])
+        self.assertIsNotNone(res["ad"])
+        self.assertEqual(res["ad"]["product"], "Fintech Master")
+        self.assertTrue("tracking_url" in res["ad"])
+        self.assertGreater(res["publisher_earnings"], 0)
+        self.assertEqual(res["rev_share_rate"], 0.75)
+
+        # Verify Publisher balance accrued
+        pub_refreshed = AdPublisher.get_by_id(pub.id)
+        self.assertEqual(pub_refreshed.balance, res["publisher_earnings"])
+        self.assertEqual(pub_refreshed.total_earned, res["publisher_earnings"])
+
+        # Verify Placement stats incremented
+        plc_refreshed = AdPlacement.get_by_id(plc["id"])
+        self.assertEqual(plc_refreshed.impressions, 1)
+        self.assertEqual(plc_refreshed.earnings, res["publisher_earnings"])
+
+        # 6. Payout Request
+        # Test insufficient balance error
+        with self.assertRaises(ValueError):
+            AdPublisherService.request_payout(
+                publisher_id=pub.id,
+                amount=999.0,
+                destination_card="8600 0000 0000 1234",
+            )
+
+        # Valid payout
+        payout_amt = round(res["publisher_earnings"] / 2, 4)
+        payout_res = AdPublisherService.request_payout(
+            publisher_id=pub.id,
+            amount=payout_amt,
+            destination_card="8600 0000 0000 1234",
+            destination_holder="TEST PUBLISHER",
+        )
+        self.assertEqual(payout_res["status"], "pending")
+        self.assertEqual(payout_res["amount"], payout_amt)
+
+        # Check balance reduced
+        pub_after_payout = AdPublisher.get_by_id(pub.id)
+        self.assertAlmostEqual(pub_after_payout.balance, res["publisher_earnings"] - payout_amt, places=3)
+        self.assertAlmostEqual(pub_after_payout.total_withdrawn, payout_amt, places=3)
+
+        # 7. List Payouts
+        payouts_list = AdPublisherService.list_payouts(publisher_id=pub.id)
+        self.assertEqual(len(payouts_list), 1)
+        self.assertEqual(payouts_list[0]["id"], payout_res["id"])
+        self.assertEqual(payouts_list[0]["status"], "pending")
+
+        # 8. Delete Placement
+        del_ok = AdPublisherService.delete_placement(placement_id=plc["id"], publisher_id=pub.id)
+        self.assertTrue(del_ok)
+        placements_after_del = AdPublisherService.list_placements(publisher_id=pub.id)
+        self.assertFalse(any(p["id"] == plc["id"] for p in placements_after_del))
 
 
 if __name__ == "__main__":
