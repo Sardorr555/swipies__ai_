@@ -266,6 +266,8 @@ from api.db.db_models import (
     AdClick,
     AdTransaction,
     AdSettings,
+    PromoCode,
+    PromoCodeUsage,
     User,
     Tenant,
     SubscriptionPlan,
@@ -303,6 +305,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdClick,
             AdTransaction,
             AdSettings,
+            PromoCode,
+            PromoCodeUsage,
             User,
             Tenant,
             SubscriptionPlan,
@@ -791,6 +795,166 @@ class TestSwipiesAdsSystem(unittest.TestCase):
                 "card_masked": "8600 •••• •••• 1234",
             })
             self.assertIsInstance(res_pay, bool)
+
+    def test_10_negative_keywords_filtering(self):
+        """Test 10: Negative keywords block campaign matching even on matched positive keywords."""
+        adv = AdvertiserService.get_or_create_for_user("user_neg", "tenant_neg", "Cloud Soft")
+        adv.balance = 100.0
+        adv.save()
+
+        cmp_safe = AdCampaign.create(
+            id="cmp_safe_1",
+            advertiser_id=adv.id,
+            name="Safe Software",
+            product_name="Pro Accounting Suite",
+            description="Leading accounting software",
+            advertisement_text="Get 14 days trial for Pro Accounting",
+            landing_url="https://proaccounting.uz",
+            target_categories=["accounting", "software"],
+            keywords=["бухгалтерия", "1с", "учет", "налоги"],
+            negative_keywords=["бесплатно", "скачать", "взлом", "crack", "torrent"],
+            daily_budget=20.0,
+            total_budget=100.0,
+            pricing_model="cpc",
+            bid_amount=0.50,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # 1. Query with positive match and NO negative keyword -> MATCHES
+        match_clean = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_neg_user",
+            user_id="user_neg_1",
+            user_query="Как вести налоговый учет и бухгалтерия для компании?",
+            lang="ru",
+        )
+        self.assertIsNotNone(match_clean)
+        self.assertEqual(match_clean["campaign_id"], cmp_safe.id)
+
+        # 2. Query with positive match BUT contains negative keyword ('бесплатно') -> BLOCKED
+        match_negative = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_neg_user",
+            user_id="user_neg_2",
+            user_query="Где скачать бухгалтерия бесплатно без смс?",
+            lang="ru",
+        )
+        self.assertIsNone(match_negative)
+
+        # 3. Query with positive match BUT contains negative keyword ('crack') -> BLOCKED
+        match_crack = AdEngineService.match_campaign_for_query(
+            tenant_id="tenant_neg_user",
+            user_id="user_neg_3",
+            user_query="1с учет crack license key generator",
+            lang="ru",
+        )
+        self.assertIsNone(match_crack)
+
+    def test_11_promo_code_service_discounts_and_validation(self):
+        """Test 11: PromoCodeService discount computation, usage tracking, and multi-tier limits."""
+        from api.db.services.promo_code_service import PromoCodeService
+
+        # 1. Percentage discount: 20% off
+        promo_pct = PromoCodeService.create_promo_code(
+            code="SUMMER20",
+            discount_type="percent",
+            discount_value=20.0,
+            applies_to="all",
+            max_uses=2,
+        )
+        self.assertIsNotNone(promo_pct)
+        self.assertEqual(promo_pct.code, "SUMMER20")
+
+        # Validate on $29.99
+        valid, msg, res = PromoCodeService.validate_and_apply_promo(
+            code="summer20",  # Case insensitive
+            user_id="user_promo_1",
+            purpose="subscription_upgrade",
+            original_amount_usd=29.99,
+        )
+        self.assertTrue(valid)
+        self.assertAlmostEqual(res["discount_usd"], 6.00, places=2)
+        self.assertAlmostEqual(res["final_amount_usd"], 23.99, places=2)
+
+        # Record usage for user 1
+        PromoCodeService.record_promo_usage(promo_pct.id, "user_promo_1", "ord_1", res["discount_usd"])
+
+        # Try reusing by user 1 -> Should be rejected (one use per user)
+        valid_reuse, msg_reuse, _ = PromoCodeService.validate_and_apply_promo(
+            code="SUMMER20",
+            user_id="user_promo_1",
+            purpose="subscription_upgrade",
+            original_amount_usd=29.99,
+        )
+        self.assertFalse(valid_reuse)
+        self.assertIn("уже использовали", msg_reuse.lower())
+
+        # User 2 uses it -> Should succeed (used 2/2)
+        valid_u2, _, res_u2 = PromoCodeService.validate_and_apply_promo(
+            code="SUMMER20",
+            user_id="user_promo_2",
+            purpose="subscription_upgrade",
+            original_amount_usd=29.99,
+        )
+        self.assertTrue(valid_u2)
+        PromoCodeService.record_promo_usage(promo_pct.id, "user_promo_2", "ord_2", res_u2["discount_usd"])
+
+        # User 3 tries -> Max uses reached
+        valid_u3, msg_u3, _ = PromoCodeService.validate_and_apply_promo(
+            code="SUMMER20",
+            user_id="user_promo_3",
+            purpose="subscription_upgrade",
+            original_amount_usd=29.99,
+        )
+        self.assertFalse(valid_u3)
+        self.assertIn("исчерпан", msg_u3.lower())
+
+        # 2. Fixed USD discount: $10 off
+        promo_fix = PromoCodeService.create_promo_code(
+            code="PROMO10",
+            discount_type="fixed_usd",
+            discount_value=10.0,
+            applies_to="subscription",
+            plan_id="pro",
+        )
+        valid_fix, _, res_fix = PromoCodeService.validate_and_apply_promo(
+            code="PROMO10",
+            user_id="user_fix_1",
+            purpose="subscription_upgrade",
+            original_amount_usd=29.99,
+            plan_id="pro",
+        )
+        self.assertTrue(valid_fix)
+        self.assertAlmostEqual(res_fix["discount_usd"], 10.0, places=2)
+        self.assertAlmostEqual(res_fix["final_amount_usd"], 19.99, places=2)
+
+        # Reject if plan doesn't match ('plus' instead of 'pro')
+        valid_plan_mismatch, msg_mismatch, _ = PromoCodeService.validate_and_apply_promo(
+            code="PROMO10",
+            user_id="user_fix_2",
+            purpose="subscription_upgrade",
+            original_amount_usd=9.99,
+            plan_id="plus",
+        )
+        self.assertFalse(valid_plan_mismatch)
+
+        # 3. Advertiser bonus funds promo
+        promo_bonus = PromoCodeService.create_promo_code(
+            code="BONUS50",
+            discount_type="advertiser_bonus_usd",
+            discount_value=25.0,
+            applies_to="advertiser_deposit",
+        )
+        valid_bonus, _, res_bonus = PromoCodeService.validate_and_apply_promo(
+            code="BONUS50",
+            user_id="user_adv_bonus",
+            purpose="advertiser_deposit",
+            original_amount_usd=50.0,
+        )
+        self.assertTrue(valid_bonus)
+        self.assertEqual(res_bonus["bonus_usd"], 25.0)
+        self.assertEqual(res_bonus["final_amount_usd"], 50.0)
 
 
 if __name__ == "__main__":

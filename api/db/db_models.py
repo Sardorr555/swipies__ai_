@@ -1675,6 +1675,7 @@ class AdCampaign(DataBaseModel):
     landing_url = CharField(max_length=1024, null=False)
     target_categories = JSONField(null=True, default=list)  # list of str (e.g. ["crm", "business"])
     keywords = JSONField(null=True, default=list)  # list of str
+    negative_keywords = JSONField(null=True, default=list)  # list of str (e.g. ["free", "torrent", "crack"])
     target_languages = JSONField(null=True, default=list)  # ["uz", "ru", "en"] or [] for all
     target_models = JSONField(null=True, default=list)  # ["gpt-4o", "deepseek-r1", "claude-3-5-sonnet"] or [] for all
     target_countries = JSONField(null=True, default=list)  # ["UZ", "RU", "KZ"] or [] for all
@@ -1807,6 +1808,36 @@ class AdAttributionVisit(BaseModel):
 
     class Meta:
         db_table = "ad_attribution_visits"
+
+
+class PromoCode(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    code = CharField(max_length=64, unique=True, index=True)
+    discount_type = CharField(max_length=32, default="percent")  # percent, fixed_usd, advertiser_bonus_usd
+    discount_value = FloatField(default=0.0)  # e.g. 20.0 for 20% or $20
+    applies_to = CharField(max_length=32, default="all", index=True)  # subscription, advertiser_deposit, all
+    plan_id = CharField(max_length=32, null=True)  # plus, pro, or null for all
+    max_uses = IntegerField(default=100)
+    used_count = IntegerField(default=0)
+    is_active = BooleanField(default=True, index=True)
+    expires_at = BigIntegerField(null=True)
+    create_time = BigIntegerField(null=True, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "promo_codes"
+
+
+class PromoCodeUsage(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    promo_code_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    order_id = CharField(max_length=64, null=True, index=True)
+    discount_applied = FloatField(default=0.0)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "promo_code_usages"
 
 
 def alter_db_add_column(migrator, table_name, column_name, column_type):

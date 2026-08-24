@@ -9,11 +9,15 @@ import {
   Layers,
   Megaphone,
   MousePointer,
+  Plus,
   RefreshCw,
   Save,
   Shield,
   ShieldAlert,
   Sparkles,
+  Tag,
+  Ticket,
+  Trash2,
   UserCheck,
   Users,
   XCircle,
@@ -32,14 +36,22 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import message from '@/components/ui/message';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import adService, { AdminAdsOverview, AdminAdsSettings } from '@/services/ad-service';
+import adService, { AdminAdsOverview, AdminAdsSettings, PromoCodeItem } from '@/services/ad-service';
 
 export default function AdminAdsPage() {
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<AdminAdsOverview | null>(null);
   const [moderationQueue, setModerationQueue] = useState<any[]>([]);
+  const [promoCodes, setPromoCodes] = useState<PromoCodeItem[]>([]);
   const [settings, setSettings] = useState<AdminAdsSettings | null>(null);
   const [activeTab, setActiveTab] = useState('moderation');
 
@@ -48,22 +60,88 @@ export default function AdminAdsPage() {
   const [selectedRejectCampaign, setSelectedRejectCampaign] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  // Promo modal state
+  const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+  const [newPromoForm, setNewPromoForm] = useState({
+    code: '',
+    discount_type: 'percent',
+    discount_value: 20,
+    applies_to: 'all',
+    plan_id: 'all',
+    max_uses: 100,
+    expires_days: 30,
+  });
+
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const [ovRes, modRes, setRes] = await Promise.all([
+      const [ovRes, modRes, setRes, promoRes] = await Promise.all([
         adService.getAdminOverview(),
         adService.getAdminModerationQueue(),
         adService.getAdminSettings(),
+        adService.adminListPromoCodes(),
       ]);
 
       if (ovRes.data?.data) setOverview(ovRes.data.data);
       if (modRes.data?.data) setModerationQueue(modRes.data.data);
       if (setRes.data?.data) setSettings(setRes.data.data);
+      if (promoRes.data?.data) setPromoCodes(promoRes.data.data);
     } catch (err: any) {
       message.error(err.message || 'Failed to load ads admin data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreatePromo = async () => {
+    if (!newPromoForm.code.trim()) {
+      message.error('Укажите код промокода');
+      return;
+    }
+    try {
+      await adService.adminCreatePromoCode({
+        code: newPromoForm.code.trim().toUpperCase(),
+        discount_type: newPromoForm.discount_type,
+        discount_value: parseFloat(String(newPromoForm.discount_value)),
+        applies_to: newPromoForm.applies_to,
+        plan_id: newPromoForm.plan_id === 'all' ? undefined : newPromoForm.plan_id,
+        max_uses: parseInt(String(newPromoForm.max_uses)),
+        expires_days: parseInt(String(newPromoForm.expires_days)),
+      });
+      message.success('Промокод успешно создан!');
+      setIsPromoModalOpen(false);
+      setNewPromoForm({
+        code: '',
+        discount_type: 'percent',
+        discount_value: 20,
+        applies_to: 'all',
+        plan_id: 'all',
+        max_uses: 100,
+        expires_days: 30,
+      });
+      fetchAdminData();
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка создания промокода');
+    }
+  };
+
+  const handleTogglePromo = async (promoId: string) => {
+    try {
+      await adService.adminTogglePromoCode(promoId);
+      message.success('Статус промокода изменен');
+      fetchAdminData();
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка изменения статуса');
+    }
+  };
+
+  const handleDeletePromo = async (promoId: string) => {
+    try {
+      await adService.adminDeletePromoCode(promoId);
+      message.success('Промокод удален');
+      fetchAdminData();
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка удаления промокода');
     }
   };
 
@@ -191,6 +269,9 @@ export default function AdminAdsPage() {
         <TabsList>
           <TabsTrigger value="moderation" className="flex items-center gap-2">
             <Shield className="h-4 w-4" /> Moderation Queue ({moderationQueue.length})
+          </TabsTrigger>
+          <TabsTrigger value="promos" className="flex items-center gap-2">
+            <Ticket className="h-4 w-4" /> Promo Codes ({promoCodes.length})
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" /> Global Network Settings
@@ -350,7 +431,217 @@ export default function AdminAdsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* 3. Promo Codes Tab */}
+        <TabsContent value="promos" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Promo Codes & Discounts</CardTitle>
+                <CardDescription>
+                  Manage percentage discounts, fixed USD credits, and advertiser bonus funds.
+                </CardDescription>
+              </div>
+              <Button onClick={() => setIsPromoModalOpen(true)} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                <Plus className="mr-1 h-3.5 w-3.5" /> New Promo Code
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {promoCodes.length === 0 ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">
+                  <Ticket className="h-8 w-8 text-blue-500 mx-auto mb-2 opacity-50" />
+                  No promo codes created yet. Click "New Promo Code" to add one.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-3 px-4">Code</th>
+                        <th className="py-3 px-4">Discount / Value</th>
+                        <th className="py-3 px-4">Applies To</th>
+                        <th className="py-3 px-4">Redemptions</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y text-xs">
+                      {promoCodes.map((p) => (
+                        <tr key={p.id} className="hover:bg-muted/30">
+                          <td className="py-3 px-4">
+                            <div className="font-mono font-bold text-sm text-blue-600 dark:text-blue-400">{p.code}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="font-semibold">
+                              {p.discount_type === 'percent'
+                                ? `${p.discount_value}% OFF`
+                                : p.discount_type === 'fixed_usd'
+                                ? `$${p.discount_value.toFixed(2)} OFF`
+                                : `+$${p.discount_value.toFixed(2)} Bonus Credit`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className="capitalize">
+                              {p.applies_to} {p.plan_id ? `(${p.plan_id})` : ''}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span>{p.used_count} / {p.max_uses}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant={p.is_active ? 'default' : 'secondary'} className={p.is_active ? 'bg-emerald-600' : ''}>
+                              {p.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => handleTogglePromo(p.id)}
+                              >
+                                {p.is_active ? 'Deactivate' : 'Activate'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-red-500 hover:text-red-700"
+                                onClick={() => handleDeletePromo(p.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Create Promo Code Modal */}
+      <Dialog open={isPromoModalOpen} onOpenChange={setIsPromoModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Promo Code</DialogTitle>
+            <DialogDescription>
+              Create a discount or bonus credit code for users or advertisers.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3 py-3 text-xs">
+            <div className="space-y-1">
+              <label className="font-semibold">Promo Code Name *</label>
+              <Input
+                placeholder="e.g. SUMMER2026 or WELCOME50"
+                value={newPromoForm.code}
+                onChange={(e) => setNewPromoForm({ ...newPromoForm, code: e.target.value.toUpperCase() })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold">Discount Type</label>
+                <Select
+                  value={newPromoForm.discount_type}
+                  onValueChange={(val) => setNewPromoForm({ ...newPromoForm, discount_type: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percent">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed_usd">Fixed USD ($)</SelectItem>
+                    <SelectItem value="advertiser_bonus_usd">Advertiser Bonus USD ($)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold">Value</label>
+                <Input
+                  type="number"
+                  placeholder="20"
+                  value={newPromoForm.discount_value}
+                  onChange={(e) => setNewPromoForm({ ...newPromoForm, discount_value: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold">Applies To</label>
+                <Select
+                  value={newPromoForm.applies_to}
+                  onValueChange={(val) => setNewPromoForm({ ...newPromoForm, applies_to: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Purchases</SelectItem>
+                    <SelectItem value="subscription">Subscriptions Only</SelectItem>
+                    <SelectItem value="advertiser_deposit">Advertiser Deposits</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold">Plan ID (Optional)</label>
+                <Select
+                  value={newPromoForm.plan_id}
+                  onValueChange={(val) => setNewPromoForm({ ...newPromoForm, plan_id: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any Plan</SelectItem>
+                    <SelectItem value="plus">Plus Plan</SelectItem>
+                    <SelectItem value="pro">Pro Plan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold">Max Uses</label>
+                <Input
+                  type="number"
+                  placeholder="100"
+                  value={newPromoForm.max_uses}
+                  onChange={(e) => setNewPromoForm({ ...newPromoForm, max_uses: parseInt(e.target.value) || 100 })}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold">Validity (Days)</label>
+                <Input
+                  type="number"
+                  placeholder="30"
+                  value={newPromoForm.expires_days}
+                  onChange={(e) => setNewPromoForm({ ...newPromoForm, expires_days: parseInt(e.target.value) || 30 })}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPromoModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreatePromo} className="bg-blue-600 hover:bg-blue-700 text-white">
+              Create Promo Code
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Reason Modal */}
       <Dialog open={isRejectModalOpen} onOpenChange={setIsRejectModalOpen}>

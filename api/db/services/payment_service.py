@@ -189,9 +189,11 @@ class AtmosService:
         advertiser_id: Optional[str] = None,
         account_email: Optional[str] = None,
         lang: str = "ru",
+        promo_code: Optional[str] = None,
     ) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         """
         Initializes an Atmos payment order for subscription upgrade or advertiser wallet top-up.
+        Supports promo codes for discounts and bonus credits.
         """
         conf = cls._get_config()
         rate = conf["usd_to_uzs_rate"]
@@ -218,6 +220,26 @@ class AtmosService:
                 final_uzs = int(round(final_usd * rate))
             else:
                 return False, "Сумма платежа не указана или некорректна.", None
+
+        # Apply Promo Code if provided
+        promo_info = None
+        if promo_code and promo_code.strip():
+            try:
+                from api.db.services.promo_code_service import PromoCodeService
+                valid, msg, p_details = PromoCodeService.validate_and_apply_promo(
+                    code=promo_code,
+                    user_id=user_id,
+                    purpose=purpose,
+                    original_amount_usd=final_usd,
+                    plan_id=plan_id or "",
+                )
+                if not valid:
+                    return False, f"Ошибка применения промокода: {msg}", None
+                promo_info = p_details
+                final_usd = p_details["final_amount_usd"]
+                final_uzs = int(round(final_usd * rate))
+            except Exception as e:
+                logger.warning(f"Promo code application error: {e}")
 
         # Resolve user email for account field
         resolved_email = account_email
@@ -289,6 +311,7 @@ class AtmosService:
                     "account_email": resolved_email,
                     "store_id": conf["store_id"],
                     "exchange_rate": rate,
+                    "promo_info": promo_info,
                 },
                 create_time=now_ts,
                 update_time=now_ts,
@@ -560,6 +583,32 @@ class AtmosService:
                 logger.error(f"[Fulfill Error] Advertiser account not found for order {order.id}")
                 result["success"] = False
                 result["error"] = "Advertiser not found"
+
+        # Process promo code bonus & redemption record
+        promo_info = (order.metadata or {}).get("promo_info") if order.metadata else None
+        if promo_info:
+            try:
+                from api.db.services.promo_code_service import PromoCodeService
+                p_code_id = promo_info.get("promo_code_id")
+                disc_applied = float(promo_info.get("discount_usd", 0.0))
+                bonus_usd = float(promo_info.get("bonus_usd", 0.0))
+
+                if p_code_id:
+                    PromoCodeService.record_promo_usage(
+                        promo_code_id=p_code_id,
+                        user_id=order.user_id,
+                        order_id=order.id,
+                        discount_applied=disc_applied,
+                    )
+
+                if bonus_usd > 0 and order.purpose == "advertiser_deposit":
+                    adv_id = result.get("advertiser_id")
+                    if adv_id:
+                        bonus_desc = f"Бонус по промокоду {promo_info.get('code', '')} (+${bonus_usd:.2f})"
+                        AdEngineService.deposit_balance(adv_id, bonus_usd, bonus_desc)
+                        logger.info(f"[Promo Bonus Credited] adv={adv_id} +${bonus_usd}")
+            except Exception as e:
+                logger.warning(f"Error executing promo code fulfillment: {e}")
 
         # Dispatch real-time Telegram notification to admin
         try:

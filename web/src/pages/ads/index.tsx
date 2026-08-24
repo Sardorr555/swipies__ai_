@@ -7,6 +7,7 @@ import {
   Coins,
   CreditCard,
   DollarSign,
+  Download,
   Edit3,
   ExternalLink,
   HelpCircle,
@@ -79,9 +80,11 @@ export default function SwipiesAdsPage() {
   });
   const [rawKeywords, setRawKeywords] = useState('');
   const [rawCategories, setRawCategories] = useState('');
+  const [rawNegativeKeywords, setRawNegativeKeywords] = useState('');
   const [targetLanguages, setTargetLanguages] = useState<string[]>(['all']);
   const [targetModels, setTargetModels] = useState<string[]>(['all']);
   const [topUpAmount, setTopUpAmount] = useState('50');
+  const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -123,6 +126,7 @@ export default function SwipiesAdsPage() {
       landing_url: 'https://',
       target_categories: [],
       keywords: [],
+      negative_keywords: [],
       daily_budget: 10,
       total_budget: 100,
       pricing_model: 'cpc',
@@ -130,6 +134,7 @@ export default function SwipiesAdsPage() {
     });
     setRawKeywords('');
     setRawCategories('');
+    setRawNegativeKeywords('');
     setTargetLanguages(['all']);
     setTargetModels(['all']);
     setIsCampaignModalOpen(true);
@@ -140,9 +145,51 @@ export default function SwipiesAdsPage() {
     setCampaignForm({ ...cmp });
     setRawKeywords((cmp.keywords || []).join(', '));
     setRawCategories((cmp.target_categories || []).join(', '));
+    setRawNegativeKeywords((cmp.negative_keywords || []).join(', '));
     setTargetLanguages(cmp.target_languages && cmp.target_languages.length > 0 ? cmp.target_languages : ['all']);
     setTargetModels(cmp.target_models && cmp.target_models.length > 0 ? cmp.target_models : ['all']);
     setIsCampaignModalOpen(true);
+  };
+
+  const handleGenerateAICopy = async () => {
+    if (!campaignForm.product_name) {
+      message.warning('Пожалуйста, укажите название продукта перед генерацией.');
+      return;
+    }
+    setIsGeneratingCopy(true);
+    try {
+      const selectedLang = targetLanguages.includes('uz') ? 'uz' : targetLanguages.includes('en') ? 'en' : 'ru';
+      const res = await adService.generateCopy({
+        product_name: campaignForm.product_name,
+        landing_url: campaignForm.landing_url,
+        description: campaignForm.description,
+        lang: selectedLang,
+      });
+      if (res.data?.data) {
+        const data = res.data.data;
+        if (data.ad_copy_variations && data.ad_copy_variations.length > 0) {
+          setCampaignForm((prev) => ({
+            ...prev,
+            advertisement_text: data.ad_copy_variations[0],
+            bid_amount: data.recommended_bid || prev.bid_amount,
+          }));
+        }
+        if (data.recommended_keywords && data.recommended_keywords.length > 0) {
+          setRawKeywords(data.recommended_keywords.join(', '));
+        }
+        if (data.recommended_negative_keywords && data.recommended_negative_keywords.length > 0) {
+          setRawNegativeKeywords(data.recommended_negative_keywords.join(', '));
+        }
+        if (data.recommended_categories && data.recommended_categories.length > 0) {
+          setRawCategories(data.recommended_categories.join(', '));
+        }
+        message.success('AI успешно сгенерировал продающий текст и ключевые слова!');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка при генерации текста');
+    } finally {
+      setIsGeneratingCopy(false);
+    }
   };
 
   const toggleLanguage = (langCode: string) => {
@@ -192,11 +239,16 @@ export default function SwipiesAdsPage() {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
+    const negative_keywords = rawNegativeKeywords
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     const payload = {
       ...campaignForm,
       keywords,
       target_categories,
+      negative_keywords,
       target_languages: targetLanguages,
       target_models: targetModels,
     };
@@ -380,11 +432,26 @@ export default function SwipiesAdsPage() {
         {/* 1. Campaigns Tab */}
         <TabsContent value="campaigns" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Your Advertising Campaigns</CardTitle>
-              <CardDescription>
-                Manage AI intent targeting, daily budgets, bids, and ad copy.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Your Advertising Campaigns</CardTitle>
+                <CardDescription>
+                  Manage AI intent targeting, daily budgets, bids, and ad copy.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs flex items-center gap-1.5"
+                  onClick={() => window.open('/v1/ads/export/campaigns', '_blank')}
+                >
+                  <Download className="h-3.5 w-3.5" /> Экспорт CSV
+                </Button>
+                <Button onClick={handleOpenCreateCampaign} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                  <Plus className="mr-1 h-3.5 w-3.5" /> New Campaign
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {!dashboard?.campaigns || dashboard.campaigns.length === 0 ? (
@@ -564,9 +631,19 @@ export default function SwipiesAdsPage() {
             </Card>
 
             <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle>Recent Transactions</CardTitle>
-                <CardDescription>Ledger of deposits and advertising spend deductions</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Recent Transactions</CardTitle>
+                  <CardDescription>Ledger of deposits and advertising spend deductions</CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs flex items-center gap-1.5"
+                  onClick={() => window.open('/v1/ads/export/transactions', '_blank')}
+                >
+                  <Download className="h-3.5 w-3.5" /> Экспорт CSV
+                </Button>
               </CardHeader>
               <CardContent>
                 {transactions.length === 0 ? (
@@ -691,7 +768,20 @@ export default function SwipiesAdsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">Ad Copy (Recommended Offer) *</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold">Ad Copy (Recommended Offer) *</label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 px-2 flex items-center gap-1 font-semibold"
+                  onClick={handleGenerateAICopy}
+                  disabled={isGeneratingCopy}
+                >
+                  <Sparkles className={`h-3.5 w-3.5 ${isGeneratingCopy ? 'animate-spin' : ''}`} />
+                  {isGeneratingCopy ? 'Генерация...' : '✨ Сгенерировать с AI'}
+                </Button>
+              </div>
               <Textarea
                 placeholder="e.g. Get 30 days free trial with instant setup. No credit card required."
                 rows={2}
@@ -726,6 +816,19 @@ export default function SwipiesAdsPage() {
                   onChange={(e) => setRawCategories(e.target.value)}
                 />
               </div>
+            </div>
+
+            {/* Negative Keywords */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold">Минус-слова (Negative Keywords)</label>
+                <span className="text-[11px] text-muted-foreground">Не показывать рекламу при этих словах</span>
+              </div>
+              <Input
+                placeholder="бесплатно, скачать, взлом, кряк, torrent"
+                value={rawNegativeKeywords}
+                onChange={(e) => setRawNegativeKeywords(e.target.value)}
+              />
             </div>
 
             {/* Language Targeting */}

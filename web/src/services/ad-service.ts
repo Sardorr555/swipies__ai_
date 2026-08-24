@@ -15,6 +15,7 @@ export interface AdCampaignItem {
   landing_url: string;
   target_categories: string[];
   keywords: string[];
+  negative_keywords?: string[];
   target_languages?: string[];
   target_models?: string[];
   target_countries?: string[];
@@ -57,15 +58,31 @@ export interface AdTransactionItem {
   created_at: number;
 }
 
+export interface PromoCodeItem {
+  id: string;
+  code: string;
+  discount_type: string;
+  discount_value: number;
+  applies_to: string;
+  plan_id?: string;
+  max_uses: number;
+  used_count: number;
+  is_active: boolean;
+  expires_at?: number;
+  created_at?: number;
+}
+
 export interface AdminAdsOverview {
   total_advertisers: number;
+  active_advertisers: number;
   total_campaigns: number;
   active_campaigns: number;
   pending_moderation: number;
-  total_impressions: number;
-  total_clicks: number;
-  total_revenue: number;
-  network_ctr: number;
+  network_impressions_today: number;
+  network_clicks_today: number;
+  network_ctr_today: number;
+  network_revenue_today: number;
+  total_network_revenue: number;
 }
 
 export interface AdminAdsSettings {
@@ -95,6 +112,16 @@ const adService = {
   getCampaignAnalytics: (id: string) =>
     request.get<ResponseData<any>>(`/ads/campaigns/${id}/analytics`),
 
+  // AI Ad Creator Assistant
+  generateCopy: (data: { product_name: string; landing_url?: string; description?: string; lang?: string }) =>
+    request.post<ResponseData<{
+      ad_copy_variations: string[];
+      recommended_keywords: string[];
+      recommended_negative_keywords: string[];
+      recommended_categories: string[];
+      recommended_bid: number;
+    }>>('/ads/campaigns/generate-copy', { data }),
+
   // Billing
   depositFunds: (amount: number, description: string = 'Top-Up') =>
     request.post<ResponseData<{ balance: number; currency: string }>>('/ads/billing/deposit', {
@@ -102,6 +129,24 @@ const adService = {
     }),
   listTransactions: () =>
     request.get<ResponseData<AdTransactionItem[]>>('/ads/billing/transactions'),
+
+  // Promo Codes
+  validatePromo: (data: { code: string; purpose: string; amount_usd: number; plan_id?: string }) =>
+    request.post<ResponseData<{
+      promo_code_id: string;
+      code: string;
+      discount_type: string;
+      discount_value: number;
+      discount_usd: number;
+      bonus_usd: number;
+      original_amount_usd: number;
+      final_amount_usd: number;
+    }>>('/ads/promo/validate', { data }),
+  adminListPromoCodes: () => request.get<ResponseData<PromoCodeItem[]>>('/ads/admin/promo-codes'),
+  adminCreatePromoCode: (data: Partial<PromoCodeItem> & { expires_days?: number }) =>
+    request.post<ResponseData<{ id: string; code: string }>>('/ads/admin/promo-codes', { data }),
+  adminTogglePromoCode: (id: string) => request.put<ResponseData<{ id: string; is_active: boolean }>>(`/ads/admin/promo-codes/${id}/toggle`),
+  adminDeletePromoCode: (id: string) => request.delete<ResponseData<boolean>>(`/ads/admin/promo-codes/${id}`),
 
   // Admin Controls
   getAdminOverview: () => request.get<ResponseData<AdminAdsOverview>>('/ads/admin/overview'),

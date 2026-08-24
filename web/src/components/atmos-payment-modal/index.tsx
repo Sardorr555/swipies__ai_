@@ -24,8 +24,10 @@ import {
   Clock,
   Check,
   Layers,
+  Tag,
 } from 'lucide-react';
 import paymentService from '@/services/payment-service';
+import adService from '@/services/ad-service';
 import message from '@/components/ui/message';
 
 export interface AtmosPaymentModalProps {
@@ -60,12 +62,17 @@ export function AtmosPaymentModal({
   const [isSms102Error, setIsSms102Error] = useState(false);
   const [successData, setSuccessData] = useState<any>(null);
 
+  // Promo Code State
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [appliedPromo, setAppliedPromo] = useState<any | null>(null);
+
   // OTP Countdown timer
   const [countdown, setCountdown] = useState(60);
   const timerRef = useRef<any>(null);
 
   // Computed amounts
-  const computedUsd =
+  const baseUsd =
     purpose === 'subscription_upgrade'
       ? planId === 'plus'
         ? 9.99
@@ -74,7 +81,8 @@ export function AtmosPaymentModal({
         : 29.99
       : amountUsd || 50.0;
 
-  const computedUzs = Math.round(computedUsd * EXCHANGE_RATE);
+  const finalUsd = appliedPromo ? appliedPromo.final_amount_usd : baseUsd;
+  const computedUzs = Math.round(finalUsd * EXCHANGE_RATE);
 
   useEffect(() => {
     if (open) {
@@ -86,6 +94,8 @@ export function AtmosPaymentModal({
       setIsSms102Error(false);
       setOrderId('');
       setSuccessData(null);
+      setPromoCodeInput('');
+      setAppliedPromo(null);
       setCountdown(60);
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -169,6 +179,30 @@ export function AtmosPaymentModal({
   };
   const cardNetwork = getCardNetwork();
 
+  const handleApplyPromo = async () => {
+    if (!promoCodeInput.trim()) return;
+    setIsValidatingPromo(true);
+    setErrorMessage('');
+    try {
+      const res = await adService.validatePromo({
+        code: promoCodeInput.trim().toUpperCase(),
+        purpose,
+        amount_usd: baseUsd,
+        plan_id: planId,
+      });
+      if (res.data?.data) {
+        setAppliedPromo(res.data.data);
+        message.success(`Промокод "${res.data.data.code}" успешно применен!`);
+      } else {
+        setErrorMessage(res.data?.message || 'Недействительный промокод');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Ошибка валидации промокода');
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
   // Step 1: Create transaction & pre-apply
   const handlePay = async () => {
     if (cleanCard.length !== 16) {
@@ -191,8 +225,9 @@ export function AtmosPaymentModal({
         purpose,
         plan_id: purpose === 'subscription_upgrade' ? planId : undefined,
         advertiser_id: advertiserId,
-        amount_usd: computedUsd,
+        amount_usd: finalUsd,
         amount_uzs: computedUzs,
+        promo_code: appliedPromo?.code,
         lang: 'ru',
       });
 
@@ -335,8 +370,30 @@ export function AtmosPaymentModal({
                 </>
               )}
             </span>
-            <span className="font-bold text-foreground text-sm">${computedUsd.toFixed(2)} USD</span>
+            <div className="text-right">
+              {appliedPromo && appliedPromo.discount_usd > 0 ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="line-through text-muted-foreground text-xs">${baseUsd.toFixed(2)}</span>
+                  <span className="font-bold text-emerald-600 text-sm">${finalUsd.toFixed(2)} USD</span>
+                </div>
+              ) : (
+                <span className="font-bold text-foreground text-sm">${baseUsd.toFixed(2)} USD</span>
+              )}
+            </div>
           </div>
+
+          {appliedPromo && (
+            <div className="flex items-center justify-between text-xs pt-1 border-t border-blue-100/60 dark:border-blue-900/40">
+              <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                <Tag className="h-3.5 w-3.5" /> Промокод: {appliedPromo.code}
+              </span>
+              <span className="text-emerald-700 dark:text-emerald-400 font-bold">
+                {appliedPromo.discount_usd > 0
+                  ? `-$${appliedPromo.discount_usd.toFixed(2)}`
+                  : `+$${appliedPromo.bonus_usd} Бонус`}
+              </span>
+            </div>
+          )}
 
           <div className="flex justify-between items-baseline pt-2 border-t border-blue-100/90 dark:border-blue-900/50">
             <span className="text-xs text-muted-foreground font-medium">К списанию в UZS:</span>
@@ -355,6 +412,28 @@ export function AtmosPaymentModal({
             </div>
           )}
         </div>
+
+        {/* Promo Code Input Row (Step: card) */}
+        {step === 'card' && !appliedPromo && (
+          <div className="flex gap-2 items-center">
+            <Input
+              placeholder="Есть промокод? (например, WELCOME20)"
+              value={promoCodeInput}
+              onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+              className="h-9 text-xs font-mono uppercase bg-background"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs font-semibold shrink-0"
+              onClick={handleApplyPromo}
+              disabled={isValidatingPromo || !promoCodeInput.trim()}
+            >
+              {isValidatingPromo ? 'Проверка...' : 'Применить'}
+            </Button>
+          </div>
+        )}
 
         {/* Error Alert */}
         {errorMessage && (

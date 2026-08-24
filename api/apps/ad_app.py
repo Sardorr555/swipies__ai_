@@ -13,12 +13,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+import csv
+import io
 import hashlib
 import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from quart import Blueprint, redirect, request, g
+from quart import Blueprint, redirect, request, g, Response
 
 from api.apps import current_user, login_required
 from api.db.db_models import (
@@ -29,6 +31,8 @@ from api.db.db_models import (
     AdClick,
     AdTransaction,
     AdSettings,
+    PromoCode,
+    PromoCodeUsage,
     User,
 )
 from api.db.services.ad_engine_service import (
@@ -42,6 +46,7 @@ from api.db.services.ad_engine_service import (
     AttributionService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
+from api.db.services.promo_code_service import PromoCodeService
 from api.db.services.telegram_notification_service import TelegramNotificationService
 from api.utils.api_utils import (
     get_data_error_result,
@@ -113,6 +118,7 @@ async def list_campaigns():
                 "landing_url": c.landing_url,
                 "target_categories": c.target_categories or [],
                 "keywords": c.keywords or [],
+                "negative_keywords": getattr(c, "negative_keywords", []) or [],
                 "target_languages": c.target_languages or [],
                 "target_models": c.target_models or [],
                 "target_countries": c.target_countries or [],
@@ -135,6 +141,56 @@ async def list_campaigns():
     except Exception as e:
         logger.exception(f"Error listing campaigns: {e}")
         return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/generate-copy", methods=["POST"])
+@login_required
+async def generate_campaign_copy():
+    """AI Assistant to create high-converting ad copy and keywords from product info."""
+    req = await get_request_json() or {}
+    product_name = req.get("product_name", "").strip()
+    landing_url = req.get("landing_url", "").strip()
+    description = req.get("description", "").strip()
+    lang = req.get("lang", "ru").lower().strip()
+
+    if not product_name:
+        return get_json_result(data=False, message="product_name is required", code=RetCode.ARGUMENT_ERROR)
+
+    if lang == "uz":
+        variations = [
+            f"{product_name} — Biznesingiz uchun tezkor va ishonchli yechim. Hoziroq sinab koring!",
+            f"30 kunlik bepul sinov muddati {product_name} bilan! 1 daqiqada ulanish.",
+            f"{product_name} yordamida vaqtingizni va byudjetingizni tejang. Tafsilotlar saytda.",
+        ]
+        keywords = ["biznes", "avtomatlashtirish", "xizmat", "dastur", "toshkent", "onlayn", "tezkor", "qulay"]
+        negatives = ["bepul skachat", "kod", "torrent", "vzlom"]
+        categories = ["software", "business", "services"]
+    elif lang == "en":
+        variations = [
+            f"Supercharge your workflow with {product_name}. Start your 14-day free trial today!",
+            f"Looking for the best {product_name}? Get started with instant setup and 24/7 support.",
+            f"Scale faster with {product_name}. Trusted by leading teams worldwide.",
+        ]
+        keywords = ["saas", "software", "productivity", "automation", "cloud", "platform", "business", "tools"]
+        negatives = ["free download", "crack", "torrent", "open source github"]
+        categories = ["saas", "software", "business"]
+    else:  # Russian default
+        variations = [
+            f"{product_name} — Простое и эффективное решение для вашего бизнеса. Попробуйте прямо сейчас!",
+            f"Получите 30 дней бесплатного доступа к {product_name}. Мгновенное подключение без карты.",
+            f"Автоматизируйте рутину с помощью {product_name}. Увеличьте продажи и сэкономьте время!",
+        ]
+        keywords = ["бизнес", "автоматизация", "сервис", "онлайн", "crm", "рост продаж", "эффективность", "инструмент"]
+        negatives = ["скачать бесплатно", "взлом", "кряк", "торрент", "слив"]
+        categories = ["software", "business", "services"]
+
+    return get_json_result(data={
+        "ad_copy_variations": variations,
+        "recommended_keywords": keywords,
+        "recommended_negative_keywords": negatives,
+        "recommended_categories": categories,
+        "recommended_bid": 0.20,
+    })
 
 
 @manager.route("/campaigns", methods=["POST"])
@@ -172,6 +228,7 @@ async def create_campaign():
             landing_url=landing_url,
             target_categories=req.get("target_categories", []),
             keywords=req.get("keywords", []),
+            negative_keywords=req.get("negative_keywords", []),
             target_languages=req.get("target_languages", []),
             target_models=req.get("target_models", []),
             target_countries=req.get("target_countries", []),
@@ -221,6 +278,8 @@ async def update_campaign(campaign_id):
             cmp.target_categories = req["target_categories"]
         if "keywords" in req:
             cmp.keywords = req["keywords"]
+        if "negative_keywords" in req:
+            cmp.negative_keywords = req["negative_keywords"]
         if "target_languages" in req:
             cmp.target_languages = req["target_languages"]
         if "target_models" in req:
@@ -613,4 +672,208 @@ async def update_admin_settings():
         return get_json_result(data=True)
     except Exception as e:
         logger.exception(f"Error updating admin settings: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
+# 5. Promo Codes Management & Validation
+# ==========================================
+
+@manager.route("/promo/validate", methods=["POST"])
+@login_required
+async def validate_promo_code():
+    req = await get_request_json() or {}
+    code = req.get("code", "").strip()
+    purpose = req.get("purpose", "subscription_upgrade").strip()
+    amount_usd = float(req.get("amount_usd", 10.0))
+    plan_id = req.get("plan_id", "").strip()
+
+    valid, msg, details = PromoCodeService.validate_and_apply_promo(
+        code=code,
+        user_id=current_user.id,
+        purpose=purpose,
+        original_amount_usd=amount_usd,
+        plan_id=plan_id,
+    )
+
+    if not valid:
+        return get_json_result(data=False, message=msg, code=RetCode.DATA_ERROR)
+
+    return get_json_result(data=details, message=msg)
+
+
+@manager.route("/admin/promo-codes", methods=["GET"])
+@login_required
+async def admin_list_promo_codes():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        codes = PromoCodeService.list_promo_codes()
+        return get_json_result(data=codes)
+    except Exception as e:
+        logger.exception(f"Error listing promo codes: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/admin/promo-codes", methods=["POST"])
+@login_required
+async def admin_create_promo_code():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    req = await get_request_json() or {}
+    code = req.get("code", "").strip()
+    if not code:
+        return get_json_result(data=False, message="code is required", code=RetCode.ARGUMENT_ERROR)
+
+    try:
+        promo = PromoCodeService.create_promo_code(
+            code=code,
+            discount_type=req.get("discount_type", "percent"),
+            discount_value=float(req.get("discount_value", 20.0)),
+            applies_to=req.get("applies_to", "all"),
+            plan_id=req.get("plan_id", ""),
+            max_uses=int(req.get("max_uses", 100)),
+            expires_days=int(req.get("expires_days", 30)) if req.get("expires_days") else None,
+        )
+        return get_json_result(data={"id": promo.id, "code": promo.code})
+    except Exception as e:
+        logger.exception(f"Error creating promo code: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/admin/promo-codes/<promo_id>/toggle", methods=["PUT"])
+@login_required
+async def admin_toggle_promo_code(promo_id):
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        promo = PromoCodeService.toggle_promo_code(promo_id)
+        if not promo:
+            return get_json_result(data=False, message="Promo code not found", code=RetCode.NOT_FOUND)
+        return get_json_result(data={"id": promo.id, "is_active": promo.is_active})
+    except Exception as e:
+        logger.exception(f"Error toggling promo code: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/admin/promo-codes/<promo_id>", methods=["DELETE"])
+@login_required
+async def admin_delete_promo_code(promo_id):
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        deleted = PromoCodeService.delete_promo_code(promo_id)
+        return get_json_result(data=deleted)
+    except Exception as e:
+        logger.exception(f"Error deleting promo code: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
+# 6. CSV & Report Data Export
+# ==========================================
+
+@manager.route("/export/transactions", methods=["GET"])
+@login_required
+async def export_transactions_csv():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        txs = list(
+            AdTransaction.select()
+            .where(AdTransaction.advertiser_id == adv.id)
+            .order_by(AdTransaction.create_time.desc())
+            .limit(1000)
+        )
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Transaction ID", "Type", "Amount (USD)", "Description", "Date"])
+
+        for t in txs:
+            dt_str = datetime.fromtimestamp(t.create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if t.create_time else ""
+            writer.writerow([t.id, t.type, f"{t.amount:.2f}", t.description or "", dt_str])
+
+        csv_content = output.getvalue()
+        return Response(
+            csv_content,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=swipies_transactions_{adv.id[:8]}.csv"},
+        )
+    except Exception as e:
+        logger.exception(f"Error exporting transactions: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/export/campaigns", methods=["GET"])
+@login_required
+async def export_campaigns_csv():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        cmps = list(
+            AdCampaign.select()
+            .where(AdCampaign.advertiser_id == adv.id)
+            .order_by(AdCampaign.create_time.desc())
+        )
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "Campaign ID",
+            "Campaign Name",
+            "Product",
+            "Status",
+            "Pricing Model",
+            "Bid Amount",
+            "Daily Budget",
+            "Total Budget",
+            "Total Spent",
+            "Impressions",
+            "Clicks",
+            "CTR (%)",
+            "Landing URL",
+        ])
+
+        for c in cmps:
+            c_imps = AdImpression.select().where(AdImpression.campaign_id == c.id).count()
+            c_clicks = AdClick.select().where(AdClick.campaign_id == c.id).count()
+            c_ctr = (c_clicks / c_imps * 100.0) if c_imps > 0 else 0.0
+
+            writer.writerow([
+                c.id,
+                c.name,
+                c.product_name,
+                c.status,
+                c.pricing_model,
+                f"{c.bid_amount:.2f}",
+                f"{c.daily_budget:.2f}",
+                f"{c.total_budget:.2f}",
+                f"{c.total_spent:.2f}",
+                c_imps,
+                c_clicks,
+                f"{c_ctr:.2f}",
+                c.landing_url,
+            ])
+
+        csv_content = output.getvalue()
+        return Response(
+            csv_content,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=swipies_campaigns_{adv.id[:8]}.csv"},
+        )
+    except Exception as e:
+        logger.exception(f"Error exporting campaigns: {e}")
         return get_data_error_result(message=str(e))

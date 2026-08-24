@@ -216,6 +216,12 @@ class AdEngineService:
                 if not any(cm in clean_model or clean_model in cm for cm in cmp_models) and "all" not in cmp_models:
                     continue
 
+            # 2.7 Negative Keywords Gate (Brand Safety & Stop-Words)
+            cmp_negatives = [neg.lower().strip() for neg in (getattr(cmp, "negative_keywords", []) or []) if neg]
+            if cmp_negatives:
+                if any(neg in clean_query or any(qw == neg for qw in query_words) for neg in cmp_negatives):
+                    continue
+
             # 3. Frequency Capping Gate (per user per day)
             if user_id:
                 user_impressions_today = (

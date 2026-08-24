@@ -12,6 +12,7 @@ export interface PaymentOrderCreatePayload {
   advertiser_id?: string;
   amount_uzs?: number;
   amount_usd?: number;
+  promo_code?: string;
   lang?: string;
 }
 

@@ -271,6 +271,8 @@ from api.db.db_models import (
     AdSettings,
     AdAttributionVisit,
     PaymentOrder,
+    PromoCode,
+    PromoCodeUsage,
     SubscriptionPlan,
     UserOnboarding,
 )
@@ -345,6 +347,8 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             AdSettings,
             AdAttributionVisit,
             PaymentOrder,
+            PromoCode,
+            PromoCodeUsage,
             SubscriptionPlan,
             UserOnboarding,
         ]
@@ -578,6 +582,91 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             "You are a versatile AI assistant.",
             "Pro plan subscriber must receive 100% pristine prompt with 0 ad tokens and zero branding",
         )
+
+    def test_e2e_promo_code_and_advertiser_bonus_fulfillment(self):
+        """Test E2E: Promo code discount on Plus upgrade and Advertiser bonus credit top-up via Atmos."""
+        from api.db.services.promo_code_service import PromoCodeService
+
+        # 1. Create discount promo code for Plus plan (50% off)
+        promo_half = PromoCodeService.create_promo_code(
+            code="PLUS50",
+            discount_type="percent",
+            discount_value=50.0,
+            applies_to="subscription",
+            plan_id="plus",
+            max_uses=10,
+        )
+
+        user_plus_id = "user_plus_promo"
+        tenant_plus_id = "tenant_plus_promo"
+        create_user(user_plus_id, nickname="Plus Seeker", email="seeker@swipies.app")
+        create_tenant(tenant_plus_id, name="Seeker Org", plan_type="free")
+        create_user_tenant(user_plus_id, tenant_plus_id)
+
+        # 2. Checkout Plus plan with promo code PLUS50 (Original $9.99 -> $5.00)
+        order_ok, _, order_data = AtmosService.create_payment_order(
+            user_id=user_plus_id,
+            tenant_id=tenant_plus_id,
+            purpose="subscription_upgrade",
+            plan_id="plus",
+            promo_code="PLUS50",
+        )
+        self.assertTrue(order_ok)
+        self.assertAlmostEqual(order_data["amount_usd"], 5.00, delta=0.05)
+
+        # Pre-apply card & apply OTP
+        ord_id = order_data["order_id"]
+        AtmosService.pre_apply_card(ord_id, "8600 1234 5678 9999", "12/28", user_plus_id)
+        paid_ok, _, res_pay = AtmosService.apply_otp(ord_id, "123456", user_plus_id)
+        self.assertTrue(paid_ok)
+
+        # Verify tenant upgraded to Plus
+        tenant_obj = Tenant.get_by_id(tenant_plus_id)
+        self.assertEqual(tenant_obj.plan_type, "plus")
+
+        # Verify promo code usage was recorded
+        usages = list(PromoCodeUsage.select().where(PromoCodeUsage.promo_code_id == promo_half.id))
+        self.assertEqual(len(usages), 1)
+        self.assertEqual(usages[0].user_id, user_plus_id)
+
+        # 3. Create Advertiser bonus promo code ($30 bonus on deposit)
+        promo_adv_bonus = PromoCodeService.create_promo_code(
+            code="BOOST30",
+            discount_type="advertiser_bonus_usd",
+            discount_value=30.0,
+            applies_to="advertiser_deposit",
+            max_uses=5,
+        )
+
+        adv_user_id = "adv_user_promo"
+        adv_tenant_id = "adv_tenant_promo"
+        create_user(adv_user_id, nickname="Marketing Pro", email="mkt@swipies.app")
+        create_tenant(adv_tenant_id, name="Marketing Org", plan_type="free")
+        create_user_tenant(adv_user_id, adv_tenant_id)
+        adv_obj = AdvertiserService.get_or_create_for_user(adv_user_id, adv_tenant_id, "Targeting AI")
+        adv_obj.balance = 0.0
+        adv_obj.save()
+
+        # Create deposit order for $50 with promo code BOOST30
+        dep_ok, _, dep_data = AtmosService.create_payment_order(
+            user_id=adv_user_id,
+            tenant_id=adv_tenant_id,
+            purpose="advertiser_deposit",
+            advertiser_id=adv_obj.id,
+            amount_usd=50.0,
+            promo_code="BOOST30",
+        )
+        self.assertTrue(dep_ok)
+        self.assertEqual(dep_data["amount_usd"], 50.0)
+
+        dep_ord_id = dep_data["order_id"]
+        AtmosService.pre_apply_card(dep_ord_id, "9860 0000 1111 2222", "11/27", adv_user_id)
+        dep_paid_ok, _, dep_res = AtmosService.apply_otp(dep_ord_id, "123456", adv_user_id)
+        self.assertTrue(dep_paid_ok)
+
+        # Verify Advertiser balance received both base deposit ($50) + promo bonus ($30) = $80
+        adv_refreshed = Advertiser.get_by_id(adv_obj.id)
+        self.assertAlmostEqual(adv_refreshed.balance, 80.0, places=2)
 
 
 if __name__ == "__main__":
