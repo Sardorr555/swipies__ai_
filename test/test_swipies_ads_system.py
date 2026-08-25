@@ -291,6 +291,8 @@ from api.db.db_models import (
     AdDcoLog,
     AdAutomatedRule,
     AdRuleExecutionLog,
+    AdJourneyTouchpoint,
+    AdConversionAttribution,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -314,6 +316,7 @@ from api.db.services.ad_engine_service import (
     AdDcoEngineService,
     AdBudgetPacingService,
     AdAutomatedRulesService,
+    AdMultiTouchAttributionService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -367,6 +370,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdDcoLog,
             AdAutomatedRule,
             AdRuleExecutionLog,
+            AdJourneyTouchpoint,
+            AdConversionAttribution,
         ]
         for m in models:
             m._meta.database = test_db
@@ -426,6 +431,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdDcoLog,
             AdAutomatedRule,
             AdRuleExecutionLog,
+            AdJourneyTouchpoint,
+            AdConversionAttribution,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -3220,6 +3227,174 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertIn("pause_campaign", actions_logged)
         self.assertIn("increase_budget", actions_logged)
         self.assertIn("decrease_bid", actions_logged)
+
+    def test_27_multi_touch_attribution_and_funnel_journey(self):
+        """Phase 25: Test Multi-Touch Attribution (First/Last/Linear/Decay/Position) and Funnel Analytics."""
+        user = User.create(
+            id="user_mta_1",
+            email="mta_adv@swipies.app",
+            nickname="MTA Advertiser",
+            create_time=current_timestamp(),
+        )
+        tenant = Tenant.create(
+            id="tenant_mta_1",
+            name="MTA Tenant",
+            llm_id="",
+            embd_id="",
+            asr_id="",
+            img2txt_id="",
+            rerank_id="",
+            parser_ids="",
+            credit=0,
+            create_time=current_timestamp(),
+        )
+        adv = Advertiser.create(
+            id="adv_mta_1",
+            user_id=user.id,
+            tenant_id=tenant.id,
+            company_name="MTA Marketing Hub",
+            balance=100.0,
+            status="active",
+            create_time=current_timestamp(),
+        )
+
+        # Create 3 multi-stage funnel campaigns
+        cmp1 = AdCampaign.create(
+            id="cmp_mta_top",
+            advertiser_id=adv.id,
+            name="1. Top Funnel AI Discovery",
+            product_name="Cloud CRM Pro",
+            advertisement_text="Top of funnel discovery ad",
+            landing_url="https://example.com/crm",
+            daily_budget=20.0,
+            total_budget=200.0,
+            pricing_model="cpc",
+            bid_amount=0.20,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+        cmp2 = AdCampaign.create(
+            id="cmp_mta_mid",
+            advertiser_id=adv.id,
+            name="2. Mid Funnel Feature Demo",
+            product_name="Cloud CRM Pro",
+            advertisement_text="Mid funnel feature demo ad",
+            landing_url="https://example.com/crm/demo",
+            daily_budget=20.0,
+            total_budget=200.0,
+            pricing_model="cpc",
+            bid_amount=0.25,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+        cmp3 = AdCampaign.create(
+            id="cmp_mta_bot",
+            advertiser_id=adv.id,
+            name="3. Bottom Funnel 30% Promo",
+            product_name="Cloud CRM Pro",
+            advertisement_text="Bottom funnel conversion ad",
+            landing_url="https://example.com/crm/promo",
+            daily_budget=30.0,
+            total_budget=300.0,
+            pricing_model="cpc",
+            bid_amount=0.35,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        visitor_id = "visitor_journey_99"
+        base_time = current_timestamp() - (5 * 86400 * 1000)
+
+        # 1. Record 3-step User Journey Touchpoints
+        tp1 = AdMultiTouchAttributionService.record_touchpoint(
+            visitor_id=visitor_id,
+            advertiser_id=adv.id,
+            campaign_id=cmp1.id,
+            touchpoint_type="impression",
+            channel="ai_chat",
+            model_name="deepseek-v3",
+            device="mobile",
+            cost=0.0,
+            create_time=base_time,
+        )
+        self.assertEqual(tp1.touchpoint_seq, 1)
+
+        tp2 = AdMultiTouchAttributionService.record_touchpoint(
+            visitor_id=visitor_id,
+            advertiser_id=adv.id,
+            campaign_id=cmp2.id,
+            touchpoint_type="click",
+            channel="telegram_bot",
+            device="desktop",
+            cost=0.25,
+            create_time=base_time + (2 * 86400 * 1000),
+        )
+        self.assertEqual(tp2.touchpoint_seq, 2)
+
+        tp3 = AdMultiTouchAttributionService.record_touchpoint(
+            visitor_id=visitor_id,
+            advertiser_id=adv.id,
+            campaign_id=cmp3.id,
+            touchpoint_type="click",
+            channel="retargeting",
+            device="desktop",
+            cost=0.35,
+            create_time=base_time + (4 * 86400 * 1000),
+        )
+        self.assertEqual(tp3.touchpoint_seq, 3)
+
+        # 2. Attribute Conversion ($150.00 purchase)
+        attr = AdMultiTouchAttributionService.attribute_conversion(
+            visitor_id=visitor_id,
+            advertiser_id=adv.id,
+            conversion_event_id="order_mta_555",
+            conversion_type="purchase",
+            conversion_value=150.0,
+            currency="USD",
+        )
+        self.assertIsNotNone(attr)
+        self.assertEqual(attr.total_touchpoints, 3)
+        self.assertEqual(attr.first_touch_campaign_id, cmp1.id)
+        self.assertEqual(attr.last_touch_campaign_id, cmp3.id)
+
+        # Verify Position-Based / U-Shaped (40% first, 20% mid, 40% last)
+        pos_weights = attr.position_based_weights
+        self.assertAlmostEqual(pos_weights[cmp1.id], 0.40, delta=0.01)
+        self.assertAlmostEqual(pos_weights[cmp2.id], 0.20, delta=0.01)
+        self.assertAlmostEqual(pos_weights[cmp3.id], 0.40, delta=0.01)
+
+        # Verify Linear Weights (1/3 each)
+        lin_weights = attr.linear_weights
+        self.assertAlmostEqual(lin_weights[cmp1.id], 0.3333, delta=0.01)
+        self.assertAlmostEqual(lin_weights[cmp2.id], 0.3333, delta=0.01)
+        self.assertAlmostEqual(lin_weights[cmp3.id], 0.3333, delta=0.01)
+
+        # Verify Time-Decay Weights (Last touch has higher weight than first touch)
+        td_weights = attr.time_decay_weights
+        self.assertGreater(td_weights[cmp3.id], td_weights[cmp1.id])
+
+        # 3. Attribution Summary across Models
+        summary_pos = AdMultiTouchAttributionService.get_attribution_summary(
+            advertiser_id=adv.id,
+            model="position_based",
+            days=30,
+        )
+        self.assertEqual(summary_pos["total_conversions"], 1)
+        self.assertEqual(summary_pos["total_revenue"], 150.0)
+        self.assertEqual(summary_pos["avg_touchpoints_per_conversion"], 3.0)
+
+        # 4. Conversion Journey Paths
+        paths = AdMultiTouchAttributionService.get_conversion_paths(advertiser_id=adv.id, limit=10)
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(len(paths[0]["path_steps"]), 3)
+
+        # 5. Full-Funnel Analytics
+        funnel = AdMultiTouchAttributionService.get_funnel_analytics(advertiser_id=adv.id, days=30)
+        self.assertEqual(len(funnel["stages"]), 5)
+        self.assertEqual(funnel["stages"][4]["count"], 1)  # 1 conversion recorded
 
 
 if __name__ == "__main__":

@@ -323,6 +323,12 @@ const adService = {
     request.get<ResponseData<CampaignPacingInfo>>(`/ads/campaigns/${campaignId}/pacing`),
   updateCampaignPacing: (campaignId: string, data: { pacing_mode: string }) =>
     request.put<ResponseData<CampaignPacingInfo>>(`/ads/campaigns/${campaignId}/pacing`, { data }),
+  getAttributionSummary: (params?: { model?: string; days?: number }) =>
+    request.get<ResponseData<AttributionSummaryResponse>>('/ads/attribution/summary', { params }),
+  getAttributionPaths: (params?: { limit?: number }) =>
+    request.get<ResponseData<ConversionJourneyPath[]>>('/ads/attribution/paths', { params }),
+  getAttributionFunnel: (params?: { days?: number }) =>
+    request.get<ResponseData<FunnelAnalyticsResponse>>('/ads/attribution/funnel', { params }),
 };
 
 export interface DcoConfig {
@@ -756,6 +762,72 @@ export interface CampaignPacingInfo {
     expected_cumulative_spend: number;
     expected_ratio: number;
   }>;
+}
+
+export type AttributionModelType =
+  | 'last_touch'
+  | 'first_touch'
+  | 'linear'
+  | 'time_decay'
+  | 'position_based';
+
+export interface CampaignAttributionCredit {
+  campaign_id: string;
+  campaign_name: string;
+  product_name?: string;
+  total_spend: number;
+  credited_conversions: number;
+  credited_revenue: number;
+  first_touch_count: number;
+  last_touch_count: number;
+  assisted_count: number;
+  effective_cpa: number;
+  roas: number;
+}
+
+export interface AttributionSummaryResponse {
+  model_selected: AttributionModelType;
+  days: number;
+  total_conversions: number;
+  total_revenue: number;
+  avg_touchpoints_per_conversion: number;
+  avg_journey_duration_hours: number;
+  campaigns: CampaignAttributionCredit[];
+}
+
+export interface JourneyPathStep {
+  seq: number;
+  campaign_name: string;
+  type: string;
+  channel: string;
+  device: string;
+}
+
+export interface ConversionJourneyPath {
+  id: string;
+  visitor_id: string;
+  conversion_type: string;
+  conversion_value: number;
+  total_touchpoints: number;
+  journey_duration_hours: number;
+  first_touch: string;
+  last_touch: string;
+  path_steps: JourneyPathStep[];
+  create_time: number;
+}
+
+export interface FunnelStageItem {
+  stage_id: string;
+  name: string;
+  count: number;
+  conversion_from_prev: number;
+  dropoff_rate: number;
+}
+
+export interface FunnelAnalyticsResponse {
+  days: number;
+  overall_funnel_conversion_rate: number;
+  stages: FunnelStageItem[];
 }
 
 export default adService;

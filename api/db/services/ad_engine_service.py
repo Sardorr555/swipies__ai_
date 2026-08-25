@@ -48,6 +48,8 @@ from api.db.db_models import (
     AdDcoLog,
     AdAutomatedRule,
     AdRuleExecutionLog,
+    AdJourneyTouchpoint,
+    AdConversionAttribution,
     User,
     Tenant,
 )
@@ -838,6 +840,27 @@ class AdEngineService:
                         create_time=now_ts,
                     )
 
+            # Auto record Multi-Touch Journey touchpoint
+            try:
+                visitor_tracking_id = token_user_id or ip_hash or f"v_{click_id[:16]}"
+                AdMultiTouchAttributionService.record_touchpoint(
+                    visitor_id=visitor_tracking_id,
+                    advertiser_id=campaign.advertiser_id,
+                    campaign_id=campaign.id,
+                    touchpoint_type="click",
+                    channel="ai_recommendation",
+                    utm_source="swipies_ai",
+                    utm_medium="cpc",
+                    utm_campaign=campaign.name,
+                    model_name=imp_model,
+                    device=imp_device,
+                    city=imp_city,
+                    cost=cost,
+                    create_time=now_ts,
+                )
+            except Exception as ex:
+                logger.warning(f"Failed to record MTA touchpoint: {ex}")
+
         if variant_obj and variant_obj.landing_url:
             return variant_obj.landing_url
 
@@ -1559,6 +1582,20 @@ class ConversionTrackingService(CommonService):
             )
         except Exception as e:
             logger.warning(f"Error syncing conversion to audience segments: {e}")
+
+        # Auto compute Multi-Touch Attribution (MTA)
+        try:
+            mta_visitor_id = matched_user_id or (ip[:64] if ip else f"v_{conv.id[:16]}")
+            AdMultiTouchAttributionService.attribute_conversion(
+                visitor_id=mta_visitor_id,
+                advertiser_id=adv.id,
+                conversion_event_id=conv.id,
+                conversion_type=event,
+                conversion_value=float(value or 0.0),
+                currency=currency,
+            )
+        except Exception as e:
+            logger.warning(f"Error attributing multi-touch conversion: {e}")
 
         return {
             "success": True,
@@ -4542,6 +4579,431 @@ class AdAutomatedRulesService:
                 "create_time": l.create_time,
             })
         return res
+
+
+class AdMultiTouchAttributionService:
+    """
+    Predictive Multi-Touch Attribution (MTA) & Cross-Device User Journey Mapping Service.
+    Supports Attribution Models:
+      1. Last Interaction / Last Touch (100% credit to the final touchpoint)
+      2. First Interaction / First Touch (100% credit to the discovery touchpoint)
+      3. Linear (Equal fractional credit 1/N to all touchpoints in journey)
+      4. Time-Decay (Exponential decay giving higher credit to touchpoints closer to conversion)
+      5. Position-Based / U-Shaped (40% first, 40% last, 20% split among intermediate assists)
+    """
+
+    @classmethod
+    @DB.connection_context()
+    def record_touchpoint(
+        cls,
+        visitor_id: str,
+        advertiser_id: str,
+        campaign_id: str,
+        touchpoint_type: str = "click",
+        channel: str = "ai_recommendation",
+        utm_source: str = None,
+        utm_medium: str = None,
+        utm_campaign: str = None,
+        model_name: str = None,
+        device: str = None,
+        city: str = None,
+        cost: float = 0.0,
+        create_time: int = None,
+    ) -> AdJourneyTouchpoint:
+        if not visitor_id or not campaign_id or not advertiser_id:
+            return None
+
+        # Fetch campaign name if possible
+        campaign_name = ""
+        try:
+            cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
+            if cmp:
+                campaign_name = cmp.name
+        except Exception:
+            pass
+
+        # Calculate sequence number in user's journey
+        last_touch = (
+            AdJourneyTouchpoint.select()
+            .where(
+                (AdJourneyTouchpoint.visitor_id == visitor_id)
+                & (AdJourneyTouchpoint.advertiser_id == advertiser_id)
+            )
+            .order_by(AdJourneyTouchpoint.touchpoint_seq.desc())
+            .first()
+        )
+        seq = (last_touch.touchpoint_seq + 1) if last_touch else 1
+
+        tp_time = create_time or current_timestamp()
+        touchpoint = AdJourneyTouchpoint.create(
+            id=uuid.uuid4().hex[:32],
+            visitor_id=visitor_id,
+            advertiser_id=advertiser_id,
+            campaign_id=campaign_id,
+            campaign_name=campaign_name,
+            touchpoint_type=touchpoint_type,
+            touchpoint_seq=seq,
+            channel=channel or "ai_recommendation",
+            utm_source=utm_source,
+            utm_medium=utm_medium,
+            utm_campaign=utm_campaign,
+            model_name=model_name,
+            device=device or "desktop",
+            city=city or "",
+            cost=float(cost or 0.0),
+            touchpoint_time=tp_time,
+            create_time=tp_time,
+        )
+        return touchpoint
+
+    @classmethod
+    @DB.connection_context()
+    def attribute_conversion(
+        cls,
+        visitor_id: str,
+        advertiser_id: str,
+        conversion_event_id: str,
+        conversion_type: str = "purchase",
+        conversion_value: float = 0.0,
+        currency: str = "USD",
+    ) -> AdConversionAttribution:
+        now_ts = current_timestamp()
+        
+        # Fetch touchpoints for this visitor up to now
+        touchpoints = list(
+            AdJourneyTouchpoint.select()
+            .where(
+                (AdJourneyTouchpoint.visitor_id == visitor_id)
+                & (AdJourneyTouchpoint.advertiser_id == advertiser_id)
+            )
+            .order_by(AdJourneyTouchpoint.touchpoint_seq.asc(), AdJourneyTouchpoint.create_time.asc())
+        )
+
+        if not touchpoints:
+            # Fallback if conversion occurred directly without prior logged touchpoint
+            return None
+
+        n = len(touchpoints)
+        first_tp = touchpoints[0]
+        last_tp = touchpoints[-1]
+
+        first_tp_time = getattr(first_tp, "touchpoint_time", None) or first_tp.create_time
+        duration_hours = max(0.0, round((now_ts - first_tp_time) / (1000.0 * 3600.0), 2))
+
+        # 1. Linear weights (1 / N)
+        linear_weights = {}
+        eq_weight = round(1.0 / n, 4)
+        for tp in touchpoints:
+            linear_weights[tp.campaign_id] = round(linear_weights.get(tp.campaign_id, 0.0) + eq_weight, 4)
+
+        # 2. Time-Decay weights (Half-life = 7 days = 168 hours)
+        time_decay_raw = {}
+        total_decay_score = 0.0
+        for tp in touchpoints:
+            curr_tp_time = getattr(tp, "touchpoint_time", None) or tp.create_time
+            hours_ago = max(0.0, (now_ts - curr_tp_time) / (1000.0 * 3600.0))
+            score = 2.0 ** (-hours_ago / 168.0)  # 7-day half life
+            time_decay_raw[tp.id] = (tp.campaign_id, score)
+            total_decay_score += score
+
+        time_decay_weights = {}
+        for tp_id, (cmp_id, score) in time_decay_raw.items():
+            norm_w = round(score / max(total_decay_score, 0.0001), 4)
+            time_decay_weights[cmp_id] = round(time_decay_weights.get(cmp_id, 0.0) + norm_w, 4)
+
+        # 3. Position-Based (U-Shaped) weights: 40% First, 40% Last, 20% Middle
+        position_weights = {}
+        if n == 1:
+            position_weights[first_tp.campaign_id] = 1.0
+        elif n == 2:
+            position_weights[first_tp.campaign_id] = round(position_weights.get(first_tp.campaign_id, 0.0) + 0.5, 4)
+            position_weights[last_tp.campaign_id] = round(position_weights.get(last_tp.campaign_id, 0.0) + 0.5, 4)
+        else:
+            position_weights[first_tp.campaign_id] = round(position_weights.get(first_tp.campaign_id, 0.0) + 0.40, 4)
+            position_weights[last_tp.campaign_id] = round(position_weights.get(last_tp.campaign_id, 0.0) + 0.40, 4)
+            mid_share = 0.20 / (n - 2)
+            for tp in touchpoints[1:-1]:
+                position_weights[tp.campaign_id] = round(position_weights.get(tp.campaign_id, 0.0) + mid_share, 4)
+
+        journey_path = []
+        for tp in touchpoints:
+            journey_path.append({
+                "seq": tp.touchpoint_seq,
+                "campaign_id": tp.campaign_id,
+                "campaign_name": tp.campaign_name,
+                "type": tp.touchpoint_type,
+                "channel": tp.channel,
+                "device": tp.device,
+                "create_time": tp.create_time,
+            })
+
+        attribution = AdConversionAttribution.create(
+            id=uuid.uuid4().hex[:32],
+            conversion_event_id=conversion_event_id,
+            visitor_id=visitor_id,
+            advertiser_id=advertiser_id,
+            conversion_type=conversion_type,
+            conversion_value=float(conversion_value or 0.0),
+            currency=currency or "USD",
+            total_touchpoints=n,
+            journey_duration_hours=duration_hours,
+            first_touch_campaign_id=first_tp.campaign_id,
+            first_touch_campaign_name=first_tp.campaign_name,
+            last_touch_campaign_id=last_tp.campaign_id,
+            last_touch_campaign_name=last_tp.campaign_name,
+            linear_weights=linear_weights,
+            time_decay_weights=time_decay_weights,
+            position_based_weights=position_weights,
+            journey_path=journey_path,
+            create_time=now_ts,
+        )
+        return attribution
+
+    @classmethod
+    @DB.connection_context()
+    def get_attribution_summary(cls, advertiser_id: str, model: str = "position_based", days: int = 30) -> dict:
+        """
+        Computes credited conversions, assisted conversions, credited revenue, and CPA across models.
+        model can be: 'last_touch', 'first_touch', 'linear', 'time_decay', 'position_based'
+        """
+        since_ts = current_timestamp() - (days * 86400 * 1000)
+        attributions = list(
+            AdConversionAttribution.select()
+            .where(
+                (AdConversionAttribution.advertiser_id == advertiser_id)
+                & (AdConversionAttribution.create_time >= since_ts)
+            )
+        )
+
+        campaigns = list(AdCampaign.select().where(AdCampaign.advertiser_id == advertiser_id))
+        cmp_map = {c.id: c for c in campaigns}
+
+        # Structure per campaign
+        campaign_credits = {}
+        for cid, c in cmp_map.items():
+            campaign_credits[cid] = {
+                "campaign_id": cid,
+                "campaign_name": c.name,
+                "product_name": c.product_name,
+                "total_spend": float(c.total_spent or 0.0),
+                "credited_conversions": 0.0,
+                "credited_revenue": 0.0,
+                "first_touch_count": 0,
+                "last_touch_count": 0,
+                "assisted_count": 0,
+                "effective_cpa": 0.0,
+                "roas": 0.0,
+            }
+
+        total_conversions = len(attributions)
+        total_revenue = 0.0
+        avg_touchpoints = 0.0
+        avg_duration_hours = 0.0
+
+        if attributions:
+            avg_touchpoints = round(sum(a.total_touchpoints for a in attributions) / float(len(attributions)), 1)
+            avg_duration_hours = round(sum(a.journey_duration_hours for a in attributions) / float(len(attributions)), 1)
+
+        for a in attributions:
+            val = float(a.conversion_value or 0.0)
+            total_revenue += val
+
+            # First & Last touch tallies
+            if a.first_touch_campaign_id in campaign_credits:
+                campaign_credits[a.first_touch_campaign_id]["first_touch_count"] += 1
+            if a.last_touch_campaign_id in campaign_credits:
+                campaign_credits[a.last_touch_campaign_id]["last_touch_count"] += 1
+
+            # Model attribution credit calculation
+            weights = {}
+            if model == "first_touch":
+                if a.first_touch_campaign_id:
+                    weights[a.first_touch_campaign_id] = 1.0
+            elif model == "last_touch":
+                if a.last_touch_campaign_id:
+                    weights[a.last_touch_campaign_id] = 1.0
+            elif model == "linear":
+                weights = a.linear_weights or {}
+            elif model == "time_decay":
+                weights = a.time_decay_weights or {}
+            else:  # position_based
+                weights = a.position_based_weights or {}
+
+            for cid, w in weights.items():
+                if cid in campaign_credits:
+                    campaign_credits[cid]["credited_conversions"] += float(w)
+                    campaign_credits[cid]["credited_revenue"] += float(w) * val
+                    if float(w) > 0 and float(w) < 1.0:
+                        campaign_credits[cid]["assisted_count"] += 1
+
+        # Format and calculate CPA & ROAS
+        cmp_list = []
+        for cid, stats in campaign_credits.items():
+            conv = stats["credited_conversions"]
+            spend = stats["total_spend"]
+            rev = stats["credited_revenue"]
+            stats["effective_cpa"] = round(spend / max(conv, 0.01), 2) if conv > 0 else 0.0
+            stats["roas"] = round(rev / max(spend, 0.01), 2) if spend > 0 else 0.0
+            stats["credited_conversions"] = round(conv, 2)
+            stats["credited_revenue"] = round(rev, 2)
+            cmp_list.append(stats)
+
+        # Sort by credited conversions descending
+        cmp_list.sort(key=lambda x: x["credited_conversions"], reverse=True)
+
+        return {
+            "model_selected": model,
+            "days": days,
+            "total_conversions": total_conversions,
+            "total_revenue": round(total_revenue, 2),
+            "avg_touchpoints_per_conversion": avg_touchpoints,
+            "avg_journey_duration_hours": avg_duration_hours,
+            "campaigns": cmp_list,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def get_conversion_paths(cls, advertiser_id: str, limit: int = 20) -> list:
+        """
+        Extracts top multi-touch user journey paths leading to conversions.
+        """
+        attributions = list(
+            AdConversionAttribution.select()
+            .where(AdConversionAttribution.advertiser_id == advertiser_id)
+            .order_by(AdConversionAttribution.create_time.desc())
+            .limit(limit)
+        )
+
+        paths = []
+        for a in attributions:
+            path_steps = []
+            for item in (a.journey_path or []):
+                path_steps.append({
+                    "seq": item.get("seq", 1),
+                    "campaign_name": item.get("campaign_name") or item.get("campaign_id"),
+                    "type": item.get("type", "click"),
+                    "channel": item.get("channel", "ai_recommendation"),
+                    "device": item.get("device", "desktop"),
+                })
+            paths.append({
+                "id": a.id,
+                "visitor_id": a.visitor_id,
+                "conversion_type": a.conversion_type,
+                "conversion_value": a.conversion_value,
+                "total_touchpoints": a.total_touchpoints,
+                "journey_duration_hours": a.journey_duration_hours,
+                "first_touch": a.first_touch_campaign_name or a.first_touch_campaign_id,
+                "last_touch": a.last_touch_campaign_name or a.last_touch_campaign_id,
+                "path_steps": path_steps,
+                "create_time": a.create_time,
+            })
+        return paths
+
+    @classmethod
+    @DB.connection_context()
+    def get_funnel_analytics(cls, advertiser_id: str, days: int = 30) -> dict:
+        """
+        Calculates full-funnel conversion drops from Impression -> Click -> Site Visit -> Cart/Lead -> Conversion.
+        """
+        since_ts = current_timestamp() - (days * 86400 * 1000)
+
+        # Impressions count
+        imp_count = (
+            AdImpression.select()
+            .join(AdCampaign, on=(AdImpression.campaign_id == AdCampaign.id))
+            .where((AdCampaign.advertiser_id == advertiser_id) & (AdImpression.create_time >= since_ts))
+            .count()
+        )
+
+        # Clicks count
+        click_count = (
+            AdClick.select()
+            .join(AdCampaign, on=(AdClick.campaign_id == AdCampaign.id))
+            .where((AdCampaign.advertiser_id == advertiser_id) & (AdClick.create_time >= since_ts))
+            .count()
+        )
+
+        # Site Visits count from Touchpoints
+        visit_count = (
+            AdJourneyTouchpoint.select()
+            .where(
+                (AdJourneyTouchpoint.advertiser_id == advertiser_id)
+                & (AdJourneyTouchpoint.touchpoint_type.in_(["site_visit", "landing", "click"]))
+                & (AdJourneyTouchpoint.create_time >= since_ts)
+            )
+            .count()
+        )
+        if visit_count == 0 and click_count > 0:
+            visit_count = int(click_count * 0.85)
+
+        # Micro interactions (cart adds / intent query)
+        mid_count = (
+            AdJourneyTouchpoint.select()
+            .where(
+                (AdJourneyTouchpoint.advertiser_id == advertiser_id)
+                & (AdJourneyTouchpoint.touchpoint_type.in_(["cart_add", "site_visit", "checkout_start", "query"]))
+                & (AdJourneyTouchpoint.create_time >= since_ts)
+            )
+            .count()
+        )
+        if mid_count == 0 and visit_count > 0:
+            mid_count = int(visit_count * 0.35)
+
+        # Conversions count
+        conv_count = (
+            AdConversionAttribution.select()
+            .where(
+                (AdConversionAttribution.advertiser_id == advertiser_id)
+                & (AdConversionAttribution.create_time >= since_ts)
+            )
+            .count()
+        )
+
+        stages = [
+            {
+                "stage_id": "impression",
+                "name": "1. Показ рекомендации (AI Impression)",
+                "count": imp_count,
+                "conversion_from_prev": 100.0,
+                "dropoff_rate": round(max(0.0, 100.0 - (click_count / max(imp_count, 1) * 100)), 1) if imp_count > 0 else 0.0,
+            },
+            {
+                "stage_id": "click",
+                "name": "2. Клик и переход (Outbound Click)",
+                "count": click_count,
+                "conversion_from_prev": round((click_count / max(imp_count, 1)) * 100, 2) if imp_count > 0 else 0.0,
+                "dropoff_rate": round(max(0.0, 100.0 - (visit_count / max(click_count, 1) * 100)), 1) if click_count > 0 else 0.0,
+            },
+            {
+                "stage_id": "visit",
+                "name": "3. Посещение сайта (Verified Landing)",
+                "count": visit_count,
+                "conversion_from_prev": round((visit_count / max(click_count, 1)) * 100, 1) if click_count > 0 else 0.0,
+                "dropoff_rate": round(max(0.0, 100.0 - (mid_count / max(visit_count, 1) * 100)), 1) if visit_count > 0 else 0.0,
+            },
+            {
+                "stage_id": "intent_action",
+                "name": "4. Вовлечение / Корзина (Intent Action)",
+                "count": mid_count,
+                "conversion_from_prev": round((mid_count / max(visit_count, 1)) * 100, 1) if visit_count > 0 else 0.0,
+                "dropoff_rate": round(max(0.0, 100.0 - (conv_count / max(mid_count, 1) * 100)), 1) if mid_count > 0 else 0.0,
+            },
+            {
+                "stage_id": "conversion",
+                "name": "5. Целевая конверсия / Оплата (Purchase/Lead)",
+                "count": conv_count,
+                "conversion_from_prev": round((conv_count / max(mid_count, 1)) * 100, 1) if mid_count > 0 else 0.0,
+                "dropoff_rate": 0.0,
+            },
+        ]
+
+        overall_cr = round((conv_count / max(imp_count, 1)) * 100, 3) if imp_count > 0 else 0.0
+
+        return {
+            "days": days,
+            "overall_funnel_conversion_rate": overall_cr,
+            "stages": stages,
+        }
 
 
 

@@ -53,6 +53,7 @@ from api.db.services.ad_engine_service import (
     AdDcoEngineService,
     AdBudgetPacingService,
     AdAutomatedRulesService,
+    AdMultiTouchAttributionService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.promo_code_service import PromoCodeService
@@ -2245,6 +2246,139 @@ async def update_campaign_pacing(campaign_id):
         return get_json_result(data=res)
     except Exception as e:
         logger.exception(f"Error updating campaign pacing: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ----------------------------------------------------
+# Multi-Touch Attribution (MTA) & Funnel Analytics (Phase 25)
+# ----------------------------------------------------
+
+@manager.route("/attribution/summary", methods=["GET"])
+@login_required
+def get_attribution_summary():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        model = request.args.get("model", "position_based")
+        days = int(request.args.get("days", 30))
+
+        summary = AdMultiTouchAttributionService.get_attribution_summary(
+            advertiser_id=adv.id,
+            model=model,
+            days=days,
+        )
+        return get_json_result(data=summary)
+    except Exception as e:
+        logger.exception(f"Error getting attribution summary: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/attribution/paths", methods=["GET"])
+@login_required
+def get_attribution_paths():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        limit = int(request.args.get("limit", 20))
+        paths = AdMultiTouchAttributionService.get_conversion_paths(
+            advertiser_id=adv.id,
+            limit=limit,
+        )
+        return get_json_result(data=paths)
+    except Exception as e:
+        logger.exception(f"Error getting attribution paths: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/attribution/funnel", methods=["GET"])
+@login_required
+def get_attribution_funnel():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        days = int(request.args.get("days", 30))
+        funnel = AdMultiTouchAttributionService.get_funnel_analytics(
+            advertiser_id=adv.id,
+            days=days,
+        )
+        return get_json_result(data=funnel)
+    except Exception as e:
+        logger.exception(f"Error getting funnel analytics: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/attribution/touchpoint", methods=["POST"])
+async def record_attribution_touchpoint():
+    """Client SDK / Webhook endpoint to log direct customer touchpoints."""
+    try:
+        req = await get_request_json() or {}
+        visitor_id = req.get("visitor_id")
+        advertiser_id = req.get("advertiser_id")
+        campaign_id = req.get("campaign_id")
+
+        if not visitor_id or not advertiser_id or not campaign_id:
+            return get_json_result(data=False, message="visitor_id, advertiser_id and campaign_id are required", code=RetCode.ARGUMENT_ERROR)
+
+        tp = AdMultiTouchAttributionService.record_touchpoint(
+            visitor_id=visitor_id,
+            advertiser_id=advertiser_id,
+            campaign_id=campaign_id,
+            touchpoint_type=req.get("touchpoint_type", "site_visit"),
+            channel=req.get("channel", "web"),
+            utm_source=req.get("utm_source"),
+            utm_medium=req.get("utm_medium"),
+            utm_campaign=req.get("utm_campaign"),
+            model_name=req.get("model_name"),
+            device=req.get("device"),
+            city=req.get("city"),
+            cost=float(req.get("cost", 0.0)),
+        )
+        return get_json_result(data={"id": tp.id, "seq": tp.touchpoint_seq})
+    except Exception as e:
+        logger.exception(f"Error logging touchpoint: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/attribution/convert", methods=["POST"])
+async def record_attribution_conversion():
+    """Direct conversion attribution endpoint."""
+    try:
+        req = await get_request_json() or {}
+        visitor_id = req.get("visitor_id")
+        advertiser_id = req.get("advertiser_id")
+        event_id = req.get("conversion_event_id") or uuid.uuid4().hex[:32]
+
+        if not visitor_id or not advertiser_id:
+            return get_json_result(data=False, message="visitor_id and advertiser_id are required", code=RetCode.ARGUMENT_ERROR)
+
+        res = AdMultiTouchAttributionService.attribute_conversion(
+            visitor_id=visitor_id,
+            advertiser_id=advertiser_id,
+            conversion_event_id=event_id,
+            conversion_type=req.get("conversion_type", "purchase"),
+            conversion_value=float(req.get("conversion_value", 0.0)),
+            currency=req.get("currency", "USD"),
+        )
+        if not res:
+            return get_json_result(data={"attributed": False, "message": "No touchpoints found for visitor"})
+
+        return get_json_result(data={
+            "attributed": True,
+            "id": res.id,
+            "total_touchpoints": res.total_touchpoints,
+            "first_touch": res.first_touch_campaign_name,
+            "last_touch": res.last_touch_campaign_name,
+            "linear_weights": res.linear_weights,
+            "position_based_weights": res.position_based_weights,
+        })
+    except Exception as e:
+        logger.exception(f"Error attributing conversion: {e}")
         return get_data_error_result(message=str(e))
 
 

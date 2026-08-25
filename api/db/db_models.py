@@ -2163,6 +2163,53 @@ class AdRuleExecutionLog(DataBaseModel):
         db_table = "ad_rule_execution_logs"
 
 
+class AdJourneyTouchpoint(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    visitor_id = CharField(max_length=64, null=False, index=True)  # Anonymous tracking fingerprint or user ID
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    campaign_id = CharField(max_length=32, null=False, index=True)
+    campaign_name = CharField(max_length=128, default="")
+    touchpoint_type = CharField(max_length=32, default="click", index=True)  # impression, click, query, site_visit, cart_add, checkout_start
+    touchpoint_seq = IntegerField(default=1)  # 1st touch, 2nd touch, etc. in visitor journey
+    channel = CharField(max_length=64, default="ai_recommendation")  # ai_chat, telegram_bot, direct_search, retargeting, partner_widget
+    utm_source = CharField(max_length=64, null=True)
+    utm_medium = CharField(max_length=64, null=True)
+    utm_campaign = CharField(max_length=128, null=True)
+    model_name = CharField(max_length=64, null=True)
+    device = CharField(max_length=32, null=True)
+    city = CharField(max_length=64, null=True)
+    cost = FloatField(default=0.0)
+    touchpoint_time = BigIntegerField(null=True, index=True)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "ad_journey_touchpoints"
+
+
+class AdConversionAttribution(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    conversion_event_id = CharField(max_length=64, null=False, index=True)
+    visitor_id = CharField(max_length=64, null=False, index=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    conversion_type = CharField(max_length=64, default="purchase")  # lead, purchase, signup, custom
+    conversion_value = FloatField(default=0.0)
+    currency = CharField(max_length=8, default="USD")
+    total_touchpoints = IntegerField(default=1)
+    journey_duration_hours = FloatField(default=0.0)  # Time span between first touchpoint and conversion
+    first_touch_campaign_id = CharField(max_length=32, null=True, index=True)
+    first_touch_campaign_name = CharField(max_length=128, default="")
+    last_touch_campaign_id = CharField(max_length=32, null=True, index=True)
+    last_touch_campaign_name = CharField(max_length=128, default="")
+    linear_weights = JSONField(null=True, default=dict)  # campaign_id -> fractional credit
+    time_decay_weights = JSONField(null=True, default=dict)  # campaign_id -> decay credit
+    position_based_weights = JSONField(null=True, default=dict)  # campaign_id -> 40/40/20 credit
+    journey_path = JSONField(null=True, default=list)  # list of touchpoints summary
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "ad_conversion_attributions"
+
+
 class PromoCode(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     code = CharField(max_length=64, unique=True, index=True)
