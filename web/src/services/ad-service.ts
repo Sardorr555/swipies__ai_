@@ -27,7 +27,10 @@ export interface AdCampaignItem {
   total_spent: number;
   pricing_model: 'cpc' | 'cpm' | 'cpa';
   bid_amount: number;
+  bidding_strategy?: 'manual_cpc' | 'enhanced_cpc' | 'target_cpa' | 'maximize_conversions';
   target_cpa?: number;
+  schedule_timezone?: string;
+  schedule_config?: ScheduleConfig;
   conversions_count?: number;
   conversion_rate?: number;
   total_conversion_value?: number;
@@ -278,7 +281,63 @@ const adService = {
     request.post<ResponseData<BlacklistEntryItem>>('/ads/fraud/blacklist', { data }),
   removeFraudBlacklist: (blacklistId: string) =>
     request.delete<ResponseData<{ deleted: boolean }>>(`/ads/fraud/blacklist/${blacklistId}`),
+
+  // Smart Bidding & Dayparting
+  getBiddingStrategies: () =>
+    request.get<ResponseData<BiddingStrategyItem[]>>('/ads/bidding/strategies'),
+  getCampaignBidding: (campaignId: string) =>
+    request.get<ResponseData<CampaignBiddingInfo>>(`/ads/campaigns/${campaignId}/bidding`),
+  updateCampaignBidding: (campaignId: string, data: Partial<CampaignBiddingInfo>) =>
+    request.put<ResponseData<CampaignBiddingInfo>>(`/ads/campaigns/${campaignId}/bidding`, { data }),
 };
+
+export interface ScheduleConfig {
+  enabled_days?: number[];
+  active_hours_start?: number;
+  active_hours_end?: number;
+  peak_hours?: number[];
+  peak_hours_multiplier?: number;
+  hourly_multipliers?: Record<string, number>;
+}
+
+export interface BiddingStrategyItem {
+  id: 'manual_cpc' | 'enhanced_cpc' | 'target_cpa' | 'maximize_conversions';
+  name: string;
+  description: string;
+  badge: string;
+  requires_cpa: boolean;
+}
+
+export interface BiddingDecisionLogItem {
+  id: string;
+  strategy: string;
+  base_bid: number;
+  adjusted_bid: number;
+  schedule_multiplier: number;
+  cvr_multiplier: number;
+  estimated_cvr: number;
+  reason: string;
+  query?: string;
+  create_time: number;
+}
+
+export interface CampaignBiddingInfo {
+  campaign_id: string;
+  campaign_name: string;
+  bidding_strategy: 'manual_cpc' | 'enhanced_cpc' | 'target_cpa' | 'maximize_conversions';
+  base_bid: number;
+  target_cpa: number;
+  schedule_timezone: string;
+  schedule_config: ScheduleConfig;
+  current_status: {
+    is_active_now: boolean;
+    current_multiplier: number;
+    local_time: string;
+    local_day: string;
+    local_hour: number;
+  };
+  recent_bids: BiddingDecisionLogItem[];
+}
 
 export interface FraudOverviewData {
   total_blocked_clicks: number;

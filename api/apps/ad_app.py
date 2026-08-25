@@ -49,6 +49,7 @@ from api.db.services.ad_engine_service import (
     AdEngineService,
     AttributionService,
     AdAntiFraudService,
+    AdSmartBiddingService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.promo_code_service import PromoCodeService
@@ -135,6 +136,9 @@ async def list_campaigns():
                 "total_spent": c.total_spent,
                 "pricing_model": c.pricing_model,
                 "bid_amount": c.bid_amount,
+                "bidding_strategy": getattr(c, "bidding_strategy", "manual_cpc") or "manual_cpc",
+                "schedule_timezone": getattr(c, "schedule_timezone", "UTC") or "UTC",
+                "schedule_config": getattr(c, "schedule_config", {}) or {},
                 "target_cpa": getattr(c, "target_cpa", 0.0) or 0.0,
                 "conversions_count": getattr(c, "conversions_count", 0) or 0,
                 "conversion_rate": getattr(c, "conversion_rate", 0.0) or 0.0,
@@ -251,7 +255,10 @@ async def create_campaign():
             total_spent=0.0,
             pricing_model=req.get("pricing_model", "cpc"),
             bid_amount=float(req.get("bid_amount", 0.10)),
+            bidding_strategy=req.get("bidding_strategy", "manual_cpc"),
             target_cpa=float(req.get("target_cpa", 0.0)),
+            schedule_timezone=req.get("schedule_timezone", "UTC"),
+            schedule_config=req.get("schedule_config", {}),
             priority=int(req.get("priority", 0)),
             status="active",
             moderation_status="approved",  # Auto-approve for seamless self-serve demo; admin can reject
@@ -411,8 +418,14 @@ async def update_campaign(campaign_id):
             cmp.total_budget = float(req["total_budget"])
         if "bid_amount" in req:
             cmp.bid_amount = float(req["bid_amount"])
+        if "bidding_strategy" in req:
+            cmp.bidding_strategy = req["bidding_strategy"]
         if "target_cpa" in req:
             cmp.target_cpa = float(req["target_cpa"])
+        if "schedule_timezone" in req:
+            cmp.schedule_timezone = req["schedule_timezone"]
+        if "schedule_config" in req:
+            cmp.schedule_config = req["schedule_config"]
         if "status" in req and req["status"] in ["active", "paused", "archived"]:
             cmp.status = req["status"]
 
@@ -1901,5 +1914,58 @@ async def remove_fraud_blacklist(blacklist_id):
     except Exception as e:
         logger.exception(f"Error removing IP from blacklist: {e}")
         return get_data_error_result(message=str(e))
+
+
+# ==========================================
+# 11. Smart Bidding & Dayparting Endpoints
+# ==========================================
+
+@manager.route("/bidding/strategies", methods=["GET"])
+@login_required
+async def list_bidding_strategies():
+    try:
+        strategies = AdSmartBiddingService.list_strategies()
+        return get_json_result(data=strategies)
+    except Exception as e:
+        logger.exception(f"Error listing bidding strategies: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/bidding", methods=["GET"])
+@login_required
+async def get_campaign_bidding(campaign_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        info = AdSmartBiddingService.get_campaign_bidding_info(campaign_id=campaign_id, advertiser_id=adv.id)
+        return get_json_result(data=info)
+    except Exception as e:
+        logger.exception(f"Error fetching campaign bidding info: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/bidding", methods=["PUT"])
+@login_required
+async def update_campaign_bidding(campaign_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        req = await get_request_json() or {}
+
+        info = AdSmartBiddingService.update_campaign_bidding(
+            campaign_id=campaign_id,
+            advertiser_id=adv.id,
+            bidding_strategy=req.get("bidding_strategy"),
+            target_cpa=req.get("target_cpa"),
+            schedule_timezone=req.get("schedule_timezone"),
+            schedule_config=req.get("schedule_config"),
+        )
+        return get_json_result(data=info)
+    except Exception as e:
+        logger.exception(f"Error updating campaign bidding info: {e}")
+        return get_data_error_result(message=str(e))
+
 
 

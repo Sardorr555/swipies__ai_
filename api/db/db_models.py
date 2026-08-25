@@ -1738,7 +1738,10 @@ class AdCampaign(DataBaseModel):
     total_spent = FloatField(default=0.0)
     pricing_model = CharField(max_length=16, default="cpc", index=True)  # cpc, cpm, cpa
     bid_amount = FloatField(default=0.10)
+    bidding_strategy = CharField(max_length=32, default="manual_cpc", index=True)  # manual_cpc, target_cpa, maximize_conversions, enhanced_cpc
     target_cpa = FloatField(default=0.0)  # Smart auto-bidding Target Cost Per Action ($)
+    schedule_timezone = CharField(max_length=64, default="UTC")
+    schedule_config = JSONField(null=True, default=dict)  # Dayparting & hourly multipliers config
     conversions_count = IntegerField(default=0)
     conversion_rate = FloatField(default=0.0)
     total_conversion_value = FloatField(default=0.0)
@@ -2075,6 +2078,24 @@ class AdIpBlacklist(DataBaseModel):
 
     class Meta:
         db_table = "ad_ip_blacklist"
+
+
+class AdBiddingLog(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    campaign_id = CharField(max_length=32, null=False, index=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    strategy = CharField(max_length=32, default="manual_cpc")
+    base_bid = FloatField(default=0.10)
+    adjusted_bid = FloatField(default=0.10)
+    schedule_multiplier = FloatField(default=1.0)
+    cvr_multiplier = FloatField(default=1.0)
+    estimated_cvr = FloatField(default=0.0)
+    reason = CharField(max_length=255, null=True)
+    query = CharField(max_length=255, null=True)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "ad_bidding_logs"
 
 
 class PromoCode(DataBaseModel):

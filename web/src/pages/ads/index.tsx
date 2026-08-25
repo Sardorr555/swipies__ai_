@@ -65,6 +65,8 @@ import {
   Globe2,
   Ban,
   ShieldX,
+  Clock,
+  Timer,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -115,6 +117,10 @@ import adService, {
   FraudOverviewData,
   FraudIncidentLogItem,
   BlacklistEntryItem,
+  BiddingStrategyItem,
+  BiddingDecisionLogItem,
+  CampaignBiddingInfo,
+  ScheduleConfig,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -241,6 +247,22 @@ export default function SwipiesAdsPage() {
   const [newBlockedReason, setNewBlockedReason] = useState('Suspicious automated click activity');
   const [newBlockedDuration, setNewBlockedDuration] = useState('72');
   const [addingToBlacklist, setAddingToBlacklist] = useState(false);
+
+  // Smart Bidding & Dayparting State
+  const [isBiddingModalOpen, setIsBiddingModalOpen] = useState(false);
+  const [biddingCampaign, setBiddingCampaign] = useState<AdCampaignItem | null>(null);
+  const [biddingInfo, setBiddingInfo] = useState<CampaignBiddingInfo | null>(null);
+  const [loadingBidding, setLoadingBidding] = useState(false);
+  const [savingBidding, setSavingBidding] = useState(false);
+  const [biddingStrategies, setBiddingStrategies] = useState<BiddingStrategyItem[]>([]);
+  const [selectedStrategy, setSelectedStrategy] = useState<'manual_cpc' | 'enhanced_cpc' | 'target_cpa' | 'maximize_conversions'>('manual_cpc');
+  const [targetCpaValue, setTargetCpaValue] = useState<number>(5.0);
+  const [biddingTz, setBiddingTz] = useState<string>('Asia/Tashkent');
+  const [enabledDays, setEnabledDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [activeHoursStart, setActiveHoursStart] = useState<number>(0);
+  const [activeHoursEnd, setActiveHoursEnd] = useState<number>(23);
+  const [peakHoursEnabled, setPeakHoursEnabled] = useState<boolean>(true);
+  const [peakMultiplier, setPeakMultiplier] = useState<number>(1.25);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -940,6 +962,80 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  const handleOpenBiddingConfig = async (cmp: AdCampaignItem) => {
+    setBiddingCampaign(cmp);
+    setIsBiddingModalOpen(true);
+    setLoadingBidding(true);
+    try {
+      const [stratRes, infoRes] = await Promise.all([
+        adService.getBiddingStrategies(),
+        adService.getCampaignBidding(cmp.id),
+      ]);
+      if (stratRes.data?.data) {
+        setBiddingStrategies(stratRes.data.data);
+      }
+      if (infoRes.data?.data) {
+        const info = infoRes.data.data;
+        setBiddingInfo(info);
+        setSelectedStrategy(info.bidding_strategy || 'manual_cpc');
+        setTargetCpaValue(info.target_cpa || 5.0);
+        setBiddingTz(info.schedule_timezone || 'Asia/Tashkent');
+        const sched = info.schedule_config || {};
+        setEnabledDays(sched.enabled_days && sched.enabled_days.length > 0 ? sched.enabled_days : [0, 1, 2, 3, 4, 5, 6]);
+        setActiveHoursStart(sched.active_hours_start !== undefined ? sched.active_hours_start : 0);
+        setActiveHoursEnd(sched.active_hours_end !== undefined ? sched.active_hours_end : 23);
+        setPeakMultiplier(sched.peak_hours_multiplier || 1.25);
+        setPeakHoursEnabled(!!(sched.peak_hours && sched.peak_hours.length > 0));
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка загрузки настроек авто-ставок');
+    } finally {
+      setLoadingBidding(false);
+    }
+  };
+
+  const handleSaveBiddingConfig = async () => {
+    if (!biddingCampaign) return;
+    setSavingBidding(true);
+    try {
+      const schedConfig: ScheduleConfig = {
+        enabled_days: enabledDays,
+        active_hours_start: activeHoursStart,
+        active_hours_end: activeHoursEnd,
+        peak_hours: peakHoursEnabled ? [12, 13, 14, 15, 16, 17, 18, 19, 20] : [],
+        peak_hours_multiplier: peakHoursEnabled ? peakMultiplier : 1.0,
+      };
+      const res = await adService.updateCampaignBidding(biddingCampaign.id, {
+        bidding_strategy: selectedStrategy,
+        target_cpa: targetCpaValue,
+        schedule_timezone: biddingTz,
+        schedule_config: schedConfig,
+      });
+      if (res.data?.data) {
+        setBiddingInfo(res.data.data);
+        message.success('Стратегия ставок и расписание успешно сохранены!');
+        fetchDashboard();
+        setIsBiddingModalOpen(false);
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Не удалось сохранить настройки авто-ставок');
+    } finally {
+      setSavingBidding(false);
+    }
+  };
+
+  const toggleDayOfWeek = (dayIdx: number) => {
+    if (enabledDays.includes(dayIdx)) {
+      if (enabledDays.length === 1) {
+        message.warning('Хотя бы один день должен быть активен');
+        return;
+      }
+      setEnabledDays(enabledDays.filter((d) => d !== dayIdx));
+    } else {
+      setEnabledDays([...enabledDays, dayIdx].sort());
+    }
+  };
+
   const handleOpenAnalytics = async (cmp: AdCampaignItem) => {
     setSelectedCampaign(cmp);
     setIsAnalyticsModalOpen(true);
@@ -1409,17 +1505,32 @@ export default function SwipiesAdsPage() {
                           <td className="py-3 px-4">
                             <div className="font-medium uppercase text-xs flex items-center gap-1">
                               {cmp.pricing_model}
-                              {cmp.pricing_model === 'cpa' && (
-                                <span className="inline-flex items-center px-1 rounded text-[9px] bg-purple-500/20 text-purple-600 dark:text-purple-300 font-bold">
-                                  ⚡ AUTO
-                                </span>
+                              {cmp.bidding_strategy === 'enhanced_cpc' && (
+                                <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[9px] px-1 py-0 font-bold">
+                                  ⚡ eCPC
+                                </Badge>
+                              )}
+                              {cmp.bidding_strategy === 'target_cpa' && (
+                                <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[9px] px-1 py-0 font-bold">
+                                  🎯 CPA
+                                </Badge>
+                              )}
+                              {cmp.bidding_strategy === 'maximize_conversions' && (
+                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] px-1 py-0 font-bold">
+                                  🚀 MAX
+                                </Badge>
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground font-semibold">
-                              {cmp.pricing_model === 'cpa'
+                              {cmp.pricing_model === 'cpa' || cmp.bidding_strategy === 'target_cpa'
                                 ? `$${(cmp.target_cpa || 5.0).toFixed(2)} Target CPA`
                                 : `$${cmp.bid_amount.toFixed(2)} / ${cmp.pricing_model === 'cpc' ? 'click' : '1k imp'}`}
                             </div>
+                            {cmp.schedule_config?.enabled_days && cmp.schedule_config.enabled_days.length < 7 && (
+                              <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 mt-0.5">
+                                <Clock className="h-2.5 w-2.5" /> Расписание ({cmp.schedule_config.active_hours_start || 0}:00-{cmp.schedule_config.active_hours_end || 23}:00)
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <div className="text-xs">
@@ -1452,6 +1563,15 @@ export default function SwipiesAdsPage() {
                                 ) : (
                                   <Play className="h-4 w-4 text-emerald-500" />
                                 )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenBiddingConfig(cmp)}
+                                title="Авто-ставки & Расписание показов"
+                                className="text-amber-600 hover:text-amber-700 dark:text-amber-400"
+                              >
+                                <Zap className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="sm"
@@ -3241,6 +3361,56 @@ export default function SwipiesAdsPage() {
               </div>
             </div>
 
+            {/* Smart Bidding Strategy Selector in Main Form */}
+            <div className="rounded-lg border p-3 bg-gradient-to-r from-amber-500/5 via-blue-500/5 to-purple-500/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5 text-amber-500" /> Стратегия авто-ставок (Smart Bidding)
+                </label>
+                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  AI Auto-Optimization
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Стратегия оптимизации</label>
+                  <Select
+                    value={campaignForm.bidding_strategy || 'manual_cpc'}
+                    onValueChange={(val: any) => setCampaignForm({ ...campaignForm, bidding_strategy: val })}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual_cpc">Ручное управление (Manual CPC)</SelectItem>
+                      <SelectItem value="enhanced_cpc">⚡ Оптимизатор клика (Enhanced CPC)</SelectItem>
+                      <SelectItem value="target_cpa">🎯 Целевая стоимость (Target CPA)</SelectItem>
+                      <SelectItem value="maximize_conversions">🚀 Максимум конверсий (Max Conv)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Часовой пояс расписания</label>
+                  <Select
+                    value={campaignForm.schedule_timezone || 'Asia/Tashkent'}
+                    onValueChange={(val: any) => setCampaignForm({ ...campaignForm, schedule_timezone: val })}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Asia/Tashkent">🇺🇿 Ташкент (UTC+5)</SelectItem>
+                      <SelectItem value="Europe/Moscow">🇷🇺 Москва (UTC+3)</SelectItem>
+                      <SelectItem value="UTC">🌐 UTC</SelectItem>
+                      <SelectItem value="America/New_York">🇺🇸 Нью-Йорк (EST)</SelectItem>
+                      <SelectItem value="Europe/London">🇬🇧 Лондон (GMT)</SelectItem>
+                      <SelectItem value="Asia/Dubai">🇦🇪 Дубай (UTC+4)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
             {/* Frequency Capping */}
             <div className="rounded-lg border p-3 bg-muted/20 space-y-2">
               <div className="flex items-center justify-between">
@@ -4740,6 +4910,346 @@ async def get_swipies_ad(user_query: str):
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
               {addingToBlacklist ? 'Блокировка...' : 'Заблокировать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Smart Bidding & Dayparting Modal */}
+      <Dialog open={isBiddingModalOpen} onOpenChange={setIsBiddingModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              Авто-ставки & Расписание (Smart Bidding & Dayparting)
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Кампания: <span className="font-semibold text-foreground">{biddingCampaign?.name}</span> ({biddingCampaign?.product_name})
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingBidding ? (
+            <div className="py-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center">
+              <RefreshCw className="h-8 w-8 animate-spin text-amber-500 mb-2" />
+              Загрузка параметров стратегии ставок и расписания...
+            </div>
+          ) : (
+            <div className="space-y-6 py-2 text-xs">
+              {/* Current Live Status Card */}
+              <div className="p-4 rounded-xl border bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-lg ${
+                    biddingInfo?.current_status.is_active_now
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                  }`}>
+                    {biddingInfo?.current_status.is_active_now ? '⚡' : '⏸️'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-foreground">
+                        {biddingInfo?.current_status.is_active_now ? 'Кампания активна сейчас' : 'Вне расписания показов'}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={
+                          biddingInfo?.current_status.is_active_now
+                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold'
+                            : 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400'
+                        }
+                      >
+                        Множитель: {biddingInfo?.current_status.current_multiplier || 1.0}x
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Локальное время: <span className="font-mono font-medium text-foreground">{biddingInfo?.current_status.local_time}</span> ({biddingInfo?.current_status.local_day})
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right sm:border-l sm:pl-4">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Базовая ставка</span>
+                  <span className="text-base font-bold text-foreground">${(biddingInfo?.base_bid || 0.10).toFixed(2)} / клик</span>
+                </div>
+              </div>
+
+              {/* 1. Strategy Selector */}
+              <div className="space-y-3">
+                <label className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                  <Sliders className="h-4 w-4 text-purple-500" /> Выберите стратегию управления ставками
+                </label>
+
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {[
+                    {
+                      id: 'manual_cpc',
+                      name: 'Ручное управление (Manual CPC)',
+                      desc: 'Фиксированная ставка за клик с автоматической корректировкой по расписанию.',
+                      badge: 'Базовый',
+                      badgeColor: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-600 dark:text-zinc-300',
+                    },
+                    {
+                      id: 'enhanced_cpc',
+                      name: 'Оптимизатор клика (Enhanced CPC)',
+                      desc: 'AI повышает ставку до +30% при коммерческом намерении пользователя ("купить", "цена").',
+                      badge: 'Рекомендуется',
+                      badgeColor: 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+                    },
+                    {
+                      id: 'target_cpa',
+                      name: 'Целевая стоимость (Target CPA)',
+                      desc: 'Алгоритмический расчет ставки на основе CVR для получения лидов по фиксированной цене.',
+                      badge: 'Конверсии',
+                      badgeColor: 'border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400',
+                    },
+                    {
+                      id: 'maximize_conversions',
+                      name: 'Максимум конверсий (Max Conv)',
+                      desc: 'Разгоняет ставки в активные часы суток для захвата максимального числа конверсий.',
+                      badge: 'Автопилот',
+                      badgeColor: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                    },
+                  ].map((st) => {
+                    const isSel = selectedStrategy === st.id;
+                    return (
+                      <div
+                        key={st.id}
+                        onClick={() => setSelectedStrategy(st.id as any)}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                          isSel
+                            ? 'border-amber-500 bg-amber-500/5 ring-1 ring-amber-500 shadow-sm'
+                            : 'hover:border-muted-foreground/30 hover:bg-muted/30'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="font-semibold text-foreground text-xs">{st.name}</span>
+                          <Badge variant="outline" className={`text-[9px] px-1 py-0 ${st.badgeColor}`}>
+                            {st.badge}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">{st.desc}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {selectedStrategy === 'target_cpa' && (
+                  <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl space-y-1.5 mt-2">
+                    <label className="font-semibold text-purple-700 dark:text-purple-300 flex items-center justify-between text-xs">
+                      <span>Целевая стоимость конверсии / лида (Target CPA, $)</span>
+                      <span className="font-bold font-mono">${targetCpaValue.toFixed(2)}</span>
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="0.5"
+                      value={targetCpaValue}
+                      onChange={(e) => setTargetCpaValue(parseFloat(e.target.value) || 5.0)}
+                      className="text-xs font-semibold bg-background"
+                      placeholder="10.00"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Алгоритм будет автоматически рассчитывать ставку за клик по формуле: <code className="font-bold">Bid = Target CPA × CVR</code>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Dayparting Schedule Section */}
+              <div className="space-y-4 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 text-blue-500" /> Расписание показов (Dayparting)
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      Настройте дни недели, рабочие часы и временную зону показа ваших объявлений
+                    </p>
+                  </div>
+
+                  <Select value={biddingTz} onValueChange={setBiddingTz}>
+                    <SelectTrigger className="w-[180px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Asia/Tashkent">🇺🇿 Ташкент (UTC+5)</SelectItem>
+                      <SelectItem value="Europe/Moscow">🇷🇺 Москва (UTC+3)</SelectItem>
+                      <SelectItem value="UTC">🌐 UTC (Гринвич)</SelectItem>
+                      <SelectItem value="America/New_York">🇺🇸 Нью-Йорк (EST)</SelectItem>
+                      <SelectItem value="America/Los_Angeles">🇺🇸 Лос-Анджелес (PST)</SelectItem>
+                      <SelectItem value="Europe/London">🇬🇧 Лондон (GMT)</SelectItem>
+                      <SelectItem value="Asia/Dubai">🇦🇪 Дубай (UTC+4)</SelectItem>
+                      <SelectItem value="Asia/Almaty">🇰🇿 Алматы (UTC+5)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Days of Week Buttons */}
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-foreground text-xs block">Активные дни недели:</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { idx: 0, label: 'Пн' },
+                      { idx: 1, label: 'Вт' },
+                      { idx: 2, label: 'Ср' },
+                      { idx: 3, label: 'Чт' },
+                      { idx: 4, label: 'Пт' },
+                      { idx: 5, label: 'Сб' },
+                      { idx: 6, label: 'Вс' },
+                    ].map((d) => {
+                      const isAct = enabledDays.includes(d.idx);
+                      return (
+                        <Button
+                          key={d.idx}
+                          type="button"
+                          size="sm"
+                          variant={isAct ? 'default' : 'outline'}
+                          onClick={() => toggleDayOfWeek(d.idx)}
+                          className={`h-8 w-11 font-bold text-xs ${isAct ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
+                        >
+                          {d.label}
+                        </Button>
+                      );
+                    })}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEnabledDays([0, 1, 2, 3, 4])}
+                      className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Только будни
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEnabledDays([0, 1, 2, 3, 4, 5, 6])}
+                      className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Все дни
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Active Hours Range */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground text-xs">Начало показов (Час):</label>
+                    <Select
+                      value={String(activeHoursStart)}
+                      onValueChange={(val) => setActiveHoursStart(parseInt(val, 10))}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }).map((_, i) => (
+                          <SelectItem key={i} value={String(i)}>
+                            {i < 10 ? `0${i}:00` : `${i}:00`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground text-xs">Окончание показов (Час):</label>
+                    <Select
+                      value={String(activeHoursEnd)}
+                      onValueChange={(val) => setActiveHoursEnd(parseInt(val, 10))}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }).map((_, i) => (
+                          <SelectItem key={i} value={String(i)}>
+                            {i < 10 ? `0${i}:00` : `${i}:00`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Peak Hours Boost */}
+                <div className="p-3 bg-muted/20 border rounded-xl flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <div className="font-semibold text-foreground text-xs flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Авто-повышение ставки в пиковые часы (12:00 - 20:00)
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Повышает ставку на +25% для победы в аукционе в часы наивысшей пользовательской активности
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      type="button"
+                      variant={peakHoursEnabled ? 'default' : 'outline'}
+                      onClick={() => setPeakHoursEnabled(!peakHoursEnabled)}
+                      className={`h-7 px-3 text-xs font-semibold ${peakHoursEnabled ? 'bg-amber-600 text-white' : ''}`}
+                    >
+                      {peakHoursEnabled ? 'Включено (+25%)' : 'Выключено'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Recent Smart Bidding Decision Logs */}
+              {biddingInfo?.recent_bids && biddingInfo.recent_bids.length > 0 && (
+                <div className="space-y-2 pt-2 border-t">
+                  <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <Activity className="h-3.5 w-3.5 text-emerald-500" /> Журнал аукционных решений Smart Bidding
+                  </h4>
+                  <div className="rounded-xl border overflow-x-auto">
+                    <table className="w-full text-left text-[11px]">
+                      <thead className="bg-muted/40 uppercase text-muted-foreground border-b text-[10px]">
+                        <tr>
+                          <th className="py-2 px-3">Время</th>
+                          <th className="py-2 px-3">Стратегия</th>
+                          <th className="py-2 px-3">Базовая</th>
+                          <th className="py-2 px-3">Расписание</th>
+                          <th className="py-2 px-3">Интент/CVR</th>
+                          <th className="py-2 px-3">Итоговая ставка</th>
+                          <th className="py-2 px-3">Причина</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {biddingInfo.recent_bids.slice(0, 8).map((bid) => (
+                          <tr key={bid.id} className="hover:bg-muted/30">
+                            <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">
+                              {new Date(bid.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </td>
+                            <td className="py-2 px-3 font-semibold uppercase">{bid.strategy}</td>
+                            <td className="py-2 px-3 font-mono">${bid.base_bid.toFixed(2)}</td>
+                            <td className="py-2 px-3 font-mono text-blue-600">{bid.schedule_multiplier}x</td>
+                            <td className="py-2 px-3 font-mono text-purple-600">{bid.cvr_multiplier}x</td>
+                            <td className="py-2 px-3 font-mono font-bold text-emerald-600">${bid.adjusted_bid.toFixed(4)}</td>
+                            <td className="py-2 px-3 text-muted-foreground truncate max-w-[180px]">{bid.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsBiddingModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveBiddingConfig}
+              disabled={savingBidding || loadingBidding}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {savingBidding ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
+              {savingBidding ? 'Сохранение...' : 'Сохранить стратегию и расписание'}
             </Button>
           </DialogFooter>
         </DialogContent>

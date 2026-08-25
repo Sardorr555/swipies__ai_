@@ -44,6 +44,7 @@ from api.db.db_models import (
     AdPublisherPayout,
     AdFraudLog,
     AdIpBlacklist,
+    AdBiddingLog,
     User,
     Tenant,
 )
@@ -353,12 +354,15 @@ class AdEngineService:
         user_region: str = "",
         user_city: str = "",
         ip_address: str = "",
+        now_dt: datetime = None,
+        query: str = "",
     ) -> dict | None:
         """
         Evaluate candidate ad campaigns for an incoming user prompt.
         Applies intent analysis, regional, language & model targeting, status/moderation checks,
         budget & balance verification, and frequency capping before ranking candidates.
         """
+        user_query = user_query or query
         if not user_query or not user_query.strip():
             return None
 
@@ -391,7 +395,8 @@ class AdEngineService:
         effective_city = user_city or geo_info.get("city", effective_region.capitalize())
         effective_country = geo_info.get("country", "UZ")
 
-        now_dt = datetime.now(timezone.utc)
+        if not now_dt:
+            now_dt = datetime.now(timezone.utc)
         now_ts = current_timestamp()
         day_start_ts = int(time.time() - (time.time() % 86400)) * 1000
 
@@ -415,17 +420,19 @@ class AdEngineService:
         for cmp in active_campaigns:
             adv = cmp.advertiser
 
-            # 1. Budget and Balance Gate & Smart Auto-Bidding Calculation
+            # 1. Dayparting Schedule & Smart Dynamic Bidding Gate
+            bid_calc = AdSmartBiddingService.calculate_smart_bid(
+                campaign=cmp,
+                clean_query=clean_query,
+                now_dt=now_dt,
+                log_decision=False,
+            )
+            if not bid_calc.get("active", True):
+                continue
+
+            cost_per_event = float(bid_calc.get("dynamic_bid", cmp.bid_amount or 0.10))
             is_cpa = getattr(cmp, "pricing_model", "cpc") == "cpa"
             target_cpa = float(getattr(cmp, "target_cpa", 0.0) or 0.0)
-
-            if is_cpa or target_cpa > 0:
-                # Smart CPA Auto-Bidding Formula: eCPC = Target CPA * max(0.01, Campaign CVR / 100.0)
-                raw_cvr = float(getattr(cmp, "conversion_rate", 0.0) or 2.5) / 100.0
-                calc_cpa = target_cpa if target_cpa > 0 else float(cmp.bid_amount or 5.0)
-                cost_per_event = round(max(0.05, min(calc_cpa * raw_cvr, 5.0)), 2)
-            else:
-                cost_per_event = float(cmp.bid_amount or 0.10)
 
             if not is_cpa and adv.balance < cost_per_event:
                 continue
@@ -565,6 +572,17 @@ class AdEngineService:
         # Sort candidates descending by total score
         candidates.sort(key=lambda x: x[0], reverse=True)
         winner_score, winner_campaign, cost = candidates[0]
+
+        # Log Smart Bidding auction win decision
+        try:
+            AdSmartBiddingService.calculate_smart_bid(
+                campaign=winner_campaign,
+                clean_query=clean_query,
+                now_dt=now_dt,
+                log_decision=True,
+            )
+        except Exception as e:
+            logger.debug(f"AdBiddingLog log error: {e}")
 
         # Select active variant (A/B testing with Bandit strategy) or fallback to campaign defaults
         selected_variant, ad_text, landing_url = AdVariantService.select_variant_for_impression(winner_campaign)
@@ -793,6 +811,8 @@ class AdEngineService:
 
         return campaign.landing_url or "https://swipies.app"
 
+    get_sponsored_recommendation = match_campaign_for_query
+
     @classmethod
     @DB.connection_context()
     def get_advertiser_dashboard(cls, user_id: str, tenant_id: str) -> dict:
@@ -836,6 +856,10 @@ class AdEngineService:
                 "total_spent": c.total_spent,
                 "pricing_model": c.pricing_model,
                 "bid_amount": c.bid_amount,
+                "bidding_strategy": getattr(c, "bidding_strategy", "manual_cpc") or "manual_cpc",
+                "target_cpa": float(getattr(c, "target_cpa", 0.0) or 0.0),
+                "schedule_timezone": getattr(c, "schedule_timezone", "UTC") or "UTC",
+                "schedule_config": getattr(c, "schedule_config", {}) or {},
                 "status": c.status,
                 "moderation_status": c.moderation_status,
                 "moderation_note": c.moderation_note or "",
@@ -3028,6 +3052,355 @@ class AdAntiFraudService(CommonService):
             "active_blacklist_count": active_blacklist_count,
             "recent_logs": recent_logs,
         }
+
+
+class AdSmartBiddingService:
+    KNOWN_STRATEGIES = {
+        "manual_cpc": {
+            "id": "manual_cpc",
+            "name": "Ручное управление (Manual CPC)",
+            "description": "Стабильная фиксированная ставка за клик с автоматической корректировкой по дням недели и часам (Dayparting).",
+            "badge": "Базовый",
+            "requires_cpa": False,
+        },
+        "enhanced_cpc": {
+            "id": "enhanced_cpc",
+            "name": "Оптимизатор клика (Enhanced CPC / eCPC)",
+            "description": "Автоматически повышает ставку до +30% при коммерческом намерении пользователя и понижает при информационных запросах.",
+            "badge": "Рекомендуется",
+            "requires_cpa": False,
+        },
+        "target_cpa": {
+            "id": "target_cpa",
+            "name": "Целевая стоимость конверсии (Target CPA)",
+            "description": "Алгоритмический расчет ставки за клик на основе вероятности конверсии (CVR) для удержания заданной стоимости лида.",
+            "badge": "Конверсии",
+            "requires_cpa": True,
+        },
+        "maximize_conversions": {
+            "id": "maximize_conversions",
+            "name": "Максимум конверсий (Maximize Conversions)",
+            "description": "Автоматическое ускорение ставок в активные часы суток для получения наибольшего числа конверсий в рамках дневного бюджета.",
+            "badge": "Автопилот",
+            "requires_cpa": False,
+        },
+    }
+
+    HIGH_INTENT_WORDS = {
+        "купить", "цена", "стоимость", "заказать", "прайс", "тариф", "подписка", "скидка", "купоны",
+        "акция", "приобрести", "оформить", "доставка", "магазин", "buy", "price", "order", "cost",
+        "discount", "deal", "promo", "pricing", "subscription", "purchase", "sotib", "narxi"
+    }
+
+    LOW_INTENT_WORDS = {
+        "что такое", "википедия", "бесплатно", "реферат", "картинки", "скачать бесплатно",
+        "free", "wiki", "definition", "manual", "guide"
+    }
+
+    @classmethod
+    def get_local_datetime(cls, now_dt: datetime = None, tz_name: str = "UTC") -> datetime:
+        """Converts datetime to campaign timezone."""
+        if not now_dt:
+            now_dt = datetime.now(timezone.utc)
+        elif now_dt.tzinfo is None:
+            now_dt = now_dt.replace(tzinfo=timezone.utc)
+
+        tz_name = (tz_name or "UTC").strip()
+        tz_offsets = {
+            "UTC": 0,
+            "GMT": 0,
+            "Asia/Tashkent": 5,
+            "Tashkent": 5,
+            "UZT": 5,
+            "Europe/Moscow": 3,
+            "Moscow": 3,
+            "MSK": 3,
+            "America/New_York": -5,
+            "EDT": -4,
+            "EST": -5,
+            "America/Los_Angeles": -8,
+            "PDT": -7,
+            "PST": -8,
+            "Europe/London": 0,
+            "BST": 1,
+            "Asia/Dubai": 4,
+            "Asia/Almaty": 5,
+            "Asia/Tokyo": 9,
+        }
+        offset_hours = tz_offsets.get(tz_name, 0)
+        return now_dt.astimezone(timezone(timedelta(hours=offset_hours)))
+
+    @classmethod
+    def is_in_schedule(cls, campaign: AdCampaign, now_dt: datetime = None) -> tuple[bool, float]:
+        """
+        Checks if the campaign is active according to its Dayparting schedule.
+        Returns (is_active, schedule_multiplier).
+        """
+        cfg = getattr(campaign, "schedule_config", {}) or {}
+        if not cfg or not isinstance(cfg, dict):
+            return True, 1.0
+
+        tz_name = getattr(campaign, "schedule_timezone", "UTC") or "UTC"
+        local_dt = cls.get_local_datetime(now_dt, tz_name)
+        day_of_week = local_dt.weekday()  # 0 = Monday, 6 = Sunday
+        hour = local_dt.hour  # 0..23
+
+        # 1. Enabled days check
+        enabled_days = cfg.get("enabled_days")
+        if enabled_days is not None and isinstance(enabled_days, list) and len(enabled_days) > 0:
+            if day_of_week not in enabled_days:
+                return False, 0.0
+
+        # 2. Active hours range check
+        start_hour = int(cfg.get("active_hours_start", 0) or 0)
+        end_hour = int(cfg.get("active_hours_end", 23) or 23)
+        if start_hour <= end_hour:
+            if not (start_hour <= hour <= end_hour):
+                return False, 0.0
+        else:
+            # Overnight schedule, e.g. 22:00 to 06:00
+            if not (hour >= start_hour or hour <= end_hour):
+                return False, 0.0
+
+        # 3. Hourly multipliers
+        hourly_mults = cfg.get("hourly_multipliers") or {}
+        if isinstance(hourly_mults, dict) and str(hour) in hourly_mults:
+            try:
+                mult = float(hourly_mults[str(hour)])
+                if mult <= 0.0:
+                    return False, 0.0
+                return True, mult
+            except (ValueError, TypeError):
+                pass
+
+        # 4. Peak hours boost
+        peak_hours = cfg.get("peak_hours") or []
+        if isinstance(peak_hours, list) and hour in peak_hours:
+            peak_mult = float(cfg.get("peak_hours_multiplier", 1.25) or 1.25)
+            return True, peak_mult
+
+        return True, 1.0
+
+    @classmethod
+    @DB.connection_context()
+    def calculate_smart_bid(
+        cls,
+        campaign: AdCampaign,
+        clean_query: str = "",
+        now_dt: datetime = None,
+        log_decision: bool = False,
+    ) -> dict:
+        """
+        Calculates dynamic bid based on bidding strategy, dayparting multiplier, intent keywords, and CVR.
+        """
+        strategy = getattr(campaign, "bidding_strategy", "manual_cpc") or "manual_cpc"
+        base_bid = float(campaign.bid_amount or 0.10)
+        daily_budget = float(campaign.daily_budget or 100.0)
+
+        # 1. Dayparting schedule evaluation
+        is_active, sched_mult = cls.is_in_schedule(campaign, now_dt)
+        if not is_active:
+            return {
+                "active": False,
+                "dynamic_bid": 0.0,
+                "base_bid": base_bid,
+                "schedule_multiplier": 0.0,
+                "cvr_multiplier": 0.0,
+                "estimated_cvr": 0.0,
+                "strategy": strategy,
+                "reason": "Outside scheduled active hours / days",
+            }
+
+        # 2. Historical conversion rate
+        cvr_metric = float(getattr(campaign, "conversion_rate", 0.0) or 0.0)
+        if cvr_metric <= 0.0:
+            try:
+                c_count = AdClick.select().where(AdClick.campaign_id == campaign.id).count()
+                conv_count = AdConversion.select().where(AdConversion.campaign_id == campaign.id).count()
+                cvr_metric = (conv_count / c_count) if c_count > 0 else 0.03
+            except Exception:
+                cvr_metric = 0.03
+        else:
+            cvr_metric = cvr_metric / 100.0 if cvr_metric > 1.0 else cvr_metric
+
+        estimated_cvr = max(0.005, min(0.50, cvr_metric))
+
+        # 3. Strategy evaluation
+        cvr_mult = 1.0
+        reason = "Manual CPC standard"
+
+        if strategy == "enhanced_cpc":
+            has_high_intent = any(hw in clean_query for hw in cls.HIGH_INTENT_WORDS) if clean_query else False
+            has_low_intent = any(lw in clean_query for lw in cls.LOW_INTENT_WORDS) if clean_query else False
+
+            if has_high_intent:
+                intent_boost = 1.30
+                reason = "Enhanced CPC (+30% commercial intent boost)"
+            elif has_low_intent:
+                intent_boost = 0.70
+                reason = "Enhanced CPC (-30% informational query reduction)"
+            else:
+                intent_boost = 1.0
+                reason = "Enhanced CPC (baseline intent)"
+
+            if estimated_cvr > 0.05:
+                intent_boost *= 1.15
+                reason += " + High CVR bonus"
+
+            cvr_mult = round(intent_boost, 2)
+            dynamic_bid = base_bid * sched_mult * cvr_mult
+
+        elif strategy == "target_cpa":
+            target_cpa = float(getattr(campaign, "target_cpa", 0.0) or 0.0)
+            if target_cpa <= 0.0:
+                target_cpa = max(1.0, base_bid * 10.0)
+            calculated_bid = target_cpa * estimated_cvr
+            cvr_mult = round(calculated_bid / max(0.01, base_bid), 2)
+            dynamic_bid = calculated_bid * sched_mult
+            reason = f"Target CPA auto-bid (${target_cpa:.2f} @ {estimated_cvr*100:.1f}% CVR)"
+
+        elif strategy == "maximize_conversions":
+            spent_today = float(getattr(campaign, "spent_today", 0.0) or 0.0)
+            budget_ratio = (spent_today / daily_budget) if daily_budget > 0 else 0.0
+            if budget_ratio < 0.60:
+                cvr_mult = 1.25
+                reason = "Maximize Conversions (+25% budget accelerator)"
+            else:
+                cvr_mult = 1.0
+                reason = "Maximize Conversions (standard pacing)"
+            dynamic_bid = base_bid * sched_mult * cvr_mult
+
+        else:  # manual_cpc
+            cvr_mult = 1.0
+            dynamic_bid = base_bid * sched_mult
+            reason = f"Manual CPC (Schedule multiplier: {sched_mult}x)"
+
+        max_cap = max(0.50, daily_budget if daily_budget > 0 else 100.0)
+        final_bid = round(max(0.01, min(max_cap, dynamic_bid)), 4)
+
+        if log_decision:
+            try:
+                AdBiddingLog.create(
+                    id=uuid.uuid4().hex[:32],
+                    campaign_id=campaign.id,
+                    advertiser_id=campaign.advertiser_id,
+                    strategy=strategy,
+                    base_bid=base_bid,
+                    adjusted_bid=final_bid,
+                    schedule_multiplier=sched_mult,
+                    cvr_multiplier=cvr_mult,
+                    estimated_cvr=estimated_cvr,
+                    reason=reason,
+                    query=(clean_query[:250] if clean_query else ""),
+                    create_time=current_timestamp(),
+                )
+            except Exception as e:
+                logger.warning(f"Failed to record AdBiddingLog: {e}")
+
+        return {
+            "active": True,
+            "dynamic_bid": final_bid,
+            "base_bid": base_bid,
+            "schedule_multiplier": sched_mult,
+            "cvr_multiplier": cvr_mult,
+            "estimated_cvr": estimated_cvr,
+            "strategy": strategy,
+            "reason": reason,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def update_campaign_bidding(
+        cls,
+        campaign_id: str,
+        advertiser_id: str,
+        bidding_strategy: str = None,
+        target_cpa: float = None,
+        schedule_timezone: str = None,
+        schedule_config: dict = None,
+    ) -> dict:
+        cmp = AdCampaign.get_or_none(
+            AdCampaign.id == campaign_id,
+            AdCampaign.advertiser_id == advertiser_id,
+        )
+        if not cmp:
+            raise ValueError("Кампания не найдена")
+
+        if bidding_strategy is not None:
+            if bidding_strategy not in cls.KNOWN_STRATEGIES:
+                raise ValueError(f"Неизвестная стратегия ставок: {bidding_strategy}")
+            cmp.bidding_strategy = bidding_strategy
+
+        if target_cpa is not None:
+            cmp.target_cpa = max(0.0, float(target_cpa))
+
+        if schedule_timezone is not None:
+            cmp.schedule_timezone = schedule_timezone
+
+        if schedule_config is not None and isinstance(schedule_config, dict):
+            cmp.schedule_config = schedule_config
+
+        cmp.update_time = current_timestamp()
+        cmp.save()
+
+        return cls.get_campaign_bidding_info(campaign_id, advertiser_id)
+
+    @classmethod
+    @DB.connection_context()
+    def get_campaign_bidding_info(cls, campaign_id: str, advertiser_id: str) -> dict:
+        cmp = AdCampaign.get_or_none(
+            AdCampaign.id == campaign_id,
+            AdCampaign.advertiser_id == advertiser_id,
+        )
+        if not cmp:
+            raise ValueError("Кампания не найдена")
+
+        now_dt = datetime.now(timezone.utc)
+        tz_name = getattr(cmp, "schedule_timezone", "UTC") or "UTC"
+        local_dt = cls.get_local_datetime(now_dt, tz_name)
+        is_active, current_mult = cls.is_in_schedule(cmp, now_dt)
+
+        # Recent bidding decision logs
+        recent_logs = list(
+            AdBiddingLog.select()
+            .where(AdBiddingLog.campaign_id == campaign_id)
+            .order_by(AdBiddingLog.create_time.desc())
+            .limit(20)
+        )
+
+        return {
+            "campaign_id": cmp.id,
+            "campaign_name": cmp.name,
+            "bidding_strategy": getattr(cmp, "bidding_strategy", "manual_cpc") or "manual_cpc",
+            "base_bid": float(cmp.bid_amount or 0.10),
+            "target_cpa": float(getattr(cmp, "target_cpa", 0.0) or 0.0),
+            "schedule_timezone": tz_name,
+            "schedule_config": getattr(cmp, "schedule_config", {}) or {},
+            "current_status": {
+                "is_active_now": is_active,
+                "current_multiplier": current_mult,
+                "local_time": local_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                "local_day": local_dt.strftime("%A"),
+                "local_hour": local_dt.hour,
+            },
+            "recent_bids": [{
+                "id": b.id,
+                "strategy": b.strategy,
+                "base_bid": b.base_bid,
+                "adjusted_bid": b.adjusted_bid,
+                "schedule_multiplier": b.schedule_multiplier,
+                "cvr_multiplier": b.cvr_multiplier,
+                "estimated_cvr": b.estimated_cvr,
+                "reason": b.reason,
+                "query": b.query,
+                "create_time": b.create_time,
+            } for b in recent_logs],
+        }
+
+    @classmethod
+    def list_strategies(cls) -> list:
+        return list(cls.KNOWN_STRATEGIES.values())
+
 
 
 

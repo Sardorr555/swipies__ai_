@@ -287,6 +287,7 @@ from api.db.db_models import (
     AdPublisherPayout,
     AdFraudLog,
     AdIpBlacklist,
+    AdBiddingLog,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -306,6 +307,7 @@ from api.db.services.ad_engine_service import (
     AdEngineService,
     AdPublisherService,
     AdAntiFraudService,
+    AdSmartBiddingService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -355,6 +357,7 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdPublisherPayout,
             AdFraudLog,
             AdIpBlacklist,
+            AdBiddingLog,
         ]
         for m in models:
             m._meta.database = test_db
@@ -410,6 +413,7 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdPublisherPayout,
             AdFraudLog,
             AdIpBlacklist,
+            AdBiddingLog,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -2524,9 +2528,239 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertTrue(rev_ok)
         self.assertFalse(AdAntiFraudService.is_ip_blacklisted("198.51.100.25", advertiser_id=adv.id))
 
+    def test_24_smart_bidding_and_dayparting_schedule(self):
+        """Test Phase 22: Smart Bidding (eCPC, Target CPA, Maximize Conversions) and Dayparting Schedules."""
+        adv = AdvertiserService.get_or_create_for_user(user_id="adv_smart_bid_user", tenant_id="t_smart_bid")
+        adv.balance = 500.0
+        adv.save()
+
+        # 1. Test strategy catalogue
+        strategies = AdSmartBiddingService.list_strategies()
+        strat_ids = [s["id"] for s in strategies]
+        self.assertIn("manual_cpc", strat_ids)
+        self.assertIn("enhanced_cpc", strat_ids)
+        self.assertIn("target_cpa", strat_ids)
+        self.assertIn("maximize_conversions", strat_ids)
+
+        # 2. Test Timezone calculation helper
+        # Monday 2026-08-24 10:00:00 UTC
+        fixed_utc = datetime(2026, 8, 24, 10, 0, 0, tzinfo=timezone.utc)
+        local_tashkent = AdSmartBiddingService.get_local_datetime(fixed_utc, "Asia/Tashkent")
+        self.assertEqual(local_tashkent.hour, 15)  # 10 + 5 = 15:00
+        self.assertEqual(local_tashkent.weekday(), 0)  # Monday
+
+        local_nyc = AdSmartBiddingService.get_local_datetime(fixed_utc, "America/New_York")
+        self.assertEqual(local_nyc.hour, 5)  # 10 - 5 = 05:00
+
+        # 3. Create Campaign with Dayparting Schedule
+        cmp_schedule = AdCampaign.create(
+            id="cmp_sched_test",
+            advertiser_id=adv.id,
+            name="Work Hours Only Campaign",
+            product_name="Corporate ERP",
+            advertisement_text="Best ERP for enterprise businesses",
+            landing_url="https://erp.example.com",
+            keywords=["erp", "business", "crm", "enterprise"],
+            target_categories=["business"],
+            daily_budget=50.0,
+            total_budget=500.0,
+            pricing_model="cpc",
+            bid_amount=0.50,
+            bidding_strategy="manual_cpc",
+            schedule_timezone="Asia/Tashkent",
+            schedule_config={
+                "enabled_days": [0, 1, 2, 3, 4],  # Mon-Fri
+                "active_hours_start": 9,
+                "active_hours_end": 18,
+                "peak_hours": [14, 15, 16],
+                "peak_hours_multiplier": 1.30,
+            },
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # 3.1 Monday 15:00 in Tashkent (10:00 UTC) -> Active and in peak hours!
+        is_active, mult = AdSmartBiddingService.is_in_schedule(cmp_schedule, fixed_utc)
+        self.assertTrue(is_active)
+        self.assertAlmostEqual(mult, 1.30)
+
+        # 3.2 Monday 22:00 in Tashkent (17:00 UTC) -> Outside active hours (9-18)
+        night_utc = datetime(2026, 8, 24, 17, 0, 0, tzinfo=timezone.utc)
+        is_active_night, mult_night = AdSmartBiddingService.is_in_schedule(cmp_schedule, night_utc)
+        self.assertFalse(is_active_night)
+        self.assertEqual(mult_night, 0.0)
+
+        # 3.3 Sunday 15:00 in Tashkent (Sunday 10:00 UTC, 2026-08-23) -> Disabled day
+        sunday_utc = datetime(2026, 8, 23, 10, 0, 0, tzinfo=timezone.utc)
+        is_active_sun, mult_sun = AdSmartBiddingService.is_in_schedule(cmp_schedule, sunday_utc)
+        self.assertFalse(is_active_sun)
+
+        # 4. Test Enhanced CPC (eCPC) Intent Modifiers
+        cmp_ecpc = AdCampaign.create(
+            id="cmp_ecpc_test",
+            advertiser_id=adv.id,
+            name="Smart eCPC Campaign",
+            product_name="Cloud Hosting",
+            advertisement_text="High performance SSD cloud servers",
+            landing_url="https://cloud.example.com",
+            keywords=["cloud", "hosting", "server", "vps"],
+            target_categories=["tech"],
+            daily_budget=100.0,
+            total_budget=1000.0,
+            pricing_model="cpc",
+            bid_amount=0.40,
+            bidding_strategy="enhanced_cpc",
+            schedule_timezone="UTC",
+            schedule_config={},
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # High intent query ("купить быстрый vps cloud server") -> +30% boost -> $0.40 * 1.30 = $0.52
+        bid_high = AdSmartBiddingService.calculate_smart_bid(
+            campaign=cmp_ecpc,
+            clean_query="хочу купить быстрый vps cloud hosting",
+            now_dt=fixed_utc,
+        )
+        self.assertTrue(bid_high["active"])
+        self.assertAlmostEqual(bid_high["dynamic_bid"], 0.52, places=2)
+        self.assertEqual(bid_high["cvr_multiplier"], 1.30)
+        self.assertIn("commercial intent", bid_high["reason"])
+
+        # Low intent query ("что такое cloud vps free wiki") -> -30% reduction -> $0.40 * 0.70 = $0.28
+        bid_low = AdSmartBiddingService.calculate_smart_bid(
+            campaign=cmp_ecpc,
+            clean_query="что такое cloud hosting wiki",
+            now_dt=fixed_utc,
+        )
+        self.assertTrue(bid_low["active"])
+        self.assertAlmostEqual(bid_low["dynamic_bid"], 0.28, places=2)
+        self.assertEqual(bid_low["cvr_multiplier"], 0.70)
+
+        # 5. Test Target CPA Auto-Bidding
+        cmp_tcpa = AdCampaign.create(
+            id="cmp_tcpa_test",
+            advertiser_id=adv.id,
+            name="Target CPA Auto-Bid Campaign",
+            product_name="Accounting SaaS",
+            advertisement_text="Automate your taxes and accounting",
+            landing_url="https://tax.example.com",
+            keywords=["accounting", "tax", "audit", "saas"],
+            target_categories=["finance"],
+            daily_budget=200.0,
+            total_budget=2000.0,
+            pricing_model="cpc",
+            bid_amount=0.20,
+            bidding_strategy="target_cpa",
+            target_cpa=15.0,  # $15 CPA target
+            conversion_rate=4.0,  # 4% historical CVR
+            schedule_timezone="UTC",
+            schedule_config={},
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # Target CPA Bid = $15 * 0.04 = $0.60
+        bid_tcpa = AdSmartBiddingService.calculate_smart_bid(
+            campaign=cmp_tcpa,
+            clean_query="accounting software pricing",
+            now_dt=fixed_utc,
+        )
+        self.assertTrue(bid_tcpa["active"])
+        self.assertAlmostEqual(bid_tcpa["dynamic_bid"], 0.60, places=2)
+        self.assertIn("Target CPA auto-bid", bid_tcpa["reason"])
+
+        # 6. Test Maximize Conversions Strategy
+        cmp_max_conv = AdCampaign.create(
+            id="cmp_maxconv_test",
+            advertiser_id=adv.id,
+            name="Maximize Conversions Campaign",
+            product_name="Design Tools",
+            advertisement_text="UI/UX Pro Design Toolkit",
+            landing_url="https://design.example.com",
+            keywords=["design", "ui", "ux", "figma"],
+            target_categories=["design"],
+            daily_budget=100.0,
+            total_budget=1000.0,
+            spent_today=10.0,  # Low spend so far (< 60%) -> +25% boost
+            pricing_model="cpc",
+            bid_amount=0.80,
+            bidding_strategy="maximize_conversions",
+            schedule_timezone="UTC",
+            schedule_config={},
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        bid_max = AdSmartBiddingService.calculate_smart_bid(
+            campaign=cmp_max_conv,
+            clean_query="best design ui tool",
+            now_dt=fixed_utc,
+        )
+        self.assertTrue(bid_max["active"])
+        self.assertAlmostEqual(bid_max["dynamic_bid"], 1.00, places=2)  # $0.80 * 1.25 = $1.00
+        self.assertEqual(bid_max["cvr_multiplier"], 1.25)
+
+        # 7. Test Auction with Smart Bidding & Dayparting Gate in AdEngineService
+        # 7.1 When time is Sunday (outside schedule of cmp_schedule), cmp_schedule is NOT recommended
+        res_sun = AdEngineService.get_sponsored_recommendation(
+            query="best enterprise corporate erp business software",
+            user_id="test_user_sched",
+            lang="en",
+            now_dt=sunday_utc,
+        )
+        # Should not match cmp_schedule because Sunday is disabled
+        if res_sun:
+            self.assertNotEqual(res_sun["campaign_id"], cmp_schedule.id)
+
+        # 7.2 When time is Monday 10:00 UTC (15:00 Tashkent), cmp_schedule is active and matched
+        res_mon = AdEngineService.get_sponsored_recommendation(
+            query="best enterprise corporate erp business software",
+            user_id="test_user_sched_mon",
+            lang="en",
+            now_dt=fixed_utc,
+        )
+        self.assertIsNotNone(res_mon)
+        self.assertEqual(res_mon["campaign_id"], cmp_schedule.id)
+
+        # Verify AdBiddingLog was recorded for the auction win
+        bid_log = AdBiddingLog.get_or_none(AdBiddingLog.campaign_id == cmp_schedule.id)
+        self.assertIsNotNone(bid_log)
+        self.assertEqual(bid_log.strategy, "manual_cpc")
+        self.assertAlmostEqual(bid_log.schedule_multiplier, 1.30)
+
+        # 8. Test Update and Get Campaign Bidding Info
+        updated_info = AdSmartBiddingService.update_campaign_bidding(
+            campaign_id=cmp_schedule.id,
+            advertiser_id=adv.id,
+            bidding_strategy="enhanced_cpc",
+            target_cpa=25.0,
+            schedule_timezone="Europe/Moscow",
+            schedule_config={
+                "enabled_days": [0, 1, 2, 3, 4, 5, 6],
+                "active_hours_start": 8,
+                "active_hours_end": 22,
+                "hourly_multipliers": {"12": 1.40, "13": 1.40},
+            },
+        )
+        self.assertEqual(updated_info["bidding_strategy"], "enhanced_cpc")
+        self.assertEqual(updated_info["schedule_timezone"], "Europe/Moscow")
+        self.assertEqual(updated_info["target_cpa"], 25.0)
+        self.assertEqual(updated_info["schedule_config"]["active_hours_end"], 22)
+        self.assertGreaterEqual(len(updated_info["recent_bids"]), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 
