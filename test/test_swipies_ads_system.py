@@ -285,6 +285,8 @@ from api.db.db_models import (
     AdPublisher,
     AdPlacement,
     AdPublisherPayout,
+    AdFraudLog,
+    AdIpBlacklist,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -303,6 +305,7 @@ from api.db.services.ad_engine_service import (
     AdSettingsService,
     AdEngineService,
     AdPublisherService,
+    AdAntiFraudService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -350,6 +353,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdPublisher,
             AdPlacement,
             AdPublisherPayout,
+            AdFraudLog,
+            AdIpBlacklist,
         ]
         for m in models:
             m._meta.database = test_db
@@ -403,6 +408,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdPublisher,
             AdPlacement,
             AdPublisherPayout,
+            AdFraudLog,
+            AdIpBlacklist,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -412,6 +419,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
                 pass
 
     def setUp(self):
+        AdFraudLog.delete().execute()
+        AdIpBlacklist.delete().execute()
         AdPublisherPayout.delete().execute()
         AdPlacement.delete().execute()
         AdPublisher.delete().execute()
@@ -2344,6 +2353,176 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertTrue(del_ok)
         placements_after_del = AdPublisherService.list_placements(publisher_id=pub.id)
         self.assertFalse(any(p["id"] == plc["id"] for p in placements_after_del))
+
+    def test_23_anti_fraud_and_invalid_traffic_protection(self):
+        """Phase 21: Test Click Fraud Detection, Bot Filtering, IP Blacklist & Automated Fraud Protection."""
+        # 1. Advertiser and Campaign Setup
+        adv = Advertiser.create(
+            id=uuid.uuid4().hex[:32],
+            user_id="u_antifraud_test",
+            tenant_id="t_antifraud_test",
+            company_name="SafeAds Corp",
+            balance=100.0,
+            currency="USD",
+            create_time=current_timestamp(),
+        )
+
+        cmp = AdCampaign.create(
+            id=uuid.uuid4().hex[:32],
+            advertiser_id=adv.id,
+            name="Anti-Fraud Protected Campaign",
+            product_name="Secure VPN Cloud",
+            advertisement_text="Secure your cloud traffic.",
+            landing_url="https://vpn.example.com/promo",
+            target_categories=["security", "vpn"],
+            keywords=["vpn", "security", "protect"],
+            daily_budget=50.0,
+            total_budget=500.0,
+            spent_today=0.0,
+            total_spent=0.0,
+            pricing_model="cpc",
+            bid_amount=0.50,
+            priority=5,
+            status="active",
+            moderation_status="approved",
+            create_time=current_timestamp(),
+        )
+
+        # 2. Test Bot User-Agent Detection
+        self.assertTrue(AdAntiFraudService.is_bot_user_agent("python-requests/2.31.0"))
+        self.assertTrue(AdAntiFraudService.is_bot_user_agent("curl/7.68.0"))
+        self.assertTrue(AdAntiFraudService.is_bot_user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 HeadlessChrome/118.0"))
+        self.assertTrue(AdAntiFraudService.is_bot_user_agent("Scrapy/2.11.0 (+https://scrapy.org)"))
+        self.assertFalse(AdAntiFraudService.is_bot_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"))
+
+        # 3. Test IP Blacklist Management
+        bl_res = AdAntiFraudService.add_to_blacklist(
+            ip_address="198.51.100.25",
+            advertiser_id=adv.id,
+            reason="Repeated click bot attacks",
+            duration_hours=48,
+        )
+        self.assertTrue(bl_res["success"])
+        self.assertTrue(AdAntiFraudService.is_ip_blacklisted("198.51.100.25", advertiser_id=adv.id))
+        self.assertFalse(AdAntiFraudService.is_ip_blacklisted("84.54.80.1", advertiser_id=adv.id))
+
+        bl_list = AdAntiFraudService.list_blacklist(advertiser_id=adv.id)
+        self.assertEqual(len(bl_list), 1)
+        self.assertEqual(bl_list[0]["ip_address"], "198.51.100.25")
+
+        # 4. Test Legitimate Human Click (Should Be Billed)
+        human_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+        url1 = AdEngineService.track_click(
+            click_token=cmp.id,
+            user_id="user_human_1",
+            ip_hash="hash_clean_human_1",
+            user_agent=human_ua,
+            raw_ip="84.54.80.1",
+        )
+        self.assertEqual(url1, "https://vpn.example.com/promo")
+
+        adv_refreshed = Advertiser.get_by_id(adv.id)
+        self.assertEqual(adv_refreshed.balance, 99.50)  # 100.0 - 0.50
+        clicks_count = AdClick.select().where(AdClick.campaign_id == cmp.id).count()
+        self.assertEqual(clicks_count, 1)
+
+        # 5. Test Bot Click (Should Be Blocked and NOT Billed)
+        url_bot = AdEngineService.track_click(
+            click_token=cmp.id,
+            user_id="bot_user",
+            ip_hash="hash_bot_crawler",
+            user_agent="python-requests/2.31.0",
+            raw_ip="185.220.101.5",
+        )
+        self.assertEqual(url_bot, "https://vpn.example.com/promo")
+
+        adv_after_bot = Advertiser.get_by_id(adv.id)
+        self.assertEqual(adv_after_bot.balance, 99.50)  # Unchanged!
+        self.assertEqual(AdClick.select().where(AdClick.campaign_id == cmp.id).count(), 1)  # No new billable click!
+
+        fraud_log_bot = AdFraudLog.get_or_none(AdFraudLog.reason == "bot_user_agent", AdFraudLog.advertiser_id == adv.id)
+        self.assertIsNotNone(fraud_log_bot)
+        self.assertEqual(fraud_log_bot.cost_saved, 0.50)
+
+        # 6. Test Blacklisted IP Click (Should Be Blocked)
+        url_bl = AdEngineService.track_click(
+            click_token=cmp.id,
+            user_id="anon_hacker",
+            ip_hash="hash_blacklisted_ip",
+            user_agent=human_ua,
+            raw_ip="198.51.100.25",  # Blacklisted above!
+        )
+        self.assertEqual(url_bl, "https://vpn.example.com/promo")
+
+        adv_after_bl = Advertiser.get_by_id(adv.id)
+        self.assertEqual(adv_after_bl.balance, 99.50)  # Unchanged!
+
+        fraud_log_bl = AdFraudLog.get_or_none(AdFraudLog.reason == "blacklist_ip", AdFraudLog.advertiser_id == adv.id)
+        self.assertIsNotNone(fraud_log_bl)
+        self.assertEqual(fraud_log_bl.cost_saved, 0.50)
+
+        # 7. Test Rapid Repeat Clicks Detection (Rate Limiting)
+        # Create 2 clicks from same hash
+        AdClick.create(
+            id=uuid.uuid4().hex[:32],
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            user_id="clicker_1",
+            cost=0.50,
+            ip_hash="rapid_hash_target",
+            language="ru",
+            model_name="gpt-4o",
+            device_type="desktop",
+            platform="web",
+            region="tashkent",
+            city="Tashkent",
+            country="UZ",
+            create_time=current_timestamp(),
+        )
+        AdClick.create(
+            id=uuid.uuid4().hex[:32],
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            user_id="clicker_2",
+            cost=0.50,
+            ip_hash="rapid_hash_target",
+            language="ru",
+            model_name="gpt-4o",
+            device_type="desktop",
+            platform="web",
+            region="tashkent",
+            city="Tashkent",
+            country="UZ",
+            create_time=current_timestamp(),
+        )
+
+        # 3rd click from same ip_hash within 60s should be blocked as rapid_repeat_clicks
+        url_rapid = AdEngineService.track_click(
+            click_token=cmp.id,
+            user_id="clicker_3",
+            ip_hash="rapid_hash_target",
+            user_agent=human_ua,
+            raw_ip="84.54.80.200",
+        )
+        self.assertEqual(url_rapid, "https://vpn.example.com/promo")
+
+        fraud_log_rapid = AdFraudLog.get_or_none(AdFraudLog.reason == "rapid_repeat_clicks", AdFraudLog.advertiser_id == adv.id)
+        self.assertIsNotNone(fraud_log_rapid)
+
+        # 8. Test Fraud Overview Summary
+        overview = AdAntiFraudService.get_fraud_overview(advertiser_id=adv.id)
+        self.assertGreaterEqual(overview["total_blocked_clicks"], 3)
+        self.assertGreaterEqual(overview["total_cost_saved"], 1.50)
+        self.assertEqual(overview["bot_detections"], 1)
+        self.assertEqual(overview["blacklist_blocks"], 1)
+        self.assertEqual(overview["rate_limit_blocks"], 1)
+        self.assertEqual(overview["active_blacklist_count"], 1)
+        self.assertGreaterEqual(len(overview["recent_logs"]), 3)
+
+        # 9. Remove from blacklist
+        rev_ok = AdAntiFraudService.remove_from_blacklist(blacklist_id=bl_res["id"], advertiser_id=adv.id)
+        self.assertTrue(rev_ok)
+        self.assertFalse(AdAntiFraudService.is_ip_blacklisted("198.51.100.25", advertiser_id=adv.id))
 
 
 if __name__ == "__main__":

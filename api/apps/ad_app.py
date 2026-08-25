@@ -32,6 +32,8 @@ from api.db.db_models import (
     AdClick,
     AdTransaction,
     AdSettings,
+    AdFraudLog,
+    AdIpBlacklist,
     PromoCode,
     PromoCodeUsage,
     User,
@@ -46,6 +48,7 @@ from api.db.services.ad_engine_service import (
     AdSettingsService,
     AdEngineService,
     AttributionService,
+    AdAntiFraudService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.promo_code_service import PromoCodeService
@@ -1195,11 +1198,14 @@ async def click_redirect(click_token):
     """Public redirect handler that tracks click metrics and forwards to sponsor URL."""
     try:
         client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+        user_agent = request.headers.get("User-Agent", "")
         ip_hash = hashlib.sha256(client_ip.encode("utf-8")).hexdigest()[:32] if client_ip else ""
 
         target_url = AdEngineService.track_click(
             click_token=click_token,
             ip_hash=ip_hash,
+            user_agent=user_agent,
+            raw_ip=client_ip,
         )
         return redirect(target_url, code=302)
     except Exception as e:
@@ -1819,6 +1825,81 @@ def admin_process_subscription_renewals():
         return get_json_result(data=res)
     except Exception as e:
         logger.exception(f"Error processing subscription renewals: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
+# 5. Anti-Fraud & Invalid Traffic (IVT) Endpoints
+# ==========================================
+
+@manager.route("/fraud/overview", methods=["GET"])
+@login_required
+async def get_fraud_overview():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        data = AdAntiFraudService.get_fraud_overview(advertiser_id=adv.id)
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error fetching fraud overview: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/fraud/blacklist", methods=["GET"])
+@login_required
+async def list_fraud_blacklist():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        data = AdAntiFraudService.list_blacklist(advertiser_id=adv.id)
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error listing IP blacklist: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/fraud/blacklist", methods=["POST"])
+@login_required
+async def add_fraud_blacklist():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        req = await get_request_json() or {}
+        ip_address = req.get("ip_address", "").strip()
+        reason = req.get("reason", "Suspicious automated click activity").strip()
+        duration_hours = int(req.get("duration_hours", 72))
+
+        if not ip_address:
+            return get_json_result(data=False, message="IP-адрес или подсеть обязательны для заполнения", code=RetCode.ARGUMENT_ERROR)
+
+        res = AdAntiFraudService.add_to_blacklist(
+            ip_address=ip_address,
+            advertiser_id=adv.id,
+            reason=reason,
+            duration_hours=duration_hours,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error adding IP to blacklist: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/fraud/blacklist/<blacklist_id>", methods=["DELETE"])
+@login_required
+async def remove_fraud_blacklist(blacklist_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        success = AdAntiFraudService.remove_from_blacklist(blacklist_id=blacklist_id, advertiser_id=adv.id)
+        if not success:
+            return get_data_error_result(message="Blacklist entry not found")
+        return get_json_result(data={"deleted": True})
+    except Exception as e:
+        logger.exception(f"Error removing IP from blacklist: {e}")
         return get_data_error_result(message=str(e))
 
 

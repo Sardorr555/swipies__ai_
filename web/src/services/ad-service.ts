@@ -269,7 +269,49 @@ const adService = {
     request.get<ResponseData<PublisherPayoutItem[]>>('/ads/publisher/payouts'),
   requestPublisherPayout: (data: { amount: number; destination_card: string; destination_holder?: string }) =>
     request.post<ResponseData<PublisherPayoutItem>>('/ads/publisher/payouts', { data }),
+  // Anti-Fraud & IVT Protection
+  getFraudOverview: () =>
+    request.get<ResponseData<FraudOverviewData>>('/ads/fraud/overview'),
+  getFraudBlacklist: () =>
+    request.get<ResponseData<BlacklistEntryItem[]>>('/ads/fraud/blacklist'),
+  addFraudBlacklist: (data: { ip_address: string; reason?: string; duration_hours?: number }) =>
+    request.post<ResponseData<BlacklistEntryItem>>('/ads/fraud/blacklist', { data }),
+  removeFraudBlacklist: (blacklistId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/fraud/blacklist/${blacklistId}`),
 };
+
+export interface FraudOverviewData {
+  total_blocked_clicks: number;
+  total_cost_saved: number;
+  bot_detections: number;
+  rate_limit_blocks: number;
+  blacklist_blocks: number;
+  active_blacklist_count: number;
+  recent_logs: FraudIncidentLogItem[];
+}
+
+export interface FraudIncidentLogItem {
+  id: string;
+  campaign_id: string;
+  campaign_name: string;
+  event_type: string;
+  reason: string;
+  ip_hash: string;
+  user_agent: string;
+  cost_saved: number;
+  create_time: number;
+}
+
+export interface BlacklistEntryItem {
+  id: string;
+  ip_address: string;
+  advertiser_id?: string;
+  is_system: boolean;
+  reason: string;
+  auto_expires_at?: number;
+  status: string;
+  create_time: number;
+}
 
 export interface PublisherProfileData {
   id: string;

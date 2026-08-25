@@ -42,6 +42,8 @@ from api.db.db_models import (
     AdPublisher,
     AdPlacement,
     AdPublisherPayout,
+    AdFraudLog,
+    AdIpBlacklist,
     User,
     Tenant,
 )
@@ -639,10 +641,10 @@ class AdEngineService:
 
     @classmethod
     @DB.connection_context()
-    def track_click(cls, click_token: str, user_id: str = "", ip_hash: str = "") -> str:
+    def track_click(cls, click_token: str, user_id: str = "", ip_hash: str = "", user_agent: str = "", raw_ip: str = "") -> str:
         """
         Record unique click for campaign, deduct CPC bid from advertiser balance,
-        and return destination landing URL.
+        and return destination landing URL. Validates against Click Fraud & Bot Traffic.
         """
         if not click_token:
             return "https://swipies.app"
@@ -711,8 +713,27 @@ class AdEngineService:
         if not campaign:
             return "https://swipies.app"
 
+        variant_obj = None
+        if target_variant_id and target_variant_id != "main":
+            variant_obj = AdVariant.get_or_none(AdVariant.id == target_variant_id)
+
         now_ts = current_timestamp()
         cost = float(campaign.bid_amount or 0.10) if campaign.pricing_model == "cpc" else 0.0
+
+        # Anti-Fraud & Invalid Traffic (IVT) Validation
+        is_valid, fraud_reason = AdAntiFraudService.validate_click(
+            campaign=campaign,
+            click_token=click_token,
+            ip_address=raw_ip,
+            ip_hash=ip_hash,
+            user_agent=user_agent,
+            cost=cost,
+        )
+        if not is_valid:
+            logger.info(f"Invalid click blocked on campaign {campaign.id}: reason={fraud_reason}, ip={raw_ip or ip_hash}")
+            if variant_obj and variant_obj.landing_url:
+                return variant_obj.landing_url
+            return campaign.landing_url or "https://swipies.app"
 
         # Check deduplication within 1 hour
         one_hour_ago = now_ts - (3600 * 1000)
@@ -721,10 +742,6 @@ class AdEngineService:
             AdClick.impression_id == impression_id,
             AdClick.create_time >= one_hour_ago,
         ).first()
-
-        variant_obj = None
-        if target_variant_id and target_variant_id != "main":
-            variant_obj = AdVariant.get_or_none(AdVariant.id == target_variant_id)
 
         if not recent_click:
             click_id = uuid.uuid4().hex[:32]
@@ -2734,6 +2751,282 @@ class AdPublisherService:
             },
             "publisher_earnings": pub_earnings,
             "rev_share_rate": rev_share_rate,
+        }
+
+
+class AdAntiFraudService(CommonService):
+    """
+    Anti-Fraud & Invalid Traffic (IVT) Protection Engine.
+    Detects click fraud, bot signatures, datacenter scrapers, rapid repeat clicks, and enforces IP blacklists.
+    """
+    KNOWN_BOT_SIGNATURES = [
+        "bot", "spider", "crawl", "curl", "wget", "python-requests", "aiohttp",
+        "urllib", "scrapy", "selenium", "puppeteer", "playwright", "headless",
+        "phantomjs", "go-http-client", "apache-httpclient", "java/", "postmanruntime",
+        "insomnia", "httpclient", "bytespider", "yandexbot", "googlebot"
+    ]
+
+    @classmethod
+    def is_bot_user_agent(cls, user_agent: str) -> bool:
+        if not user_agent:
+            return False
+        ua_lower = user_agent.lower()
+        return any(sig in ua_lower for sig in cls.KNOWN_BOT_SIGNATURES)
+
+    @classmethod
+    @DB.connection_context()
+    def is_ip_blacklisted(cls, ip_address: str, advertiser_id: str = None) -> bool:
+        if not ip_address:
+            return False
+        now_ts = current_timestamp()
+
+        query = AdIpBlacklist.select().where(
+            (AdIpBlacklist.status == "active") &
+            (
+                (AdIpBlacklist.auto_expires_at.is_null()) |
+                (AdIpBlacklist.auto_expires_at > now_ts)
+            )
+        )
+        if advertiser_id:
+            query = query.where(
+                (AdIpBlacklist.advertiser_id == advertiser_id) |
+                (AdIpBlacklist.advertiser_id.is_null()) |
+                (AdIpBlacklist.advertiser_id == "system")
+            )
+
+        for entry in query:
+            blocked_ip = entry.ip_address.strip()
+            if blocked_ip == ip_address.strip():
+                return True
+            if blocked_ip.endswith("*") and ip_address.startswith(blocked_ip[:-1]):
+                return True
+            if "/" in blocked_ip:
+                try:
+                    import ipaddress
+                    if ipaddress.ip_address(ip_address) in ipaddress.ip_network(blocked_ip, strict=False):
+                        return True
+                except Exception:
+                    pass
+        return False
+
+    @classmethod
+    @DB.connection_context()
+    def add_to_blacklist(cls, ip_address: str, advertiser_id: str = None, reason: str = "Suspicious automated click activity", duration_hours: int = 72) -> dict:
+        if not ip_address:
+            return {"success": False, "message": "IP address is required"}
+
+        now_ts = current_timestamp()
+        expires_at = (now_ts + duration_hours * 3600 * 1000) if duration_hours > 0 else None
+
+        entry = AdIpBlacklist.get_or_none(
+            AdIpBlacklist.ip_address == ip_address.strip(),
+            AdIpBlacklist.advertiser_id == advertiser_id,
+        )
+        if entry:
+            entry.status = "active"
+            entry.reason = reason
+            entry.auto_expires_at = expires_at
+            entry.update_time = now_ts
+            entry.save()
+        else:
+            entry = AdIpBlacklist.create(
+                id=uuid.uuid4().hex[:32],
+                advertiser_id=advertiser_id,
+                ip_address=ip_address.strip(),
+                reason=reason,
+                auto_expires_at=expires_at,
+                status="active",
+                create_time=now_ts,
+                update_time=now_ts,
+            )
+        return {
+            "success": True,
+            "id": entry.id,
+            "ip_address": entry.ip_address,
+            "reason": entry.reason,
+            "auto_expires_at": entry.auto_expires_at,
+            "status": entry.status,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def remove_from_blacklist(cls, blacklist_id: str, advertiser_id: str = None) -> bool:
+        query = AdIpBlacklist.select().where(AdIpBlacklist.id == blacklist_id)
+        if advertiser_id:
+            query = query.where(AdIpBlacklist.advertiser_id == advertiser_id)
+        entry = query.first()
+        if not entry:
+            return False
+        entry.status = "revoked"
+        entry.update_time = current_timestamp()
+        entry.save()
+        return True
+
+    @classmethod
+    @DB.connection_context()
+    def list_blacklist(cls, advertiser_id: str) -> list:
+        now_ts = current_timestamp()
+        entries = list(
+            AdIpBlacklist.select()
+            .where(
+                ((AdIpBlacklist.advertiser_id == advertiser_id) | (AdIpBlacklist.advertiser_id.is_null()) | (AdIpBlacklist.advertiser_id == "system")) &
+                (AdIpBlacklist.status == "active") &
+                ((AdIpBlacklist.auto_expires_at.is_null()) | (AdIpBlacklist.auto_expires_at > now_ts))
+            )
+            .order_by(AdIpBlacklist.create_time.desc())
+        )
+        return [{
+            "id": e.id,
+            "ip_address": e.ip_address,
+            "advertiser_id": e.advertiser_id,
+            "is_system": e.advertiser_id in [None, "system"],
+            "reason": e.reason,
+            "auto_expires_at": e.auto_expires_at,
+            "status": e.status,
+            "create_time": e.create_time,
+        } for e in entries]
+
+    @classmethod
+    @DB.connection_context()
+    def validate_click(
+        cls,
+        campaign: AdCampaign,
+        click_token: str = "",
+        ip_address: str = "",
+        ip_hash: str = "",
+        user_agent: str = "",
+        cost: float = 0.0,
+    ) -> tuple:
+        """
+        Runs comprehensive anti-fraud tests on incoming click:
+        1. Bot User-Agent detection.
+        2. Blacklisted IP check.
+        3. Rapid repeat clicks rate-limiting from same IP/hash (threshold: >2 clicks in 60s).
+        Returns (is_valid: bool, reason: str).
+        """
+        now_ts = current_timestamp()
+        adv_id = campaign.advertiser_id
+
+        # 1. Bot check
+        if cls.is_bot_user_agent(user_agent):
+            AdFraudLog.create(
+                id=uuid.uuid4().hex[:32],
+                advertiser_id=adv_id,
+                campaign_id=campaign.id,
+                event_type="click",
+                reason="bot_user_agent",
+                ip_hash=ip_hash[:64] if ip_hash else "",
+                user_agent=(user_agent[:250] if user_agent else "bot"),
+                cost_saved=cost,
+                create_time=now_ts,
+            )
+            return False, "bot_user_agent"
+
+        # 2. Blacklisted IP check
+        effective_ip = ip_address.strip() if ip_address else ""
+        if effective_ip and cls.is_ip_blacklisted(effective_ip, advertiser_id=adv_id):
+            AdFraudLog.create(
+                id=uuid.uuid4().hex[:32],
+                advertiser_id=adv_id,
+                campaign_id=campaign.id,
+                event_type="click",
+                reason="blacklist_ip",
+                ip_hash=ip_hash[:64] if ip_hash else "",
+                user_agent=(user_agent[:250] if user_agent else ""),
+                cost_saved=cost,
+                create_time=now_ts,
+            )
+            return False, "blacklist_ip"
+
+        # 3. Rapid repeat clicks detection (Rate Limiting)
+        # Check if more than 2 clicks recorded in the last 60 seconds from same IP hash or IP
+        one_minute_ago = now_ts - (60 * 1000)
+        recent_clicks_count = 0
+        if ip_hash:
+            recent_clicks_count = AdClick.select().where(
+                AdClick.campaign_id == campaign.id,
+                AdClick.ip_hash == ip_hash[:64],
+                AdClick.create_time >= one_minute_ago,
+            ).count()
+
+        if recent_clicks_count >= 2:
+            five_mins_ago = now_ts - (300 * 1000)
+            five_min_count = AdClick.select().where(
+                AdClick.campaign_id == campaign.id,
+                AdClick.ip_hash == ip_hash[:64],
+                AdClick.create_time >= five_mins_ago,
+            ).count()
+            if five_min_count >= 5 and effective_ip:
+                cls.add_to_blacklist(
+                    ip_address=effective_ip,
+                    advertiser_id=adv_id,
+                    reason="Auto-blocked: High frequency repeated click flood",
+                    duration_hours=24,
+                )
+
+            AdFraudLog.create(
+                id=uuid.uuid4().hex[:32],
+                advertiser_id=adv_id,
+                campaign_id=campaign.id,
+                event_type="click",
+                reason="rapid_repeat_clicks",
+                ip_hash=ip_hash[:64] if ip_hash else "",
+                user_agent=(user_agent[:250] if user_agent else ""),
+                cost_saved=cost,
+                create_time=now_ts,
+            )
+            return False, "rapid_repeat_clicks"
+
+        return True, ""
+
+    @classmethod
+    @DB.connection_context()
+    def get_fraud_overview(cls, advertiser_id: str) -> dict:
+        """Overview metrics of blocked invalid traffic and saved budget."""
+        logs = list(
+            AdFraudLog.select()
+            .where(AdFraudLog.advertiser_id == advertiser_id)
+            .order_by(AdFraudLog.create_time.desc())
+        )
+        total_blocked_clicks = sum(1 for l in logs if l.event_type == "click")
+        total_cost_saved = sum(l.cost_saved for l in logs)
+        bot_detections = sum(1 for l in logs if l.reason == "bot_user_agent")
+        rate_limit_blocks = sum(1 for l in logs if l.reason in ["rapid_repeat_clicks", "rate_limit_exceeded"])
+        blacklist_blocks = sum(1 for l in logs if l.reason == "blacklist_ip")
+
+        now_ts = current_timestamp()
+        active_blacklist_count = AdIpBlacklist.select().where(
+            ((AdIpBlacklist.advertiser_id == advertiser_id) | (AdIpBlacklist.advertiser_id.is_null()) | (AdIpBlacklist.advertiser_id == "system")) &
+            (AdIpBlacklist.status == "active") &
+            ((AdIpBlacklist.auto_expires_at.is_null()) | (AdIpBlacklist.auto_expires_at > now_ts))
+        ).count()
+
+        cmp_ids = list(set(l.campaign_id for l in logs if l.campaign_id))
+        cmp_map = {}
+        if cmp_ids:
+            for c in AdCampaign.select().where(AdCampaign.id.in_(cmp_ids)):
+                cmp_map[c.id] = c.name
+
+        recent_logs = [{
+            "id": l.id,
+            "campaign_id": l.campaign_id,
+            "campaign_name": cmp_map.get(l.campaign_id, "All Campaigns"),
+            "event_type": l.event_type,
+            "reason": l.reason,
+            "ip_hash": l.ip_hash,
+            "user_agent": l.user_agent or "Unknown",
+            "cost_saved": round(l.cost_saved, 2),
+            "create_time": l.create_time,
+        } for l in logs[:50]]
+
+        return {
+            "total_blocked_clicks": total_blocked_clicks,
+            "total_cost_saved": round(total_cost_saved, 2),
+            "bot_detections": bot_detections,
+            "rate_limit_blocks": rate_limit_blocks,
+            "blacklist_blocks": blacklist_blocks,
+            "active_blacklist_count": active_blacklist_count,
+            "recent_logs": recent_logs,
         }
 
 

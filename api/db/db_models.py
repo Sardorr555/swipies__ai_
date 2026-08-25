@@ -2048,6 +2048,35 @@ class AdPublisherPayout(DataBaseModel):
         db_table = "ad_publisher_payouts"
 
 
+class AdFraudLog(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    campaign_id = CharField(max_length=32, null=True, index=True)
+    event_type = CharField(max_length=32, default="click", index=True)  # click, impression, partner_query
+    reason = CharField(max_length=64, null=False, index=True)  # rapid_repeat_clicks, bot_user_agent, blacklist_ip, rate_limit_exceeded
+    ip_hash = CharField(max_length=64, null=True, index=True)
+    user_agent = TextField(null=True)
+    cost_saved = FloatField(default=0.0)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "ad_fraud_logs"
+
+
+class AdIpBlacklist(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=True, index=True)  # null/system for global, or specific advertiser_id
+    ip_address = CharField(max_length=64, null=False, index=True)
+    reason = CharField(max_length=255, default="Suspicious automated click activity")
+    auto_expires_at = BigIntegerField(null=True)
+    status = CharField(max_length=32, default="active", index=True)  # active, revoked
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_ip_blacklist"
+
+
 class PromoCode(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     code = CharField(max_length=64, unique=True, index=True)
