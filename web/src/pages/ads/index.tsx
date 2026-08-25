@@ -77,6 +77,9 @@ import {
   Filter,
   ArrowRight,
   Database,
+  ShoppingBag,
+  Film,
+  LayoutGrid,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -150,6 +153,10 @@ import adService, {
   CustomerLtvProfileItem,
   CustomerLtvOverviewResponse,
   RfmSegmentType,
+  ProductFeedItem,
+  ProductSkuItem,
+  CreativeMatrixResponse,
+  CreativeHealthScoreResponse,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -509,6 +516,197 @@ export default function SwipiesAdsPage() {
       message.error(err.message || 'Ошибка синхронизации данных клиента');
     } finally {
       setSyncingLtv(false);
+    }
+  };
+
+  // Creative Studio Matrix & Dynamic Feeds State (Phase 27)
+  const [productFeeds, setProductFeeds] = useState<ProductFeedItem[]>([]);
+  const [loadingFeeds, setLoadingFeeds] = useState(false);
+  const [selectedFeedId, setSelectedFeedId] = useState<string | null>(null);
+  const [feedItems, setFeedItems] = useState<ProductSkuItem[]>([]);
+  const [loadingFeedItems, setLoadingFeedItems] = useState(false);
+
+  const [isCreateFeedModalOpen, setIsCreateFeedModalOpen] = useState(false);
+  const [feedName, setFeedName] = useState('');
+  const [feedType, setFeedType] = useState('custom_json');
+  const [feedUrl, setFeedUrl] = useState('');
+  const [feedCurrency, setFeedCurrency] = useState('USD');
+  const [creatingFeed, setCreatingFeed] = useState(false);
+
+  const [isAddSkuModalOpen, setIsAddSkuModalOpen] = useState(false);
+  const [skuCode, setSkuCode] = useState('');
+  const [skuTitle, setSkuTitle] = useState('');
+  const [skuPrice, setSkuPrice] = useState('');
+  const [skuOrigPrice, setSkuOrigPrice] = useState('');
+  const [skuProductUrl, setSkuProductUrl] = useState('');
+  const [skuImageUrl, setSkuImageUrl] = useState('');
+  const [skuCategory, setSkuCategory] = useState('');
+  const [skuBrand, setSkuBrand] = useState('');
+  const [addingSku, setAddingSku] = useState(false);
+
+  const [matrixProductName, setMatrixProductName] = useState('MacBook Pro M3 Max');
+  const [matrixCategory, setMatrixCategory] = useState('Ноутбуки и Электроника');
+  const [matrixTargetAudience, setMatrixTargetAudience] = useState('Разработчики, дизайнеры и IT-специалисты');
+  const [matrixResult, setMatrixResult] = useState<CreativeMatrixResponse | null>(null);
+  const [generatingMatrix, setGeneratingMatrix] = useState(false);
+
+  const [selectedHealthCampaignId, setSelectedHealthCampaignId] = useState<string | null>(null);
+  const [campaignHealth, setCampaignHealth] = useState<CreativeHealthScoreResponse | null>(null);
+  const [loadingHealth, setLoadingHealth] = useState(false);
+  const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
+
+  const fetchProductFeeds = async () => {
+    setLoadingFeeds(true);
+    try {
+      const res = await adService.getProductFeeds();
+      if (res.data?.data) {
+        setProductFeeds(res.data.data);
+        if (res.data.data.length > 0 && !selectedFeedId) {
+          setSelectedFeedId(res.data.data[0].id);
+          fetchFeedItems(res.data.data[0].id);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to load product feeds', err);
+    } finally {
+      setLoadingFeeds(false);
+    }
+  };
+
+  const fetchFeedItems = async (feedId: string) => {
+    setLoadingFeedItems(true);
+    try {
+      const res = await adService.getFeedItems(feedId);
+      if (res.data?.data) {
+        setFeedItems(res.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load feed items', err);
+    } finally {
+      setLoadingFeedItems(false);
+    }
+  };
+
+  const handleCreateProductFeed = async () => {
+    if (!feedName.trim()) {
+      message.error('Укажите название товарного каталога');
+      return;
+    }
+    setCreatingFeed(true);
+    try {
+      const res = await adService.createProductFeed({
+        name: feedName.trim(),
+        feed_type: feedType,
+        feed_url: feedUrl.trim() || undefined,
+        currency: feedCurrency,
+      });
+      if (res.data?.data) {
+        message.success('Товарный каталог успешно создан!');
+        setIsCreateFeedModalOpen(false);
+        setFeedName('');
+        setFeedUrl('');
+        fetchProductFeeds();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка создания каталога');
+    } finally {
+      setCreatingFeed(false);
+    }
+  };
+
+  const handleDeleteProductFeed = async (feedId: string) => {
+    try {
+      const res = await adService.deleteProductFeed(feedId);
+      if (res.data?.data?.deleted) {
+        message.success('Каталог товаров удален');
+        if (selectedFeedId === feedId) {
+          setSelectedFeedId(null);
+          setFeedItems([]);
+        }
+        fetchProductFeeds();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка удаления каталога');
+    }
+  };
+
+  const handleAddSku = async () => {
+    if (!selectedFeedId) {
+      message.error('Сначала выберите или создайте каталог');
+      return;
+    }
+    if (!skuTitle.trim() || !skuPrice || !skuProductUrl.trim()) {
+      message.error('Заполните обязательные поля (Название, Цена, Ссылка)');
+      return;
+    }
+    setAddingSku(true);
+    try {
+      const res = await adService.addFeedItem(selectedFeedId, {
+        sku: skuCode.trim() || undefined,
+        title: skuTitle.trim(),
+        price: parseFloat(skuPrice) || 0,
+        original_price: parseFloat(skuOrigPrice) || undefined,
+        product_url: skuProductUrl.trim(),
+        image_url: skuImageUrl.trim() || undefined,
+        category: skuCategory.trim() || undefined,
+        brand: skuBrand.trim() || undefined,
+      });
+      if (res.data?.data) {
+        message.success('Товар добавлен в каталог!');
+        setIsAddSkuModalOpen(false);
+        setSkuCode('');
+        setSkuTitle('');
+        setSkuPrice('');
+        setSkuOrigPrice('');
+        setSkuProductUrl('');
+        setSkuImageUrl('');
+        fetchFeedItems(selectedFeedId);
+        fetchProductFeeds();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка добавления товара');
+    } finally {
+      setAddingSku(false);
+    }
+  };
+
+  const handleGenerateCreativeMatrix = async () => {
+    if (!matrixProductName.trim()) {
+      message.error('Укажите название продукта для генерации креативов');
+      return;
+    }
+    setGeneratingMatrix(true);
+    try {
+      const res = await adService.generateCreativeMatrix({
+        product_name: matrixProductName.trim(),
+        category: matrixCategory.trim(),
+        target_audience: matrixTargetAudience.trim(),
+        save_assets: true,
+      });
+      if (res.data?.data) {
+        setMatrixResult(res.data.data);
+        message.success('Мульти-форматный пакет креативов сгенерирован!');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка генерации креативов');
+    } finally {
+      setGeneratingMatrix(false);
+    }
+  };
+
+  const handleViewCampaignHealth = async (campaignId: string) => {
+    setSelectedHealthCampaignId(campaignId);
+    setLoadingHealth(true);
+    setIsHealthModalOpen(true);
+    try {
+      const res = await adService.getCreativeHealthScore(campaignId);
+      if (res.data?.data) {
+        setCampaignHealth(res.data.data);
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка анализа качества креативов');
+    } finally {
+      setLoadingHealth(false);
     }
   };
 
@@ -1013,6 +1211,7 @@ export default function SwipiesAdsPage() {
     fetchFunnelData();
     fetchLookalikes();
     fetchLtvOverview();
+    fetchProductFeeds();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -1861,6 +2060,10 @@ export default function SwipiesAdsPage() {
           <TabsTrigger value="campaigns" className="flex items-center gap-2">
             <Layers className="h-4 w-4" /> Campaigns ({dashboard?.campaigns?.length || 0})
           </TabsTrigger>
+          <TabsTrigger value="studio" className="flex items-center gap-2 relative">
+            <Sparkles className="h-4 w-4 text-purple-500" />
+            Креативная Студия & DPA ({productFeeds.length})
+          </TabsTrigger>
           <TabsTrigger value="insights" className="flex items-center gap-2 relative">
             <Lightbulb className="h-4 w-4 text-amber-500" />
             AI Оптимизатор
@@ -2140,6 +2343,15 @@ export default function SwipiesAdsPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                onClick={() => handleViewCampaignHealth(cmp.id)}
+                                title="Аудит разнообразия и качества креативов (Creative Health Score)"
+                                className="text-pink-600 hover:text-pink-700 dark:text-pink-400"
+                              >
+                                <Sparkles className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 onClick={() => handleOpenAnalytics(cmp)}
                                 title="View Analytics"
                               >
@@ -2167,6 +2379,519 @@ export default function SwipiesAdsPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Phase 27: AI Multi-Format Creative Studio & Dynamic Product Feeds (DPA) Tab */}
+        <TabsContent value="studio" className="space-y-6">
+          {/* Header Banner */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 rounded-xl border bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-indigo-500/10 dark:from-purple-950/30 dark:via-pink-950/30 dark:to-indigo-950/30">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-purple-500/20 text-purple-600 dark:text-purple-400 font-extrabold text-2xl border border-purple-500/30">
+                <Sparkles className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-bold">AI Multi-Format Creative Studio & DPA</h3>
+                  <Badge variant="outline" className="border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                    Phase 27
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+                  Генерируйте 5 взаимодополняющих рекламных форматов (текстовые карточки в чате, glassmorphic-виджеты, 9:16 Story-баннеры, Display лидерборды и сценарии для видео Reels/TikTok) и подключайте динамические каталоги товаров для автоматического таргетинга (Dynamic Product Ads).
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCreateFeedModalOpen(true)}
+                className="border-purple-500/30 hover:bg-purple-500/10 text-purple-600 dark:text-purple-400"
+              >
+                <ShoppingBag className="mr-1.5 h-4 w-4" />
+                Подключить Каталог (Feed)
+              </Button>
+            </div>
+          </div>
+
+          {/* 1. Multi-Format Repurposing Generator */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wand2 className="h-4 w-4 text-purple-500" />
+                    AI Мульти-Форматный Генератор Креативов
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Введите название и категорию продукта — нейросеть создаст полный комплект промо-материалов для всех каналов.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-foreground">Название продукта / Оффера</label>
+                  <Input
+                    placeholder="Например: MacBook Pro M3 Max"
+                    value={matrixProductName}
+                    onChange={(e) => setMatrixProductName(e.target.value)}
+                    className="mt-1 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground">Категория товаров</label>
+                  <Input
+                    placeholder="Например: Ноутбуки и Электроника"
+                    value={matrixCategory}
+                    onChange={(e) => setMatrixCategory(e.target.value)}
+                    className="mt-1 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground">Целевая аудитория (Промпт)</label>
+                  <Input
+                    placeholder="Например: Разработчики, дизайнеры и IT-специалисты"
+                    value={matrixTargetAudience}
+                    onChange={(e) => setMatrixTargetAudience(e.target.value)}
+                    className="mt-1 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end">
+                <Button
+                  size="sm"
+                  onClick={handleGenerateCreativeMatrix}
+                  disabled={generatingMatrix}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs"
+                >
+                  {generatingMatrix ? (
+                    <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-1.5 h-4 w-4" />
+                  )}
+                  {generatingMatrix ? 'Генерация 5 форматов...' : 'Сгенерировать 5-Форматный Пакет'}
+                </Button>
+              </div>
+
+              {/* Matrix Results Showcase */}
+              {matrixResult && (
+                <div className="mt-6 space-y-6 pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <span>Готовые рекламные материалы для: <strong>{matrixResult.product_name}</strong></span>
+                        <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-xs">
+                          {matrixResult.overall_health_score}% Creative Quality Score
+                        </Badge>
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Категория: {matrixResult.category} • Аудитория: {matrixResult.target_audience}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Format 1: Native AI Chat Cards */}
+                    <Card className="border border-purple-500/20 bg-purple-50/30 dark:bg-purple-950/10">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+                            <Bot className="h-4 w-4" /> 1. Native Chat Text Card
+                          </CardTitle>
+                          <Badge variant="secondary" className="text-[10px]">AI Chat</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-xs">
+                        <div>
+                          <div className="font-semibold text-foreground mb-1">Заголовки (3 угла):</div>
+                          <ul className="space-y-1">
+                            {matrixResult.formats.text_card.headlines.map((h, i) => (
+                              <li key={i} className="p-1.5 rounded bg-background border text-[11px] font-medium">
+                                🔹 {h}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground mb-1">Тексты описания:</div>
+                          <ul className="space-y-1">
+                            {matrixResult.formats.text_card.descriptions.map((d, i) => (
+                              <li key={i} className="p-1.5 rounded bg-background border text-[11px] text-muted-foreground">
+                                {d}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {matrixResult.formats.text_card.badges.map((b, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 text-[10px] font-semibold">
+                              {b}
+                            </span>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Format 2: Glassmorphic Interactive Widget */}
+                    <Card className="border border-blue-500/20 bg-blue-50/30 dark:bg-blue-950/10">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                            <LayoutGrid className="h-4 w-4" /> 2. Rich Interactive Card
+                          </CardTitle>
+                          <Badge variant="secondary" className="text-[10px]">Interactive Widget</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="p-4 rounded-xl border bg-background/80 backdrop-blur-md shadow-sm space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className="text-[10px] font-extrabold uppercase text-blue-600 tracking-wider">
+                                {matrixResult.formats.rich_interactive_card.widget_title}
+                              </span>
+                              <h5 className="font-bold text-sm text-foreground mt-0.5">
+                                {matrixResult.formats.rich_interactive_card.headline}
+                              </h5>
+                            </div>
+                            <div className="flex items-center gap-1 text-amber-500 text-xs font-bold">
+                              <span>★ {matrixResult.formats.rich_interactive_card.rating}</span>
+                              <span className="text-muted-foreground text-[10px]">({matrixResult.formats.rich_interactive_card.reviews_count})</span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-1 py-1">
+                            {matrixResult.formats.rich_interactive_card.features.map((f, i) => (
+                              <div key={i} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                                <span>{f}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-2 border-t">
+                            <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs h-8">
+                              {matrixResult.formats.rich_interactive_card.primary_cta}
+                            </Button>
+                            <Button size="sm" variant="outline" className="w-full text-xs h-8">
+                              {matrixResult.formats.rich_interactive_card.secondary_cta}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Format 3: 9:16 Vertical Story Banner */}
+                    <Card className="border border-pink-500/20 bg-pink-50/30 dark:bg-pink-950/10">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-pink-600 dark:text-pink-400">
+                            <Smartphone className="h-4 w-4" /> 3. 9:16 Story Banner (Mobile)
+                          </CardTitle>
+                          <Badge variant="secondary" className="text-[10px]">1080 × 1920</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="max-w-[240px] mx-auto rounded-2xl overflow-hidden border-2 border-pink-500/30 shadow-lg relative bg-gradient-to-b from-purple-900 via-indigo-900 to-black text-white p-4 aspect-[9/16] flex flex-col justify-between">
+                          <div className="flex justify-between items-start">
+                            <span className="px-2 py-0.5 rounded-full bg-pink-500 text-white font-extrabold text-[10px] shadow-sm animate-pulse">
+                              {matrixResult.formats.story_banner.sticker_badge}
+                            </span>
+                            <span className="text-[9px] opacity-70">Sponsored</span>
+                          </div>
+
+                          <div className="text-center space-y-1.5 my-auto">
+                            <h4 className="font-extrabold text-base leading-tight text-white drop-shadow">
+                              {matrixResult.formats.story_banner.title_overlay}
+                            </h4>
+                            <p className="text-[11px] text-pink-200 leading-snug">
+                              {matrixResult.formats.story_banner.subtitle}
+                            </p>
+                          </div>
+
+                          <div className="text-center space-y-1 pt-2">
+                            <div className="flex justify-center text-pink-400 animate-bounce">
+                              ▲
+                            </div>
+                            <div className="p-2 rounded-xl bg-white/20 backdrop-blur-md text-white font-bold text-xs uppercase tracking-wide">
+                              {matrixResult.formats.story_banner.swipe_up_text}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Format 4: Display Leaderboard Banner */}
+                    <Card className="border border-emerald-500/20 bg-emerald-50/30 dark:bg-emerald-950/10">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                            <Monitor className="h-4 w-4" /> 4. Display Leaderboard & Banners
+                          </CardTitle>
+                          <Badge variant="secondary" className="text-[10px]">1200 × 628</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="p-4 rounded-xl border bg-gradient-to-r from-emerald-500/10 to-teal-500/10 flex flex-col justify-between gap-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase text-emerald-600 tracking-wider">
+                              Display Ad 1200x628
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">Swipies Ad Network</span>
+                          </div>
+                          <div>
+                            <h5 className="font-extrabold text-sm text-foreground">
+                              {matrixResult.formats.leaderboard_banner.banner_header}
+                            </h5>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {matrixResult.formats.leaderboard_banner.banner_body}
+                            </p>
+                          </div>
+                          <div className="flex justify-end">
+                            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7">
+                              {matrixResult.formats.leaderboard_banner.button_text} →
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg border bg-background flex items-center justify-between text-xs">
+                          <div>
+                            <span className="font-bold text-foreground">Поддерживаемые форматы: </span>
+                            <span className="text-muted-foreground">{matrixResult.formats.leaderboard_banner.dimensions.join(' • ')}</span>
+                          </div>
+                          <Badge variant="outline" className="text-[10px]">SVG / HTML5 Ready</Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Format 5: Video Storyboard (Full width) */}
+                    <Card className="lg:col-span-2 border border-amber-500/20 bg-amber-50/30 dark:bg-amber-950/10">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                            <Film className="h-4 w-4" /> 5. Video Storyboard Script (TikTok / Reels / Shorts - {matrixResult.formats.video_storyboard.duration_sec}s)
+                          </CardTitle>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {matrixResult.formats.video_storyboard.target_platform.join(' • ')}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                              <tr className="border-b bg-background/50">
+                                <th className="py-2 px-3 font-semibold text-muted-foreground w-16">Сцена</th>
+                                <th className="py-2 px-3 font-semibold text-muted-foreground w-24">Время</th>
+                                <th className="py-2 px-3 font-semibold text-muted-foreground w-28">Фаза</th>
+                                <th className="py-2 px-3 font-semibold text-muted-foreground">Визуальный ряд (Cues)</th>
+                                <th className="py-2 px-3 font-semibold text-muted-foreground">Озвучка / Voiceover</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {matrixResult.formats.video_storyboard.scenes.map((scene) => (
+                                <tr key={scene.scene} className="hover:bg-background/80">
+                                  <td className="py-2.5 px-3 font-bold text-foreground">#{scene.scene}</td>
+                                  <td className="py-2.5 px-3 font-mono text-[11px] text-amber-600 font-semibold">{scene.timestamp}</td>
+                                  <td className="py-2.5 px-3">
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        scene.phase === 'Hook'
+                                          ? 'border-rose-500/30 text-rose-600 text-[10px]'
+                                          : scene.phase === 'CTA'
+                                          ? 'border-emerald-500/30 text-emerald-600 text-[10px]'
+                                          : 'border-blue-500/30 text-blue-600 text-[10px]'
+                                      }
+                                    >
+                                      {scene.phase}
+                                    </Badge>
+                                  </td>
+                                  <td className="py-2.5 px-3 text-[11px] text-foreground">{scene.visual}</td>
+                                  <td className="py-2.5 px-3 text-[11px] text-muted-foreground italic font-sans font-medium">
+                                    "{scene.voiceover}"
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 2. Dynamic Product Ads (DPA) & Catalogs */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4 text-emerald-500" />
+                    Dynamic Product Ads (DPA) & Каталоги Товаров
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Подключите фиды товаров для динамической подстановки SKU и цен в ответы AI-ассистента при товарных запросах.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsCreateFeedModalOpen(true)}
+                    className="text-xs h-8"
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Создать Фид
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingFeeds ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : productFeeds.length === 0 ? (
+                <div className="p-8 text-center border-dashed border rounded-xl">
+                  <ShoppingBag className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
+                  <h4 className="text-sm font-semibold text-foreground">У вас пока нет товарных каталогов</h4>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                    Создайте фид вручную или укажите URL XML/JSON-каталога интернет-магазина для автоматического DPA-таргетинга.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsCreateFeedModalOpen(true)}
+                    className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Создать первый фид
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Feed Selector Tabs / Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {productFeeds.map((feed) => (
+                      <div
+                        key={feed.id}
+                        onClick={() => {
+                          setSelectedFeedId(feed.id);
+                          fetchFeedItems(feed.id);
+                        }}
+                        className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                          selectedFeedId === feed.id
+                            ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20 ring-1 ring-emerald-500'
+                            : 'hover:border-zinc-400 bg-background'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-xs text-foreground truncate">{feed.name}</span>
+                          <Badge
+                            variant="outline"
+                            className={
+                              feed.sync_status === 'active'
+                                ? 'border-emerald-500/30 text-emerald-600 text-[10px]'
+                                : 'border-zinc-500/30 text-zinc-500 text-[10px]'
+                            }
+                          >
+                            {feed.sync_status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>{feed.items_count} SKU товаров</span>
+                          <span className="font-semibold text-foreground">{feed.currency}</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 mt-2 border-t text-[10px] text-muted-foreground">
+                          <span>Тип: {feed.feed_type}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProductFeed(feed.id);
+                            }}
+                            className="text-red-500 hover:underline"
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* SKU Items for Selected Feed */}
+                  {selectedFeedId && (
+                    <div className="pt-4 border-t space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            Товары в каталоге ({feedItems.length})
+                          </h4>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => setIsAddSkuModalOpen(true)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7"
+                        >
+                          <Plus className="mr-1 h-3.5 w-3.5" /> Добавить Товар (SKU)
+                        </Button>
+                      </div>
+
+                      {loadingFeedItems ? (
+                        <div className="flex items-center justify-center py-8">
+                          <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : feedItems.length === 0 ? (
+                        <div className="p-6 text-center border-dashed border rounded-lg text-xs text-muted-foreground">
+                          В выбранном каталоге пока нет товаров. Добавьте первый SKU вручную.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {feedItems.map((sku) => (
+                            <div key={sku.id} className="p-3 rounded-lg border bg-background flex flex-col justify-between gap-2 shadow-sm">
+                              <div>
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded font-semibold text-muted-foreground">
+                                    {sku.sku}
+                                  </span>
+                                  {sku.discount_percent > 0 && (
+                                    <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-600 text-[10px] font-bold">
+                                      -{sku.discount_percent}%
+                                    </Badge>
+                                  )}
+                                </div>
+                                <h5 className="font-bold text-xs text-foreground mt-1.5 line-clamp-1">{sku.title}</h5>
+                                {sku.category && (
+                                  <p className="text-[10px] text-muted-foreground">{sku.category} {sku.brand && `• ${sku.brand}`}</p>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between pt-2 border-t text-xs">
+                                <div>
+                                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                    ${sku.price.toFixed(2)}
+                                  </span>
+                                  {sku.original_price && (
+                                    <span className="text-[10px] text-muted-foreground line-through ml-1.5">
+                                      ${sku.original_price.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
+                                <Badge variant="secondary" className="text-[9px]">
+                                  {sku.availability}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -7598,6 +8323,322 @@ async def get_swipies_ad(user_query: str):
             >
               {syncingLtv ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
               {syncingLtv ? 'Синхронизация...' : 'Синхронизировать и рассчитать pLTV'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 1. Modal: Create Product Feed */}
+      <Dialog open={isCreateFeedModalOpen} onOpenChange={setIsCreateFeedModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <ShoppingBag className="h-5 w-5 text-purple-600" />
+              Подключить Товарный Каталог (DPA Feed)
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Фид позволяет автоматически подставлять актуальные товары, цены и скидки в ответы AI-ассистента.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-xs py-2">
+            <div>
+              <label className="font-semibold text-foreground">Название каталога *</label>
+              <Input
+                placeholder="Например: Главный каталог электроники"
+                value={feedName}
+                onChange={(e) => setFeedName(e.target.value)}
+                className="mt-1 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-foreground">Формат фида</label>
+                <select
+                  value={feedType}
+                  onChange={(e) => setFeedType(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="custom_json">Custom JSON Catalog</option>
+                  <option value="google_merchant">Google Merchant Center XML</option>
+                  <option value="yandex_market">Yandex Market YML</option>
+                  <option value="csv">CSV Spreadsheet Feed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-foreground">Валюта</label>
+                <select
+                  value={feedCurrency}
+                  onChange={(e) => setFeedCurrency(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="UZS">UZS (so'm)</option>
+                  <option value="RUB">RUB (₽)</option>
+                  <option value="EUR">EUR (€)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold text-foreground">URL синхронизации фида (Опционально)</label>
+              <Input
+                placeholder="https://mystore.com/feeds/products.json"
+                value={feedUrl}
+                onChange={(e) => setFeedUrl(e.target.value)}
+                className="mt-1 text-xs"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Оставьте пустым, если планируете загружать SKU вручную или через API.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsCreateFeedModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCreateProductFeed}
+              disabled={creatingFeed}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {creatingFeed ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
+              {creatingFeed ? 'Создание...' : 'Создать каталог'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 2. Modal: Add SKU to Feed */}
+      <Dialog open={isAddSkuModalOpen} onOpenChange={setIsAddSkuModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <Plus className="h-5 w-5 text-emerald-600" />
+              Добавить Товар (SKU) в Каталог
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Укажите параметры товара для динамической генерации карточек в Swipies AI Ads.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-xs py-2">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <label className="font-semibold text-foreground">Название товара *</label>
+                <Input
+                  placeholder="Например: Apple MacBook Pro 16 M3 Max"
+                  value={skuTitle}
+                  onChange={(e) => setSkuTitle(e.target.value)}
+                  className="mt-1 text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-foreground">Артикул (SKU)</label>
+                <Input
+                  placeholder="MBP-M3-16"
+                  value={skuCode}
+                  onChange={(e) => setSkuCode(e.target.value)}
+                  className="mt-1 text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-foreground">Цена ($) *</label>
+                <Input
+                  type="number"
+                  placeholder="3499.00"
+                  value={skuPrice}
+                  onChange={(e) => setSkuPrice(e.target.value)}
+                  className="mt-1 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-foreground">Старая цена (для скидки $)</label>
+                <Input
+                  type="number"
+                  placeholder="3899.00"
+                  value={skuOrigPrice}
+                  onChange={(e) => setSkuOrigPrice(e.target.value)}
+                  className="mt-1 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-foreground">Категория</label>
+                <Input
+                  placeholder="Ноутбуки"
+                  value={skuCategory}
+                  onChange={(e) => setSkuCategory(e.target.value)}
+                  className="mt-1 text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-foreground">Бренд</label>
+                <Input
+                  placeholder="Apple"
+                  value={skuBrand}
+                  onChange={(e) => setSkuBrand(e.target.value)}
+                  className="mt-1 text-xs"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold text-foreground">Ссылка на товар (Landing URL) *</label>
+              <Input
+                placeholder="https://mystore.com/products/macbook-pro"
+                value={skuProductUrl}
+                onChange={(e) => setSkuProductUrl(e.target.value)}
+                className="mt-1 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold text-foreground">URL картинки (Image URL)</label>
+              <Input
+                placeholder="https://mystore.com/images/macbook.jpg"
+                value={skuImageUrl}
+                onChange={(e) => setSkuImageUrl(e.target.value)}
+                className="mt-1 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsAddSkuModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAddSku}
+              disabled={addingSku}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {addingSku ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
+              {addingSku ? 'Сохранение...' : 'Добавить товар'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 3. Modal: Creative Health Score Audit */}
+      <Dialog open={isHealthModalOpen} onOpenChange={setIsHealthModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <Sparkles className="h-5 w-5 text-pink-600" />
+              Аудит Разнообразия и Качества Креативов
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Оценка богатства форматов и готовности кампании к максимизации CTR и ROAS.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingHealth ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-pink-500 mb-2" />
+              <p className="text-xs text-muted-foreground">Анализируем креативы кампании...</p>
+            </div>
+          ) : !campaignHealth ? (
+            <div className="p-4 text-center text-xs text-muted-foreground">Данные аудита не найдены.</div>
+          ) : (
+            <div className="space-y-4 text-xs py-2">
+              {/* Score Header Card */}
+              <div className="p-4 rounded-xl border bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-sm text-foreground">{campaignHealth.campaign_name}</h4>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge
+                      variant="outline"
+                      className={
+                        campaignHealth.rating === 'excellent'
+                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 font-bold'
+                          : campaignHealth.rating === 'good'
+                          ? 'border-blue-500/40 bg-blue-500/10 text-blue-600 font-bold'
+                          : 'border-amber-500/40 bg-amber-500/10 text-amber-600 font-bold'
+                      }
+                    >
+                      {campaignHealth.rating === 'excellent'
+                        ? '🌟 Отличное разнообразие'
+                        : campaignHealth.rating === 'good'
+                        ? '👍 Хорошее состояние'
+                        : '⚠️ Требует улучшения'}
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground">{campaignHealth.variants_count} вариантов</span>
+                  </div>
+                </div>
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-pink-500/20 text-pink-600 dark:text-pink-400 font-extrabold text-xl border border-pink-500/30">
+                  {campaignHealth.score}
+                </div>
+              </div>
+
+              {/* Checklist */}
+              <div>
+                <h5 className="font-bold text-foreground mb-2">Чек-лист готовности креативов:</h5>
+                <div className="space-y-1.5">
+                  {campaignHealth.checklist.map((item, i) => (
+                    <div key={i} className="p-2.5 rounded-lg border bg-background flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {item.status === 'passed' ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                        ) : item.status === 'warning' ? (
+                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                        ) : (
+                          <Info className="h-4 w-4 text-blue-500 shrink-0" />
+                        )}
+                        <div>
+                          <span className="font-semibold text-foreground text-[11px]">{item.name}</span>
+                          <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          item.status === 'passed'
+                            ? 'text-emerald-600 bg-emerald-500/10 text-[9px]'
+                            : item.status === 'warning'
+                            ? 'text-amber-600 bg-amber-500/10 text-[9px]'
+                            : 'text-blue-600 bg-blue-500/10 text-[9px]'
+                        }
+                      >
+                        {item.status.toUpperCase()}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recommendations */}
+              {campaignHealth.recommendations && campaignHealth.recommendations.length > 0 && (
+                <div className="p-3 rounded-lg border bg-amber-50/50 dark:bg-amber-950/20 border-amber-500/20 space-y-1.5">
+                  <h6 className="font-bold text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                    <Lightbulb className="h-3.5 w-3.5" /> AI Советы по росту конверсий:
+                  </h6>
+                  <ul className="space-y-1">
+                    {campaignHealth.recommendations.map((rec, i) => (
+                      <li key={i} className="text-[10px] text-muted-foreground flex items-start gap-1">
+                        <span>•</span>
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => setIsHealthModalOpen(false)}>
+              Понятно
             </Button>
           </DialogFooter>
         </DialogContent>

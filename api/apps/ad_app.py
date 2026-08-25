@@ -55,6 +55,8 @@ from api.db.services.ad_engine_service import (
     AdAutomatedRulesService,
     AdMultiTouchAttributionService,
     AdLookalikeLtvService,
+    AdProductFeedService,
+    AdCreativeStudioService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.promo_code_service import PromoCodeService
@@ -2501,6 +2503,189 @@ async def sync_customer_ltv_profiles():
     except Exception as e:
         logger.exception(f"Error syncing customer LTV profiles: {e}")
         return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/creatives/generate-matrix", methods=["POST"])
+@login_required
+async def generate_creative_matrix():
+    """
+    Phase 27: Multi-Format Creative Studio Matrix Generator.
+    Produces text chat cards, rich interactive widgets, 9:16 story banners,
+    display leaderboards, and video storyboards from product details.
+    """
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        req = await get_request_json() or {}
+        product_name = req.get("product_name")
+        if not product_name:
+            return get_data_error_result(message="product_name is required")
+
+        res = AdCreativeStudioService.generate_creative_matrix(
+            advertiser_id=adv.id,
+            product_name=product_name,
+            description=req.get("description", ""),
+            category=req.get("category", ""),
+            target_audience=req.get("target_audience", ""),
+            campaign_id=req.get("campaign_id"),
+            save_assets=req.get("save_assets", True),
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error generating creative matrix: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/creatives/matrix-assets", methods=["GET"])
+@login_required
+async def list_matrix_assets():
+    """List saved creative matrix assets for advertiser/campaign."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        campaign_id = request.args.get("campaign_id")
+        format_type = request.args.get("format_type")
+        res = AdCreativeStudioService.list_creative_assets(
+            advertiser_id=adv.id,
+            campaign_id=campaign_id,
+            format_type=format_type,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error listing matrix assets: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/creatives/health-score/<campaign_id>", methods=["GET"])
+@login_required
+async def get_creative_health_score(campaign_id):
+    """Computes asset diversity and creative quality score with actionable optimization recommendations."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        res = AdCreativeStudioService.get_creative_health_score(campaign_id=campaign_id, advertiser_id=adv.id)
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error calculating creative health score: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/feeds", methods=["GET", "POST"])
+@login_required
+async def manage_product_feeds():
+    """List or create product feeds/catalogs for Dynamic Product Ads (DPA)."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        if request.method == "GET":
+            feeds = AdProductFeedService.list_feeds(advertiser_id=adv.id)
+            return get_json_result(data=feeds)
+
+        req = await get_request_json() or {}
+        name = req.get("name")
+        if not name:
+            return get_data_error_result(message="name is required")
+
+        feed = AdProductFeedService.create_feed(
+            advertiser_id=adv.id,
+            name=name,
+            feed_type=req.get("feed_type", "custom_json"),
+            feed_url=req.get("feed_url"),
+            currency=req.get("currency", "USD"),
+            sync_frequency=req.get("sync_frequency", "daily"),
+            initial_items=req.get("items"),
+        )
+        return get_json_result(data=feed)
+    except Exception as e:
+        logger.exception(f"Error managing product feeds: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/feeds/<feed_id>", methods=["GET", "DELETE"])
+@login_required
+async def single_product_feed(feed_id):
+    """Get feed details or delete catalog feed."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        if request.method == "GET":
+            feed = AdProductFeedService.get_feed(feed_id=feed_id, advertiser_id=adv.id)
+            if not feed:
+                return get_data_error_result(message="Feed not found")
+            return get_json_result(data=feed)
+
+        deleted = AdProductFeedService.delete_feed(feed_id=feed_id, advertiser_id=adv.id)
+        return get_json_result(data={"deleted": deleted})
+    except Exception as e:
+        logger.exception(f"Error handling single feed: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/feeds/<feed_id>/items", methods=["GET", "POST"])
+@login_required
+async def feed_items_management(feed_id):
+    """List or add/update SKUs in a product feed."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        if request.method == "GET":
+            category = request.args.get("category")
+            search = request.args.get("search")
+            limit = int(request.args.get("limit", 100))
+            items = AdProductFeedService.list_feed_items(feed_id=feed_id, limit=limit, category=category, search=search)
+            return get_json_result(data=items)
+
+        req = await get_request_json() or {}
+        if "items" in req and isinstance(req["items"], list):
+            count = AdProductFeedService.batch_upsert_items(feed_id=feed_id, advertiser_id=adv.id, items=req["items"])
+            return get_json_result(data={"upserted_count": count})
+
+        sku = req.get("sku") or uuid.uuid4().hex[:8]
+        title = req.get("title")
+        price = req.get("price")
+        product_url = req.get("product_url")
+        if not title or price is None or not product_url:
+            return get_data_error_result(message="title, price, and product_url are required")
+
+        item = AdProductFeedService.add_or_update_item(
+            feed_id=feed_id,
+            advertiser_id=adv.id,
+            sku=sku,
+            title=title,
+            price=float(price),
+            product_url=product_url,
+            description=req.get("description", ""),
+            original_price=float(req["original_price"]) if "original_price" in req and req["original_price"] else None,
+            currency=req.get("currency", "USD"),
+            image_url=req.get("image_url"),
+            category=req.get("category", ""),
+            brand=req.get("brand", ""),
+            availability=req.get("availability", "in_stock"),
+            custom_labels=req.get("custom_labels"),
+        )
+        return get_json_result(data=item)
+    except Exception as e:
+        logger.exception(f"Error managing feed items: {e}")
+        return get_data_error_result(message=str(e))
+
 
 
 

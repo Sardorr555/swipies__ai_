@@ -52,6 +52,9 @@ from api.db.db_models import (
     AdConversionAttribution,
     AdAudienceLookalike,
     AdCustomerLtvProfile,
+    AdProductFeed,
+    AdProductItem,
+    AdCreativeMatrixAsset,
     User,
     Tenant,
 )
@@ -5442,6 +5445,555 @@ class AdLookalikeLtvService:
             "segment_counts": seg_counts,
             "top_customers": top_customers,
         }
+
+
+class AdProductFeedService:
+    """
+    Phase 27: Product Catalog Management & Dynamic Product Ads (DPA) Engine.
+    Handles product feed ingestion, SKU synchronization, and matching products to user intent.
+    """
+
+    @classmethod
+    def create_feed(
+        cls,
+        advertiser_id: str,
+        name: str,
+        feed_type: str = "custom_json",
+        feed_url: str = None,
+        currency: str = "USD",
+        sync_frequency: str = "daily",
+        initial_items: list = None,
+    ) -> dict:
+        feed_id = uuid.uuid4().hex
+        now = current_timestamp()
+
+        feed = AdProductFeed.create(
+            id=feed_id,
+            advertiser_id=advertiser_id,
+            name=name,
+            feed_type=feed_type,
+            feed_url=feed_url,
+            currency=currency,
+            items_count=0,
+            sync_status="active",
+            last_sync_time=now,
+            sync_frequency=sync_frequency,
+            create_time=now,
+            update_time=now,
+        )
+
+        items_count = 0
+        if initial_items and isinstance(initial_items, list):
+            items_count = cls.batch_upsert_items(feed_id=feed_id, advertiser_id=advertiser_id, items=initial_items)
+            feed.items_count = items_count
+            feed.save()
+
+        return {
+            "id": feed.id,
+            "advertiser_id": feed.advertiser_id,
+            "name": feed.name,
+            "feed_type": feed.feed_type,
+            "feed_url": feed.feed_url,
+            "currency": feed.currency,
+            "items_count": feed.items_count,
+            "sync_status": feed.sync_status,
+            "last_sync_time": feed.last_sync_time,
+            "sync_frequency": feed.sync_frequency,
+            "create_time": feed.create_time,
+        }
+
+    @classmethod
+    def list_feeds(cls, advertiser_id: str) -> list:
+        feeds = AdProductFeed.select().where(AdProductFeed.advertiser_id == advertiser_id).order_by(AdProductFeed.create_time.desc())
+        result = []
+        for f in feeds:
+            result.append({
+                "id": f.id,
+                "advertiser_id": f.advertiser_id,
+                "name": f.name,
+                "feed_type": f.feed_type,
+                "feed_url": f.feed_url,
+                "currency": f.currency,
+                "items_count": f.items_count,
+                "sync_status": f.sync_status,
+                "last_sync_time": f.last_sync_time,
+                "sync_frequency": f.sync_frequency,
+                "create_time": f.create_time,
+            })
+        return result
+
+    @classmethod
+    def get_feed(cls, feed_id: str, advertiser_id: str = None) -> dict:
+        query = AdProductFeed.select().where(AdProductFeed.id == feed_id)
+        if advertiser_id:
+            query = query.where(AdProductFeed.advertiser_id == advertiser_id)
+        feed = query.first()
+        if not feed:
+            return None
+        return {
+            "id": feed.id,
+            "advertiser_id": feed.advertiser_id,
+            "name": feed.name,
+            "feed_type": feed.feed_type,
+            "feed_url": feed.feed_url,
+            "currency": feed.currency,
+            "items_count": feed.items_count,
+            "sync_status": feed.sync_status,
+            "last_sync_time": feed.last_sync_time,
+            "sync_frequency": feed.sync_frequency,
+            "create_time": feed.create_time,
+        }
+
+    @classmethod
+    def delete_feed(cls, feed_id: str, advertiser_id: str = None) -> bool:
+        query = AdProductFeed.select().where(AdProductFeed.id == feed_id)
+        if advertiser_id:
+            query = query.where(AdProductFeed.advertiser_id == advertiser_id)
+        feed = query.first()
+        if not feed:
+            return False
+
+        AdProductItem.delete().where(AdProductItem.feed_id == feed_id).execute()
+        feed.delete_instance()
+        return True
+
+    @classmethod
+    def list_feed_items(cls, feed_id: str, limit: int = 100, category: str = None, search: str = None) -> list:
+        query = AdProductItem.select().where(AdProductItem.feed_id == feed_id, AdProductItem.is_active == True)
+        if category:
+            query = query.where(AdProductItem.category == category)
+        if search:
+            query = query.where(AdProductItem.title.contains(search) | AdProductItem.sku.contains(search))
+        
+        items = query.order_by(AdProductItem.create_time.desc()).limit(limit)
+        result = []
+        for it in items:
+            discount_percent = 0
+            if it.original_price and it.original_price > it.price and it.original_price > 0:
+                discount_percent = round(((it.original_price - it.price) / it.original_price) * 100)
+
+            result.append({
+                "id": it.id,
+                "feed_id": it.feed_id,
+                "advertiser_id": it.advertiser_id,
+                "sku": it.sku,
+                "title": it.title,
+                "description": it.description,
+                "price": it.price,
+                "original_price": it.original_price,
+                "discount_percent": discount_percent,
+                "currency": it.currency,
+                "image_url": it.image_url,
+                "product_url": it.product_url,
+                "category": it.category,
+                "brand": it.brand,
+                "availability": it.availability,
+                "custom_labels": it.custom_labels or {},
+                "is_active": it.is_active,
+                "create_time": it.create_time,
+            })
+        return result
+
+    @classmethod
+    def add_or_update_item(
+        cls,
+        feed_id: str,
+        advertiser_id: str,
+        sku: str,
+        title: str,
+        price: float,
+        product_url: str,
+        description: str = "",
+        original_price: float = None,
+        currency: str = "USD",
+        image_url: str = None,
+        category: str = "",
+        brand: str = "",
+        availability: str = "in_stock",
+        custom_labels: dict = None,
+    ) -> dict:
+        now = current_timestamp()
+        existing = AdProductItem.select().where(
+            AdProductItem.feed_id == feed_id,
+            AdProductItem.sku == sku
+        ).first()
+
+        if existing:
+            existing.title = title
+            existing.description = description
+            existing.price = float(price)
+            existing.original_price = float(original_price) if original_price is not None else None
+            existing.currency = currency
+            existing.image_url = image_url or existing.image_url
+            existing.product_url = product_url
+            existing.category = category or existing.category
+            existing.brand = brand or existing.brand
+            existing.availability = availability
+            existing.custom_labels = custom_labels or existing.custom_labels or {}
+            existing.update_time = now
+            existing.save()
+            item = existing
+        else:
+            item_id = uuid.uuid4().hex
+            item = AdProductItem.create(
+                id=item_id,
+                feed_id=feed_id,
+                advertiser_id=advertiser_id,
+                sku=sku,
+                title=title,
+                description=description,
+                price=float(price),
+                original_price=float(original_price) if original_price is not None else None,
+                currency=currency,
+                image_url=image_url,
+                product_url=product_url,
+                category=category,
+                brand=brand,
+                availability=availability,
+                custom_labels=custom_labels or {},
+                is_active=True,
+                create_time=now,
+                update_time=now,
+            )
+
+        # Update parent feed total count
+        count = AdProductItem.select().where(AdProductItem.feed_id == feed_id, AdProductItem.is_active == True).count()
+        AdProductFeed.update(items_count=count, last_sync_time=now, update_time=now).where(AdProductFeed.id == feed_id).execute()
+
+        return {
+            "id": item.id,
+            "feed_id": item.feed_id,
+            "sku": item.sku,
+            "title": item.title,
+            "price": item.price,
+            "original_price": item.original_price,
+            "product_url": item.product_url,
+            "image_url": item.image_url,
+            "category": item.category,
+            "brand": item.brand,
+            "availability": item.availability,
+        }
+
+    @classmethod
+    def batch_upsert_items(cls, feed_id: str, advertiser_id: str, items: list) -> int:
+        count = 0
+        for it in items:
+            sku = str(it.get("sku") or it.get("id") or uuid.uuid4().hex[:8])
+            title = it.get("title") or it.get("name") or "Product"
+            price = float(it.get("price") or 0.0)
+            product_url = it.get("product_url") or it.get("link") or "https://example.com"
+            cls.add_or_update_item(
+                feed_id=feed_id,
+                advertiser_id=advertiser_id,
+                sku=sku,
+                title=title,
+                price=price,
+                product_url=product_url,
+                description=it.get("description", ""),
+                original_price=float(it.get("original_price")) if it.get("original_price") else None,
+                currency=it.get("currency", "USD"),
+                image_url=it.get("image_url") or it.get("image_link"),
+                category=it.get("category") or it.get("product_type", ""),
+                brand=it.get("brand", ""),
+                availability=it.get("availability", "in_stock"),
+                custom_labels=it.get("custom_labels", {}),
+            )
+            count += 1
+        return count
+
+    @classmethod
+    def find_matching_product(cls, advertiser_id: str, query: str = "") -> dict:
+        """Finds the most relevant product SKU from the advertiser's feeds for dynamic creative insertion."""
+        clean_q = (query or "").lower().strip()
+        items = AdProductItem.select().where(
+            AdProductItem.advertiser_id == advertiser_id,
+            AdProductItem.is_active == True,
+            AdProductItem.availability == "in_stock"
+        ).order_by(AdProductItem.create_time.desc()).limit(30)
+
+        if not items:
+            return None
+
+        # Find best lexical match
+        best_match = None
+        highest_score = -1
+        for it in items:
+            score = 0
+            if clean_q:
+                if clean_q in it.title.lower():
+                    score += 5
+                if clean_q in it.category.lower():
+                    score += 3
+                if it.brand and clean_q in it.brand.lower():
+                    score += 3
+            if score > highest_score:
+                highest_score = score
+                best_match = it
+
+        chosen = best_match or items[0]
+        discount_percent = 0
+        if chosen.original_price and chosen.original_price > chosen.price and chosen.original_price > 0:
+            discount_percent = round(((chosen.original_price - chosen.price) / chosen.original_price) * 100)
+
+        return {
+            "id": chosen.id,
+            "sku": chosen.sku,
+            "title": chosen.title,
+            "price": chosen.price,
+            "original_price": chosen.original_price,
+            "discount_percent": discount_percent,
+            "currency": chosen.currency,
+            "product_url": chosen.product_url,
+            "image_url": chosen.image_url,
+            "category": chosen.category,
+            "brand": chosen.brand,
+        }
+
+
+class AdCreativeStudioService:
+    """
+    Phase 27: Multi-Format AI Creative Studio & Asset Repurposer Engine.
+    Generates rich interactive cards, mobile story banners, display leaderboard assets,
+    and video storyboard scripts from a single product definition.
+    """
+
+    @classmethod
+    def generate_creative_matrix(
+        cls,
+        advertiser_id: str,
+        product_name: str,
+        description: str = "",
+        category: str = "",
+        target_audience: str = "",
+        campaign_id: str = None,
+        save_assets: bool = True,
+    ) -> dict:
+        now = current_timestamp()
+        cat_label = category or "продуктов данной категории"
+        aud_label = target_audience or "наших клиентов"
+
+        # 1. Format: Text & Conversational AI Chat Card
+        text_card_payload = {
+            "headlines": [
+                f"{product_name} — Премиум выбор в категории {cat_label}",
+                f"Ищете надежный {product_name}? Лучшие условия онлайн",
+                f"Эксклюзивная цена на {product_name} с гарантией",
+            ],
+            "descriptions": [
+                f"Откройте для себя преимущества {product_name}. Высокое качество, удобство и быстрая доставка для {aud_label}.",
+                f"Выгодное предложение на {product_name}! Успейте оформить заказ с персональной скидкой и официальным сервисом.",
+                f"Тысячи покупателей уже выбрали {product_name}. Оцените непревзойденный комфорт и надежность уже сегодня.",
+            ],
+            "ctas": ["Купить онлайн", "Узнать подробнее", "Забронировать скидку"],
+            "badges": ["⭐ 4.9 Рейтинг", "🚚 Быстрая доставка", "🛡️ Гарантия 100%"],
+        }
+
+        # 2. Format: Rich Interactive Widget Card (Collapsible, Carousel, Price Tag)
+        rich_card_payload = {
+            "widget_title": f"Интерактивный виджет: {product_name}",
+            "headline": f"✨ {product_name} — Специальное предложение",
+            "features": [
+                f"Официальная гарантия и сертификация в {cat_label}",
+                "Бесплатная примерка и быстрая доставка до двери",
+                "Мгновенная оплата через Uzcard, Humo, Visa или в рассрочку",
+            ],
+            "primary_cta": "Перейти в каталог",
+            "secondary_cta": "Задать вопрос в чате",
+            "visual_style": "glassmorphic_card",
+            "rating": 4.9,
+            "reviews_count": 142,
+        }
+
+        # 3. Format: Story Banner (9:16 Vertical Mobile & Telegram Stories)
+        story_banner_payload = {
+            "aspect_ratio": "9:16",
+            "resolution": "1080x1920",
+            "title_overlay": product_name.upper(),
+            "subtitle": f"Твой идеальный выбор среди {cat_label}",
+            "sticker_badge": "🔥 СКИДКА ДО -30%",
+            "swipe_up_text": "Смахните вверх, чтобы заказать",
+            "background_gradient": "from-indigo-600 via-purple-600 to-pink-500",
+        }
+
+        # 4. Format: Responsive Display & Leaderboard Banner (1200x628 / 728x90)
+        leaderboard_payload = {
+            "dimensions": ["1200x628 (Social Feed)", "728x90 (Leaderboard)", "300x250 (Medium Rectangle)"],
+            "banner_header": f"{product_name} — Выбор экспертов",
+            "banner_body": f"Лучшие предложения и выгодные условия для {aud_label}.",
+            "button_text": "Узнать больше →",
+            "color_theme": "dark_modern",
+        }
+
+        # 5. Format: 15-30s Short-Form Video Storyboard Script
+        video_storyboard_payload = {
+            "duration_sec": 20,
+            "target_platform": ["TikTok", "Instagram Reels", "YouTube Shorts", "Telegram Stories"],
+            "scenes": [
+                {
+                    "scene": 1,
+                    "timestamp": "0:00 - 0:03",
+                    "phase": "Hook (Захват внимания)",
+                    "visual": f"Динамичный крупный план проблемы/потребности пользователя в сфере {cat_label}.",
+                    "voiceover": f"Все еще ищете действительно качественный {product_name}? Перестаньте тратить время зря!",
+                },
+                {
+                    "scene": 2,
+                    "timestamp": "0:03 - 0:14",
+                    "phase": "Value Proposition (Демонстрация)",
+                    "visual": f"Плавная демонстрация ключевых фичей и распаковка {product_name} в реальных условиях.",
+                    "voiceover": f"Встречайте {product_name}: премиальные материалы, максимальное удобство и восторг с первых минут использования.",
+                },
+                {
+                    "scene": 3,
+                    "timestamp": "0:14 - 0:20",
+                    "phase": "Call To Action (Призыв к действию)",
+                    "visual": "Анимация кнопки 'Заказать со скидкой' и промокод на экране.",
+                    "voiceover": "Переходите по ссылке прямо сейчас и забирайте спеццену до конца недели!",
+                },
+            ],
+        }
+
+        formats_map = {
+            "text_card": text_card_payload,
+            "rich_interactive_card": rich_card_payload,
+            "story_banner": story_banner_payload,
+            "leaderboard_banner": leaderboard_payload,
+            "video_storyboard": video_storyboard_payload,
+        }
+
+        created_assets = []
+        if save_assets:
+            for fmt, payload in formats_map.items():
+                asset = AdCreativeMatrixAsset.create(
+                    id=uuid.uuid4().hex,
+                    advertiser_id=advertiser_id,
+                    campaign_id=campaign_id,
+                    product_name=product_name,
+                    category=category or "",
+                    format_type=fmt,
+                    asset_payload=payload,
+                    health_score=95,
+                    is_published=False,
+                    create_time=now,
+                    update_time=now,
+                )
+                created_assets.append({
+                    "id": asset.id,
+                    "format_type": asset.format_type,
+                    "asset_payload": asset.asset_payload,
+                    "health_score": asset.health_score,
+                })
+
+        return {
+            "product_name": product_name,
+            "category": category,
+            "target_audience": target_audience,
+            "overall_health_score": 95,
+            "formats": formats_map,
+            "saved_assets": created_assets,
+        }
+
+    @classmethod
+    def list_creative_assets(cls, advertiser_id: str, campaign_id: str = None, format_type: str = None) -> list:
+        query = AdCreativeMatrixAsset.select().where(AdCreativeMatrixAsset.advertiser_id == advertiser_id)
+        if campaign_id:
+            query = query.where(AdCreativeMatrixAsset.campaign_id == campaign_id)
+        if format_type:
+            query = query.where(AdCreativeMatrixAsset.format_type == format_type)
+
+        assets = query.order_by(AdCreativeMatrixAsset.create_time.desc()).limit(50)
+        result = []
+        for a in assets:
+            result.append({
+                "id": a.id,
+                "advertiser_id": a.advertiser_id,
+                "campaign_id": a.campaign_id,
+                "product_name": a.product_name,
+                "category": a.category,
+                "format_type": a.format_type,
+                "asset_payload": a.asset_payload,
+                "health_score": a.health_score,
+                "is_published": a.is_published,
+                "create_time": a.create_time,
+            })
+        return result
+
+    @classmethod
+    def get_creative_health_score(cls, campaign_id: str, advertiser_id: str = None) -> dict:
+        """
+        Computes Creative Health & Asset Diversity Score (0 - 100)
+        evaluating variations, DCO configuration, Rich Media presence, and Feed connection.
+        """
+        campaign = AdCampaign.select().where(AdCampaign.id == campaign_id).first()
+        if not campaign:
+            return {
+                "score": 50,
+                "rating": "average",
+                "checklist": [],
+                "recommendations": ["Кампания не найдена"],
+            }
+
+        variants_count = AdVariant.select().where(AdVariant.campaign_id == campaign_id).count()
+        has_dco = bool(campaign.dco_enabled)
+        feeds_count = AdProductFeed.select().where(AdProductFeed.advertiser_id == campaign.advertiser_id).count()
+        matrix_assets_count = AdCreativeMatrixAsset.select().where(
+            AdCreativeMatrixAsset.advertiser_id == campaign.advertiser_id
+        ).count()
+
+        score = 40  # base
+        checklist = []
+        recommendations = []
+
+        # 1. Headline & Variant Diversity (+25)
+        if variants_count >= 3:
+            score += 25
+            checklist.append({"name": "A/B Вариативность объявлений", "status": "passed", "desc": f"Создано {variants_count} вариантов"})
+        elif variants_count >= 1:
+            score += 15
+            checklist.append({"name": "A/B Вариативность объявлений", "status": "warning", "desc": f"Создано {variants_count} варианта. Рекомендуется >= 3"})
+            recommendations.append("Добавьте еще 2 варианта объявлений для автоматической A/B оптимизации CTR")
+        else:
+            checklist.append({"name": "A/B Вариативность объявлений", "status": "failed", "desc": "Нет созданных вариантов"})
+            recommendations.append("Создайте варианты объявлений с разными заголовками и офферами")
+
+        # 2. Dynamic Creative Optimization (+15)
+        if has_dco:
+            score += 15
+            checklist.append({"name": "DCO Динамическая подстановка", "status": "passed", "desc": "Включена адаптация под поисковые запросы"})
+        else:
+            checklist.append({"name": "DCO Динамическая подстановка", "status": "warning", "desc": "DCO отключен"})
+            recommendations.append("Включите DCO для автоматической подстановки поисковых запросов в заголовки")
+
+        # 3. Product Catalog / Feed Connection (+10)
+        if feeds_count > 0:
+            score += 10
+            checklist.append({"name": "Товарный фид (Product Catalog)", "status": "passed", "desc": f"Подключено каталогов: {feeds_count}"})
+        else:
+            checklist.append({"name": "Товарный фид (Product Catalog)", "status": "info", "desc": "Каталог товаров не подключен"})
+            recommendations.append("Подключите товарный фид (DPA) для показа актуальных цен и наличия товаров")
+
+        # 4. Multi-format Rich Media & Video Storyboard (+10)
+        if matrix_assets_count > 0:
+            score += 10
+            checklist.append({"name": "Мульти-форматные Rich Media ассеты", "status": "passed", "desc": f"Сгенерировано форматов: {matrix_assets_count}"})
+        else:
+            recommendations.append("Используйте AI Creative Studio для генерации Stories и видео-раскадровок")
+
+        final_score = min(100, max(20, score))
+        rating = "excellent" if final_score >= 85 else "good" if final_score >= 65 else "needs_improvement"
+
+        return {
+            "campaign_id": campaign_id,
+            "campaign_name": campaign.name,
+            "score": final_score,
+            "rating": rating,
+            "variants_count": variants_count,
+            "has_dco": has_dco,
+            "has_feeds": feeds_count > 0,
+            "checklist": checklist,
+            "recommendations": recommendations,
+        }
+
 
 
 

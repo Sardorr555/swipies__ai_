@@ -295,6 +295,9 @@ from api.db.db_models import (
     AdConversionAttribution,
     AdAudienceLookalike,
     AdCustomerLtvProfile,
+    AdProductFeed,
+    AdProductItem,
+    AdCreativeMatrixAsset,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -320,6 +323,8 @@ from api.db.services.ad_engine_service import (
     AdAutomatedRulesService,
     AdMultiTouchAttributionService,
     AdLookalikeLtvService,
+    AdProductFeedService,
+    AdCreativeStudioService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -377,6 +382,9 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdConversionAttribution,
             AdAudienceLookalike,
             AdCustomerLtvProfile,
+            AdProductFeed,
+            AdProductItem,
+            AdCreativeMatrixAsset,
         ]
         for m in models:
             m._meta.database = test_db
@@ -440,6 +448,9 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdConversionAttribution,
             AdAudienceLookalike,
             AdCustomerLtvProfile,
+            AdProductFeed,
+            AdProductItem,
+            AdCreativeMatrixAsset,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -3534,9 +3545,175 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         remaining = AdLookalikeLtvService.list_lookalikes(adv.id)
         self.assertEqual(len(remaining), 1)
 
+    def test_29_creative_matrix_and_product_feeds(self):
+        """
+        Phase 27: Test AI Multi-Format Creative Matrix (Story banners, Rich cards, Video scripts)
+        and Dynamic Product Ads (DPA) catalog feeds and SKU matching.
+        """
+        user = User.create(id=f"user_p27_{uuid.uuid4().hex[:6]}", email=f"p27_{uuid.uuid4().hex[:6]}@example.com", nickname="Creative Studio User")
+        tenant = Tenant.create(
+            id=f"tenant_p27_{uuid.uuid4().hex[:6]}",
+            name="Creative Tenant",
+            llm_id="",
+            embd_id="",
+            asr_id="",
+            img2txt_id="",
+            rerank_id="",
+            parser_ids="",
+            credit=0,
+            create_time=current_timestamp(),
+        )
+        adv = Advertiser.create(
+            id=f"adv_p27_{uuid.uuid4().hex[:6]}",
+            user_id=user.id,
+            tenant_id=tenant.id,
+            company_name="Studio & Commerce Brand",
+            balance=600.0,
+            status="approved",
+            create_time=current_timestamp(),
+        )
+
+        # 1. Generate Multi-Format Creative Matrix
+        matrix = AdCreativeStudioService.generate_creative_matrix(
+            advertiser_id=adv.id,
+            product_name="MacBook Pro M3 Max",
+            description="Ultra-fast Apple silicon laptop for developers",
+            category="Ноутбуки и Электроника",
+            target_audience="Разработчики и дизайнеры",
+            save_assets=True,
+        )
+        self.assertEqual(matrix["product_name"], "MacBook Pro M3 Max")
+        self.assertEqual(matrix["overall_health_score"], 95)
+        self.assertIn("text_card", matrix["formats"])
+        self.assertIn("rich_interactive_card", matrix["formats"])
+        self.assertIn("story_banner", matrix["formats"])
+        self.assertIn("leaderboard_banner", matrix["formats"])
+        self.assertIn("video_storyboard", matrix["formats"])
+        self.assertEqual(len(matrix["saved_assets"]), 5)
+
+        # 2. List saved creative matrix assets
+        assets = AdCreativeStudioService.list_creative_assets(advertiser_id=adv.id)
+        self.assertEqual(len(assets), 5)
+
+        # 3. Create Product Catalog Feed (DPA) with initial SKU items
+        feed = AdProductFeedService.create_feed(
+            advertiser_id=adv.id,
+            name="Main Electronics Catalog",
+            feed_type="custom_json",
+            currency="USD",
+            initial_items=[
+                {
+                    "sku": "MBP-M3-16",
+                    "title": "Apple MacBook Pro 16 M3 Max",
+                    "price": 3499.0,
+                    "original_price": 3899.0,
+                    "product_url": "https://store.uz/macbook-pro-16",
+                    "category": "Laptops",
+                    "brand": "Apple",
+                    "availability": "in_stock",
+                },
+                {
+                    "sku": "IPH-15-PRO",
+                    "title": "Apple iPhone 15 Pro Max 256GB",
+                    "price": 1199.0,
+                    "original_price": 1299.0,
+                    "product_url": "https://store.uz/iphone-15-pro",
+                    "category": "Smartphones",
+                    "brand": "Apple",
+                    "availability": "in_stock",
+                }
+            ]
+        )
+        self.assertEqual(feed["name"], "Main Electronics Catalog")
+        self.assertEqual(feed["items_count"], 2)
+
+        # 4. Add individual SKU to feed
+        new_sku = AdProductFeedService.add_or_update_item(
+            feed_id=feed["id"],
+            advertiser_id=adv.id,
+            sku="AIRPODS-MAX",
+            title="Apple AirPods Max Space Gray",
+            price=549.0,
+            original_price=599.0,
+            product_url="https://store.uz/airpods-max",
+            category="Audio",
+            brand="Apple",
+        )
+        self.assertEqual(new_sku["sku"], "AIRPODS-MAX")
+
+        # 5. List items in feed
+        items = AdProductFeedService.list_feed_items(feed_id=feed["id"])
+        self.assertEqual(len(items), 3)
+
+        # 6. Intent & Lexical matching SKU for DPA dynamic insertion
+        matched_laptop = AdProductFeedService.find_matching_product(advertiser_id=adv.id, query="MacBook")
+        self.assertIsNotNone(matched_laptop)
+        self.assertEqual(matched_laptop["sku"], "MBP-M3-16")
+        self.assertEqual(matched_laptop["discount_percent"], 10)
+
+        # 7. Creative Health Score evaluation on Campaign
+        cmp = AdCampaign.create(
+            id=f"cmp_p27_{uuid.uuid4().hex[:6]}",
+            advertiser_id=adv.id,
+            name="DPA Dynamic Search Campaign",
+            product_name="MacBook Pro",
+            advertisement_text="Laptops for pros with M3 Max chips",
+            landing_url="https://store.uz/macbook",
+            daily_budget=50.0,
+            pricing_model="cpc",
+            bid_amount=0.50,
+            status="active",
+            dco_enabled=True,
+            create_time=current_timestamp(),
+        )
+        AdVariant.create(
+            id=f"var_1_{uuid.uuid4().hex[:6]}",
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            name="Variant A - Direct Offer",
+            advertisement_text="Buy MacBook M3 directly",
+            landing_url="https://store.uz/macbook",
+            is_active=True,
+            create_time=current_timestamp(),
+        )
+        AdVariant.create(
+            id=f"var_2_{uuid.uuid4().hex[:6]}",
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            name="Variant B - Discount Focus",
+            advertisement_text="Get 10% discount on MacBook M3",
+            landing_url="https://store.uz/macbook",
+            is_active=True,
+            create_time=current_timestamp(),
+        )
+        AdVariant.create(
+            id=f"var_3_{uuid.uuid4().hex[:6]}",
+            campaign_id=cmp.id,
+            advertiser_id=adv.id,
+            name="Variant C - Developer Specs",
+            advertisement_text="MacBook M3 Max 128GB Unified Memory",
+            landing_url="https://store.uz/macbook",
+            is_active=True,
+            create_time=current_timestamp(),
+        )
+
+        health = AdCreativeStudioService.get_creative_health_score(campaign_id=cmp.id)
+        self.assertGreaterEqual(health["score"], 80)
+        self.assertEqual(health["rating"], "excellent")
+        self.assertTrue(health["has_dco"])
+        self.assertTrue(health["has_feeds"])
+        self.assertEqual(health["variants_count"], 3)
+
+        # 8. Delete Product Feed
+        deleted = AdProductFeedService.delete_feed(feed_id=feed["id"], advertiser_id=adv.id)
+        self.assertTrue(deleted)
+        remaining_feeds = AdProductFeedService.list_feeds(advertiser_id=adv.id)
+        self.assertEqual(len(remaining_feeds), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

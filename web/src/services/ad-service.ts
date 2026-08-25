@@ -340,6 +340,21 @@ const adService = {
     request.get<ResponseData<CustomerLtvOverviewResponse>>('/ads/audiences/ltv-overview'),
   syncCustomerLtv: (data: SyncCustomerLtvRequest) =>
     request.post<ResponseData<any>>('/ads/audiences/ltv-sync', { data }),
+  // Phase 27: Multi-Format Creative Studio & Product Feeds (DPA) Methods
+  generateCreativeMatrix: (data: GenerateCreativeMatrixRequest) =>
+    request.post<ResponseData<CreativeMatrixResponse>>('/ads/creatives/generate-matrix', { data }),
+  getCreativeHealthScore: (campaignId: string) =>
+    request.get<ResponseData<CreativeHealthScoreResponse>>(`/ads/creatives/health-score/${campaignId}`),
+  getProductFeeds: () =>
+    request.get<ResponseData<ProductFeedItem[]>>('/ads/feeds'),
+  createProductFeed: (data: CreateProductFeedRequest) =>
+    request.post<ResponseData<ProductFeedItem>>('/ads/feeds', { data }),
+  deleteProductFeed: (feedId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/feeds/${feedId}`),
+  getFeedItems: (feedId: string, params?: { category?: string; search?: string; limit?: number }) =>
+    request.get<ResponseData<ProductSkuItem[]>>(`/ads/feeds/${feedId}/items`, { params }),
+  addFeedItem: (feedId: string, data: any) =>
+    request.post<ResponseData<ProductSkuItem>>(`/ads/feeds/${feedId}/items`, { data }),
 };
 
 export interface DcoConfig {
@@ -923,5 +938,148 @@ export interface SyncCustomerLtvRequest {
   }>;
 }
 
+// Phase 27: Multi-Format Creative Studio & Product Feed Types
+export interface ProductFeedItem {
+  id: string;
+  advertiser_id: string;
+  name: string;
+  feed_type: string;
+  feed_url?: string;
+  currency: string;
+  items_count: number;
+  sync_status: 'active' | 'syncing' | 'error' | 'paused';
+  last_sync_time: number;
+  sync_frequency: string;
+  create_time: number;
+}
+
+export interface ProductSkuItem {
+  id: string;
+  feed_id: string;
+  advertiser_id: string;
+  sku: string;
+  title: string;
+  description?: string;
+  price: number;
+  original_price?: number;
+  discount_percent: number;
+  currency: string;
+  image_url?: string;
+  product_url: string;
+  category: string;
+  brand: string;
+  availability: 'in_stock' | 'out_of_stock' | 'preorder';
+  custom_labels?: Record<string, any>;
+  is_active: boolean;
+  create_time: number;
+}
+
+export interface CreateProductFeedRequest {
+  name: string;
+  feed_type?: string;
+  feed_url?: string;
+  currency?: string;
+  sync_frequency?: string;
+  items?: Array<{
+    sku?: string;
+    title: string;
+    price: number;
+    original_price?: number;
+    product_url: string;
+    image_url?: string;
+    category?: string;
+    brand?: string;
+    availability?: string;
+  }>;
+}
+
+export interface CreativeMatrixFormats {
+  text_card: {
+    headlines: string[];
+    descriptions: string[];
+    ctas: string[];
+    badges: string[];
+  };
+  rich_interactive_card: {
+    widget_title: string;
+    headline: string;
+    features: string[];
+    primary_cta: string;
+    secondary_cta: string;
+    visual_style: string;
+    rating: number;
+    reviews_count: number;
+  };
+  story_banner: {
+    aspect_ratio: string;
+    resolution: string;
+    title_overlay: string;
+    subtitle: string;
+    sticker_badge: string;
+    swipe_up_text: string;
+    background_gradient: string;
+  };
+  leaderboard_banner: {
+    dimensions: string[];
+    banner_header: string;
+    banner_body: string;
+    button_text: string;
+    color_theme: string;
+  };
+  video_storyboard: {
+    duration_sec: number;
+    target_platform: string[];
+    scenes: Array<{
+      scene: number;
+      timestamp: string;
+      phase: string;
+      visual: string;
+      voiceover: string;
+    }>;
+  };
+}
+
+export interface CreativeMatrixResponse {
+  product_name: string;
+  category: string;
+  target_audience: string;
+  overall_health_score: number;
+  formats: CreativeMatrixFormats;
+  saved_assets: Array<{
+    id: string;
+    format_type: string;
+    asset_payload: any;
+    health_score: number;
+  }>;
+}
+
+export interface GenerateCreativeMatrixRequest {
+  product_name: string;
+  description?: string;
+  category?: string;
+  target_audience?: string;
+  campaign_id?: string;
+  save_assets?: boolean;
+}
+
+export interface CreativeHealthCheckItem {
+  name: string;
+  status: 'passed' | 'warning' | 'failed' | 'info';
+  desc: string;
+}
+
+export interface CreativeHealthScoreResponse {
+  campaign_id: string;
+  campaign_name: string;
+  score: number;
+  rating: 'excellent' | 'good' | 'needs_improvement';
+  variants_count: number;
+  has_dco: boolean;
+  has_feeds: boolean;
+  checklist: CreativeHealthCheckItem[];
+  recommendations: string[];
+}
+
 export default adService;
+
 

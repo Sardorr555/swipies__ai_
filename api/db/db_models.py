@@ -2254,6 +2254,65 @@ class AdCustomerLtvProfile(DataBaseModel):
         db_table = "ad_customer_ltv_profiles"
 
 
+class AdProductFeed(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=128, null=False)
+    feed_type = CharField(max_length=32, default="custom_json")  # google_merchant, custom_json, facebook_catalog, csv_tsv
+    feed_url = CharField(max_length=512, null=True)
+    currency = CharField(max_length=10, default="USD")
+    items_count = IntegerField(default=0)
+    sync_status = CharField(max_length=32, default="active")  # active, syncing, error, paused
+    last_sync_time = BigIntegerField(null=True)
+    sync_frequency = CharField(max_length=32, default="daily")  # manual, hourly, daily, weekly
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_product_feeds"
+
+
+class AdProductItem(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    feed_id = CharField(max_length=32, null=False, index=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    sku = CharField(max_length=64, null=False, index=True)
+    title = CharField(max_length=255, null=False)
+    description = TextField(default="")
+    price = FloatField(default=0.0)
+    original_price = FloatField(null=True)  # for discount badge %
+    currency = CharField(max_length=10, default="USD")
+    image_url = CharField(max_length=512, null=True)
+    product_url = CharField(max_length=512, null=False)
+    category = CharField(max_length=128, default="", index=True)
+    brand = CharField(max_length=128, default="")
+    availability = CharField(max_length=32, default="in_stock")  # in_stock, out_of_stock, preorder
+    custom_labels = JSONField(null=True, default=dict)
+    is_active = BooleanField(default=True, index=True)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_product_items"
+
+
+class AdCreativeMatrixAsset(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    campaign_id = CharField(max_length=32, null=True, index=True)
+    product_name = CharField(max_length=128, null=False)
+    category = CharField(max_length=128, default="")
+    format_type = CharField(max_length=32, index=True)  # text_card, rich_interactive_card, story_banner, leaderboard_banner, video_storyboard
+    asset_payload = JSONField(null=True, default=dict)  # structured headlines, description, cta, visuals, scripts
+    health_score = IntegerField(default=90)  # 0 to 100
+    is_published = BooleanField(default=False)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_creative_matrix_assets"
+
+
 class PromoCode(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     code = CharField(max_length=64, unique=True, index=True)
