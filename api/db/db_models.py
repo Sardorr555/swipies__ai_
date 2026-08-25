@@ -2210,6 +2210,50 @@ class AdConversionAttribution(DataBaseModel):
         db_table = "ad_conversion_attributions"
 
 
+class AdAudienceLookalike(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    source_segment_id = CharField(max_length=32, null=False, index=True)
+    source_segment_name = CharField(max_length=128, default="")
+    name = CharField(max_length=128, null=False)
+    similarity_ratio = IntegerField(default=1)  # 1 to 10 (% top similarity tier)
+    country = CharField(max_length=32, default="ALL")  # UZ, RU, US, ALL
+    seed_audience_size = IntegerField(default=0)
+    estimated_reach = IntegerField(default=10000)
+    status = CharField(max_length=32, default="ready")  # building, ready, failed
+    feature_weights = JSONField(null=True, default=dict)  # query_intent, category_affinity, device_affinity
+    expansion_metadata = JSONField(null=True, default=dict)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_audience_lookalikes"
+
+
+class AdCustomerLtvProfile(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    visitor_id = CharField(max_length=64, null=False, index=True)
+    customer_identifier = CharField(max_length=128, null=True, index=True)  # email hash, phone hash, or CRM id
+    rfm_recency_days = IntegerField(default=0)  # Days since last interaction/order
+    rfm_frequency = IntegerField(default=1)  # Number of orders/transactions
+    rfm_monetary_val = FloatField(default=0.0)  # Total historical spend
+    rfm_segment = CharField(max_length=32, default="potential_loyalist", index=True)
+    # Segments: champions, loyal, potential_loyalist, recent_customers, at_risk, hibernating, lost
+    predicted_ltv_90d = FloatField(default=0.0)  # Predicted 90-day LTV in USD
+    predicted_ltv_365d = FloatField(default=0.0)  # Projected 1-year value
+    churn_risk_score = FloatField(default=0.1)  # 0.0 (safe) to 1.0 (imminent churn)
+    total_orders = IntegerField(default=1)
+    avg_order_value = FloatField(default=0.0)
+    last_order_time = BigIntegerField(null=True)
+    tags = JSONField(null=True, default=list)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_customer_ltv_profiles"
+
+
 class PromoCode(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     code = CharField(max_length=64, unique=True, index=True)

@@ -76,6 +76,7 @@ import {
   Share2,
   Filter,
   ArrowRight,
+  Database,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -145,6 +146,10 @@ import adService, {
   ConversionJourneyPath,
   FunnelAnalyticsResponse,
   FunnelStageItem,
+  LookalikeAudienceItem,
+  CustomerLtvProfileItem,
+  CustomerLtvOverviewResponse,
+  RfmSegmentType,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -391,6 +396,120 @@ export default function SwipiesAdsPage() {
     setMtaDays(days);
     fetchAttributionData(mtaModel, days);
     fetchFunnelData(days);
+  };
+
+  // Lookalike Audiences & Predictive LTV State (Phase 26)
+  const [lookalikes, setLookalikes] = useState<LookalikeAudienceItem[]>([]);
+  const [loadingLookalikes, setLoadingLookalikes] = useState(false);
+  const [isCreateLookalikeModalOpen, setIsCreateLookalikeModalOpen] = useState(false);
+  const [lookalikeName, setLookalikeName] = useState('');
+  const [lookalikeSourceId, setLookalikeSourceId] = useState('');
+  const [lookalikeSimilarity, setLookalikeSimilarity] = useState(1);
+  const [lookalikeCountry, setLookalikeCountry] = useState('UZ');
+  const [creatingLookalike, setCreatingLookalike] = useState(false);
+
+  const [ltvOverview, setLtvOverview] = useState<CustomerLtvOverviewResponse | null>(null);
+  const [loadingLtv, setLoadingLtv] = useState(false);
+  const [isLtvSyncModalOpen, setIsLtvSyncModalOpen] = useState(false);
+  const [syncVisitorId, setSyncVisitorId] = useState('');
+  const [syncIdentifier, setSyncIdentifier] = useState('');
+  const [syncOrderValue, setSyncOrderValue] = useState('150');
+  const [syncOrdersCount, setSyncOrdersCount] = useState('2');
+  const [syncRecencyDays, setSyncRecencyDays] = useState('5');
+  const [syncingLtv, setSyncingLtv] = useState(false);
+
+  const fetchLookalikes = async () => {
+    setLoadingLookalikes(true);
+    try {
+      const res = await adService.getLookalikes();
+      if (res.data?.data) {
+        setLookalikes(res.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load lookalikes', err);
+    } finally {
+      setLoadingLookalikes(false);
+    }
+  };
+
+  const fetchLtvOverview = async () => {
+    setLoadingLtv(true);
+    try {
+      const res = await adService.getLtvOverview();
+      if (res.data?.data) {
+        setLtvOverview(res.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load LTV overview', err);
+    } finally {
+      setLoadingLtv(false);
+    }
+  };
+
+  const handleCreateLookalike = async () => {
+    if (!lookalikeName.trim()) {
+      message.error('Укажите название Lookalike аудитории');
+      return;
+    }
+    if (!lookalikeSourceId) {
+      message.error('Выберите исходный сегмент (Seed Segment)');
+      return;
+    }
+    setCreatingLookalike(true);
+    try {
+      const res = await adService.createLookalike({
+        name: lookalikeName.trim(),
+        source_segment_id: lookalikeSourceId,
+        similarity_ratio: lookalikeSimilarity,
+        country: lookalikeCountry,
+      });
+      if (res.data?.data) {
+        message.success('Lookalike аудитория успешно сгенерирована!');
+        setIsCreateLookalikeModalOpen(false);
+        setLookalikeName('');
+        fetchLookalikes();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка создания Lookalike аудитории');
+    } finally {
+      setCreatingLookalike(false);
+    }
+  };
+
+  const handleDeleteLookalike = async (id: string) => {
+    try {
+      const res = await adService.deleteLookalike(id);
+      if (res.data?.data?.deleted) {
+        message.success('Lookalike аудитория удалена');
+        fetchLookalikes();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка удаления Lookalike аудитории');
+    }
+  };
+
+  const handleSyncCustomerLtv = async () => {
+    setSyncingLtv(true);
+    try {
+      const res = await adService.syncCustomerLtv({
+        visitor_id: syncVisitorId.trim() || undefined,
+        customer_identifier: syncIdentifier.trim() || undefined,
+        order_value: parseFloat(syncOrderValue) || 0,
+        total_orders: parseInt(syncOrdersCount) || 1,
+        recency_days: parseInt(syncRecencyDays) || 0,
+      });
+      if (res.data?.data) {
+        message.success('Профиль клиента обновлен и pLTV пересчитан!');
+        setIsLtvSyncModalOpen(false);
+        setSyncVisitorId('');
+        setSyncIdentifier('');
+        fetchLtvOverview();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка синхронизации данных клиента');
+    } finally {
+      setSyncingLtv(false);
+    }
   };
 
   const fetchDashboard = async () => {
@@ -892,6 +1011,8 @@ export default function SwipiesAdsPage() {
     fetchRulesAndLogs();
     fetchAttributionData();
     fetchFunnelData();
+    fetchLookalikes();
+    fetchLtvOverview();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -1769,7 +1890,7 @@ export default function SwipiesAdsPage() {
             <DollarSign className="h-4 w-4" /> Billing & Transactions
           </TabsTrigger>
           <TabsTrigger value="audiences" className="flex items-center gap-2">
-            <Fingerprint className="h-4 w-4 text-emerald-500" /> Аудитории ({audiences.length})
+            <Fingerprint className="h-4 w-4 text-emerald-500" /> Аудитории & LTV ({audiences.length + lookalikes.length})
           </TabsTrigger>
           <TabsTrigger value="team" className="flex items-center gap-2">
             <Users className="h-4 w-4" /> Команда ({teamMembers.length})
@@ -3383,62 +3504,221 @@ export default function SwipiesAdsPage() {
           </div>
         </TabsContent>
 
-        {/* Audience Retargeting & Segments Tab */}
+        {/* Audiences, Lookalike AI & Predictive LTV Tab */}
         <TabsContent value="audiences" className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border">
             <div>
               <h3 className="text-base font-bold flex items-center gap-2">
                 <Fingerprint className="h-5 w-5 text-emerald-500" />
-                Сегменты аудиторий и Ретаргетинг
+                Сегменты аудиторий, Lookalike AI и Прогнозный LTV
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Автоматический сбор аудиторий по конверсиям пикселя и поведению для повторного вовлечения (Retargeting)
+                Пиксель-ретаргетинг, расширение охвата через Lookalike-векторы и поведенческий скоринг ценности клиентов (RFM / Churn Risk)
               </p>
             </div>
-            <Button
-              onClick={() => setIsAudienceModalOpen(true)}
-              size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs flex items-center gap-1.5"
-            >
-              <Plus className="h-3.5 w-3.5" /> + Создать аудиторию
-            </Button>
-          </div>
-
-          {/* Audience Segments Grid / Cards */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border p-3 bg-muted/20 text-xs">
-              <div className="font-semibold text-foreground flex items-center gap-1.5 mb-1">
-                🎯 Пиксель-ретаргетинг
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Посетители, совершившие purchase, lead или добавление в корзину на вашем сайте.
-              </p>
-            </div>
-            <div className="rounded-lg border p-3 bg-muted/20 text-xs">
-              <div className="font-semibold text-foreground flex items-center gap-1.5 mb-1">
-                ⚡ Исключение покупателей
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Исключайте пользователей, которые уже купили товар, чтобы экономить бюджет.
-              </p>
-            </div>
-            <div className="rounded-lg border p-3 bg-muted/20 text-xs">
-              <div className="font-semibold text-foreground flex items-center gap-1.5 mb-1">
-                🔄 Частота Frequency Capping
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Защита от выгорания креативов: не более N показов на 1 пользователя в сутки.
-              </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => setIsCreateLookalikeModalOpen(true)}
+                size="sm"
+                variant="outline"
+                className="border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 text-xs flex items-center gap-1.5"
+              >
+                <GitBranch className="h-3.5 w-3.5" /> + Lookalike AI
+              </Button>
+              <Button
+                onClick={() => setIsLtvSyncModalOpen(true)}
+                size="sm"
+                variant="outline"
+                className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 text-xs flex items-center gap-1.5"
+              >
+                <Database className="h-3.5 w-3.5" /> + Синхронизация клиента
+              </Button>
+              <Button
+                onClick={() => setIsAudienceModalOpen(true)}
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs flex items-center gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" /> + Создать аудиторию
+              </Button>
             </div>
           </div>
 
-          {/* Audiences Table */}
+          {/* Predictive LTV & RFM Metrics Scorecard */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Профилей в когортах</span>
+                  <Users className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div className="text-2xl font-bold text-foreground mt-1">
+                  {ltvOverview?.total_customers || 0}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Историческая выручка: ${(ltvOverview?.total_historical_revenue || 0).toFixed(2)}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-indigo-500/20 bg-gradient-to-br from-indigo-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Ср. Прогнозный LTV (90d)</span>
+                  <TrendingUp className="h-4 w-4 text-indigo-500" />
+                </div>
+                <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                  ${(ltvOverview?.avg_predicted_ltv_90d || 0).toFixed(2)}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Ожидаемый доход с покупателя</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Ср. Прогнозный LTV (365d)</span>
+                  <Calendar className="h-4 w-4 text-cyan-500" />
+                </div>
+                <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400 mt-1">
+                  ${(ltvOverview?.avg_predicted_ltv_365d || 0).toFixed(2)}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Годовая ценность клиента</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-rose-500/20 bg-gradient-to-br from-rose-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Ср. Риск оттока (Churn)</span>
+                  <AlertCircle className="h-4 w-4 text-rose-500" />
+                </div>
+                <div className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+                  {ltvOverview?.avg_churn_risk_percent || 0}%
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Вероятность потери активности</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* RFM Behavioral Cohorts Breakdown */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Target className="h-4 w-4 text-emerald-500" />
+                RFM Сегментация базы (Recency, Frequency, Monetary)
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Автоматическая кластеризация покупателей для персонализированного таргетинга и Win-Back кампаний
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                {[
+                  { key: 'champions', label: '🏆 Чемпионы', desc: 'Часто и много', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
+                  { key: 'loyal', label: '💎 Лояльные', desc: 'Стабильные заказы', color: 'bg-blue-500/10 text-blue-600 border-blue-500/30' },
+                  { key: 'potential_loyalist', label: '🚀 Потенциал', desc: 'Недавние с чеком', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30' },
+                  { key: 'recent_customers', label: '🌱 Новички', desc: 'Первый заказ', color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30' },
+                  { key: 'at_risk', label: '⚠️ В зоне риска', desc: 'Давно не покупали', color: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
+                  { key: 'hibernating', label: '💤 Спящие', desc: 'Редкие клиенты', color: 'bg-purple-500/10 text-purple-600 border-purple-500/30' },
+                  { key: 'lost', label: '❌ Потерянные', desc: 'Минимальный чек', color: 'bg-rose-500/10 text-rose-600 border-rose-500/30' },
+                ].map((item) => (
+                  <div key={item.key} className={`p-3 rounded-lg border flex flex-col justify-between ${item.color}`}>
+                    <div>
+                      <span className="text-xs font-bold block">{item.label}</span>
+                      <span className="text-[10px] opacity-80 block mt-0.5">{item.desc}</span>
+                    </div>
+                    <div className="text-lg font-extrabold mt-2">
+                      {ltvOverview?.segment_counts?.[item.key] || 0}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Lookalike Audiences Table */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between py-4">
               <div>
-                <CardTitle className="text-sm font-semibold">Ваши сегменты аудиторий</CardTitle>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <GitBranch className="h-4 w-4 text-indigo-500" />
+                  Lookalike AI-аудитории (Похожая аудитория)
+                </CardTitle>
                 <CardDescription className="text-xs">
-                  Списки пользователей для таргетинга или исключения в кампаниях
+                  Расширение целевой базы на основе векторов сходства поисковых интентов и интересов семенных сегментов
+                </CardDescription>
+              </div>
+              <Button size="sm" variant="ghost" onClick={fetchLookalikes} disabled={loadingLookalikes}>
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingLookalikes ? 'animate-spin' : ''}`} />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {lookalikes.length === 0 ? (
+                <div className="p-8 text-center text-xs text-muted-foreground">
+                  <GitBranch className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                  У вас пока нет созданных Lookalike аудиторий. Создайте расширенную аудиторию на основе VIP-покупателей!
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-2.5 px-4">Название Lookalike</th>
+                        <th className="py-2.5 px-4">Исходный сегмент (Seed)</th>
+                        <th className="py-2.5 px-4 text-center">Сходство (%)</th>
+                        <th className="py-2.5 px-4">Регион</th>
+                        <th className="py-2.5 px-4">Размер Seed</th>
+                        <th className="py-2.5 px-4 font-bold text-indigo-600">Прогнозный охват (Reach)</th>
+                        <th className="py-2.5 px-4">Статус</th>
+                        <th className="py-2.5 px-4 text-right">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {lookalikes.map((lal) => (
+                        <tr key={lal.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4 font-semibold text-foreground">{lal.name}</td>
+                          <td className="py-3 px-4 text-muted-foreground">{lal.source_segment_name || 'Seed Segment'}</td>
+                          <td className="py-3 px-4 text-center">
+                            <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20 font-bold">
+                              {lal.similarity_ratio}%
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 font-mono">{lal.country}</td>
+                          <td className="py-3 px-4">{lal.seed_audience_size.toLocaleString()} чел.</td>
+                          <td className="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                            ~{lal.estimated_reach.toLocaleString()} чел.
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                              🟢 Готово к показу
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteLookalike(lal.id)}
+                              className="text-red-500 hover:text-red-700 h-7 px-2 text-xs"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" /> Удалить
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Seed Audiences & Retargeting Table */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between py-4">
+              <div>
+                <CardTitle className="text-sm font-semibold">Сегменты пикселя и ретаргетинга</CardTitle>
+                <CardDescription className="text-xs">
+                  Списки пользователей для прямого таргетинга, исключения или генерации Lookalike
                 </CardDescription>
               </div>
               <Button size="sm" variant="ghost" onClick={fetchAudiences} disabled={loadingAudiences}>
@@ -3505,6 +3785,65 @@ export default function SwipiesAdsPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* High-pLTV Top Customer Cohort Table */}
+          {ltvOverview?.top_customers && ltvOverview.top_customers.length > 0 && (
+            <Card>
+              <CardHeader className="py-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  Топ VIP-профили по Прогнозному LTV (pLTV Top-25)
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Клиенты с наибольшей прогнозируемой ценностью на ближайшие 90 и 365 дней
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-2.5 px-4">Клиент / Visitor</th>
+                        <th className="py-2.5 px-4">RFM Когорта</th>
+                        <th className="py-2.5 px-4 text-center">Заказов</th>
+                        <th className="py-2.5 px-4 text-right">Выручка ($)</th>
+                        <th className="py-2.5 px-4 text-right">Ср. чек ($)</th>
+                        <th className="py-2.5 px-4 text-right font-bold text-indigo-600">Прогнозный LTV (90d)</th>
+                        <th className="py-2.5 px-4 text-right font-bold text-emerald-600">Годовой LTV (365d)</th>
+                        <th className="py-2.5 px-4 text-center">Риск оттока</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {ltvOverview.top_customers.map((cust) => (
+                        <tr key={cust.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4 font-mono font-medium">{cust.customer_identifier || cust.visitor_id.substring(0, 16)}</td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className="text-[10px] uppercase font-bold">
+                              {cust.rfm_segment.replace('_', ' ')}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-center font-bold">{cust.total_orders}</td>
+                          <td className="py-3 px-4 text-right font-mono">${cust.rfm_monetary_val.toFixed(2)}</td>
+                          <td className="py-3 px-4 text-right font-mono">${cust.avg_order_value.toFixed(2)}</td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                            ${cust.predicted_ltv_90d.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            ${cust.predicted_ltv_365d.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={cust.churn_risk_score > 0.5 ? 'text-rose-500 font-bold' : 'text-emerald-500 font-medium'}>
+                              {(cust.churn_risk_score * 100).toFixed(0)}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Team Collaboration & Roles Tab */}
@@ -7053,6 +7392,212 @@ async def get_swipies_ad(user_query: str):
           <DialogFooter>
             <Button size="sm" onClick={() => setIsPacingModalOpen(false)}>
               Закрыть
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Lookalike Audience Modal (Phase 26) */}
+      <Dialog open={isCreateLookalikeModalOpen} onOpenChange={setIsCreateLookalikeModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitBranch className="h-5 w-5 text-indigo-500" />
+              Создание Lookalike AI-аудитории
+            </DialogTitle>
+            <DialogDescription>
+              Система обучит вектор эмбеддингов на вашей исходной аудитории и найдет наиболее похожих пользователей в рекламной сети.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-semibold text-foreground">Название Lookalike аудитории *</label>
+              <Input
+                value={lookalikeName}
+                onChange={(e) => setLookalikeName(e.target.value)}
+                placeholder="Например: Lookalike (1%) — Похожие на VIP Покупателей"
+                className="mt-1 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground">Исходный сегмент (Seed Audience) *</label>
+              <Select value={lookalikeSourceId} onValueChange={setLookalikeSourceId}>
+                <SelectTrigger className="mt-1 text-xs">
+                  <SelectValue placeholder="Выберите исходную аудиторию" />
+                </SelectTrigger>
+                <SelectContent>
+                  {audiences.map((aud) => (
+                    <SelectItem key={aud.id} value={aud.id}>
+                      {aud.name} ({aud.member_count} чел.)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-foreground">Целевой регион (Country)</label>
+                <Select value={lookalikeCountry} onValueChange={setLookalikeCountry}>
+                  <SelectTrigger className="mt-1 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UZ">🇺🇿 Узбекистан (UZ)</SelectItem>
+                    <SelectItem value="RU">🇷🇺 Россия (RU)</SelectItem>
+                    <SelectItem value="KZ">🇰🇿 Казахстан (KZ)</SelectItem>
+                    <SelectItem value="US">🇺🇸 США (US)</SelectItem>
+                    <SelectItem value="ALL">🌐 Весь мир (Global)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground">
+                  Степень сходства: <strong className="text-indigo-600">{lookalikeSimilarity}%</strong>
+                </label>
+                <Select
+                  value={String(lookalikeSimilarity)}
+                  onValueChange={(val) => setLookalikeSimilarity(parseInt(val) || 1)}
+                >
+                  <SelectTrigger className="mt-1 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1% (Наивысшая точность)</SelectItem>
+                    <SelectItem value="2">2% (Сбалансированно)</SelectItem>
+                    <SelectItem value="3">3% (Расширенный охват)</SelectItem>
+                    <SelectItem value="5">5% (Широкая аудитория)</SelectItem>
+                    <SelectItem value="10">10% (Максимальный охват)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Live Reach Preview Box */}
+            <div className="p-3.5 rounded-xl border bg-indigo-500/5 border-indigo-500/20 text-xs space-y-1.5">
+              <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400 font-semibold">
+                <span>Прогнозируемый охват расширенной аудитории:</span>
+                <span className="font-mono text-sm font-bold">
+                  ~
+                  {Math.round(
+                    ((lookalikeCountry === 'UZ'
+                      ? 350000
+                      : lookalikeCountry === 'RU'
+                      ? 1200000
+                      : lookalikeCountry === 'US'
+                      ? 2500000
+                      : lookalikeCountry === 'KZ'
+                      ? 450000
+                      : 4500000) *
+                      lookalikeSimilarity) /
+                      100
+                  ).toLocaleString()}{' '}
+                  чел.
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Модель учитывает семантическую близость поисковых запросов в AI-чатах и паттерны переходов.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsCreateLookalikeModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCreateLookalike}
+              disabled={creatingLookalike}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {creatingLookalike ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <GitBranch className="mr-1.5 h-4 w-4" />}
+              {creatingLookalike ? 'Обучение и генерация...' : 'Сгенерировать Lookalike'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer LTV & RFM Sync Modal (Phase 26) */}
+      <Dialog open={isLtvSyncModalOpen} onOpenChange={setIsLtvSyncModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-amber-500" />
+              Синхронизация профиля клиента (CRM / pLTV)
+            </DialogTitle>
+            <DialogDescription>
+              Передайте данные о покупке или клиенте для мгновенного скоринга в RFM матрицу и расчета 90d/365d pLTV.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div>
+              <label className="font-semibold text-foreground">Email / Телефон / ID Клиента *</label>
+              <Input
+                value={syncIdentifier}
+                onChange={(e) => setSyncIdentifier(e.target.value)}
+                placeholder="client_vip@example.com"
+                className="mt-1 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold text-foreground">Visitor ID (Web Cookie / Fingerprint)</label>
+              <Input
+                value={syncVisitorId}
+                onChange={(e) => setSyncVisitorId(e.target.value)}
+                placeholder="vis_48f9a2b10c9d"
+                className="mt-1 text-xs font-mono"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="font-semibold text-foreground">Сумма заказа ($)</label>
+                <Input
+                  type="number"
+                  value={syncOrderValue}
+                  onChange={(e) => setSyncOrderValue(e.target.value)}
+                  className="mt-1 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-foreground">Всего заказов</label>
+                <Input
+                  type="number"
+                  value={syncOrdersCount}
+                  onChange={(e) => setSyncOrdersCount(e.target.value)}
+                  className="mt-1 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-foreground">Дней с заказа</label>
+                <Input
+                  type="number"
+                  value={syncRecencyDays}
+                  onChange={(e) => setSyncRecencyDays(e.target.value)}
+                  className="mt-1 text-xs font-bold"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsLtvSyncModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSyncCustomerLtv}
+              disabled={syncingLtv}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {syncingLtv ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
+              {syncingLtv ? 'Синхронизация...' : 'Синхронизировать и рассчитать pLTV'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -54,6 +54,7 @@ from api.db.services.ad_engine_service import (
     AdBudgetPacingService,
     AdAutomatedRulesService,
     AdMultiTouchAttributionService,
+    AdLookalikeLtvService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.promo_code_service import PromoCodeService
@@ -2380,6 +2381,127 @@ async def record_attribution_conversion():
     except Exception as e:
         logger.exception(f"Error attributing conversion: {e}")
         return get_data_error_result(message=str(e))
+
+
+# ---------------------------------------------------------
+# Phase 26: Lookalike Audiences & Predictive LTV Endpoints
+# ---------------------------------------------------------
+
+@manager.route("/v1/ads/audiences/lookalikes", methods=["GET"])
+@login_required
+async def list_lookalike_audiences():
+    """List all Lookalike audiences for current advertiser."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        lookalikes = AdLookalikeLtvService.list_lookalikes(adv.id)
+        return get_json_result(data=lookalikes)
+    except Exception as e:
+        logger.exception(f"Error listing lookalike audiences: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/audiences/lookalikes", methods=["POST"])
+@login_required
+async def create_lookalike_audience():
+    """Create a new Lookalike audience derived from a seed segment."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        req = await get_request_json() or {}
+        source_segment_id = req.get("source_segment_id")
+        name = req.get("name")
+        similarity_ratio = req.get("similarity_ratio", 1)
+        country = req.get("country", "ALL")
+        custom_weights = req.get("custom_weights")
+
+        if not source_segment_id or not name:
+            return get_json_result(data=False, message="source_segment_id and name are required", code=RetCode.ARGUMENT_ERROR)
+
+        res = AdLookalikeLtvService.create_lookalike(
+            advertiser_id=adv.id,
+            source_segment_id=source_segment_id,
+            name=name,
+            similarity_ratio=int(similarity_ratio),
+            country=country,
+            custom_weights=custom_weights,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error creating lookalike audience: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/audiences/lookalikes/<lookalike_id>", methods=["DELETE"])
+@login_required
+async def delete_lookalike_audience(lookalike_id: str):
+    """Delete a Lookalike audience."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        deleted = AdLookalikeLtvService.delete_lookalike(adv.id, lookalike_id)
+        return get_json_result(data={"deleted": deleted})
+    except Exception as e:
+        logger.exception(f"Error deleting lookalike audience: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/audiences/ltv-overview", methods=["GET"])
+@login_required
+async def get_ltv_overview():
+    """Get aggregated customer RFM segmentation, pLTV projections and top VIP profiles."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        overview = AdLookalikeLtvService.get_ltv_overview(adv.id)
+        return get_json_result(data=overview)
+    except Exception as e:
+        logger.exception(f"Error getting LTV overview: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/audiences/ltv-sync", methods=["POST"])
+@login_required
+async def sync_customer_ltv_profiles():
+    """Ingest or batch sync customer transaction history for RFM & pLTV calculation."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        req = await get_request_json() or {}
+        if "customers" in req and isinstance(req["customers"], list):
+            res = AdLookalikeLtvService.batch_sync_customers(adv.id, req["customers"])
+            return get_json_result(data=res)
+
+        visitor_id = req.get("visitor_id") or uuid.uuid4().hex[:16]
+        res = AdLookalikeLtvService.sync_customer_profile(
+            advertiser_id=adv.id,
+            visitor_id=visitor_id,
+            customer_identifier=req.get("customer_identifier") or req.get("email"),
+            order_value=float(req.get("order_value", 0.0)),
+            total_orders=int(req["total_orders"]) if "total_orders" in req else None,
+            recency_days=int(req["recency_days"]) if "recency_days" in req else None,
+            tags=req.get("tags"),
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error syncing customer LTV profiles: {e}")
+        return get_data_error_result(message=str(e))
+
 
 
 

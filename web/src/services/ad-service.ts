@@ -329,6 +329,17 @@ const adService = {
     request.get<ResponseData<ConversionJourneyPath[]>>('/ads/attribution/paths', { params }),
   getAttributionFunnel: (params?: { days?: number }) =>
     request.get<ResponseData<FunnelAnalyticsResponse>>('/ads/attribution/funnel', { params }),
+  // Phase 26: Lookalikes & Predictive LTV Methods
+  getLookalikes: () =>
+    request.get<ResponseData<LookalikeAudienceItem[]>>('/ads/audiences/lookalikes'),
+  createLookalike: (data: CreateLookalikeRequest) =>
+    request.post<ResponseData<LookalikeAudienceItem>>('/ads/audiences/lookalikes', { data }),
+  deleteLookalike: (lookalikeId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/audiences/lookalikes/${lookalikeId}`),
+  getLtvOverview: () =>
+    request.get<ResponseData<CustomerLtvOverviewResponse>>('/ads/audiences/ltv-overview'),
+  syncCustomerLtv: (data: SyncCustomerLtvRequest) =>
+    request.post<ResponseData<any>>('/ads/audiences/ltv-sync', { data }),
 };
 
 export interface DcoConfig {
@@ -830,4 +841,87 @@ export interface FunnelAnalyticsResponse {
   stages: FunnelStageItem[];
 }
 
+// Phase 26: Lookalikes & Predictive LTV Types
+export interface LookalikeAudienceItem {
+  id: string;
+  advertiser_id: string;
+  source_segment_id: string;
+  source_segment_name: string;
+  name: string;
+  similarity_ratio: number;
+  country: string;
+  seed_audience_size: number;
+  estimated_reach: number;
+  status: 'building' | 'ready' | 'failed';
+  feature_weights: Record<string, number>;
+  create_time: number;
+}
+
+export interface CreateLookalikeRequest {
+  source_segment_id: string;
+  name: string;
+  similarity_ratio?: number;
+  country?: string;
+  custom_weights?: Record<string, number>;
+}
+
+export type RfmSegmentType =
+  | 'champions'
+  | 'loyal'
+  | 'potential_loyalist'
+  | 'recent_customers'
+  | 'at_risk'
+  | 'hibernating'
+  | 'lost';
+
+export interface CustomerLtvProfileItem {
+  id: string;
+  visitor_id: string;
+  customer_identifier: string;
+  rfm_segment: RfmSegmentType;
+  predicted_ltv_90d: number;
+  predicted_ltv_365d: number;
+  churn_risk_score: number;
+  total_orders: number;
+  rfm_monetary_val: number;
+  avg_order_value: number;
+  rfm_recency_days: number;
+  tags: string[];
+  create_time: number;
+}
+
+export interface CustomerLtvOverviewResponse {
+  total_customers: number;
+  avg_predicted_ltv_90d: number;
+  avg_predicted_ltv_365d: number;
+  avg_churn_risk_percent: number;
+  total_historical_revenue: number;
+  segment_counts: Record<string, number>;
+  top_customers: CustomerLtvProfileItem[];
+}
+
+export interface SyncCustomerLtvRequest {
+  visitor_id?: string;
+  customer_identifier?: string;
+  order_value?: number;
+  total_orders?: number;
+  recency_days?: number;
+  tags?: string[];
+  customers?: Array<{
+    visitor_id?: string;
+    id?: string;
+    email?: string;
+    phone?: string;
+    customer_identifier?: string;
+    order_value?: number;
+    spend?: number;
+    total_orders?: number;
+    orders?: number;
+    recency_days?: number;
+    recency?: number;
+    tags?: string[];
+  }>;
+}
+
 export default adService;
+

@@ -293,6 +293,8 @@ from api.db.db_models import (
     AdRuleExecutionLog,
     AdJourneyTouchpoint,
     AdConversionAttribution,
+    AdAudienceLookalike,
+    AdCustomerLtvProfile,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -317,6 +319,7 @@ from api.db.services.ad_engine_service import (
     AdBudgetPacingService,
     AdAutomatedRulesService,
     AdMultiTouchAttributionService,
+    AdLookalikeLtvService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -372,6 +375,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdRuleExecutionLog,
             AdJourneyTouchpoint,
             AdConversionAttribution,
+            AdAudienceLookalike,
+            AdCustomerLtvProfile,
         ]
         for m in models:
             m._meta.database = test_db
@@ -433,6 +438,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdRuleExecutionLog,
             AdJourneyTouchpoint,
             AdConversionAttribution,
+            AdAudienceLookalike,
+            AdCustomerLtvProfile,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -3396,9 +3403,141 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertEqual(len(funnel["stages"]), 5)
         self.assertEqual(funnel["stages"][4]["count"], 1)  # 1 conversion recorded
 
+    def test_28_lookalike_audiences_and_predictive_ltv_rfm(self):
+        """
+        Phase 26: Test Lookalike Audience expansion vector modeling,
+        RFM Behavioral Segmentation, and Predictive Lifetime Value (pLTV / Churn Risk).
+        """
+        user = User.create(id=f"user_p26_{uuid.uuid4().hex[:6]}", email=f"p26_{uuid.uuid4().hex[:6]}@example.com", nickname="Lookalike User")
+        tenant = Tenant.create(
+            id=f"tenant_p26_{uuid.uuid4().hex[:6]}",
+            name="Lookalike Tenant",
+            llm_id="",
+            embd_id="",
+            asr_id="",
+            img2txt_id="",
+            rerank_id="",
+            parser_ids="",
+            credit=0,
+            create_time=current_timestamp(),
+        )
+        adv = Advertiser.create(
+            id=f"adv_p26_{uuid.uuid4().hex[:6]}",
+            user_id=user.id,
+            tenant_id=tenant.id,
+            company_name="Lookalike AI Brand",
+            balance=500.0,
+            status="approved",
+            create_time=current_timestamp(),
+        )
+
+        # 1. Create Seed Audience Segment and Add Seed Members
+        seed_seg = AdAudienceService.create_segment(
+            advertiser_id=adv.id,
+            name="High Value VIP Purchasers",
+            description="Customers who purchased > $100",
+            rule_type="pixel_event",
+            rule_config={"event_type": "purchase"},
+        )
+        self.assertIsNotNone(seed_seg["id"])
+
+        AdAudienceService.add_member(seed_seg["id"], "cust_seed_1", "anon_1")
+        AdAudienceService.add_member(seed_seg["id"], "cust_seed_2", "anon_2")
+        AdAudienceService.add_member(seed_seg["id"], "cust_seed_3", "anon_3")
+
+        # 2. Create 1% Lookalike Audience in UZ
+        lookalike_uz = AdLookalikeLtvService.create_lookalike(
+            advertiser_id=adv.id,
+            source_segment_id=seed_seg["id"],
+            name="Lookalike (UZ, 1%) - VIP Buyers",
+            similarity_ratio=1,
+            country="UZ",
+        )
+        self.assertEqual(lookalike_uz["name"], "Lookalike (UZ, 1%) - VIP Buyers")
+        self.assertEqual(lookalike_uz["similarity_ratio"], 1)
+        self.assertEqual(lookalike_uz["country"], "UZ")
+        self.assertEqual(lookalike_uz["seed_audience_size"], 3)
+        self.assertEqual(lookalike_uz["estimated_reach"], 3500)  # 1% of 350,000
+        self.assertEqual(lookalike_uz["status"], "ready")
+
+        # 3. Create 5% Lookalike Audience Global (ALL)
+        lookalike_all = AdLookalikeLtvService.create_lookalike(
+            advertiser_id=adv.id,
+            source_segment_id=seed_seg["id"],
+            name="Lookalike (Global, 5%)",
+            similarity_ratio=5,
+            country="ALL",
+        )
+        self.assertEqual(lookalike_all["estimated_reach"], 225000)  # 5% of 4,500,000
+
+        # 4. List Lookalikes
+        all_lals = AdLookalikeLtvService.list_lookalikes(advertiser_id=adv.id)
+        self.assertEqual(len(all_lals), 2)
+
+        # 5. Test RFM Scoring & pLTV Metrics Formula
+        # Champions: recent (5d), frequent (6 orders), high spend ($600)
+        seg_champ, pltv_90_c, pltv_365_c, churn_c = AdLookalikeLtvService.compute_rfm_metrics(
+            recency_days=5, frequency=6, monetary_val=600.0
+        )
+        self.assertEqual(seg_champ, "champions")
+        self.assertLess(churn_c, 0.20)  # Low churn risk
+        self.assertGreater(pltv_90_c, 200.0)
+
+        # At-Risk: high frequency/monetary but inactive for 80 days
+        seg_risk, pltv_90_r, pltv_365_r, churn_r = AdLookalikeLtvService.compute_rfm_metrics(
+            recency_days=80, frequency=5, monetary_val=400.0
+        )
+        self.assertEqual(seg_risk, "at_risk")
+        self.assertGreater(churn_r, 0.50)  # Elevated churn risk
+
+        # 6. Customer Sync & Batch Ingestion
+        cust_profile = AdLookalikeLtvService.sync_customer_profile(
+            advertiser_id=adv.id,
+            visitor_id="visitor_vip_101",
+            customer_identifier="vip_john@example.com",
+            order_value=250.0,
+            tags=["vip", "enterprise"],
+        )
+        self.assertEqual(cust_profile["visitor_id"], "visitor_vip_101")
+        self.assertEqual(cust_profile["rfm_monetary_val"], 250.0)
+
+        # Ingest 2nd order for same customer
+        cust_profile_2 = AdLookalikeLtvService.sync_customer_profile(
+            advertiser_id=adv.id,
+            visitor_id="visitor_vip_101",
+            order_value=150.0,
+        )
+        self.assertEqual(cust_profile_2["rfm_monetary_val"], 400.0)
+        self.assertEqual(cust_profile_2["total_orders"], 2)
+
+        # Batch import historical CRM customers
+        batch_res = AdLookalikeLtvService.batch_sync_customers(
+            advertiser_id=adv.id,
+            customer_records=[
+                {"visitor_id": "v_crm_1", "email": "crm1@test.uz", "order_value": 750.0, "total_orders": 8, "recency_days": 3},
+                {"visitor_id": "v_crm_2", "email": "crm2@test.uz", "order_value": 30.0, "total_orders": 1, "recency_days": 75},
+            ]
+        )
+        self.assertEqual(batch_res["synced_count"], 2)
+
+        # 7. LTV Overview Aggregation
+        overview = AdLookalikeLtvService.get_ltv_overview(advertiser_id=adv.id)
+        self.assertEqual(overview["total_customers"], 3)  # visitor_vip_101, v_crm_1, v_crm_2
+        self.assertGreater(overview["total_historical_revenue"], 1000.0)
+        self.assertGreater(overview["avg_predicted_ltv_90d"], 0.0)
+        self.assertIn("champions", overview["segment_counts"])
+        self.assertEqual(len(overview["top_customers"]), 3)
+
+        # 8. Delete Lookalike
+        del_success = AdLookalikeLtvService.delete_lookalike(adv.id, lookalike_uz["id"])
+        self.assertTrue(del_success)
+        remaining = AdLookalikeLtvService.list_lookalikes(adv.id)
+        self.assertEqual(len(remaining), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 
