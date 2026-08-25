@@ -31,6 +31,8 @@ export interface AdCampaignItem {
   target_cpa?: number;
   schedule_timezone?: string;
   schedule_config?: ScheduleConfig;
+  dco_enabled?: boolean;
+  dco_config?: DcoConfig;
   conversions_count?: number;
   conversion_rate?: number;
   total_conversion_value?: number;
@@ -289,7 +291,74 @@ const adService = {
     request.get<ResponseData<CampaignBiddingInfo>>(`/ads/campaigns/${campaignId}/bidding`),
   updateCampaignBidding: (campaignId: string, data: Partial<CampaignBiddingInfo>) =>
     request.put<ResponseData<CampaignBiddingInfo>>(`/ads/campaigns/${campaignId}/bidding`, { data }),
+
+  // Dynamic Creative Optimization (DCO) & Real-time Contextual Ad Insertion
+  getCampaignDco: (campaignId: string) =>
+    request.get<ResponseData<CampaignDcoInfo>>(`/ads/campaigns/${campaignId}/dco`),
+  updateCampaignDco: (campaignId: string, data: { dco_enabled: boolean; dco_config: DcoConfig }) =>
+    request.put<ResponseData<CampaignDcoInfo>>(`/ads/campaigns/${campaignId}/dco`, { data }),
+  previewCampaignDco: (campaignId: string, data: DcoPreviewRequest) =>
+    request.post<ResponseData<DcoPreviewResponse>>(`/ads/campaigns/${campaignId}/dco/preview`, { data }),
 };
+
+export interface DcoConfig {
+  headline_template?: string;
+  description_template?: string;
+  url_template?: string;
+  utm_auto_tagging?: boolean;
+  default_keyword?: string;
+  cta_text?: string;
+  promo_code?: string;
+  discount_percent?: number;
+  tone_style?: 'auto' | 'professional' | 'friendly' | 'urgent' | 'technical';
+}
+
+export interface DcoLogItem {
+  id: string;
+  query: string;
+  inserted_keyword?: string;
+  applied_city?: string;
+  applied_model?: string;
+  applied_promo?: string;
+  rendered_text: string;
+  rendered_url: string;
+  create_time: number;
+}
+
+export interface CampaignDcoInfo {
+  campaign_id: string;
+  campaign_name: string;
+  product_name?: string;
+  dco_enabled: boolean;
+  dco_config: DcoConfig;
+  recent_logs: DcoLogItem[];
+}
+
+export interface DcoPreviewRequest {
+  query: string;
+  model?: string;
+  region?: string;
+  lang?: string;
+  custom_template?: string;
+  custom_url_template?: string;
+  custom_cta?: string;
+  custom_promo?: string;
+  custom_discount?: number;
+  custom_tone?: string;
+}
+
+export interface DcoPreviewResponse {
+  query: string;
+  extracted_keyword: string;
+  applied_city: string;
+  applied_model: string;
+  rendered_text: string;
+  rendered_url: string;
+  rendered_cta: string;
+  promo_code: string;
+  discount_percent: number;
+  tone_style: string;
+}
 
 export interface ScheduleConfig {
   enabled_days?: number[];

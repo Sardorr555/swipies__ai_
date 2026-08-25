@@ -1742,6 +1742,8 @@ class AdCampaign(DataBaseModel):
     target_cpa = FloatField(default=0.0)  # Smart auto-bidding Target Cost Per Action ($)
     schedule_timezone = CharField(max_length=64, default="UTC")
     schedule_config = JSONField(null=True, default=dict)  # Dayparting & hourly multipliers config
+    dco_enabled = BooleanField(default=False)  # Dynamic Creative Optimization & Keyword Insertion
+    dco_config = JSONField(null=True, default=dict)  # DCO templates, DKI rules, UTM config, promo codes
     conversions_count = IntegerField(default=0)
     conversion_rate = FloatField(default=0.0)
     total_conversion_value = FloatField(default=0.0)
@@ -2096,6 +2098,25 @@ class AdBiddingLog(DataBaseModel):
 
     class Meta:
         db_table = "ad_bidding_logs"
+
+
+class AdDcoLog(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    campaign_id = CharField(max_length=32, null=False, index=True)
+    advertiser_id = CharField(max_length=32, null=True, index=True)
+    query = CharField(max_length=512, null=True)
+    original_text = TextField(null=True)
+    rendered_text = TextField(null=True)
+    original_url = TextField(null=True)
+    rendered_url = TextField(null=True)
+    inserted_keyword = CharField(max_length=255, null=True)
+    applied_city = CharField(max_length=128, null=True)
+    applied_model = CharField(max_length=128, null=True)
+    applied_promo = CharField(max_length=128, null=True)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "ad_dco_logs"
 
 
 class PromoCode(DataBaseModel):

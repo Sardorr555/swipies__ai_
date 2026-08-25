@@ -288,6 +288,7 @@ from api.db.db_models import (
     AdFraudLog,
     AdIpBlacklist,
     AdBiddingLog,
+    AdDcoLog,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -308,6 +309,7 @@ from api.db.services.ad_engine_service import (
     AdPublisherService,
     AdAntiFraudService,
     AdSmartBiddingService,
+    AdDcoEngineService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -358,6 +360,7 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdFraudLog,
             AdIpBlacklist,
             AdBiddingLog,
+            AdDcoLog,
         ]
         for m in models:
             m._meta.database = test_db
@@ -414,6 +417,7 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdFraudLog,
             AdIpBlacklist,
             AdBiddingLog,
+            AdDcoLog,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -2756,6 +2760,177 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertEqual(updated_info["target_cpa"], 25.0)
         self.assertEqual(updated_info["schedule_config"]["active_hours_end"], 22)
         self.assertGreaterEqual(len(updated_info["recent_bids"]), 1)
+
+    def test_25_dynamic_creative_optimization_and_dki(self):
+        """
+        Phase 23: Verify Dynamic Creative Optimization (DCO), Dynamic Keyword Insertion (DKI),
+        localized region detection, UTM link construction, dynamic CTA/promo codes, tone formatting,
+        and DCO decision logging.
+        """
+        # 1. Test Salient Keyword Extraction across RU, UZ, EN
+        kw_ru = AdDcoEngineService.extract_salient_keyword("посоветуй мне лучшую CRM для продаж онлайн", default_fallback="CRM", lang="ru")
+        self.assertIn("CRM", kw_ru)
+        self.assertIn("продаж", kw_ru)
+
+        kw_uz = AdDcoEngineService.extract_salient_keyword("qanday eng yaxshi kassa dasturi bor", default_fallback="Dastur", lang="uz")
+        self.assertIn("Kassa dasturi", kw_uz)
+
+        kw_en = AdDcoEngineService.extract_salient_keyword("where can i find the best accounting tool", default_fallback="Tool", lang="en")
+        self.assertIn("Accounting tool", kw_en)
+
+        kw_empty = AdDcoEngineService.extract_salient_keyword("как где что", default_fallback="Сервис", lang="ru")
+        self.assertEqual(kw_empty, "Сервис")
+
+        # 2. Test Region Localization
+        reg_ru = AdDcoEngineService.resolve_region_label("tashkent", "лучший сервис в Ташкенте", lang="ru")
+        self.assertEqual(reg_ru, "в Ташкенте")
+
+        reg_uz = AdDcoEngineService.resolve_region_label("samarkand", "samarqandda servis", lang="uz")
+        self.assertEqual(reg_uz, "Samarqandda")
+
+        reg_en = AdDcoEngineService.resolve_region_label("bukhara", "", lang="en")
+        self.assertEqual(reg_en, "in Bukhara")
+
+        # 3. Test Macro Token Substitution
+        template = "Ищете {keyword:надежное решение} {city:в Узбекистане}? Скидка {discount:10%} по промокоду {promo}. Протестировано с {model:AI}!"
+        rendered = AdDcoEngineService.substitute_macro_tokens(
+            template_str=template,
+            keyword="CRM для бизнеса",
+            city="в Ташкенте",
+            model_name="DeepSeek",
+            lang="ru",
+            day_name="Monday",
+            promo_code="SWIPIES20",
+            discount_percent=20.0,
+        )
+        self.assertEqual(
+            rendered,
+            "Ищете CRM для бизнеса в Ташкенте? Скидка 20% по промокоду SWIPIES20. Протестировано с DeepSeek!"
+        )
+
+        # 4. Test Dynamic URL Construction with UTM
+        dynamic_url = AdDcoEngineService.build_dynamic_url(
+            base_url="https://acme-crm.com/pricing?ref=banner",
+            campaign_id="cmp_dco_test_1",
+            inserted_keyword="CRM для бизнеса",
+            model="gpt-4o",
+            region="tashkent",
+            lang="ru",
+            utm_auto_tagging=True,
+            promo_code="SWIPIES20",
+        )
+        self.assertIn("ref=banner", dynamic_url)
+        self.assertIn("utm_source=swipies", dynamic_url)
+        self.assertIn("utm_campaign=cmp_dco_test_1", dynamic_url)
+        self.assertIn("promo=SWIPIES20", dynamic_url)
+
+        # 5. Create Test Advertiser and Campaign with DCO enabled
+        user = User.create(id="user_dco_test", email="dco@test.com", password="hash", nickname="dco_user")
+        adv = Advertiser.create(id="adv_dco_test", user_id=user.id, tenant_id="tenant_dco_test", company_name="DCO Auto Inc", balance=150.0)
+
+        cmp_dco = AdCampaign.create(
+            id="cmp_dco_active_1",
+            advertiser_id=adv.id,
+            name="DCO Smart Retail Campaign",
+            product_name="Retail Cloud ERP",
+            description="Enterprise ERP for retailers and warehouses",
+            advertisement_text="Обычный статичный текст объявления",
+            landing_url="https://retail-cloud.uz/start",
+            target_categories=["retail", "erp", "warehouses", "business"],
+            keywords=["retail", "erp", "склад", "магазин"],
+            daily_budget=50.0,
+            total_budget=500.0,
+            pricing_model="cpc",
+            bid_amount=0.25,
+            status="active",
+            moderation_status="approved",
+            dco_enabled=True,
+            dco_config={
+                "description_template": "Лучший {keyword:облачный сервис} {city:в Узбекистане}! Получите скидку {discount:15%} с промокодом {promo}.",
+                "url_template": "https://retail-cloud.uz/landing?campaign={product}",
+                "utm_auto_tagging": True,
+                "default_keyword": "ERP для склада",
+                "cta_text": "Попробовать {keyword:бесплатно}",
+                "promo_code": "RETAIL-SALE-20",
+                "discount_percent": 20.0,
+                "tone_style": "urgent",
+            },
+            create_time=current_timestamp(),
+            update_time=current_timestamp(),
+        )
+
+        # 6. Test DCO Copy Rendering Engine directly
+        dco_res = AdDcoEngineService.render_dco_copy(
+            campaign=cmp_dco,
+            query="посоветуй надежный софт для управления магазином и складом в Самарканде",
+            model="deepseek-v3",
+            lang="ru",
+            region="samarkand",
+            log_decision=True,
+        )
+        self.assertTrue(dco_res["dco_applied"])
+        self.assertIn("⚡ Спецпредложение:", dco_res["rendered_text"])
+        self.assertIn("в Самарканде", dco_res["rendered_text"])
+        self.assertIn("RETAIL-SALE-20", dco_res["rendered_text"])
+        self.assertIn("utm_source=swipies", dco_res["rendered_url"])
+        self.assertIn("utm_region=samarkand", dco_res["rendered_url"])
+        self.assertEqual(dco_res["promo_code"], "RETAIL-SALE-20")
+
+        # Verify AdDcoLog was created
+        dco_log = AdDcoLog.get_or_none(AdDcoLog.campaign_id == cmp_dco.id)
+        self.assertIsNotNone(dco_log)
+        self.assertEqual(dco_log.applied_city, "в Самарканде")
+        self.assertEqual(dco_log.applied_model, "DeepSeek")
+        self.assertEqual(dco_log.applied_promo, "RETAIL-SALE-20")
+
+        # 7. Test Integration inside AdEngineService Recommendation Pipeline
+        rec = AdEngineService.get_sponsored_recommendation(
+            query="как выбрать систему для управления складом в Ташкенте",
+            user_id="dco_end_user_1",
+            lang="ru",
+            model_name="gpt-4o",
+            region="tashkent",
+        )
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec["campaign_id"], cmp_dco.id)
+        self.assertTrue(rec.get("dco_applied"))
+        self.assertIn("в Ташкенте", rec["advertisement_text"])
+        self.assertIn("utm_source=swipies", rec["landing_url"])
+        self.assertEqual(rec["promo_code"], "RETAIL-SALE-20")
+        self.assertEqual(rec["discount_percent"], 20.0)
+
+        # 8. Test Live Preview API
+        preview = AdDcoEngineService.preview_dco(
+            campaign_id=cmp_dco.id,
+            query="qanday qilib kassa va sklad tizimini ulash mumkin",
+            model="claude-3-5",
+            region="tashkent",
+            lang="uz",
+            custom_template="Siz uchun {keyword:qulay dastur} {city:Toshkentda}! {promo} kodi bilan.",
+            custom_promo="UZ-SUPER-15",
+            custom_tone="friendly",
+        )
+        self.assertIn("💡 Tavsiya qilamiz:", preview["rendered_text"])
+        self.assertIn("UZ-SUPER-15", preview["rendered_text"])
+        self.assertEqual(preview["applied_model"], "Claude")
+
+        # 9. Test Campaign DCO Info Retrieval and Update
+        updated_dco = AdDcoEngineService.update_campaign_dco(
+            campaign_id=cmp_dco.id,
+            dco_enabled=True,
+            dco_config={
+                "description_template": "Обновленный шаблон {keyword} {city}",
+                "url_template": "https://retail-cloud.uz/v2",
+                "cta_text": "Заказать демо",
+                "promo_code": "PROMO-NEW",
+                "discount_percent": 25.0,
+                "tone_style": "professional",
+            },
+        )
+        self.assertTrue(updated_dco["dco_enabled"])
+        self.assertEqual(updated_dco["dco_config"]["promo_code"], "PROMO-NEW")
+        self.assertEqual(updated_dco["dco_config"]["discount_percent"], 25.0)
+        self.assertGreaterEqual(len(updated_dco["recent_logs"]), 1)
 
 
 if __name__ == "__main__":

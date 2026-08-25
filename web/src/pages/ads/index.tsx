@@ -121,6 +121,11 @@ import adService, {
   BiddingDecisionLogItem,
   CampaignBiddingInfo,
   ScheduleConfig,
+  DcoConfig,
+  DcoLogItem,
+  CampaignDcoInfo,
+  DcoPreviewRequest,
+  DcoPreviewResponse,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -263,6 +268,31 @@ export default function SwipiesAdsPage() {
   const [activeHoursEnd, setActiveHoursEnd] = useState<number>(23);
   const [peakHoursEnabled, setPeakHoursEnabled] = useState<boolean>(true);
   const [peakMultiplier, setPeakMultiplier] = useState<number>(1.25);
+
+  // Dynamic Creative Optimization (DCO) State
+  const [isDcoModalOpen, setIsDcoModalOpen] = useState(false);
+  const [dcoCampaign, setDcoCampaign] = useState<AdCampaignItem | null>(null);
+  const [dcoInfo, setDcoInfo] = useState<CampaignDcoInfo | null>(null);
+  const [loadingDco, setLoadingDco] = useState(false);
+  const [savingDco, setSavingDco] = useState(false);
+  const [dcoEnabled, setDcoEnabled] = useState(false);
+  const [dcoHeadlineTemplate, setDcoHeadlineTemplate] = useState('');
+  const [dcoDescriptionTemplate, setDcoDescriptionTemplate] = useState('');
+  const [dcoUrlTemplate, setDcoUrlTemplate] = useState('');
+  const [dcoUtmAutoTagging, setDcoUtmAutoTagging] = useState(true);
+  const [dcoDefaultKeyword, setDcoDefaultKeyword] = useState('');
+  const [dcoCtaText, setDcoCtaText] = useState('Узнать больше');
+  const [dcoPromoCode, setDcoPromoCode] = useState('');
+  const [dcoDiscountPercent, setDcoDiscountPercent] = useState<number>(0);
+  const [dcoToneStyle, setDcoToneStyle] = useState<'auto' | 'professional' | 'friendly' | 'urgent' | 'technical'>('auto');
+
+  // DCO Live Sandbox Preview State
+  const [previewQuery, setPreviewQuery] = useState('посоветуй надежную CRM систему для отдела продаж в Ташкенте');
+  const [previewModel, setPreviewModel] = useState('gpt-4o');
+  const [previewRegion, setPreviewRegion] = useState('tashkent');
+  const [previewLang, setPreviewLang] = useState('ru');
+  const [previewResult, setPreviewResult] = useState<DcoPreviewResponse | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -1024,6 +1054,107 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  const handleOpenDcoModal = async (cmp: AdCampaignItem) => {
+    setDcoCampaign(cmp);
+    setIsDcoModalOpen(true);
+    setLoadingDco(true);
+    setPreviewResult(null);
+    try {
+      const res = await adService.getCampaignDco(cmp.id);
+      if (res.data?.data) {
+        const info = res.data.data;
+        setDcoInfo(info);
+        setDcoEnabled(info.dco_enabled || false);
+        const cfg = info.dco_config || {};
+        setDcoHeadlineTemplate(cfg.headline_template || '');
+        setDcoDescriptionTemplate(cfg.description_template || cmp.advertisement_text || '');
+        setDcoUrlTemplate(cfg.url_template || cmp.landing_url || '');
+        setDcoUtmAutoTagging(cfg.utm_auto_tagging !== false);
+        setDcoDefaultKeyword(cfg.default_keyword || cmp.product_name || '');
+        setDcoCtaText(cfg.cta_text || 'Узнать больше');
+        setDcoPromoCode(cfg.promo_code || '');
+        setDcoDiscountPercent(cfg.discount_percent || 0);
+        setDcoToneStyle(cfg.tone_style || 'auto');
+
+        // Automatically trigger preview
+        handleRunDcoPreview(cmp.id, {
+          query: previewQuery,
+          model: previewModel,
+          region: previewRegion,
+          lang: previewLang,
+          custom_template: cfg.description_template || cmp.advertisement_text,
+          custom_url_template: cfg.url_template || cmp.landing_url,
+          custom_cta: cfg.cta_text || 'Узнать больше',
+          custom_promo: cfg.promo_code || '',
+          custom_discount: cfg.discount_percent || 0,
+          custom_tone: cfg.tone_style || 'auto',
+        });
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка загрузки DCO настроек');
+    } finally {
+      setLoadingDco(false);
+    }
+  };
+
+  const handleRunDcoPreview = async (campaignId?: string, overrideData?: any) => {
+    const targetId = campaignId || dcoCampaign?.id;
+    if (!targetId) return;
+    setLoadingPreview(true);
+    try {
+      const reqData: DcoPreviewRequest = overrideData || {
+        query: previewQuery,
+        model: previewModel,
+        region: previewRegion,
+        lang: previewLang,
+        custom_template: dcoDescriptionTemplate,
+        custom_url_template: dcoUrlTemplate,
+        custom_cta: dcoCtaText,
+        custom_promo: dcoPromoCode,
+        custom_discount: dcoDiscountPercent,
+        custom_tone: dcoToneStyle,
+      };
+      const res = await adService.previewCampaignDco(targetId, reqData);
+      if (res.data?.data) {
+        setPreviewResult(res.data.data);
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка генерации предпросмотра DCO');
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleSaveDcoConfig = async () => {
+    if (!dcoCampaign) return;
+    setSavingDco(true);
+    try {
+      const res = await adService.updateCampaignDco(dcoCampaign.id, {
+        dco_enabled: dcoEnabled,
+        dco_config: {
+          headline_template: dcoHeadlineTemplate.trim(),
+          description_template: dcoDescriptionTemplate.trim(),
+          url_template: dcoUrlTemplate.trim(),
+          utm_auto_tagging: dcoUtmAutoTagging,
+          default_keyword: dcoDefaultKeyword.trim(),
+          cta_text: dcoCtaText.trim(),
+          promo_code: dcoPromoCode.trim(),
+          discount_percent: dcoDiscountPercent,
+          tone_style: dcoToneStyle,
+        },
+      });
+      if (res.data?.data) {
+        message.success('Настройки динамической оптимизации (DCO) сохранены!');
+        setIsDcoModalOpen(false);
+        fetchDashboard();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка сохранения DCO настроек');
+    } finally {
+      setSavingDco(false);
+    }
+  };
+
   const toggleDayOfWeek = (dayIdx: number) => {
     if (enabledDays.includes(dayIdx)) {
       if (enabledDays.length === 1) {
@@ -1448,7 +1579,14 @@ export default function SwipiesAdsPage() {
                       {dashboard.campaigns.map((cmp) => (
                         <tr key={cmp.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4">
-                            <div className="font-semibold text-foreground">{cmp.name}</div>
+                            <div className="font-semibold text-foreground flex items-center gap-1.5">
+                              {cmp.name}
+                              {cmp.dco_enabled && (
+                                <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-[10px] px-1.5 py-0 font-bold">
+                                  ✨ DCO
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                               <span className="font-medium text-blue-500">{cmp.product_name}</span>
                               <span>•</span>
@@ -1507,12 +1645,12 @@ export default function SwipiesAdsPage() {
                               {cmp.pricing_model}
                               {cmp.bidding_strategy === 'enhanced_cpc' && (
                                 <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[9px] px-1 py-0 font-bold">
-                                  ⚡ eCPC
+                                  ⚡ E-CPC
                                 </Badge>
                               )}
                               {cmp.bidding_strategy === 'target_cpa' && (
                                 <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[9px] px-1 py-0 font-bold">
-                                  🎯 CPA
+                                  🎯 tCPA
                                 </Badge>
                               )}
                               {cmp.bidding_strategy === 'maximize_conversions' && (
@@ -1563,6 +1701,15 @@ export default function SwipiesAdsPage() {
                                 ) : (
                                   <Play className="h-4 w-4 text-emerald-500" />
                                 )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenDcoModal(cmp)}
+                                title="DCO: Динамическая оптимизация & Авто-вставки"
+                                className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
+                              >
+                                <Wand2 className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="sm"
@@ -5250,6 +5397,364 @@ async def get_swipies_ad(user_query: str):
             >
               {savingBidding ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
               {savingBidding ? 'Сохранение...' : 'Сохранить стратегию и расписание'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dynamic Creative Optimization (DCO) & DKI Modal */}
+      <Dialog open={isDcoModalOpen} onOpenChange={setIsDcoModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Sparkles className="h-5 w-5 text-cyan-500" />
+              Динамическая оптимизация креативов (DCO) & DKI
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Персонализация объявлений в реальном времени под запрос пользователя, геолокацию, используемую AI-модель и динамические скидочные промокоды.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingDco ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <RefreshCw className="h-8 w-8 animate-spin mb-2 text-cyan-500" />
+              <p className="text-xs">Загрузка параметров динамической оптимизации...</p>
+            </div>
+          ) : (
+            <div className="space-y-6 py-2">
+              {/* 1. Master Toggle & Campaign Header */}
+              <div className="p-4 rounded-xl border bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 dark:from-cyan-950/30 dark:via-blue-950/30 dark:to-purple-950/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-foreground">{dcoCampaign?.name}</span>
+                    <Badge variant="outline" className="text-[10px] bg-cyan-500/10 text-cyan-600 border-cyan-500/20 font-bold">
+                      {dcoCampaign?.product_name}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Статус DCO: {dcoEnabled ? '🟢 Активен (подставляет релевантные ключевые фразы и город)' : '⚪ Выключен (показывается статичный текст)'}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant={dcoEnabled ? 'default' : 'outline'}
+                  onClick={() => setDcoEnabled(!dcoEnabled)}
+                  className={`font-semibold text-xs h-9 px-4 ${dcoEnabled ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : ''}`}
+                >
+                  <Sparkles className="mr-1.5 h-4 w-4" />
+                  {dcoEnabled ? 'DCO Включен' : 'Включить DCO'}
+                </Button>
+              </div>
+
+              {/* 2. Available Macro Tokens Quick Insert Bar */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-foreground text-xs flex items-center gap-1.5">
+                    <Code className="h-3.5 w-3.5 text-cyan-500" /> Доступные макро-токены для шаблона (нажмите для вставки):
+                  </label>
+                  <span className="text-[11px] text-muted-foreground">Формат: {'{токен:дефолт}'}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { token: '{keyword}', desc: 'Поисковая фраза пользователя' },
+                    { token: '{city}', desc: 'Локация (в Ташкенте / Toshkentda)' },
+                    { token: '{model}', desc: 'AI модель (ChatGPT / DeepSeek)' },
+                    { token: '{promo}', desc: 'Промокод акции' },
+                    { token: '{discount}', desc: 'Размер скидки (%)' },
+                    { token: '{product}', desc: 'Название продукта' },
+                    { token: '{day}', desc: 'День недели / сегодня' },
+                  ].map((t) => (
+                    <Button
+                      key={t.token}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setDcoDescriptionTemplate((prev) => prev ? `${prev} ${t.token}` : t.token);
+                        message.info(`Токен ${t.token} добавлен в шаблон`);
+                      }}
+                      className="h-7 text-xs font-mono bg-muted/30 hover:bg-cyan-500/10 hover:text-cyan-600 hover:border-cyan-500/30"
+                      title={t.desc}
+                    >
+                      <Plus className="h-3 w-3 mr-1 text-cyan-500" />
+                      {t.token}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Template Configuration Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="font-semibold text-foreground text-xs block">
+                    Шаблон рекламного текста (Ad Copy Template):
+                  </label>
+                  <Textarea
+                    value={dcoDescriptionTemplate}
+                    onChange={(e) => setDcoDescriptionTemplate(e.target.value)}
+                    placeholder="Например: Ищете надежный {keyword:софт} {city:в Узбекистане}? Скидка {discount:15%} с кодом {promo}. Проверено с {model:AI}!"
+                    className="text-xs min-h-[75px] font-sans"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Если поисковый запрос пользователя содержит конкретную фразу или город, они будут автоматически подставлены.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-foreground text-xs block">
+                    Дефолтное ключевое слово (Fallback Keyword):
+                  </label>
+                  <Input
+                    value={dcoDefaultKeyword}
+                    onChange={(e) => setDcoDefaultKeyword(e.target.value)}
+                    placeholder="Например: ERP для ритейла"
+                    className="h-8 text-xs"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Подставляется, если из запроса пользователя не удалось выделить фразу.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-foreground text-xs block">
+                    Текст кнопки действия (Call to Action / CTA):
+                  </label>
+                  <Input
+                    value={dcoCtaText}
+                    onChange={(e) => setDcoCtaText(e.target.value)}
+                    placeholder="Например: Попробовать бесплатно / Купить со скидкой"
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-foreground text-xs block">
+                    Промокод на скидку ({'{promo}'}):
+                  </label>
+                  <Input
+                    value={dcoPromoCode}
+                    onChange={(e) => setDcoPromoCode(e.target.value)}
+                    placeholder="Например: SWIPIES20"
+                    className="h-8 text-xs uppercase font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-foreground text-xs block">
+                    Размер скидки % ({'{discount}'}):
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={dcoDiscountPercent || ''}
+                    onChange={(e) => setDcoDiscountPercent(parseFloat(e.target.value) || 0)}
+                    placeholder="20"
+                    className="h-8 text-xs font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="font-semibold text-foreground text-xs block">
+                    Динамический URL целевой страницы (Landing URL Template):
+                  </label>
+                  <Input
+                    value={dcoUrlTemplate}
+                    onChange={(e) => setDcoUrlTemplate(e.target.value)}
+                    placeholder="https://mysite.uz/landing?campaign={product}&ref=swipies"
+                    className="h-8 text-xs font-mono"
+                  />
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="checkbox"
+                      id="utm-auto-toggle"
+                      checked={dcoUtmAutoTagging}
+                      onChange={(e) => setDcoUtmAutoTagging(e.target.checked)}
+                      className="rounded text-cyan-600 focus:ring-cyan-500 h-3.5 w-3.5"
+                    />
+                    <label htmlFor="utm-auto-toggle" className="text-xs text-muted-foreground cursor-pointer">
+                      Автоматически добавлять UTM-метки (<code className="text-[10px]">utm_source=swipies&utm_medium=ai_native&utm_term=...</code>)
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="font-semibold text-foreground text-xs block">
+                    Стиль подачи (Tone of Voice):
+                  </label>
+                  <Select
+                    value={dcoToneStyle}
+                    onValueChange={(val: any) => setDcoToneStyle(val)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">🤖 Автоматический (Адаптируется под вопрос пользователя)</SelectItem>
+                      <SelectItem value="professional">💼 Профессиональный / Экспертный</SelectItem>
+                      <SelectItem value="friendly">💡 Дружелюбный совет (Рекомендация)</SelectItem>
+                      <SelectItem value="urgent">⚡ Горящее спецпредложение (Ограниченное время)</SelectItem>
+                      <SelectItem value="technical">⚙️ Технический / Аналитический</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* 4. Live Interactive Preview Sandbox */}
+              <div className="p-4 rounded-xl border bg-muted/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-xs flex items-center gap-1.5 text-foreground">
+                    <Wand2 className="h-4 w-4 text-cyan-500" />
+                    Интерактивная песочница & Предпросмотр в реальном времени
+                  </h4>
+                  <Button
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleRunDcoPreview()}
+                    disabled={loadingPreview}
+                    className="h-7 text-xs border-cyan-500/30 text-cyan-600 hover:bg-cyan-500/10"
+                  >
+                    {loadingPreview ? <RefreshCw className="mr-1 h-3 w-3 animate-spin" /> : <Play className="mr-1 h-3 w-3" />}
+                    Обновить предпросмотр
+                  </Button>
+                </div>
+
+                {/* Sandbox Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                  <div className="sm:col-span-2">
+                    <Input
+                      value={previewQuery}
+                      onChange={(e) => setPreviewQuery(e.target.value)}
+                      placeholder="Тестовый вопрос пользователя в чате..."
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Select value={previewModel} onValueChange={setPreviewModel}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gpt-4o">ChatGPT (GPT-4o)</SelectItem>
+                        <SelectItem value="deepseek-v3">DeepSeek-V3</SelectItem>
+                        <SelectItem value="claude-3-5">Claude 3.5 Sonnet</SelectItem>
+                        <SelectItem value="llama-3-3">Llama 3.3</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Select value={previewRegion} onValueChange={setPreviewRegion}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tashkent">Ташкент</SelectItem>
+                        <SelectItem value="samarkand">Самарканд</SelectItem>
+                        <SelectItem value="bukhara">Бухара</SelectItem>
+                        <SelectItem value="fergana">Фергана</SelectItem>
+                        <SelectItem value="moscow">Москва</SelectItem>
+                        <SelectItem value="global">Онлайн</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Rendered Mockup Card */}
+                {previewResult && (
+                  <div className="p-3.5 rounded-lg border bg-card shadow-sm space-y-2 mt-2">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground border-b pb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-foreground">Сгенерированное DCO объявление:</span>
+                        <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-bold">
+                          ✨ Ключевое слово: {previewResult.extracted_keyword}
+                        </Badge>
+                        <Badge variant="outline" className="text-[9px] bg-purple-500/10 text-purple-600 border-purple-500/20">
+                          📍 {previewResult.applied_city}
+                        </Badge>
+                      </div>
+                      <span className="text-cyan-600 font-mono text-[10px]">🤖 {previewResult.applied_model}</span>
+                    </div>
+
+                    <div className="text-xs text-foreground font-medium py-1">
+                      {previewResult.rendered_text}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t text-[11px]">
+                      <div className="text-muted-foreground truncate max-w-[450px] font-mono text-[10px]">
+                        🔗 {previewResult.rendered_url}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {previewResult.promo_code && (
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-mono font-bold text-[10px]">
+                            🏷️ {previewResult.promo_code}
+                          </Badge>
+                        )}
+                        <Button size="sm" className="h-6 px-2.5 text-xs bg-blue-600 text-white font-medium">
+                          {previewResult.rendered_cta || 'Узнать больше'} <ArrowUpRight className="ml-1 h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. DCO Decision Logs Table */}
+              {dcoInfo?.recent_logs && dcoInfo.recent_logs.length > 0 && (
+                <div className="space-y-2 pt-2 border-t">
+                  <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <Activity className="h-3.5 w-3.5 text-cyan-500" />
+                    Журнал реальных показов DCO креативов ({dcoInfo.recent_logs.length})
+                  </h4>
+                  <div className="rounded-xl border overflow-x-auto">
+                    <table className="w-full text-left text-[11px]">
+                      <thead className="bg-muted/40 uppercase text-muted-foreground border-b text-[10px]">
+                        <tr>
+                          <th className="py-2 px-3">Время</th>
+                          <th className="py-2 px-3">Запрос пользователя</th>
+                          <th className="py-2 px-3">Вставка фразы</th>
+                          <th className="py-2 px-3">Город</th>
+                          <th className="py-2 px-3">Модель</th>
+                          <th className="py-2 px-3">Итоговый текст</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {dcoInfo.recent_logs.slice(0, 8).map((log) => (
+                          <tr key={log.id} className="hover:bg-muted/30">
+                            <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">
+                              {new Date(log.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </td>
+                            <td className="py-2 px-3 text-foreground truncate max-w-[150px]" title={log.query}>
+                              {log.query}
+                            </td>
+                            <td className="py-2 px-3 font-semibold text-cyan-600">{log.inserted_keyword || '—'}</td>
+                            <td className="py-2 px-3 text-purple-600">{log.applied_city || '—'}</td>
+                            <td className="py-2 px-3 font-mono text-[10px]">{log.applied_model || 'AI'}</td>
+                            <td className="py-2 px-3 text-muted-foreground truncate max-w-[220px]" title={log.rendered_text}>
+                              {log.rendered_text}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsDcoModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveDcoConfig}
+              disabled={savingDco || loadingDco}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white"
+            >
+              {savingDco ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
+              {savingDco ? 'Сохранение...' : 'Сохранить настройки DCO'}
             </Button>
           </DialogFooter>
         </DialogContent>

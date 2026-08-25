@@ -45,6 +45,7 @@ from api.db.db_models import (
     AdFraudLog,
     AdIpBlacklist,
     AdBiddingLog,
+    AdDcoLog,
     User,
     Tenant,
 )
@@ -356,6 +357,8 @@ class AdEngineService:
         ip_address: str = "",
         now_dt: datetime = None,
         query: str = "",
+        region: str = "",
+        city: str = "",
     ) -> dict | None:
         """
         Evaluate candidate ad campaigns for an incoming user prompt.
@@ -363,6 +366,8 @@ class AdEngineService:
         budget & balance verification, and frequency capping before ranking candidates.
         """
         user_query = user_query or query
+        user_region = user_region or region
+        user_city = user_city or city
         if not user_query or not user_query.strip():
             return None
 
@@ -587,6 +592,25 @@ class AdEngineService:
         # Select active variant (A/B testing with Bandit strategy) or fallback to campaign defaults
         selected_variant, ad_text, landing_url = AdVariantService.select_variant_for_impression(winner_campaign)
 
+        # Apply Dynamic Creative Optimization (DCO) & Dynamic Keyword Insertion (DKI)
+        dco_result = {}
+        try:
+            dco_result = AdDcoEngineService.render_dco_copy(
+                campaign=winner_campaign,
+                query=clean_query,
+                base_text=ad_text,
+                base_url=landing_url,
+                model=model_name or "gpt-4o",
+                lang=effective_lang or "ru",
+                region=effective_region or "tashkent",
+                user_id=user_id or "",
+                log_decision=True,
+            )
+            ad_text = dco_result.get("rendered_text") or ad_text
+            landing_url = dco_result.get("rendered_url") or landing_url
+        except Exception as e:
+            logger.debug(f"DCO render error: {e}")
+
         # Record Impression
         impression_id = uuid.uuid4().hex[:32]
         try:
@@ -655,6 +679,10 @@ class AdEngineService:
             "tracking_url": tracking_url,
             "target_categories": winner_campaign.target_categories or [],
             "pricing_model": getattr(winner_campaign, "pricing_model", "cpc"),
+            "cta_text": dco_result.get("cta_text") or "",
+            "promo_code": dco_result.get("promo_code") or "",
+            "discount_percent": dco_result.get("discount_percent") or 0.0,
+            "dco_applied": dco_result.get("dco_applied", False),
         }
 
     @classmethod
@@ -3400,6 +3428,521 @@ class AdSmartBiddingService:
     @classmethod
     def list_strategies(cls) -> list:
         return list(cls.KNOWN_STRATEGIES.values())
+
+
+class AdDcoEngineService:
+    """
+    Dynamic Creative Optimization (DCO) & Real-time Contextual Ad Insertion Service.
+    Handles Dynamic Keyword Insertion (DKI), City/Region Localization, LLM Model Tagging,
+    UTM Link Assembly, Dynamic CTA & Promo Code Generation, and Tone of Voice Formatting.
+    """
+
+    STOPWORDS_RU = {
+        "как", "где", "какой", "какая", "какое", "какие", "какую", "посоветуй", "посоветуйте",
+        "подскажи", "подскажите", "порекомендуй", "порекомендуйте", "лучший", "лучшая", "лучшее",
+        "лучшие", "лучшую", "самый", "самая", "самое", "самые", "самую", "топ", "найти", "выбрать",
+        "для", "в", "на", "с", "по", "ли", "есть", "что", "это", "мне", "нам", "нужен", "нужна",
+        "нужно", "нужны", "хочу", "купить", "заказать", "цена", "стоимость", "недорого", "онлайн",
+        "ташкент", "узбекистан", "россия", "москва"
+    }
+
+    STOPWORDS_UZ = {
+        "qanday", "qayerda", "qaysi", "qanaqa", "eng", "yaxshi", "tavsiya", "qil", "qiling", "topish",
+        "uchun", "kerak", "bormi", "nima", "menga", "bizga", "qayerdan", "olish", "mumkin", "narxi",
+        "qancha", "toshkent", "uzbekistan"
+    }
+
+    STOPWORDS_EN = {
+        "how", "where", "what", "which", "best", "top", "recommend", "find", "choose", "for", "in",
+        "to", "the", "a", "an", "is", "are", "can", "you", "tell", "me", "us", "about", "need", "want",
+        "price", "cost", "online"
+    }
+
+    REGION_NAMES_MAP = {
+        "tashkent": {"ru": "в Ташкенте", "uz": "Toshkentda", "en": "in Tashkent"},
+        "samarkand": {"ru": "в Самарканде", "uz": "Samarqandda", "en": "in Samarkand"},
+        "bukhara": {"ru": "в Бухаре", "uz": "Buxoroda", "en": "in Bukhara"},
+        "fergana": {"ru": "в Фергане", "uz": "Farg'onada", "en": "in Fergana"},
+        "andijan": {"ru": "в Андижане", "uz": "Andijonda", "en": "in Andijan"},
+        "namangan": {"ru": "в Намангане", "uz": "Namanganda", "en": "in Namangan"},
+        "khorezm": {"ru": "в Хорезме", "uz": "Xorazmda", "en": "in Khorezm"},
+        "kashkadarya": {"ru": "в Кашкадарье", "uz": "Qashqadaryoda", "en": "in Kashkadarya"},
+        "karakalpakstan": {"ru": "в Каракалпакстане", "uz": "Qoraqalpog'istonda", "en": "in Karakalpakstan"},
+        "moscow": {"ru": "в Москве", "uz": "Moskvada", "en": "in Moscow"},
+        "global": {"ru": "онлайн", "uz": "onlayn", "en": "online"},
+    }
+
+    @classmethod
+    def extract_salient_keyword(cls, query: str, default_fallback: str = "наше решение", lang: str = "ru") -> str:
+        """
+        Extract meaningful search subject from query (e.g. 'CRM для продаж', 'курсы английского').
+        Removes conversational noise and question prefixes.
+        """
+        if not query:
+            return default_fallback
+
+        clean = re.sub(r"[^\w\s\-]", " ", query.lower()).strip()
+        words = clean.split()
+        if not words:
+            return default_fallback
+
+        stopwords = cls.STOPWORDS_UZ if lang == "uz" else (cls.STOPWORDS_EN if lang == "en" else cls.STOPWORDS_RU)
+        filtered = [w for w in words if w not in stopwords and len(w) >= 2]
+        if not filtered:
+            return default_fallback
+
+        result_words = []
+        for i, w in enumerate(filtered[:3]):
+            if len(w) <= 4 and w.upper() in ["CRM", "ERP", "CMS", "B2B", "B2C", "POS", "AI", "SDK", "API", "SEO", "SMM"]:
+                result_words.append(w.upper())
+            elif i == 0:
+                result_words.append(w.capitalize())
+            else:
+                result_words.append(w)
+
+        return " ".join(result_words) if result_words else default_fallback
+
+    @classmethod
+    def resolve_region_label(cls, region: str = "tashkent", query: str = "", lang: str = "ru") -> str:
+        """
+        Detect city/region in query or use region parameter.
+        """
+        q_lower = (query or "").lower()
+        effective_region = (region or "tashkent").lower()
+
+        for r_key in ["samarkand", "bukhara", "fergana", "andijan", "namangan", "khorezm", "kashkadarya", "karakalpakstan", "moscow", "tashkent"]:
+            if r_key in q_lower or (r_key == "tashkent" and ("ташкент" in q_lower or "toshkent" in q_lower)) or \
+               (r_key == "samarkand" and ("самарканд" in q_lower or "samarqand" in q_lower)) or \
+               (r_key == "bukhara" and ("бухар" in q_lower or "buxor" in q_lower)):
+                effective_region = r_key
+                break
+
+        lang_key = lang if lang in ["ru", "uz", "en"] else "ru"
+        mapping = cls.REGION_NAMES_MAP.get(effective_region, cls.REGION_NAMES_MAP["global"])
+        return mapping.get(lang_key, mapping["ru"])
+
+    @classmethod
+    def substitute_macro_tokens(
+        cls,
+        template_str: str,
+        keyword: str,
+        city: str,
+        model_name: str,
+        lang: str,
+        day_name: str,
+        promo_code: str,
+        discount_percent: float,
+        campaign: AdCampaign = None,
+    ) -> str:
+        """
+        Replace macro tokens in format {keyword}, {keyword:default}, {city}, {city:default},
+        {model}, {lang}, {day}, {promo}, {discount}, {product}
+        """
+        if not template_str:
+            return ""
+
+        def token_replacer(match):
+            token_full = match.group(1).strip()
+            parts = token_full.split(":", 1)
+            token_name = parts[0].lower().strip()
+            default_val = parts[1].strip() if len(parts) > 1 else ""
+
+            if token_name in ["keyword", "kw", "query"]:
+                return keyword or default_val or "наше решение"
+            elif token_name in ["city", "region", "location"]:
+                return city or default_val or "вашем регионе"
+            elif token_name in ["model", "ai", "llm"]:
+                return model_name or default_val or "AI"
+            elif token_name in ["lang", "language"]:
+                return lang or default_val or "ru"
+            elif token_name in ["day", "weekday", "today"]:
+                return day_name or default_val or "сегодня"
+            elif token_name in ["promo", "promo_code", "promocode"]:
+                return promo_code or default_val or ""
+            elif token_name in ["discount", "discount_percent"]:
+                return f"{int(discount_percent)}%" if discount_percent else (default_val or "скидка")
+            elif token_name in ["product", "product_name"]:
+                return (campaign.product_name if campaign else default_val) or "сервис"
+            return match.group(0)
+
+        result = re.sub(r"\{([^}]+)\}", token_replacer, template_str)
+        return result
+
+    @classmethod
+    def build_dynamic_url(
+        cls,
+        base_url: str,
+        campaign_id: str,
+        inserted_keyword: str,
+        model: str,
+        region: str,
+        lang: str,
+        utm_auto_tagging: bool = True,
+        promo_code: str = "",
+    ) -> str:
+        """
+        Add UTM parameters and dynamic tokens to landing page URL.
+        """
+        if not base_url:
+            return "https://swipies.app"
+
+        import urllib.parse
+        parsed = urllib.parse.urlparse(base_url)
+        query_params = urllib.parse.parse_qs(parsed.query)
+
+        if utm_auto_tagging:
+            if "utm_source" not in query_params:
+                query_params["utm_source"] = ["swipies"]
+            if "utm_medium" not in query_params:
+                query_params["utm_medium"] = ["ai_native"]
+            if "utm_campaign" not in query_params:
+                query_params["utm_campaign"] = [campaign_id]
+            if "utm_term" not in query_params and inserted_keyword:
+                query_params["utm_term"] = [inserted_keyword]
+            if "utm_content" not in query_params:
+                query_params["utm_content"] = [model or "ai"]
+            if "utm_region" not in query_params:
+                query_params["utm_region"] = [region or "global"]
+            if "utm_lang" not in query_params:
+                query_params["utm_lang"] = [lang or "ru"]
+            if promo_code and "promo" not in query_params:
+                query_params["promo"] = [promo_code]
+
+        new_query = urllib.parse.urlencode(query_params, doseq=True)
+        new_url = urllib.parse.urlunparse((
+            parsed.scheme or "https",
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            new_query,
+            parsed.fragment
+        ))
+        return new_url
+
+    @classmethod
+    def apply_tone_formatting(cls, text: str, tone_style: str, lang: str = "ru", promo_code: str = "") -> str:
+        """
+        Add contextual tone prefixes or styling.
+        """
+        if not text:
+            return ""
+
+        t = (tone_style or "auto").lower()
+        if t == "urgent":
+            prefix = "⚡ Спецпредложение: " if lang == "ru" else ("⚡ Maxsus taklif: " if lang == "uz" else "⚡ Special Offer: ")
+            return f"{prefix}{text}"
+        elif t == "friendly":
+            prefix = "💡 Рекомендуем: " if lang == "ru" else ("💡 Tavsiya qilamiz: " if lang == "uz" else "💡 Recommended: ")
+            return f"{prefix}{text}"
+        elif t == "technical":
+            prefix = "⚙️ Решение: " if lang == "ru" else ("⚙️ Yechim: " if lang == "uz" else "⚙️ Solution: ")
+            return f"{prefix}{text}"
+        return text
+
+    @classmethod
+    @DB.connection_context()
+    def render_dco_copy(
+        cls,
+        campaign: AdCampaign,
+        query: str,
+        base_text: str = None,
+        base_url: str = None,
+        model: str = "gpt-4o",
+        lang: str = "ru",
+        region: str = "tashkent",
+        user_id: str = "",
+        log_decision: bool = True,
+    ) -> dict:
+        """
+        Main DCO execution engine.
+        Takes candidate campaign, parses dynamic tokens ({keyword}, {city}, etc.), generates
+        dynamic URL with UTM tags, applies CTA & Promo Code, and records log.
+        """
+        dco_cfg = getattr(campaign, "dco_config", {}) or {}
+        dco_enabled = getattr(campaign, "dco_enabled", False)
+
+        original_text = base_text or campaign.advertisement_text or ""
+        original_url = base_url or campaign.landing_url or "https://swipies.app"
+
+        has_tokens = "{" in original_text or (dco_cfg.get("description_template") and "{" in dco_cfg.get("description_template")) or (dco_cfg.get("url_template") and "{" in dco_cfg.get("url_template"))
+
+        if not dco_enabled and not has_tokens:
+            return {
+                "dco_applied": False,
+                "rendered_text": original_text,
+                "rendered_url": original_url,
+                "cta_text": dco_cfg.get("cta_text", ""),
+                "promo_code": dco_cfg.get("promo_code", ""),
+                "discount_percent": float(dco_cfg.get("discount_percent", 0.0) or 0.0),
+                "inserted_keyword": None,
+                "applied_city": None,
+                "applied_model": None,
+            }
+
+        # 1. Extract context variables
+        default_kw = dco_cfg.get("default_keyword") or campaign.product_name or "наше решение"
+        extracted_kw = cls.extract_salient_keyword(query, default_kw, lang=lang)
+        city_label = cls.resolve_region_label(region, query, lang=lang)
+
+        clean_model = (model or "AI").split("-")[0].capitalize()
+        if "deepseek" in (model or "").lower():
+            clean_model = "DeepSeek"
+        elif "gpt" in (model or "").lower():
+            clean_model = "ChatGPT"
+        elif "claude" in (model or "").lower():
+            clean_model = "Claude"
+
+        day_name = datetime.now(timezone.utc).strftime("%A")
+        promo = dco_cfg.get("promo_code") or ""
+        discount = float(dco_cfg.get("discount_percent") or 0.0)
+        tone = dco_cfg.get("tone_style") or "auto"
+        utm_auto = dco_cfg.get("utm_auto_tagging", True)
+
+        # 2. Render Text
+        template_text = dco_cfg.get("description_template") or original_text
+        rendered_text = cls.substitute_macro_tokens(
+            template_str=template_text,
+            keyword=extracted_kw,
+            city=city_label,
+            model_name=clean_model,
+            lang=lang,
+            day_name=day_name,
+            promo_code=promo,
+            discount_percent=discount,
+            campaign=campaign,
+        )
+        rendered_text = cls.apply_tone_formatting(rendered_text, tone, lang=lang, promo_code=promo)
+
+        # 3. Render URL
+        template_url = dco_cfg.get("url_template") or original_url
+        substituted_url = cls.substitute_macro_tokens(
+            template_str=template_url,
+            keyword=extracted_kw,
+            city=city_label,
+            model_name=clean_model,
+            lang=lang,
+            day_name=day_name,
+            promo_code=promo,
+            discount_percent=discount,
+            campaign=campaign,
+        )
+        rendered_url = cls.build_dynamic_url(
+            base_url=substituted_url,
+            campaign_id=campaign.id,
+            inserted_keyword=extracted_kw,
+            model=model,
+            region=region,
+            lang=lang,
+            utm_auto_tagging=utm_auto,
+            promo_code=promo,
+        )
+
+        # 4. Render CTA
+        cta_template = dco_cfg.get("cta_text") or ""
+        rendered_cta = cls.substitute_macro_tokens(
+            template_str=cta_template,
+            keyword=extracted_kw,
+            city=city_label,
+            model_name=clean_model,
+            lang=lang,
+            day_name=day_name,
+            promo_code=promo,
+            discount_percent=discount,
+            campaign=campaign,
+        )
+
+        # 5. Log DCO execution
+        if log_decision:
+            try:
+                AdDcoLog.create(
+                    id=uuid.uuid4().hex[:32],
+                    campaign_id=campaign.id,
+                    advertiser_id=campaign.advertiser_id,
+                    query=(query or "")[:500],
+                    original_text=original_text,
+                    rendered_text=rendered_text,
+                    original_url=original_url,
+                    rendered_url=rendered_url,
+                    inserted_keyword=extracted_kw,
+                    applied_city=city_label,
+                    applied_model=clean_model,
+                    applied_promo=promo or None,
+                    create_time=current_timestamp(),
+                )
+            except Exception as e:
+                logger.debug(f"Failed to log AdDcoLog: {e}")
+
+        return {
+            "dco_applied": True,
+            "rendered_text": rendered_text,
+            "rendered_url": rendered_url,
+            "cta_text": rendered_cta,
+            "promo_code": promo,
+            "discount_percent": discount,
+            "inserted_keyword": extracted_kw,
+            "applied_city": city_label,
+            "applied_model": clean_model,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def get_campaign_dco_info(cls, campaign_id: str) -> dict:
+        """
+        Fetch current DCO configuration and recent logs for a campaign.
+        """
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
+        if not cmp:
+            raise ValueError("Campaign not found")
+
+        dco_cfg = getattr(cmp, "dco_config", {}) or {}
+        recent_logs = list(
+            AdDcoLog.select()
+            .where(AdDcoLog.campaign_id == campaign_id)
+            .order_by(AdDcoLog.create_time.desc())
+            .limit(20)
+        )
+
+        return {
+            "campaign_id": cmp.id,
+            "campaign_name": cmp.name,
+            "dco_enabled": bool(getattr(cmp, "dco_enabled", False)),
+            "dco_config": {
+                "headline_template": dco_cfg.get("headline_template", ""),
+                "description_template": dco_cfg.get("description_template", cmp.advertisement_text or ""),
+                "url_template": dco_cfg.get("url_template", cmp.landing_url or ""),
+                "utm_auto_tagging": dco_cfg.get("utm_auto_tagging", True),
+                "default_keyword": dco_cfg.get("default_keyword", cmp.product_name or ""),
+                "cta_text": dco_cfg.get("cta_text", "Попробовать бесплатно"),
+                "promo_code": dco_cfg.get("promo_code", ""),
+                "discount_percent": float(dco_cfg.get("discount_percent", 0.0) or 0.0),
+                "tone_style": dco_cfg.get("tone_style", "auto"),
+            },
+            "recent_logs": [{
+                "id": log.id,
+                "query": log.query,
+                "inserted_keyword": log.inserted_keyword,
+                "applied_city": log.applied_city,
+                "applied_model": log.applied_model,
+                "applied_promo": log.applied_promo,
+                "rendered_text": log.rendered_text,
+                "rendered_url": log.rendered_url,
+                "create_time": log.create_time,
+            } for log in recent_logs],
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def update_campaign_dco(cls, campaign_id: str, dco_enabled: bool, dco_config: dict) -> dict:
+        """
+        Update DCO rules and templates for a campaign.
+        """
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
+        if not cmp:
+            raise ValueError("Campaign not found")
+
+        cmp.dco_enabled = bool(dco_enabled)
+        cmp.dco_config = dco_config or {}
+        cmp.update_time = current_timestamp()
+        cmp.save()
+
+        return cls.get_campaign_dco_info(campaign_id)
+
+    @classmethod
+    @DB.connection_context()
+    def preview_dco(
+        cls,
+        campaign_id: str,
+        query: str,
+        model: str = "gpt-4o",
+        region: str = "tashkent",
+        lang: str = "ru",
+        custom_template: str = None,
+        custom_url_template: str = None,
+        custom_cta: str = None,
+        custom_promo: str = None,
+        custom_discount: float = 0.0,
+        custom_tone: str = "auto",
+    ) -> dict:
+        """
+        Test and preview DCO rendering for a given query in real time.
+        """
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id)
+        if not cmp:
+            raise ValueError("Campaign not found")
+
+        dco_cfg = getattr(cmp, "dco_config", {}) or {}
+        template_text = custom_template if custom_template is not None else (dco_cfg.get("description_template") or cmp.advertisement_text or "")
+        template_url = custom_url_template if custom_url_template is not None else (dco_cfg.get("url_template") or cmp.landing_url or "")
+        cta = custom_cta if custom_cta is not None else dco_cfg.get("cta_text", "Попробовать бесплатно")
+        promo = custom_promo if custom_promo is not None else dco_cfg.get("promo_code", "")
+        discount = float(custom_discount if custom_discount is not None else (dco_cfg.get("discount_percent") or 0.0))
+        tone = custom_tone if custom_tone is not None else dco_cfg.get("tone_style", "auto")
+
+        default_kw = dco_cfg.get("default_keyword") or cmp.product_name or "наше решение"
+        extracted_kw = cls.extract_salient_keyword(query, default_kw, lang=lang)
+        city_label = cls.resolve_region_label(region, query, lang=lang)
+        clean_model = (model or "AI").split("-")[0].capitalize()
+        day_name = datetime.now(timezone.utc).strftime("%A")
+
+        rendered_text = cls.substitute_macro_tokens(
+            template_str=template_text,
+            keyword=extracted_kw,
+            city=city_label,
+            model_name=clean_model,
+            lang=lang,
+            day_name=day_name,
+            promo_code=promo,
+            discount_percent=discount,
+            campaign=cmp,
+        )
+        rendered_text = cls.apply_tone_formatting(rendered_text, tone, lang=lang, promo_code=promo)
+
+        substituted_url = cls.substitute_macro_tokens(
+            template_str=template_url,
+            keyword=extracted_kw,
+            city=city_label,
+            model_name=clean_model,
+            lang=lang,
+            day_name=day_name,
+            promo_code=promo,
+            discount_percent=discount,
+            campaign=cmp,
+        )
+        rendered_url = cls.build_dynamic_url(
+            base_url=substituted_url,
+            campaign_id=cmp.id,
+            inserted_keyword=extracted_kw,
+            model=model,
+            region=region,
+            lang=lang,
+            utm_auto_tagging=dco_cfg.get("utm_auto_tagging", True),
+            promo_code=promo,
+        )
+
+        rendered_cta = cls.substitute_macro_tokens(
+            template_str=cta,
+            keyword=extracted_kw,
+            city=city_label,
+            model_name=clean_model,
+            lang=lang,
+            day_name=day_name,
+            promo_code=promo,
+            discount_percent=discount,
+            campaign=cmp,
+        )
+
+        return {
+            "query": query,
+            "extracted_keyword": extracted_kw,
+            "applied_city": city_label,
+            "applied_model": clean_model,
+            "rendered_text": rendered_text,
+            "rendered_url": rendered_url,
+            "rendered_cta": rendered_cta,
+            "promo_code": promo,
+            "discount_percent": discount,
+            "tone_style": tone,
+        }
 
 
 

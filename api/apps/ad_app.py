@@ -50,6 +50,7 @@ from api.db.services.ad_engine_service import (
     AttributionService,
     AdAntiFraudService,
     AdSmartBiddingService,
+    AdDcoEngineService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.promo_code_service import PromoCodeService
@@ -139,6 +140,8 @@ async def list_campaigns():
                 "bidding_strategy": getattr(c, "bidding_strategy", "manual_cpc") or "manual_cpc",
                 "schedule_timezone": getattr(c, "schedule_timezone", "UTC") or "UTC",
                 "schedule_config": getattr(c, "schedule_config", {}) or {},
+                "dco_enabled": bool(getattr(c, "dco_enabled", False)),
+                "dco_config": getattr(c, "dco_config", {}) or {},
                 "target_cpa": getattr(c, "target_cpa", 0.0) or 0.0,
                 "conversions_count": getattr(c, "conversions_count", 0) or 0,
                 "conversion_rate": getattr(c, "conversion_rate", 0.0) or 0.0,
@@ -178,33 +181,33 @@ async def generate_campaign_copy():
             f"{product_name} yordamida vaqtingizni va byudjetingizni tejang. Tafsilotlar saytda.",
         ]
         keywords = ["biznes", "avtomatlashtirish", "xizmat", "dastur", "toshkent", "onlayn", "tezkor", "qulay"]
-        negatives = ["bepul skachat", "kod", "torrent", "vzlom"]
-        categories = ["software", "business", "services"]
+        negative_keywords = ["bepul", "crack", "torrent", "yuklab olish"]
+        categories = ["biznes", "dasturlar", "xizmatlar"]
     elif lang == "en":
         variations = [
-            f"Supercharge your workflow with {product_name}. Start your 14-day free trial today!",
-            f"Looking for the best {product_name}? Get started with instant setup and 24/7 support.",
-            f"Scale faster with {product_name}. Trusted by leading teams worldwide.",
+            f"Try {product_name} today. The top-rated choice for modern teams. Start your free trial!",
+            f"Scale faster with {product_name}. Easy 2-minute setup, 24/7 dedicated support.",
+            f"Looking for {product_name}? Get started with 20% discount on annual plans.",
         ]
-        keywords = ["saas", "software", "productivity", "automation", "cloud", "platform", "business", "tools"]
-        negatives = ["free download", "crack", "torrent", "open source github"]
-        categories = ["saas", "software", "business"]
-    else:  # Russian default
+        keywords = ["business", "saas", "software", "productivity", "cloud", "ai", "automation"]
+        negative_keywords = ["free", "crack", "nulled", "torrent", "download"]
+        categories = ["software", "business", "technology"]
+    else:
         variations = [
-            f"{product_name} — Простое и эффективное решение для вашего бизнеса. Попробуйте прямо сейчас!",
-            f"Получите 30 дней бесплатного доступа к {product_name}. Мгновенное подключение без карты.",
-            f"Автоматизируйте рутину с помощью {product_name}. Увеличьте продажи и сэкономьте время!",
+            f"Попробуйте {product_name} уже сегодня! 14 дней бесплатно без привязки карты.",
+            f"{product_name} — №1 решение для вашего бизнеса. Автоматизация и рост продаж.",
+            f"Ищете надежный {product_name}? Подключите за 2 минуты и получите персональную скидку 20%.",
         ]
-        keywords = ["бизнес", "автоматизация", "сервис", "онлайн", "crm", "рост продаж", "эффективность", "инструмент"]
-        negatives = ["скачать бесплатно", "взлом", "кряк", "торрент", "слив"]
-        categories = ["software", "business", "services"]
+        keywords = ["бизнес", "автоматизация", "сервис", "онлайн", "ташкент", "скидка", "под ключ"]
+        negative_keywords = ["бесплатно", "скачать", "взлом", "кряк", "torrent"]
+        categories = ["бизнес", "софт", "сервисы", "маркетинг"]
 
     return get_json_result(data={
         "ad_copy_variations": variations,
         "recommended_keywords": keywords,
-        "recommended_negative_keywords": negatives,
+        "recommended_negative_keywords": negative_keywords,
         "recommended_categories": categories,
-        "recommended_bid": 0.20,
+        "recommended_bid": 0.15 if lang == "uz" else 0.20,
     })
 
 
@@ -259,6 +262,8 @@ async def create_campaign():
             target_cpa=float(req.get("target_cpa", 0.0)),
             schedule_timezone=req.get("schedule_timezone", "UTC"),
             schedule_config=req.get("schedule_config", {}),
+            dco_enabled=bool(req.get("dco_enabled", False)),
+            dco_config=req.get("dco_config", {}),
             priority=int(req.get("priority", 0)),
             status="active",
             moderation_status="approved",  # Auto-approve for seamless self-serve demo; admin can reject
@@ -426,6 +431,10 @@ async def update_campaign(campaign_id):
             cmp.schedule_timezone = req["schedule_timezone"]
         if "schedule_config" in req:
             cmp.schedule_config = req["schedule_config"]
+        if "dco_enabled" in req:
+            cmp.dco_enabled = bool(req["dco_enabled"])
+        if "dco_config" in req:
+            cmp.dco_config = req["dco_config"]
         if "status" in req and req["status"] in ["active", "paused", "archived"]:
             cmp.status = req["status"]
 
@@ -1965,6 +1974,87 @@ async def update_campaign_bidding(campaign_id):
         return get_json_result(data=info)
     except Exception as e:
         logger.exception(f"Error updating campaign bidding info: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/dco", methods=["GET"])
+@login_required
+async def get_campaign_dco(campaign_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            return get_json_result(data=False, message="Campaign not found", code=RetCode.NOT_FOUND)
+
+        info = AdDcoEngineService.get_campaign_dco_info(campaign_id)
+        return get_json_result(data=info)
+    except Exception as e:
+        logger.exception(f"Error getting campaign DCO info: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/dco", methods=["PUT"])
+@login_required
+async def update_campaign_dco(campaign_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            return get_json_result(data=False, message="Campaign not found", code=RetCode.NOT_FOUND)
+
+        req = await get_request_json() or {}
+        dco_enabled = req.get("dco_enabled", False)
+        dco_config = req.get("dco_config", {})
+        res = AdDcoEngineService.update_campaign_dco(campaign_id, dco_enabled, dco_config)
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error updating campaign DCO: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/dco/preview", methods=["POST"])
+@login_required
+async def preview_campaign_dco(campaign_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            return get_json_result(data=False, message="Campaign not found", code=RetCode.NOT_FOUND)
+
+        req = await get_request_json() or {}
+        query = req.get("query", "")
+        model = req.get("model", "gpt-4o")
+        region = req.get("region", "tashkent")
+        lang = req.get("lang", "ru")
+        custom_template = req.get("custom_template")
+        custom_url_template = req.get("custom_url_template")
+        custom_cta = req.get("custom_cta")
+        custom_promo = req.get("custom_promo")
+        custom_discount = req.get("custom_discount")
+        custom_tone = req.get("custom_tone", "auto")
+
+        res = AdDcoEngineService.preview_dco(
+            campaign_id=campaign_id,
+            query=query,
+            model=model,
+            region=region,
+            lang=lang,
+            custom_template=custom_template,
+            custom_url_template=custom_url_template,
+            custom_cta=custom_cta,
+            custom_promo=custom_promo,
+            custom_discount=custom_discount,
+            custom_tone=custom_tone,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error previewing DCO: {e}")
         return get_data_error_result(message=str(e))
 
 
