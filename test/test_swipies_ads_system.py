@@ -289,6 +289,8 @@ from api.db.db_models import (
     AdIpBlacklist,
     AdBiddingLog,
     AdDcoLog,
+    AdAutomatedRule,
+    AdRuleExecutionLog,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -310,6 +312,8 @@ from api.db.services.ad_engine_service import (
     AdAntiFraudService,
     AdSmartBiddingService,
     AdDcoEngineService,
+    AdBudgetPacingService,
+    AdAutomatedRulesService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -361,6 +365,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdIpBlacklist,
             AdBiddingLog,
             AdDcoLog,
+            AdAutomatedRule,
+            AdRuleExecutionLog,
         ]
         for m in models:
             m._meta.database = test_db
@@ -418,6 +424,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdIpBlacklist,
             AdBiddingLog,
             AdDcoLog,
+            AdAutomatedRule,
+            AdRuleExecutionLog,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -2932,9 +2940,291 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertEqual(updated_dco["dco_config"]["discount_percent"], 25.0)
         self.assertGreaterEqual(len(updated_dco["recent_logs"]), 1)
 
+    def test_26_automated_rules_and_budget_pacing_engine(self):
+        """Phase 24: Test Automated Rules (Auto-Pilot), Stop-Loss, CPA Guard, Scale Winners, and Budget Pacing."""
+        now_ts = current_timestamp()
+        adv = Advertiser.create(
+            id="adv_rules_pilot",
+            user_id="usr_rules_pilot",
+            tenant_id="ten_rules_pilot",
+            company_name="AutoPilot SaaS Co",
+            balance=150.0,
+            currency="USD",
+            status="active",
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+
+        # 1. Test Default Rule Templates
+        templates = AdAutomatedRulesService.get_default_rule_templates()
+        self.assertGreaterEqual(len(templates), 4)
+        template_ids = [t["template_id"] for t in templates]
+        self.assertIn("stop_loss_low_ctr", template_ids)
+        self.assertIn("cpa_guard_reduce_bid", template_ids)
+        self.assertIn("scale_winner_budget", template_ids)
+        self.assertIn("budget_burn_alert", template_ids)
+
+        # 2. Test Budget Pacing Service & Curves
+        cmp_pacing = AdCampaign.create(
+            id="cmp_pacing_test",
+            advertiser_id=adv.id,
+            name="Pacing Cloud Campaign",
+            product_name="Cloud VM",
+            advertisement_text="Reliable Cloud Servers",
+            landing_url="https://cloud-vm.uz",
+            daily_budget=20.0,
+            total_budget=200.0,
+            spent_today=18.0,  # 90% spent early in the day -> should overpace
+            total_spent=50.0,
+            pricing_model="cpc",
+            bid_amount=0.20,
+            pacing_mode="standard_smooth",
+            schedule_timezone="Asia/Tashkent",
+            status="active",
+            moderation_status="approved",
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+
+        # Simulated 04:00 AM local time (expected curve ~0.06 = $1.20, but actual spent is $18.00 = 0.90)
+        sim_morning_utc = datetime(2026, 8, 25, 23, 0, 0, tzinfo=timezone.utc)
+        mult_morning = AdBudgetPacingService.calculate_pacing_multiplier(cmp_pacing, now_dt=sim_morning_utc)
+        self.assertLessEqual(mult_morning, 0.90)  # Throttled / dampened
+
+        # Test Accelerated ASAP pacing mode (no throttling)
+        cmp_pacing.pacing_mode = "accelerated_asap"
+        cmp_pacing.save()
+        mult_asap = AdBudgetPacingService.calculate_pacing_multiplier(cmp_pacing, now_dt=sim_morning_utc)
+        self.assertEqual(mult_asap, 1.0)
+
+        # Test Pacing Forecast & Mode Update
+        pacing_forecast = AdBudgetPacingService.get_campaign_pacing_forecast(cmp_pacing.id)
+        self.assertEqual(pacing_forecast["campaign_id"], cmp_pacing.id)
+        self.assertEqual(len(pacing_forecast["hourly_forecast"]), 24)
+
+        updated_pacing = AdBudgetPacingService.update_campaign_pacing(cmp_pacing.id, "peak_weighted")
+        self.assertEqual(updated_pacing["pacing_mode"], "peak_weighted")
+
+        # 3. Test Automated Rules CRUD & Toggling
+        rule_data = {
+            "campaign_id": "all",
+            "name": "🛡️ Stop Loss: Low CTR Guard",
+            "description": "Auto-pause poor performing campaigns",
+            "metric": "ctr",
+            "operator": "<",
+            "threshold_value": 0.50,
+            "min_impressions": 10,
+            "time_window": "today",
+            "action_type": "pause_campaign",
+            "action_value": 0.0,
+            "is_active": True,
+        }
+        rule_stop_loss = AdAutomatedRulesService.create_rule(adv.id, rule_data)
+        self.assertIsNotNone(rule_stop_loss["id"])
+        self.assertEqual(rule_stop_loss["metric"], "ctr")
+
+        # Toggle rule
+        toggled = AdAutomatedRulesService.toggle_rule(rule_stop_loss["id"], adv.id)
+        self.assertFalse(toggled["is_active"])
+        toggled = AdAutomatedRulesService.toggle_rule(rule_stop_loss["id"], adv.id)
+        self.assertTrue(toggled["is_active"])
+
+        # Create Scale Winner rule
+        rule_scale = AdAutomatedRulesService.create_rule(adv.id, {
+            "campaign_id": "all",
+            "name": "🚀 Scale Top Performer",
+            "metric": "cvr",
+            "operator": ">",
+            "threshold_value": 3.0,
+            "min_impressions": 5,
+            "time_window": "today",
+            "action_type": "increase_budget",
+            "action_value": 30.0,
+            "is_active": True,
+        })
+
+        # Create CPA Guard rule
+        rule_cpa = AdAutomatedRulesService.create_rule(adv.id, {
+            "campaign_id": "all",
+            "name": "💰 CPA Guard",
+            "metric": "cpa",
+            "operator": ">",
+            "threshold_value": 8.0,
+            "min_impressions": 5,
+            "time_window": "today",
+            "action_type": "decrease_bid",
+            "action_value": 20.0,
+            "is_active": True,
+        })
+
+        # 4. Create campaigns to test rule execution
+        # Campaign A: Low CTR (100 impressions, 0 clicks -> CTR 0.0% < 0.5%) -> Stop Loss Trigger
+        cmp_a = AdCampaign.create(
+            id="cmp_rule_test_a",
+            advertiser_id=adv.id,
+            name="Low CTR Campaign A",
+            product_name="Product A",
+            advertisement_text="Ad text A",
+            landing_url="https://site.uz/a",
+            daily_budget=10.0,
+            total_budget=100.0,
+            spent_today=5.0,
+            total_spent=5.0,
+            pricing_model="cpc",
+            bid_amount=0.10,
+            status="active",
+            moderation_status="approved",
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+        for i in range(15):
+            AdImpression.create(
+                id=f"imp_a_{i}",
+                campaign_id=cmp_a.id,
+                advertiser_id=adv.id,
+                user_id=f"usr_a_{i}",
+                query="test query a",
+                cost=0.01,
+                user_language="ru",
+                model="gpt-4o",
+                region="tashkent",
+                create_time=now_ts,
+            )
+
+        # Campaign B: High CVR (10 clicks, 2 conversions = CVR 20.0% > 3.0%) -> Scale Winner Trigger (+30% budget)
+        cmp_b = AdCampaign.create(
+            id="cmp_rule_test_b",
+            advertiser_id=adv.id,
+            name="High CVR Campaign B",
+            product_name="Product B",
+            advertisement_text="Ad text B",
+            landing_url="https://site.uz/b",
+            daily_budget=10.0,
+            total_budget=100.0,
+            spent_today=4.0,
+            total_spent=4.0,
+            pricing_model="cpc",
+            bid_amount=0.10,
+            conversions_count=2,
+            conversion_rate=20.0,
+            status="active",
+            moderation_status="approved",
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+        for i in range(10):
+            AdImpression.create(
+                id=f"imp_b_{i}",
+                campaign_id=cmp_b.id,
+                advertiser_id=adv.id,
+                user_id=f"usr_b_{i}",
+                query="test query b",
+                cost=0.01,
+                user_language="ru",
+                model="gpt-4o",
+                region="tashkent",
+                create_time=now_ts,
+            )
+            AdClick.create(
+                id=f"clk_b_{i}",
+                impression_id=f"imp_b_{i}",
+                campaign_id=cmp_b.id,
+                advertiser_id=adv.id,
+                user_id=f"usr_b_{i}",
+                cost=0.10,
+                click_token=f"tok_b_{i}",
+                create_time=now_ts,
+            )
+        AdConversion.create(
+            id="conv_b_1",
+            campaign_id=cmp_b.id,
+            advertiser_id=adv.id,
+            event_type="purchase",
+            value=50.0,
+            currency="USD",
+            create_time=now_ts,
+        )
+
+        # Campaign C: High CPA ($12 spent / 1 conv = $12.00 > $8.00) -> CPA Guard Trigger (-20% bid from $0.20 to $0.16)
+        cmp_c = AdCampaign.create(
+            id="cmp_rule_test_c",
+            advertiser_id=adv.id,
+            name="Expensive CPA Campaign C",
+            product_name="Product C",
+            advertisement_text="Ad text C",
+            landing_url="https://site.uz/c",
+            daily_budget=20.0,
+            total_budget=200.0,
+            spent_today=12.0,
+            total_spent=12.0,
+            pricing_model="cpc",
+            bid_amount=0.20,
+            conversions_count=1,
+            status="active",
+            moderation_status="approved",
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+        for i in range(10):
+            AdImpression.create(
+                id=f"imp_c_{i}",
+                campaign_id=cmp_c.id,
+                advertiser_id=adv.id,
+                user_id=f"usr_c_{i}",
+                query="test query c",
+                cost=0.02,
+                user_language="ru",
+                model="gpt-4o",
+                region="tashkent",
+                create_time=now_ts,
+            )
+            AdClick.create(
+                id=f"clk_c_{i}",
+                impression_id=f"imp_c_{i}",
+                campaign_id=cmp_c.id,
+                advertiser_id=adv.id,
+                user_id=f"usr_c_{i}",
+                cost=1.18,
+                click_token=f"tok_c_{i}",
+                create_time=now_ts,
+            )
+        AdConversion.create(
+            id="conv_c_1",
+            campaign_id=cmp_c.id,
+            advertiser_id=adv.id,
+            event_type="lead",
+            value=10.0,
+            currency="USD",
+            create_time=now_ts,
+        )
+
+        # 5. Run All Rules Engine
+        eval_result = AdAutomatedRulesService.run_all_rules(advertiser_id=adv.id)
+        self.assertGreaterEqual(eval_result["rules_evaluated"], 3)
+        self.assertGreaterEqual(eval_result["actions_triggered"], 3)
+
+        # 6. Verify automated actions on campaigns
+        cmp_a = AdCampaign.get_by_id(cmp_a.id)
+        self.assertEqual(cmp_a.status, "paused")  # Stop-Loss paused it!
+
+        cmp_b = AdCampaign.get_by_id(cmp_b.id)
+        self.assertEqual(cmp_b.daily_budget, 13.0)  # $10.00 + 30% = $13.00
+
+        cmp_c = AdCampaign.get_by_id(cmp_c.id)
+        self.assertEqual(cmp_c.bid_amount, 0.16)  # $0.20 - 20% = $0.16
+
+        # 7. Verify Execution Logs
+        logs = AdAutomatedRulesService.list_execution_logs(advertiser_id=adv.id)
+        self.assertGreaterEqual(len(logs), 3)
+        actions_logged = [l["action_taken"] for l in logs]
+        self.assertIn("pause_campaign", actions_logged)
+        self.assertIn("increase_budget", actions_logged)
+        self.assertIn("decrease_bid", actions_logged)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

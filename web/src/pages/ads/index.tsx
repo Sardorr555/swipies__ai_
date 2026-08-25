@@ -126,6 +126,10 @@ import adService, {
   CampaignDcoInfo,
   DcoPreviewRequest,
   DcoPreviewResponse,
+  AutomatedRuleItem,
+  RuleTemplateItem,
+  RuleExecutionLogItem,
+  CampaignPacingInfo,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -293,6 +297,32 @@ export default function SwipiesAdsPage() {
   const [previewLang, setPreviewLang] = useState('ru');
   const [previewResult, setPreviewResult] = useState<DcoPreviewResponse | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+
+  // Automated Rules (Auto-Pilot) & Predictive Budget Pacing State (Phase 24)
+  const [rulesList, setRulesList] = useState<AutomatedRuleItem[]>([]);
+  const [ruleTemplates, setRuleTemplates] = useState<RuleTemplateItem[]>([]);
+  const [ruleExecutionLogs, setRuleExecutionLogs] = useState<RuleExecutionLogItem[]>([]);
+  const [loadingRules, setLoadingRules] = useState(false);
+  const [evaluatingRules, setEvaluatingRules] = useState(false);
+  const [isCreateRuleModalOpen, setIsCreateRuleModalOpen] = useState(false);
+  const [isPacingModalOpen, setIsPacingModalOpen] = useState(false);
+  const [pacingCampaign, setPacingCampaign] = useState<AdCampaignItem | null>(null);
+  const [pacingInfo, setPacingInfo] = useState<CampaignPacingInfo | null>(null);
+  const [loadingPacing, setLoadingPacing] = useState(false);
+  const [savingPacing, setSavingPacing] = useState(false);
+
+  // Form State for creating a Rule
+  const [ruleName, setRuleName] = useState('');
+  const [ruleDescription, setRuleDescription] = useState('');
+  const [ruleCampaignId, setRuleCampaignId] = useState('all');
+  const [ruleMetric, setRuleMetric] = useState<'ctr' | 'cvr' | 'cpa' | 'impressions' | 'clicks' | 'spent' | 'conversions' | 'spent_ratio'>('ctr');
+  const [ruleOperator, setRuleOperator] = useState<'<' | '<=' | '>' | '>=' | '=='>('<');
+  const [ruleThreshold, setRuleThreshold] = useState('0.5');
+  const [ruleMinImpressions, setRuleMinImpressions] = useState('100');
+  const [ruleTimeWindow, setRuleTimeWindow] = useState<'today' | 'last_7_days' | 'last_30_days' | 'lifetime'>('today');
+  const [ruleActionType, setRuleActionType] = useState<'pause_campaign' | 'resume_campaign' | 'increase_bid' | 'decrease_bid' | 'increase_budget' | 'decrease_budget' | 'send_alert'>('pause_campaign');
+  const [ruleActionValue, setRuleActionValue] = useState('20');
+  const [savingRule, setSavingRule] = useState(false);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -790,6 +820,7 @@ export default function SwipiesAdsPage() {
     fetchAudiences();
     fetchPublisher();
     fetchFraudData();
+    fetchRulesAndLogs();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -1155,6 +1186,159 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  const fetchRulesAndLogs = async () => {
+    setLoadingRules(true);
+    try {
+      const [rulesRes, tmplRes, logsRes] = await Promise.all([
+        adService.getAutomatedRules(),
+        adService.getRuleTemplates(),
+        adService.getRuleExecutionLogs(),
+      ]);
+      if (rulesRes.data?.data) setRulesList(rulesRes.data.data);
+      if (tmplRes.data?.data) setRuleTemplates(tmplRes.data.data);
+      if (logsRes.data?.data) setRuleExecutionLogs(logsRes.data.data);
+    } catch (err: any) {
+      // silent
+    } finally {
+      setLoadingRules(false);
+    }
+  };
+
+  const resetRuleForm = () => {
+    setRuleName('');
+    setRuleDescription('');
+    setRuleCampaignId('all');
+    setRuleMetric('ctr');
+    setRuleOperator('<');
+    setRuleThreshold('0.5');
+    setRuleMinImpressions('100');
+    setRuleTimeWindow('today');
+    setRuleActionType('pause_campaign');
+    setRuleActionValue('20');
+  };
+
+  const handleApplyRuleTemplate = (tmpl: RuleTemplateItem) => {
+    setRuleName(tmpl.name);
+    setRuleDescription(tmpl.description);
+    setRuleCampaignId('all');
+    setRuleMetric(tmpl.metric as any);
+    setRuleOperator(tmpl.operator as any);
+    setRuleThreshold(String(tmpl.threshold_value));
+    setRuleMinImpressions(String(tmpl.min_impressions));
+    setRuleTimeWindow(tmpl.time_window as any);
+    setRuleActionType(tmpl.action_type as any);
+    setRuleActionValue(String(tmpl.action_value));
+    setIsCreateRuleModalOpen(true);
+  };
+
+  const handleCreateRule = async () => {
+    if (!ruleName.trim()) {
+      message.error('Укажите название правила');
+      return;
+    }
+    setSavingRule(true);
+    try {
+      const res = await adService.createAutomatedRule({
+        name: ruleName.trim(),
+        description: ruleDescription.trim(),
+        campaign_id: ruleCampaignId,
+        metric: ruleMetric,
+        operator: ruleOperator,
+        threshold_value: parseFloat(ruleThreshold) || 1.0,
+        min_impressions: parseInt(ruleMinImpressions, 10) || 100,
+        time_window: ruleTimeWindow,
+        action_type: ruleActionType,
+        action_value: parseFloat(ruleActionValue) || 0.0,
+        is_active: true,
+      });
+      if (res.data?.data) {
+        message.success('Авто-правило успешно создано!');
+        setIsCreateRuleModalOpen(false);
+        resetRuleForm();
+        fetchRulesAndLogs();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка создания правила');
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
+  const handleToggleRule = async (ruleId: string) => {
+    try {
+      const res = await adService.toggleAutomatedRule(ruleId);
+      if (res.data?.data) {
+        message.success(`Правило ${res.data.data.is_active ? 'активировано' : 'приостановлено'}`);
+        fetchRulesAndLogs();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка переключения правила');
+    }
+  };
+
+  const handleDeleteRule = async (ruleId: string) => {
+    if (!confirm('Вы уверены, что хотите удалить это авто-правило?')) return;
+    try {
+      const res = await adService.deleteAutomatedRule(ruleId);
+      if (res.data?.data?.deleted) {
+        message.success('Правило удалено');
+        fetchRulesAndLogs();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка удаления правила');
+    }
+  };
+
+  const handleEvaluateRules = async () => {
+    setEvaluatingRules(true);
+    try {
+      const res = await adService.evaluateAutomatedRules();
+      if (res.data?.data) {
+        const d = res.data.data;
+        message.success(`Проверка завершена: проверено ${d.rules_evaluated} правил, выполнено ${d.actions_triggered} действий`);
+        fetchRulesAndLogs();
+        fetchDashboard();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка оценки правил');
+    } finally {
+      setEvaluatingRules(false);
+    }
+  };
+
+  const handleOpenPacingModal = async (cmp: AdCampaignItem) => {
+    setPacingCampaign(cmp);
+    setIsPacingModalOpen(true);
+    setLoadingPacing(true);
+    try {
+      const res = await adService.getCampaignPacing(cmp.id);
+      if (res.data?.data) {
+        setPacingInfo(res.data.data);
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка загрузки данных распределения бюджета');
+    } finally {
+      setLoadingPacing(false);
+    }
+  };
+
+  const handleSavePacingMode = async (pacingMode: string) => {
+    if (!pacingCampaign) return;
+    setSavingPacing(true);
+    try {
+      const res = await adService.updateCampaignPacing(pacingCampaign.id, { pacing_mode: pacingMode });
+      if (res.data?.data) {
+        setPacingInfo(res.data.data);
+        message.success('Режим распределения бюджета (Pacing) обновлен!');
+        fetchDashboard();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка обновления режима');
+    } finally {
+      setSavingPacing(false);
+    }
+  };
+
   const toggleDayOfWeek = (dayIdx: number) => {
     if (enabledDays.includes(dayIdx)) {
       if (enabledDays.length === 1) {
@@ -1494,6 +1678,15 @@ export default function SwipiesAdsPage() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="autopilot" className="flex items-center gap-2 relative">
+            <Zap className="h-4 w-4 text-amber-500" />
+            Auto-Pilot & Правила
+            {rulesList.filter((r) => r.is_active).length > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-cyan-500 text-white">
+                {rulesList.filter((r) => r.is_active).length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="analytics" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-blue-500" /> Аналитика & Графики
           </TabsTrigger>
@@ -1658,6 +1851,16 @@ export default function SwipiesAdsPage() {
                                   🚀 MAX
                                 </Badge>
                               )}
+                              {cmp.pacing_mode === 'accelerated_asap' && (
+                                <Badge variant="outline" className="border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[9px] px-1 py-0 font-bold">
+                                  ⚡ ASAP
+                                </Badge>
+                              )}
+                              {cmp.pacing_mode === 'peak_weighted' && (
+                                <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px] px-1 py-0 font-bold">
+                                  📈 Пик
+                                </Badge>
+                              )}
                             </div>
                             <div className="text-xs text-muted-foreground font-semibold">
                               {cmp.pricing_model === 'cpa' || cmp.bidding_strategy === 'target_cpa'
@@ -1710,6 +1913,15 @@ export default function SwipiesAdsPage() {
                                 className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
                               >
                                 <Wand2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenPacingModal(cmp)}
+                                title="Контроль скорости расхода бюджета (Budget Pacing)"
+                                className="text-purple-600 hover:text-purple-700 dark:text-purple-400"
+                              >
+                                <Timer className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="sm"
@@ -1878,6 +2090,285 @@ export default function SwipiesAdsPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* Auto-Pilot & Automated Rules Tab (Phase 24) */}
+        <TabsContent value="autopilot" className="space-y-6">
+          {/* Summary KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Активные авто-правила</span>
+                  <Zap className="h-4 w-4 text-cyan-500" />
+                </div>
+                <div className="text-2xl font-bold text-foreground mt-1">
+                  {rulesList.filter((r) => r.is_active).length} / {rulesList.length}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Круглосуточный мониторинг</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Срабатываний авто-правил</span>
+                  <Activity className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  {rulesList.reduce((acc, r) => acc + (r.trigger_count || 0), 0)}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Автоматических оптимизаций</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Защита бюджета (Stop-Loss)</span>
+                  <ShieldCheck className="h-4 w-4 text-amber-500" />
+                </div>
+                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                  {rulesList.filter((r) => r.action_type === 'pause_campaign').length} правил
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Предотвращают слив средств</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Плавный расход (Pacing)</span>
+                  <Timer className="h-4 w-4 text-purple-500" />
+                </div>
+                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                  24/7
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Сглаживание пиковых скачков</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 1-Click Recipe Templates */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-cyan-500" /> Готовые рецепты автоматизации в 1 клик
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Выберите готовый шаблон для защиты инвестиций или быстрого масштабирования конверсий.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {ruleTemplates.map((tmpl) => (
+                  <div
+                    key={tmpl.template_id}
+                    className="p-3.5 rounded-xl border border-muted hover:border-cyan-500/40 bg-card hover:bg-muted/30 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <h4 className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                        {tmpl.name}
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-3">
+                        {tmpl.description}
+                      </p>
+                    </div>
+                    <div className="mt-3 pt-2 border-t flex items-center justify-between">
+                      <Badge variant="outline" className="text-[9px] uppercase font-mono">
+                        {tmpl.metric} {tmpl.operator} {tmpl.threshold_value}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleApplyRuleTemplate(tmpl)}
+                        className="h-6 text-[10px] px-2 text-cyan-600 hover:bg-cyan-500/10 border-cyan-500/30"
+                      >
+                        + Добавить
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Rules List Table */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" /> Настроенные правила Auto-Pilot ({rulesList.length})
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Правила непрерывно проверяют метрики и автоматически реагируют на изменения.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleEvaluateRules}
+                  disabled={evaluatingRules}
+                  className="text-xs flex items-center gap-1.5 border-cyan-500/30 text-cyan-600 hover:bg-cyan-500/10"
+                >
+                  {evaluatingRules ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                  {evaluatingRules ? 'Проверка...' : 'Проверить правила сейчас'}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    resetRuleForm();
+                    setIsCreateRuleModalOpen(true);
+                  }}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs"
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" /> Создать правило
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {rulesList.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-xs">
+                  У вас пока нет настроенных правил. Выберите готовый рецепт выше или создайте новое правило.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground text-[10px]">
+                      <tr>
+                        <th className="py-2.5 px-3">Правило / Описание</th>
+                        <th className="py-2.5 px-3">Кампания</th>
+                        <th className="py-2.5 px-3">Условие триггера</th>
+                        <th className="py-2.5 px-3">Действие</th>
+                        <th className="py-2.5 px-3">Срабатываний</th>
+                        <th className="py-2.5 px-3">Статус</th>
+                        <th className="py-2.5 px-3 text-right">Управление</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {rulesList.map((r) => (
+                        <tr key={r.id} className="hover:bg-muted/30">
+                          <td className="py-3 px-3">
+                            <div className="font-semibold text-foreground">{r.name}</div>
+                            <div className="text-[11px] text-muted-foreground">{r.description || '—'}</div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <Badge variant="outline" className="text-[10px]">
+                              {r.campaign_name || 'Все кампании'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="font-mono text-cyan-600 font-bold">
+                              {r.metric.toUpperCase()} {r.operator} {r.threshold_value}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                              мин. {r.min_impressions} показов ({r.time_window})
+                            </div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <Badge
+                              variant="outline"
+                              className={
+                                r.action_type === 'pause_campaign'
+                                  ? 'border-rose-500/30 bg-rose-500/10 text-rose-600'
+                                  : r.action_type === 'increase_budget'
+                                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600'
+                                  : 'border-blue-500/30 bg-blue-500/10 text-blue-600'
+                              }
+                            >
+                              {r.action_type === 'pause_campaign' && '🛑 Пауза'}
+                              {r.action_type === 'resume_campaign' && '▶️ Возобновление'}
+                              {r.action_type === 'increase_bid' && `📈 Ставка +${r.action_value}%`}
+                              {r.action_type === 'decrease_bid' && `📉 Ставка -${r.action_value}%`}
+                              {r.action_type === 'increase_budget' && `🚀 Бюджет +${r.action_value}%`}
+                              {r.action_type === 'decrease_budget' && `💰 Бюджет -${r.action_value}%`}
+                              {r.action_type === 'send_alert' && '🔔 Алерт'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-3 font-semibold">
+                            {r.trigger_count || 0} раз
+                          </td>
+                          <td className="py-3 px-3">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleToggleRule(r.id)}
+                              className="h-6 text-[10px] px-2 font-semibold"
+                            >
+                              {r.is_active ? '🟢 Включено' : '⚪ Выключено'}
+                            </Button>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteRule(r.id)}
+                              className="text-rose-500 hover:text-rose-700 h-7 w-7 p-0"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Execution History Logs */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Activity className="h-4 w-4 text-cyan-500" /> Журнал выполнения правил и срабатываний Auto-Pilot
+              </CardTitle>
+              <CardDescription className="text-xs">
+                История всех автоматических решений: паузы, масштабирование бюджета, корректировка ставок.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {ruleExecutionLogs.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-xs">
+                  Журнал пуст. Срабатывания авто-правил будут фиксироваться здесь в реальном времени.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground text-[10px]">
+                      <tr>
+                        <th className="py-2.5 px-3">Время</th>
+                        <th className="py-2.5 px-3">Правило</th>
+                        <th className="py-2.5 px-3">Кампания</th>
+                        <th className="py-2.5 px-3">Метрика / Значение</th>
+                        <th className="py-2.5 px-3">Выполненное действие</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {ruleExecutionLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-muted/30">
+                          <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
+                            {new Date(log.create_time).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' })}
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-foreground">{log.rule_name}</td>
+                          <td className="py-2.5 px-3 text-muted-foreground">{log.campaign_name}</td>
+                          <td className="py-2.5 px-3 font-mono text-cyan-600 font-bold">
+                            {log.metric_name.toUpperCase()} = {log.metric_current_value}
+                          </td>
+                          <td className="py-2.5 px-3 text-foreground font-medium">
+                            {log.action_details || log.action_taken}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* 2. Interactive Analytics Tab */}
@@ -5755,6 +6246,357 @@ async def get_swipies_ad(user_query: str):
             >
               {savingDco ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
               {savingDco ? 'Сохранение...' : 'Сохранить настройки DCO'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Automated Rule Dialog (Phase 24) */}
+      <Dialog open={isCreateRuleModalOpen} onOpenChange={setIsCreateRuleModalOpen}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              Создание правила автоматизации (Auto-Pilot)
+            </DialogTitle>
+            <DialogDescription>
+              Настройте триггер условия и действие, которое система выполнит автоматически при его срабатывании.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-semibold text-foreground">Название правила *</label>
+              <Input
+                value={ruleName}
+                onChange={(e) => setRuleName(e.target.value)}
+                placeholder="Например: Stop-Loss при CTR < 0.5%"
+                className="mt-1 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground">Описание</label>
+              <Input
+                value={ruleDescription}
+                onChange={(e) => setRuleDescription(e.target.value)}
+                placeholder="Автоматически ставить кампанию на паузу для защиты бюджета"
+                className="mt-1 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground">Применять к кампании</label>
+              <Select value={ruleCampaignId} onValueChange={setRuleCampaignId}>
+                <SelectTrigger className="mt-1 text-xs">
+                  <SelectValue placeholder="Все кампании" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">🌐 Ко всем активным кампаниям</SelectItem>
+                  {(dashboard?.campaigns || []).map((cmp) => (
+                    <SelectItem key={cmp.id} value={cmp.id}>
+                      {cmp.name} ({cmp.product_name})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="p-3 bg-muted/30 rounded-xl border space-y-3">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-cyan-500" /> Условие срабатывания (IF)
+              </span>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] text-muted-foreground uppercase font-bold">Метрика</label>
+                  <Select value={ruleMetric} onValueChange={(val: any) => setRuleMetric(val)}>
+                    <SelectTrigger className="mt-0.5 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ctr">CTR (%)</SelectItem>
+                      <SelectItem value="cvr">CVR (%)</SelectItem>
+                      <SelectItem value="cpa">CPA ($)</SelectItem>
+                      <SelectItem value="spent">Расход ($)</SelectItem>
+                      <SelectItem value="spent_ratio">Расход/Бюджет (%)</SelectItem>
+                      <SelectItem value="impressions">Показы</SelectItem>
+                      <SelectItem value="clicks">Клики</SelectItem>
+                      <SelectItem value="conversions">Конверсии</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-muted-foreground uppercase font-bold">Оператор</label>
+                  <Select value={ruleOperator} onValueChange={(val: any) => setRuleOperator(val)}>
+                    <SelectTrigger className="mt-0.5 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="<">&lt; Меньше</SelectItem>
+                      <SelectItem value="<=">&le; Меньше или равно</SelectItem>
+                      <SelectItem value=">">&gt; Больше</SelectItem>
+                      <SelectItem value=">=">&ge; Больше или равно</SelectItem>
+                      <SelectItem value="==">= Равно</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-muted-foreground uppercase font-bold">Порог</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={ruleThreshold}
+                    onChange={(e) => setRuleThreshold(e.target.value)}
+                    className="mt-0.5 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div>
+                  <label className="text-[10px] text-muted-foreground uppercase font-bold">Мин. показов</label>
+                  <Input
+                    type="number"
+                    value={ruleMinImpressions}
+                    onChange={(e) => setRuleMinImpressions(e.target.value)}
+                    placeholder="100"
+                    className="mt-0.5 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground uppercase font-bold">Период времени</label>
+                  <Select value={ruleTimeWindow} onValueChange={(val: any) => setRuleTimeWindow(val)}>
+                    <SelectTrigger className="mt-0.5 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Сегодня</SelectItem>
+                      <SelectItem value="last_7_days">Последние 7 дней</SelectItem>
+                      <SelectItem value="last_30_days">Последние 30 дней</SelectItem>
+                      <SelectItem value="lifetime">За всё время</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 bg-muted/30 rounded-xl border space-y-3">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Zap className="h-4 w-4 text-amber-500" /> Выполняемое действие (THEN)
+              </span>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-muted-foreground uppercase font-bold">Тип действия</label>
+                  <Select value={ruleActionType} onValueChange={(val: any) => setRuleActionType(val)}>
+                    <SelectTrigger className="mt-0.5 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pause_campaign">🛑 Поставить кампанию на паузу</SelectItem>
+                      <SelectItem value="resume_campaign">▶️ Возобновить кампанию</SelectItem>
+                      <SelectItem value="increase_bid">📈 Повысить ставку (%)</SelectItem>
+                      <SelectItem value="decrease_bid">📉 Понизить ставку (%)</SelectItem>
+                      <SelectItem value="increase_budget">🚀 Увеличить дневной бюджет (%)</SelectItem>
+                      <SelectItem value="decrease_budget">💰 Уменьшить дневной бюджет (%)</SelectItem>
+                      <SelectItem value="send_alert">🔔 Отправить мгновенный алерт</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {['increase_bid', 'decrease_bid', 'increase_budget', 'decrease_budget'].includes(ruleActionType) ? (
+                  <div>
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Значение изменения (%)</label>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={ruleActionValue}
+                      onChange={(e) => setRuleActionValue(e.target.value)}
+                      placeholder="20"
+                      className="mt-0.5 text-xs font-mono"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center text-xs text-muted-foreground pt-4">
+                    Действие не требует числовых параметров
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsCreateRuleModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCreateRule}
+              disabled={savingRule}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs"
+            >
+              {savingRule ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
+              {savingRule ? 'Сохранение...' : 'Создать и активировать правило'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Budget Pacing Forecast & Mode Dialog (Phase 24) */}
+      <Dialog open={isPacingModalOpen} onOpenChange={setIsPacingModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Timer className="h-5 w-5 text-purple-500" />
+              Контроль скорости расхода бюджета (Budget Pacing)
+            </DialogTitle>
+            <DialogDescription>
+              Кампания: <span className="font-semibold text-foreground">{pacingCampaign?.name}</span> • Бюджет: ${pacingCampaign?.daily_budget}/день
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingPacing ? (
+            <div className="py-12 text-center text-muted-foreground text-xs flex flex-col items-center gap-2">
+              <RefreshCw className="h-6 w-6 animate-spin text-purple-500" />
+              Расчет прогнозного распределения бюджета...
+            </div>
+          ) : (
+            <div className="space-y-5 py-2">
+              {/* Pacing Mode Selector Cards */}
+              <div className="grid grid-cols-3 gap-3">
+                <div
+                  onClick={() => handleSavePacingMode('standard_smooth')}
+                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                    pacingInfo?.pacing_mode === 'standard_smooth'
+                      ? 'border-purple-500 bg-purple-500/10 shadow-sm'
+                      : 'border-muted hover:border-purple-500/40 bg-card'
+                  }`}
+                >
+                  <div className="font-bold text-xs flex items-center justify-between">
+                    <span>Плавный (Smooth)</span>
+                    {pacingInfo?.pacing_mode === 'standard_smooth' && (
+                      <span className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Равномерное распределение на 24 часа. Защита от исчерпания утром.
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => handleSavePacingMode('peak_weighted')}
+                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                    pacingInfo?.pacing_mode === 'peak_weighted'
+                      ? 'border-amber-500 bg-amber-500/10 shadow-sm'
+                      : 'border-muted hover:border-amber-500/40 bg-card'
+                  }`}
+                >
+                  <div className="font-bold text-xs flex items-center justify-between">
+                    <span>Пиковый (Peak)</span>
+                    {pacingInfo?.pacing_mode === 'peak_weighted' && (
+                      <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    70% бюджета расходуется в часы пиковой конверсии (12:00 - 20:00).
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => handleSavePacingMode('accelerated_asap')}
+                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                    pacingInfo?.pacing_mode === 'accelerated_asap'
+                      ? 'border-rose-500 bg-rose-500/10 shadow-sm'
+                      : 'border-muted hover:border-rose-500/40 bg-card'
+                  }`}
+                >
+                  <div className="font-bold text-xs flex items-center justify-between">
+                    <span>Ускоренный (ASAP)</span>
+                    {pacingInfo?.pacing_mode === 'accelerated_asap' && (
+                      <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Максимальная скорость показов без сглаживания до исчерпания.
+                  </p>
+                </div>
+              </div>
+
+              {/* Status and Multiplier Banner */}
+              <div className="p-3 bg-muted/40 rounded-xl border flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-foreground">
+                    Текущий статус расхода: {' '}
+                    <span
+                      className={`font-bold ${
+                        pacingInfo?.burn_rate_status === 'optimal'
+                          ? 'text-emerald-500'
+                          : pacingInfo?.burn_rate_status === 'overpacing'
+                          ? 'text-amber-500'
+                          : 'text-blue-500'
+                      }`}
+                    >
+                      {pacingInfo?.burn_rate_status === 'optimal' && 'Оптимальный темп'}
+                      {pacingInfo?.burn_rate_status === 'overpacing' && 'Превышение темпа (Overpacing)'}
+                      {pacingInfo?.burn_rate_status === 'underpacing' && 'Отставание темпа (Underpacing)'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    Потрачено сегодня: ${pacingInfo?.spent_today.toFixed(2)} из ${pacingInfo?.daily_budget.toFixed(2)} ({pacingInfo?.schedule_timezone})
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground font-medium">Множитель ставки</div>
+                  <div className="text-lg font-bold font-mono text-purple-600 dark:text-purple-400">
+                    {pacingInfo?.current_pacing_multiplier.toFixed(2)}x
+                  </div>
+                </div>
+              </div>
+
+              {/* 24-Hour Cumulative Spend Forecast Chart */}
+              {pacingInfo?.hourly_forecast && (
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-foreground">
+                    График целевого накопления расходов на 24 часа ($)
+                  </div>
+                  <div className="h-44 w-full pt-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={pacingInfo.hourly_forecast}>
+                        <defs>
+                          <linearGradient id="pacingGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                        <XAxis dataKey="hour_label" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} domain={[0, 'dataMax + 1']} />
+                        <Tooltip
+                          formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Ожидаемый расход']}
+                          labelFormatter={(label: any) => `Время: ${label}`}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="expected_cumulative_spend"
+                          stroke="#8b5cf6"
+                          strokeWidth={2}
+                          fillOpacity={1}
+                          fill="url(#pacingGradient)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => setIsPacingModalOpen(false)}>
+              Закрыть
             </Button>
           </DialogFooter>
         </DialogContent>

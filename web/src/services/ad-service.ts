@@ -33,6 +33,8 @@ export interface AdCampaignItem {
   schedule_config?: ScheduleConfig;
   dco_enabled?: boolean;
   dco_config?: DcoConfig;
+  pacing_mode?: 'standard_smooth' | 'accelerated_asap' | 'peak_weighted';
+  auto_rules_enabled?: boolean;
   conversions_count?: number;
   conversion_rate?: number;
   total_conversion_value?: number;
@@ -299,6 +301,28 @@ const adService = {
     request.put<ResponseData<CampaignDcoInfo>>(`/ads/campaigns/${campaignId}/dco`, { data }),
   previewCampaignDco: (campaignId: string, data: DcoPreviewRequest) =>
     request.post<ResponseData<DcoPreviewResponse>>(`/ads/campaigns/${campaignId}/dco/preview`, { data }),
+
+  // Automated Rules (Auto-Pilot) & Predictive Budget Pacing (Phase 24)
+  getRuleTemplates: () =>
+    request.get<ResponseData<RuleTemplateItem[]>>('/ads/rules/templates'),
+  getAutomatedRules: (campaignId?: string) =>
+    request.get<ResponseData<AutomatedRuleItem[]>>('/ads/rules', { params: { campaign_id: campaignId } }),
+  createAutomatedRule: (data: Partial<AutomatedRuleItem>) =>
+    request.post<ResponseData<AutomatedRuleItem>>('/ads/rules', { data }),
+  updateAutomatedRule: (ruleId: string, data: Partial<AutomatedRuleItem>) =>
+    request.put<ResponseData<AutomatedRuleItem>>(`/ads/rules/${ruleId}`, { data }),
+  deleteAutomatedRule: (ruleId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/rules/${ruleId}`),
+  toggleAutomatedRule: (ruleId: string) =>
+    request.post<ResponseData<AutomatedRuleItem>>(`/ads/rules/${ruleId}/toggle`),
+  evaluateAutomatedRules: (data?: { campaign_id?: string; rule_id?: string }) =>
+    request.post<ResponseData<{ rules_evaluated: number; actions_triggered: number; actions: any[] }>>('/ads/rules/evaluate', { data }),
+  getRuleExecutionLogs: (params?: { campaign_id?: string; limit?: number }) =>
+    request.get<ResponseData<RuleExecutionLogItem[]>>('/ads/rules/logs', { params }),
+  getCampaignPacing: (campaignId: string) =>
+    request.get<ResponseData<CampaignPacingInfo>>(`/ads/campaigns/${campaignId}/pacing`),
+  updateCampaignPacing: (campaignId: string, data: { pacing_mode: string }) =>
+    request.put<ResponseData<CampaignPacingInfo>>(`/ads/campaigns/${campaignId}/pacing`, { data }),
 };
 
 export interface DcoConfig {
@@ -665,6 +689,72 @@ export interface AttributionStatsData {
     utm_campaign: string;
     utm_content?: string;
     created_at: number;
+  }>;
+}
+
+export interface AutomatedRuleItem {
+  id: string;
+  advertiser_id: string;
+  campaign_id: string;
+  campaign_name?: string;
+  name: string;
+  description?: string;
+  metric: 'ctr' | 'cvr' | 'cpa' | 'impressions' | 'clicks' | 'spent' | 'conversions' | 'spent_ratio';
+  operator: '<' | '<=' | '>' | '>=' | '==' | '=';
+  threshold_value: number;
+  min_impressions: number;
+  time_window: 'today' | 'last_7_days' | 'last_30_days' | 'lifetime';
+  action_type: 'pause_campaign' | 'resume_campaign' | 'increase_bid' | 'decrease_bid' | 'increase_budget' | 'decrease_budget' | 'send_alert';
+  action_value: number;
+  is_active: boolean;
+  last_evaluated_time?: number;
+  last_triggered_time?: number;
+  trigger_count: number;
+  create_time: number;
+}
+
+export interface RuleTemplateItem {
+  template_id: string;
+  name: string;
+  description: string;
+  metric: string;
+  operator: string;
+  threshold_value: number;
+  min_impressions: number;
+  time_window: string;
+  action_type: string;
+  action_value: number;
+}
+
+export interface RuleExecutionLogItem {
+  id: string;
+  rule_id: string;
+  rule_name: string;
+  campaign_id: string;
+  campaign_name: string;
+  advertiser_id: string;
+  metric_name: string;
+  metric_current_value: number;
+  threshold_value: number;
+  action_taken: string;
+  action_details: string;
+  create_time: number;
+}
+
+export interface CampaignPacingInfo {
+  campaign_id: string;
+  campaign_name: string;
+  daily_budget: number;
+  spent_today: number;
+  pacing_mode: 'standard_smooth' | 'accelerated_asap' | 'peak_weighted';
+  schedule_timezone: string;
+  current_pacing_multiplier: number;
+  burn_rate_status: 'optimal' | 'overpacing' | 'underpacing';
+  hourly_forecast: Array<{
+    hour: number;
+    hour_label: string;
+    expected_cumulative_spend: number;
+    expected_ratio: number;
   }>;
 }
 

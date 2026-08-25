@@ -46,6 +46,8 @@ from api.db.db_models import (
     AdIpBlacklist,
     AdBiddingLog,
     AdDcoLog,
+    AdAutomatedRule,
+    AdRuleExecutionLog,
     User,
     Tenant,
 )
@@ -563,7 +565,9 @@ class AdEngineService:
             lang_bonus = 0.2 if (cmp_langs and effective_lang in cmp_langs) else 0.0
             model_bonus = 0.1 if (cmp_models and any(cm in clean_model for cm in cmp_models)) else 0.0
             relevance_score = min(1.0, (overlap_count / 3.0) + lang_bonus + model_bonus)
-            normalized_bid = min(1.0, cost_per_event / 2.0)
+            pacing_mult = AdBudgetPacingService.calculate_pacing_multiplier(cmp, now_dt=now_dt)
+            effective_bid = cost_per_event * pacing_mult
+            normalized_bid = min(1.0, effective_bid / 2.0)
             priority_score = min(1.0, cmp.priority / 10.0) if cmp.priority else 0.0
 
             total_score = (relevance_score * 0.50) + (normalized_bid * 0.30) + (priority_score * 0.20)
@@ -3943,6 +3947,602 @@ class AdDcoEngineService:
             "discount_percent": discount,
             "tone_style": tone,
         }
+
+
+class AdBudgetPacingService:
+    """
+    Predictive Budget Pacing Engine.
+    Controls daily budget consumption rate throughout the day to avoid premature budget exhaustion.
+    Modes:
+    - standard_smooth: Smooth pacing against cumulative daily time curve.
+    - accelerated_asap: Enter auctions as fast as possible without throttling.
+    - peak_weighted: Focus budget on peak commercial hours (12:00 - 20:00).
+    """
+
+    # Cumulative expected spend percentage by local hour (0-23) for standard commercial traffic
+    HOURLY_STANDARD_CURVE = [
+        0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.12, 0.17,
+        0.24, 0.32, 0.40, 0.48, 0.56, 0.64, 0.72, 0.80,
+        0.86, 0.91, 0.95, 0.97, 0.98, 0.99, 0.995, 1.0
+    ]
+
+    # Peak weighted curve (steep ramp between 12:00 and 20:00)
+    HOURLY_PEAK_CURVE = [
+        0.01, 0.01, 0.02, 0.02, 0.03, 0.04, 0.06, 0.09,
+        0.14, 0.20, 0.28, 0.38, 0.50, 0.62, 0.74, 0.84,
+        0.90, 0.94, 0.97, 0.98, 0.99, 0.995, 0.998, 1.0
+    ]
+
+    @classmethod
+    def calculate_pacing_multiplier(cls, campaign: AdCampaign, now_dt: datetime = None) -> float:
+        """
+        Calculate pacing bid multiplier (0.5 to 1.2) based on daily budget progress.
+        """
+        pacing_mode = getattr(campaign, "pacing_mode", "standard_smooth") or "standard_smooth"
+        if pacing_mode == "accelerated_asap":
+            return 1.0
+
+        daily_budget = float(campaign.daily_budget or 10.0)
+        spent_today = float(campaign.spent_today or 0.0)
+        if daily_budget <= 0:
+            return 1.0
+
+        # Localize current time according to campaign schedule timezone
+        tz_name = getattr(campaign, "schedule_timezone", "Asia/Tashkent") or "Asia/Tashkent"
+        now_dt = now_dt or datetime.now(timezone.utc)
+
+        tz_offsets = {
+            "Asia/Tashkent": 5,
+            "Asia/Samarkand": 5,
+            "Europe/Moscow": 3,
+            "UTC": 0,
+            "America/New_York": -5,
+            "Europe/London": 0,
+        }
+        offset_hours = tz_offsets.get(tz_name, 5)
+        local_dt = now_dt + timedelta(hours=offset_hours)
+        hour = min(23, max(0, local_dt.hour))
+
+        curve = cls.HOURLY_PEAK_CURVE if pacing_mode == "peak_weighted" else cls.HOURLY_STANDARD_CURVE
+        expected_spent_ratio = curve[hour]
+        actual_spent_ratio = min(1.0, spent_today / daily_budget)
+
+        # If we have spent way ahead of schedule (> 25% above target curve)
+        if actual_spent_ratio > expected_spent_ratio + 0.25:
+            # Overpacing: dampen bids smoothly to preserve budget for later hours
+            burn_factor = actual_spent_ratio / max(0.05, expected_spent_ratio)
+            pacing_mult = max(0.50, 1.0 / min(2.0, burn_factor))
+            return round(pacing_mult, 2)
+        elif actual_spent_ratio < expected_spent_ratio - 0.25 and hour >= 8:
+            # Underpacing: slight bid boost (+15%) to capture available volume
+            return 1.15
+
+        return 1.0
+
+    @classmethod
+    @DB.connection_context()
+    def get_campaign_pacing_forecast(cls, campaign_id: str) -> dict:
+        cmp = AdCampaign.get_by_id(campaign_id)
+        daily_budget = float(cmp.daily_budget or 10.0)
+        spent_today = float(cmp.spent_today or 0.0)
+        pacing_mode = getattr(cmp, "pacing_mode", "standard_smooth") or "standard_smooth"
+        tz_name = getattr(cmp, "schedule_timezone", "Asia/Tashkent") or "Asia/Tashkent"
+
+        curve = cls.HOURLY_PEAK_CURVE if pacing_mode == "peak_weighted" else cls.HOURLY_STANDARD_CURVE
+        hourly_forecast = []
+        for h, ratio in enumerate(curve):
+            target_amount = round(daily_budget * ratio, 2)
+            hourly_forecast.append({
+                "hour": h,
+                "hour_label": f"{h:02d}:00",
+                "expected_cumulative_spend": target_amount,
+                "expected_ratio": round(ratio * 100, 1),
+            })
+
+        current_mult = cls.calculate_pacing_multiplier(cmp)
+        return {
+            "campaign_id": cmp.id,
+            "campaign_name": cmp.name,
+            "daily_budget": daily_budget,
+            "spent_today": spent_today,
+            "pacing_mode": pacing_mode,
+            "schedule_timezone": tz_name,
+            "current_pacing_multiplier": current_mult,
+            "burn_rate_status": "overpacing" if current_mult < 0.9 else ("underpacing" if current_mult > 1.05 else "optimal"),
+            "hourly_forecast": hourly_forecast,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def update_campaign_pacing(cls, campaign_id: str, pacing_mode: str) -> dict:
+        cmp = AdCampaign.get_by_id(campaign_id)
+        if pacing_mode not in ["standard_smooth", "accelerated_asap", "peak_weighted"]:
+            pacing_mode = "standard_smooth"
+        cmp.pacing_mode = pacing_mode
+        cmp.save()
+        return cls.get_campaign_pacing_forecast(campaign_id)
+
+
+class AdAutomatedRulesService:
+    """
+    Automated Rules & Auto-Pilot Campaign Optimization Engine.
+    Evaluates conditional triggers (Stop-Loss, CPA Guard, Scale Winners, Burn Rate Alert)
+    and executes automated actions with execution logging and multi-channel notifications.
+    """
+
+    DEFAULT_TEMPLATES = [
+        {
+            "template_id": "stop_loss_low_ctr",
+            "name": "🛡️ Stop Loss: Пауза при низком CTR",
+            "description": "Приостанавливает кампанию, если CTR опускается ниже 0.5% после 100 показов (защита от нерелевантного расхода).",
+            "metric": "ctr",
+            "operator": "<",
+            "threshold_value": 0.50,
+            "min_impressions": 100,
+            "time_window": "today",
+            "action_type": "pause_campaign",
+            "action_value": 0.0,
+        },
+        {
+            "template_id": "cpa_guard_reduce_bid",
+            "name": "💰 CPA Guard: Снижение ставки при дорогой конверсии",
+            "description": "Снижает ставку на 20%, если стоимость целевого действия (CPA) превышает $10 при наличии конверсий.",
+            "metric": "cpa",
+            "operator": ">",
+            "threshold_value": 10.0,
+            "min_impressions": 50,
+            "time_window": "last_7_days",
+            "action_type": "decrease_bid",
+            "action_value": 20.0,
+        },
+        {
+            "template_id": "scale_winner_budget",
+            "name": "🚀 Scale Top Performer: Масштабирование лидеров",
+            "description": "Увеличивает дневной бюджет на 30%, если конверсионность (CVR) превышает 4% за сегодня.",
+            "metric": "cvr",
+            "operator": ">",
+            "threshold_value": 4.0,
+            "min_impressions": 100,
+            "time_window": "today",
+            "action_type": "increase_budget",
+            "action_value": 30.0,
+        },
+        {
+            "template_id": "budget_burn_alert",
+            "name": "⏰ Контроль расхода: Оповещение при расходе > 90%",
+            "description": "Отправляет экстренное уведомление рекламодателю, когда израсходовано более 90% дневного бюджета.",
+            "metric": "spent_ratio",
+            "operator": ">=",
+            "threshold_value": 90.0,
+            "min_impressions": 10,
+            "time_window": "today",
+            "action_type": "send_alert",
+            "action_value": 0.0,
+        },
+    ]
+
+    @classmethod
+    def get_default_rule_templates(cls) -> list:
+        return cls.DEFAULT_TEMPLATES
+
+    @classmethod
+    @DB.connection_context()
+    def list_rules(cls, advertiser_id: str, campaign_id: str = None) -> list:
+        query = AdAutomatedRule.select().where(AdAutomatedRule.advertiser_id == advertiser_id)
+        if campaign_id:
+            query = query.where((AdAutomatedRule.campaign_id == campaign_id) | (AdAutomatedRule.campaign_id == "all"))
+
+        rules = list(query.order_by(AdAutomatedRule.create_time.desc()))
+        res = []
+        for r in rules:
+            cmp_name = "Все кампании"
+            if r.campaign_id and r.campaign_id != "all":
+                c = AdCampaign.get_or_none(AdCampaign.id == r.campaign_id)
+                if c:
+                    cmp_name = c.name
+
+            res.append({
+                "id": r.id,
+                "advertiser_id": r.advertiser_id,
+                "campaign_id": r.campaign_id,
+                "campaign_name": cmp_name,
+                "name": r.name,
+                "description": r.description or "",
+                "metric": r.metric,
+                "operator": r.operator,
+                "threshold_value": r.threshold_value,
+                "min_impressions": r.min_impressions,
+                "time_window": r.time_window,
+                "action_type": r.action_type,
+                "action_value": r.action_value,
+                "is_active": r.is_active,
+                "last_evaluated_time": r.last_evaluated_time,
+                "last_triggered_time": r.last_triggered_time,
+                "trigger_count": r.trigger_count,
+                "create_time": r.create_time,
+            })
+        return res
+
+    @classmethod
+    @DB.connection_context()
+    def get_rule(cls, rule_id: str, advertiser_id: str = "") -> dict:
+        rule = AdAutomatedRule.get_or_none(AdAutomatedRule.id == rule_id)
+        if not rule or (advertiser_id and rule.advertiser_id != advertiser_id):
+            return None
+        return {
+            "id": rule.id,
+            "advertiser_id": rule.advertiser_id,
+            "campaign_id": rule.campaign_id,
+            "name": rule.name,
+            "description": rule.description or "",
+            "metric": rule.metric,
+            "operator": rule.operator,
+            "threshold_value": rule.threshold_value,
+            "min_impressions": rule.min_impressions,
+            "time_window": rule.time_window,
+            "action_type": rule.action_type,
+            "action_value": rule.action_value,
+            "is_active": rule.is_active,
+            "last_evaluated_time": rule.last_evaluated_time,
+            "last_triggered_time": rule.last_triggered_time,
+            "trigger_count": rule.trigger_count,
+            "create_time": rule.create_time,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def create_rule(cls, advertiser_id: str, data: dict) -> dict:
+        now_ts = current_timestamp()
+        rule_id = uuid.uuid4().hex[:32]
+        rule = AdAutomatedRule.create(
+            id=rule_id,
+            advertiser_id=advertiser_id,
+            campaign_id=data.get("campaign_id", "all") or "all",
+            name=data.get("name", "Новое авто-правило"),
+            description=data.get("description", ""),
+            metric=data.get("metric", "ctr"),
+            operator=data.get("operator", "<"),
+            threshold_value=float(data.get("threshold_value", 1.0)),
+            min_impressions=int(data.get("min_impressions", 100)),
+            time_window=data.get("time_window", "today"),
+            action_type=data.get("action_type", "pause_campaign"),
+            action_value=float(data.get("action_value", 0.0)),
+            is_active=bool(data.get("is_active", True)),
+            last_evaluated_time=None,
+            last_triggered_time=None,
+            trigger_count=0,
+            create_time=now_ts,
+            update_time=now_ts,
+        )
+        return cls.get_rule(rule.id, advertiser_id)
+
+    @classmethod
+    @DB.connection_context()
+    def update_rule(cls, rule_id: str, advertiser_id: str, data: dict) -> dict:
+        rule = AdAutomatedRule.get_or_none(AdAutomatedRule.id == rule_id)
+        if not rule or (advertiser_id and rule.advertiser_id != advertiser_id):
+            return None
+
+        for field in ["campaign_id", "name", "description", "metric", "operator", "time_window", "action_type"]:
+            if field in data:
+                setattr(rule, field, data[field])
+
+        if "threshold_value" in data:
+            rule.threshold_value = float(data["threshold_value"])
+        if "min_impressions" in data:
+            rule.min_impressions = int(data["min_impressions"])
+        if "action_value" in data:
+            rule.action_value = float(data["action_value"])
+        if "is_active" in data:
+            rule.is_active = bool(data["is_active"])
+
+        rule.update_time = current_timestamp()
+        rule.save()
+        return cls.get_rule(rule.id, advertiser_id)
+
+    @classmethod
+    @DB.connection_context()
+    def delete_rule(cls, rule_id: str, advertiser_id: str) -> bool:
+        rule = AdAutomatedRule.get_or_none(AdAutomatedRule.id == rule_id)
+        if not rule or (advertiser_id and rule.advertiser_id != advertiser_id):
+            return False
+        rule.delete_instance()
+        return True
+
+    @classmethod
+    @DB.connection_context()
+    def toggle_rule(cls, rule_id: str, advertiser_id: str) -> dict:
+        rule = AdAutomatedRule.get_or_none(AdAutomatedRule.id == rule_id)
+        if not rule or (advertiser_id and rule.advertiser_id != advertiser_id):
+            return None
+        rule.is_active = not rule.is_active
+        rule.update_time = current_timestamp()
+        rule.save()
+        return cls.get_rule(rule.id, advertiser_id)
+
+    @classmethod
+    @DB.connection_context()
+    def evaluate_campaign_metrics(cls, campaign: AdCampaign, time_window: str = "today") -> dict:
+        """
+        Calculate actual performance metrics for a campaign over the specified time window.
+        """
+        now_ts = current_timestamp()
+        if time_window == "today":
+            # Start of current UTC day
+            today_dt = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            since_ts = int(today_dt.timestamp() * 1000)
+        elif time_window == "last_7_days":
+            since_ts = now_ts - (7 * 86400 * 1000)
+        elif time_window == "last_30_days":
+            since_ts = now_ts - (30 * 86400 * 1000)
+        else:  # lifetime
+            since_ts = 0
+
+        imp_query = AdImpression.select().where(
+            (AdImpression.campaign_id == campaign.id) &
+            (AdImpression.create_time >= since_ts)
+        )
+        impressions = imp_query.count()
+
+        click_query = AdClick.select().where(
+            (AdClick.campaign_id == campaign.id) &
+            (AdClick.create_time >= since_ts)
+        )
+        clicks = click_query.count()
+
+        conv_query = AdConversion.select().where(
+            (AdConversion.campaign_id == campaign.id) &
+            (AdConversion.create_time >= since_ts)
+        )
+        conversions = conv_query.count()
+
+        # Calculate spend in window
+        imp_cost = imp_query.select(fn.SUM(AdImpression.cost)).scalar() or 0.0
+        click_cost = click_query.select(fn.SUM(AdClick.cost)).scalar() or 0.0
+        total_spent = float(imp_cost) + float(click_cost)
+
+        # Fallback to campaign accumulators if impressions table has fewer entries (e.g., in unit tests or fast sync)
+        if time_window == "today":
+            total_spent = max(total_spent, float(campaign.spent_today or 0.0))
+        elif time_window == "lifetime":
+            total_spent = max(total_spent, float(campaign.total_spent or 0.0))
+            impressions = max(impressions, int(getattr(campaign, "impressions", 0) or 0))
+            clicks = max(clicks, int(getattr(campaign, "clicks", 0) or 0))
+            conversions = max(conversions, int(getattr(campaign, "conversions_count", 0) or 0))
+
+        ctr = (clicks / impressions * 100.0) if impressions > 0 else float(getattr(campaign, "ctr", 0.0) or 0.0)
+        cvr = (conversions / clicks * 100.0) if clicks > 0 else float(getattr(campaign, "conversion_rate", 0.0) or 0.0)
+        cpa = (total_spent / conversions) if conversions > 0 else 0.0
+        daily_budget = float(campaign.daily_budget or 10.0)
+        spent_ratio = (float(campaign.spent_today or 0.0) / daily_budget * 100.0) if daily_budget > 0 else 0.0
+
+        return {
+            "impressions": impressions,
+            "clicks": clicks,
+            "conversions": conversions,
+            "spent": round(total_spent, 2),
+            "ctr": round(ctr, 2),
+            "cvr": round(cvr, 2),
+            "cpa": round(cpa, 2),
+            "spent_ratio": round(spent_ratio, 1),
+            "current_bid": float(campaign.bid_amount or 0.10),
+            "daily_budget": daily_budget,
+            "status": campaign.status,
+        }
+
+    @classmethod
+    def _check_condition(cls, current_val: float, operator: str, threshold: float) -> bool:
+        if operator == "<":
+            return current_val < threshold
+        elif operator == "<=":
+            return current_val <= threshold
+        elif operator == ">":
+            return current_val > threshold
+        elif operator == ">=":
+            return current_val >= threshold
+        elif operator in ["==", "="]:
+            return abs(current_val - threshold) < 0.001
+        return False
+
+    @classmethod
+    @DB.connection_context()
+    def execute_rule(cls, rule: AdAutomatedRule, campaign: AdCampaign = None) -> list:
+        """
+        Evaluate a rule against relevant campaigns and execute automated action if triggered.
+        Returns list of executed actions.
+        """
+        now_ts = current_timestamp()
+        rule.last_evaluated_time = now_ts
+        rule.save()
+
+        campaigns_to_evaluate = []
+        if campaign:
+            campaigns_to_evaluate.append(campaign)
+        elif rule.campaign_id and rule.campaign_id != "all":
+            c = AdCampaign.get_or_none(AdCampaign.id == rule.campaign_id)
+            if c:
+                campaigns_to_evaluate.append(c)
+        else:
+            campaigns_to_evaluate = list(
+                AdCampaign.select().where(
+                    (AdCampaign.advertiser_id == rule.advertiser_id) &
+                    (AdCampaign.status != "archived")
+                )
+            )
+
+        executed_results = []
+        for cmp in campaigns_to_evaluate:
+            metrics = cls.evaluate_campaign_metrics(cmp, rule.time_window)
+            current_metric_val = float(metrics.get(rule.metric, 0.0))
+            impressions = metrics.get("impressions", 0)
+
+            # Check safety min_impressions threshold
+            if impressions < rule.min_impressions and rule.metric not in ["spent_ratio", "spent"]:
+                continue
+
+            triggered = cls._check_condition(current_metric_val, rule.operator, rule.threshold_value)
+            if not triggered:
+                continue
+
+            action = rule.action_type
+            val = rule.action_value or 0.0
+            action_desc = ""
+
+            if action == "pause_campaign":
+                if cmp.status == "active":
+                    cmp.status = "paused"
+                    cmp.save()
+                    action_desc = f"Кампания приостановлена (Stop-Loss: {rule.metric} {current_metric_val} {rule.operator} {rule.threshold_value})"
+                else:
+                    action_desc = "Кампания уже на паузе"
+
+            elif action == "resume_campaign":
+                if cmp.status == "paused":
+                    cmp.status = "active"
+                    cmp.save()
+                    action_desc = f"Кампания возобновлена ({rule.metric} {current_metric_val} {rule.operator} {rule.threshold_value})"
+                else:
+                    action_desc = "Кампания уже активна"
+
+            elif action == "increase_bid":
+                old_bid = cmp.bid_amount
+                new_bid = round(old_bid * (1.0 + (val / 100.0)), 2)
+                cmp.bid_amount = new_bid
+                cmp.save()
+                action_desc = f"Ставка повышена на {val}% (с ${old_bid:.2f} до ${new_bid:.2f})"
+
+            elif action == "decrease_bid":
+                old_bid = cmp.bid_amount
+                new_bid = max(0.01, round(old_bid * (1.0 - (val / 100.0)), 2))
+                cmp.bid_amount = new_bid
+                cmp.save()
+                action_desc = f"Ставка снижена на {val}% (с ${old_bid:.2f} до ${new_bid:.2f})"
+
+            elif action == "increase_budget":
+                old_bgt = cmp.daily_budget
+                new_bgt = round(old_bgt * (1.0 + (val / 100.0)), 2)
+                cmp.daily_budget = new_bgt
+                cmp.save()
+                action_desc = f"Дневной бюджет увеличен на {val}% (с ${old_bgt:.2f} до ${new_bgt:.2f})"
+
+            elif action == "decrease_budget":
+                old_bgt = cmp.daily_budget
+                new_bgt = max(1.0, round(old_bgt * (1.0 - (val / 100.0)), 2))
+                cmp.daily_budget = new_bgt
+                cmp.save()
+                action_desc = f"Дневной бюджет снижен на {val}% (с ${old_bgt:.2f} до ${new_bgt:.2f})"
+
+            elif action == "send_alert":
+                action_desc = f"Отправлен алерт: {rule.metric} достиг значения {current_metric_val}"
+
+            # Create execution log
+            log_id = uuid.uuid4().hex[:32]
+            AdRuleExecutionLog.create(
+                id=log_id,
+                rule_id=rule.id,
+                rule_name=rule.name,
+                campaign_id=cmp.id,
+                campaign_name=cmp.name,
+                advertiser_id=rule.advertiser_id,
+                metric_name=rule.metric,
+                metric_current_value=current_metric_val,
+                threshold_value=rule.threshold_value,
+                action_taken=action,
+                action_details=action_desc,
+                create_time=now_ts,
+            )
+
+            # Update rule trigger statistics
+            rule.last_triggered_time = now_ts
+            rule.trigger_count = (rule.trigger_count or 0) + 1
+            rule.save()
+
+            # Dispatch notification
+            try:
+                AdvertiserNotificationService.create_notification(
+                    advertiser_id=rule.advertiser_id,
+                    type="rule_trigger",
+                    title=f"⚡ Авто-правило: {rule.name}",
+                    message=f"Для кампании '{cmp.name}': {action_desc}",
+                    severity="warning" if action in ["pause_campaign", "decrease_budget"] else "info",
+                    data={
+                        "rule_id": rule.id,
+                        "campaign_id": cmp.id,
+                        "metric": rule.metric,
+                        "metric_value": current_metric_val,
+                        "threshold": rule.threshold_value,
+                        "action": action,
+                    }
+                )
+            except Exception as e:
+                logger.debug(f"Advertiser notification error in rule execution: {e}")
+
+            executed_results.append({
+                "rule_id": rule.id,
+                "rule_name": rule.name,
+                "campaign_id": cmp.id,
+                "campaign_name": cmp.name,
+                "metric": rule.metric,
+                "metric_value": current_metric_val,
+                "threshold": rule.threshold_value,
+                "action": action,
+                "details": action_desc,
+            })
+
+        return executed_results
+
+    @classmethod
+    @DB.connection_context()
+    def run_all_rules(cls, advertiser_id: str = None, campaign_id: str = None, rule_id: str = None) -> dict:
+        query = AdAutomatedRule.select().where(AdAutomatedRule.is_active == True)
+        if advertiser_id:
+            query = query.where(AdAutomatedRule.advertiser_id == advertiser_id)
+        if rule_id:
+            query = query.where(AdAutomatedRule.id == rule_id)
+        if campaign_id:
+            query = query.where((AdAutomatedRule.campaign_id == campaign_id) | (AdAutomatedRule.campaign_id == "all"))
+
+        active_rules = list(query)
+        total_triggered = 0
+        all_actions = []
+
+        for r in active_rules:
+            actions = cls.execute_rule(r)
+            if actions:
+                total_triggered += len(actions)
+                all_actions.extend(actions)
+
+        return {
+            "rules_evaluated": len(active_rules),
+            "actions_triggered": total_triggered,
+            "actions": all_actions,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def list_execution_logs(cls, advertiser_id: str, campaign_id: str = None, limit: int = 50) -> list:
+        query = AdRuleExecutionLog.select().where(AdRuleExecutionLog.advertiser_id == advertiser_id)
+        if campaign_id:
+            query = query.where(AdRuleExecutionLog.campaign_id == campaign_id)
+
+        logs = list(query.order_by(AdRuleExecutionLog.create_time.desc()).limit(limit))
+        res = []
+        for l in logs:
+            res.append({
+                "id": l.id,
+                "rule_id": l.rule_id,
+                "rule_name": l.rule_name,
+                "campaign_id": l.campaign_id,
+                "campaign_name": l.campaign_name,
+                "metric_name": l.metric_name,
+                "metric_current_value": l.metric_current_value,
+                "threshold_value": l.threshold_value,
+                "action_taken": l.action_taken,
+                "action_details": l.action_details or "",
+                "create_time": l.create_time,
+            })
+        return res
+
 
 
 

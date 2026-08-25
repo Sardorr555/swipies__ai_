@@ -1744,6 +1744,8 @@ class AdCampaign(DataBaseModel):
     schedule_config = JSONField(null=True, default=dict)  # Dayparting & hourly multipliers config
     dco_enabled = BooleanField(default=False)  # Dynamic Creative Optimization & Keyword Insertion
     dco_config = JSONField(null=True, default=dict)  # DCO templates, DKI rules, UTM config, promo codes
+    pacing_mode = CharField(max_length=32, default="standard_smooth", index=True)  # standard_smooth, accelerated_asap, peak_weighted
+    auto_rules_enabled = BooleanField(default=True)
     conversions_count = IntegerField(default=0)
     conversion_rate = FloatField(default=0.0)
     total_conversion_value = FloatField(default=0.0)
@@ -2117,6 +2119,48 @@ class AdDcoLog(DataBaseModel):
 
     class Meta:
         db_table = "ad_dco_logs"
+
+
+class AdAutomatedRule(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    campaign_id = CharField(max_length=32, default="all", index=True)  # specific campaign_id or "all"
+    name = CharField(max_length=128, null=False)
+    description = TextField(null=True)
+    metric = CharField(max_length=32, default="ctr")  # ctr, cvr, cpa, impressions, clicks, spent, conversions, spent_ratio
+    operator = CharField(max_length=8, default="<")  # <, <=, >, >=, ==
+    threshold_value = FloatField(default=1.0)
+    min_impressions = IntegerField(default=100)  # Safety threshold before evaluating rule
+    time_window = CharField(max_length=32, default="today")  # today, last_7_days, last_30_days, lifetime
+    action_type = CharField(max_length=32, default="pause_campaign")  # pause_campaign, resume_campaign, increase_bid, decrease_bid, increase_budget, decrease_budget, send_alert
+    action_value = FloatField(default=0.0)  # e.g. 20 (percent) or fixed amount
+    is_active = BooleanField(default=True)
+    last_evaluated_time = BigIntegerField(null=True)
+    last_triggered_time = BigIntegerField(null=True)
+    trigger_count = IntegerField(default=0)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_automated_rules"
+
+
+class AdRuleExecutionLog(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    rule_id = CharField(max_length=32, null=False, index=True)
+    rule_name = CharField(max_length=128, null=False)
+    campaign_id = CharField(max_length=32, null=False, index=True)
+    campaign_name = CharField(max_length=128, null=False)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    metric_name = CharField(max_length=32, null=False)
+    metric_current_value = FloatField(default=0.0)
+    threshold_value = FloatField(default=0.0)
+    action_taken = CharField(max_length=64, null=False)
+    action_details = TextField(null=True)
+    create_time = BigIntegerField(null=False, index=True)
+
+    class Meta:
+        db_table = "ad_rule_execution_logs"
 
 
 class PromoCode(DataBaseModel):

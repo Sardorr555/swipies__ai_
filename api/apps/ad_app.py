@@ -51,6 +51,8 @@ from api.db.services.ad_engine_service import (
     AdAntiFraudService,
     AdSmartBiddingService,
     AdDcoEngineService,
+    AdBudgetPacingService,
+    AdAutomatedRulesService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.promo_code_service import PromoCodeService
@@ -142,6 +144,8 @@ async def list_campaigns():
                 "schedule_config": getattr(c, "schedule_config", {}) or {},
                 "dco_enabled": bool(getattr(c, "dco_enabled", False)),
                 "dco_config": getattr(c, "dco_config", {}) or {},
+                "pacing_mode": getattr(c, "pacing_mode", "standard_smooth") or "standard_smooth",
+                "auto_rules_enabled": bool(getattr(c, "auto_rules_enabled", True)),
                 "target_cpa": getattr(c, "target_cpa", 0.0) or 0.0,
                 "conversions_count": getattr(c, "conversions_count", 0) or 0,
                 "conversion_rate": getattr(c, "conversion_rate", 0.0) or 0.0,
@@ -264,6 +268,8 @@ async def create_campaign():
             schedule_config=req.get("schedule_config", {}),
             dco_enabled=bool(req.get("dco_enabled", False)),
             dco_config=req.get("dco_config", {}),
+            pacing_mode=req.get("pacing_mode", "standard_smooth"),
+            auto_rules_enabled=bool(req.get("auto_rules_enabled", True)),
             priority=int(req.get("priority", 0)),
             status="active",
             moderation_status="approved",  # Auto-approve for seamless self-serve demo; admin can reject
@@ -2056,6 +2062,191 @@ async def preview_campaign_dco(campaign_id):
     except Exception as e:
         logger.exception(f"Error previewing DCO: {e}")
         return get_data_error_result(message=str(e))
+
+
+# ==========================================
+# Automated Rules & Predictive Budget Pacing Endpoints (Phase 24)
+# ==========================================
+
+@manager.route("/rules/templates", methods=["GET"])
+@login_required
+def get_rule_templates():
+    try:
+        templates = AdAutomatedRulesService.get_default_rule_templates()
+        return get_json_result(data=templates)
+    except Exception as e:
+        logger.exception(f"Error getting rule templates: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/rules", methods=["GET"])
+@login_required
+def list_automated_rules():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        campaign_id = request.args.get("campaign_id")
+        rules = AdAutomatedRulesService.list_rules(advertiser_id=adv.id, campaign_id=campaign_id)
+        return get_json_result(data=rules)
+    except Exception as e:
+        logger.exception(f"Error listing automated rules: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/rules", methods=["POST"])
+@login_required
+async def create_automated_rule():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        req = await get_request_json() or {}
+
+        name = req.get("name", "").strip()
+        if not name:
+            return get_json_result(data=False, message="Rule name is required", code=RetCode.ARGUMENT_ERROR)
+
+        rule = AdAutomatedRulesService.create_rule(advertiser_id=adv.id, data=req)
+        return get_json_result(data=rule)
+    except Exception as e:
+        logger.exception(f"Error creating automated rule: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/rules/<rule_id>", methods=["PUT"])
+@login_required
+async def update_automated_rule(rule_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        req = await get_request_json() or {}
+
+        rule = AdAutomatedRulesService.update_rule(rule_id=rule_id, advertiser_id=adv.id, data=req)
+        if not rule:
+            return get_json_result(data=False, message="Rule not found", code=RetCode.NOT_FOUND)
+        return get_json_result(data=rule)
+    except Exception as e:
+        logger.exception(f"Error updating automated rule: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/rules/<rule_id>", methods=["DELETE"])
+@login_required
+def delete_automated_rule(rule_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        success = AdAutomatedRulesService.delete_rule(rule_id=rule_id, advertiser_id=adv.id)
+        if not success:
+            return get_json_result(data=False, message="Rule not found", code=RetCode.NOT_FOUND)
+        return get_json_result(data={"deleted": True})
+    except Exception as e:
+        logger.exception(f"Error deleting automated rule: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/rules/<rule_id>/toggle", methods=["POST"])
+@login_required
+def toggle_automated_rule(rule_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        rule = AdAutomatedRulesService.toggle_rule(rule_id=rule_id, advertiser_id=adv.id)
+        if not rule:
+            return get_json_result(data=False, message="Rule not found", code=RetCode.NOT_FOUND)
+        return get_json_result(data=rule)
+    except Exception as e:
+        logger.exception(f"Error toggling automated rule: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/rules/evaluate", methods=["POST"])
+@login_required
+async def evaluate_automated_rules():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        req = await get_request_json() or {}
+
+        campaign_id = req.get("campaign_id")
+        rule_id = req.get("rule_id")
+
+        res = AdAutomatedRulesService.run_all_rules(
+            advertiser_id=adv.id,
+            campaign_id=campaign_id,
+            rule_id=rule_id,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error evaluating automated rules: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/rules/logs", methods=["GET"])
+@login_required
+def get_rule_execution_logs():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        campaign_id = request.args.get("campaign_id")
+        limit = int(request.args.get("limit", 50))
+
+        logs = AdAutomatedRulesService.list_execution_logs(
+            advertiser_id=adv.id,
+            campaign_id=campaign_id,
+            limit=limit,
+        )
+        return get_json_result(data=logs)
+    except Exception as e:
+        logger.exception(f"Error fetching rule execution logs: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/pacing", methods=["GET"])
+@login_required
+def get_campaign_pacing(campaign_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            return get_json_result(data=False, message="Campaign not found", code=RetCode.NOT_FOUND)
+
+        forecast = AdBudgetPacingService.get_campaign_pacing_forecast(campaign_id=campaign_id)
+        return get_json_result(data=forecast)
+    except Exception as e:
+        logger.exception(f"Error fetching campaign pacing: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/campaigns/<campaign_id>/pacing", methods=["PUT"])
+@login_required
+async def update_campaign_pacing(campaign_id):
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            return get_json_result(data=False, message="Campaign not found", code=RetCode.NOT_FOUND)
+
+        req = await get_request_json() or {}
+        pacing_mode = req.get("pacing_mode", "standard_smooth")
+        res = AdBudgetPacingService.update_campaign_pacing(campaign_id=campaign_id, pacing_mode=pacing_mode)
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error updating campaign pacing: {e}")
+        return get_data_error_result(message=str(e))
+
 
 
 
