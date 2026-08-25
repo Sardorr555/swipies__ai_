@@ -2313,6 +2313,72 @@ class AdCreativeMatrixAsset(DataBaseModel):
         db_table = "ad_creative_matrix_assets"
 
 
+class AdAgencyWorkspace(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    owner_advertiser_id = CharField(max_length=32, null=False, index=True)
+    name = CharField(max_length=128, null=False)
+    agency_slug = CharField(max_length=64, null=True, index=True)
+    logo_url = CharField(max_length=1024, null=True)
+    brand_color = CharField(max_length=32, default="#6366f1")
+    report_footer_text = CharField(max_length=255, null=True)
+    billing_mode = CharField(max_length=32, default="consolidated")  # consolidated, separate
+    status = CharField(max_length=32, default="active", index=True)  # active, archived
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_agency_workspaces"
+
+
+class AdAgencyClient(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    workspace_id = CharField(max_length=32, null=False, index=True)
+    client_advertiser_id = CharField(max_length=32, null=False, index=True)
+    client_name = CharField(max_length=128, null=False)
+    contact_email = CharField(max_length=128, null=True)
+    monthly_budget_cap = FloatField(default=0.0)  # 0.0 means unlimited
+    monthly_spend_current = FloatField(default=0.0)
+    currency = CharField(max_length=8, default="USD")
+    status = CharField(max_length=32, default="active", index=True)  # active, paused, archived
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_agency_clients"
+
+
+class AdAgencyMember(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    workspace_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    email = CharField(max_length=128, null=False, index=True)
+    role = CharField(max_length=32, default="media_buyer")  # agency_admin, media_buyer, creative_designer, financial_auditor, client_viewer
+    assigned_client_ids = JSONField(null=True, default=list)  # empty means access to all clients in workspace
+    status = CharField(max_length=32, default="active", index=True)  # active, invited, suspended
+    invite_token = CharField(max_length=64, null=True)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_agency_members"
+
+
+class AdAgencyReportTemplate(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    workspace_id = CharField(max_length=32, null=False, index=True)
+    client_id = CharField(max_length=32, null=True, index=True)
+    report_title = CharField(max_length=128, null=False)
+    sections_included = JSONField(null=True, default=list)  # kpi_summary, spend_roas, channel_breakdown, top_creatives, executive_takeaways
+    period_type = CharField(max_length=32, default="last_30d")  # last_7d, last_30d, last_90d, custom
+    is_public_shareable = BooleanField(default=False, index=True)
+    share_token = CharField(max_length=64, null=True, index=True)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_agency_report_templates"
+
+
 class PromoCode(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     code = CharField(max_length=64, unique=True, index=True)

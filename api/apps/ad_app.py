@@ -57,6 +57,7 @@ from api.db.services.ad_engine_service import (
     AdLookalikeLtvService,
     AdProductFeedService,
     AdCreativeStudioService,
+    AdAgencyService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.promo_code_service import PromoCodeService
@@ -2685,6 +2686,253 @@ async def feed_items_management(feed_id):
     except Exception as e:
         logger.exception(f"Error managing feed items: {e}")
         return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/workspace", methods=["GET", "PUT"])
+@login_required
+async def agency_workspace():
+    """
+    Phase 28: Enterprise Agency Hub & Client Workspaces.
+    Retrieves or updates white-label agency branding and billing settings.
+    """
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        if request.method == "GET":
+            ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+            return get_json_result(data=ws)
+
+        req = await get_request_json() or {}
+        workspace_id = req.get("workspace_id")
+        if not workspace_id:
+            ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+            workspace_id = ws["id"]
+
+        updated = AdAgencyService.update_workspace(
+            workspace_id=workspace_id,
+            advertiser_id=adv.id,
+            name=req.get("name"),
+            logo_url=req.get("logo_url"),
+            brand_color=req.get("brand_color"),
+            report_footer_text=req.get("report_footer_text"),
+            billing_mode=req.get("billing_mode"),
+        )
+        return get_json_result(data=updated)
+    except Exception as e:
+        logger.exception(f"Error handling agency workspace: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/clients", methods=["GET", "POST"])
+@login_required
+async def agency_clients():
+    """List or create client sub-accounts in agency workspace."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+        if request.method == "GET":
+            clients = AdAgencyService.list_clients(workspace_id=ws["id"])
+            return get_json_result(data=clients)
+
+        req = await get_request_json() or {}
+        client_name = req.get("client_name")
+        if not client_name:
+            return get_data_error_result(message="client_name is required")
+
+        client = AdAgencyService.create_client(
+            workspace_id=ws["id"],
+            owner_advertiser_id=adv.id,
+            client_name=client_name,
+            contact_email=req.get("contact_email"),
+            monthly_budget_cap=float(req.get("monthly_budget_cap", 0.0)),
+            currency=req.get("currency", "USD"),
+        )
+        return get_json_result(data=client)
+    except Exception as e:
+        logger.exception(f"Error managing agency clients: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/clients/<client_id>", methods=["DELETE"])
+@login_required
+async def delete_agency_client(client_id):
+    """Archives a client sub-account."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+        success = AdAgencyService.delete_client(workspace_id=ws["id"], client_id=client_id)
+        return get_json_result(data={"deleted": success})
+    except Exception as e:
+        logger.exception(f"Error deleting agency client: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/members", methods=["GET"])
+@login_required
+async def list_agency_members():
+    """List collaborators with RBAC permissions."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+        members = AdAgencyService.list_members(workspace_id=ws["id"])
+        return get_json_result(data=members)
+    except Exception as e:
+        logger.exception(f"Error listing agency members: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/members/invite", methods=["POST"])
+@login_required
+async def invite_agency_member():
+    """Invite collaborator to agency workspace with granular role."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+        req = await get_request_json() or {}
+        email = req.get("email")
+        if not email:
+            return get_data_error_result(message="email is required")
+
+        res = AdAgencyService.invite_member(
+            workspace_id=ws["id"],
+            email=email,
+            role=req.get("role", "media_buyer"),
+            assigned_client_ids=req.get("assigned_client_ids"),
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error inviting agency member: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/members/<member_id>", methods=["DELETE"])
+@login_required
+async def remove_agency_member(member_id):
+    """Remove member from agency workspace."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+        success = AdAgencyService.remove_member(workspace_id=ws["id"], member_id=member_id)
+        return get_json_result(data={"removed": success})
+    except Exception as e:
+        logger.exception(f"Error removing agency member: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/reports/executive", methods=["GET"])
+@login_required
+async def get_executive_report():
+    """Generates White-Label Executive Report for agency clients."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+        client_id = request.args.get("client_id")
+        days = int(request.args.get("days", 30))
+        custom_title = request.args.get("custom_title")
+
+        rep = AdAgencyService.generate_executive_report(
+            workspace_id=ws["id"],
+            client_id=client_id,
+            days=days,
+            custom_title=custom_title,
+        )
+        return get_json_result(data=rep)
+    except Exception as e:
+        logger.exception(f"Error generating executive report: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/reports/export/csv", methods=["GET"])
+@login_required
+async def export_agency_csv():
+    """Exports raw report timeline metrics to CSV format."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+        client_id = request.args.get("client_id")
+        days = int(request.args.get("days", 30))
+
+        csv_content = AdAgencyService.generate_csv_export_data(
+            workspace_id=ws["id"],
+            client_id=client_id,
+            days=days,
+        )
+        filename = f"swipies_agency_report_{days}d.csv"
+        return Response(
+            csv_content,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    except Exception as e:
+        logger.exception(f"Error exporting CSV report: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/reports/share", methods=["POST"])
+@login_required
+async def share_agency_report():
+    """Generates public signed share link for client dashboard viewing."""
+    try:
+        user_id = current_user.id
+        adv = AdvertiserService.get_or_create_for_user(user_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        ws = AdAgencyService.get_or_create_workspace(advertiser_id=adv.id)
+        req = await get_request_json() or {}
+        res = AdAgencyService.create_shareable_report_link(
+            workspace_id=ws["id"],
+            client_id=req.get("client_id"),
+            report_title=req.get("report_title"),
+            days=int(req.get("days", 30)),
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error sharing agency report: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/agency/reports/shared/<share_token>", methods=["GET"])
+async def get_public_shared_report(share_token):
+    """Public read-only executive report resolution (No login required)."""
+    try:
+        rep = AdAgencyService.get_public_report(share_token=share_token)
+        return get_json_result(data=rep)
+    except Exception as e:
+        logger.exception(f"Error fetching public shared report: {e}")
+        return get_data_error_result(message=str(e))
+
 
 
 

@@ -355,6 +355,29 @@ const adService = {
     request.get<ResponseData<ProductSkuItem[]>>(`/ads/feeds/${feedId}/items`, { params }),
   addFeedItem: (feedId: string, data: any) =>
     request.post<ResponseData<ProductSkuItem>>(`/ads/feeds/${feedId}/items`, { data }),
+  // Phase 28: Enterprise Agency Hub, Sub-Accounts & White-Label Reporting Methods
+  getAgencyWorkspace: () =>
+    request.get<ResponseData<AgencyWorkspace>>('/ads/agency/workspace'),
+  updateAgencyWorkspace: (data: UpdateAgencyWorkspaceRequest) =>
+    request.put<ResponseData<AgencyWorkspace>>('/ads/agency/workspace', { data }),
+  getAgencyClients: () =>
+    request.get<ResponseData<AgencyClient[]>>('/ads/agency/clients'),
+  createAgencyClient: (data: CreateAgencyClientRequest) =>
+    request.post<ResponseData<AgencyClient>>('/ads/agency/clients', { data }),
+  deleteAgencyClient: (clientId: string) =>
+    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/agency/clients/${clientId}`),
+  getAgencyMembers: () =>
+    request.get<ResponseData<AgencyMember[]>>('/ads/agency/members'),
+  inviteAgencyMember: (data: InviteAgencyMemberRequest) =>
+    request.post<ResponseData<AgencyMember>>('/ads/agency/members/invite', { data }),
+  removeAgencyMember: (memberId: string) =>
+    request.delete<ResponseData<{ removed: boolean }>>(`/ads/agency/members/${memberId}`),
+  getExecutiveReport: (params?: { client_id?: string; days?: number; custom_title?: string }) =>
+    request.get<ResponseData<ExecutiveReportData>>('/ads/agency/reports/executive', { params }),
+  shareAgencyReport: (data: { client_id?: string; report_title?: string; days?: number }) =>
+    request.post<ResponseData<ShareReportResponse>>('/ads/agency/reports/share', { data }),
+  getPublicSharedReport: (shareToken: string) =>
+    request.get<ResponseData<ExecutiveReportData>>(`/ads/agency/reports/shared/${shareToken}`),
 };
 
 export interface DcoConfig {
@@ -1080,6 +1103,136 @@ export interface CreativeHealthScoreResponse {
   recommendations: string[];
 }
 
+export interface AgencyWorkspace {
+  id: string;
+  owner_advertiser_id: string;
+  name: string;
+  agency_slug: string;
+  logo_url: string;
+  brand_color: string;
+  report_footer_text: string;
+  billing_mode: 'consolidated' | 'separate';
+  status: string;
+  clients_count: number;
+  members_count: number;
+  total_managed_spend: number;
+  create_time: number;
+}
+
+export interface UpdateAgencyWorkspaceRequest {
+  workspace_id?: string;
+  name?: string;
+  logo_url?: string;
+  brand_color?: string;
+  report_footer_text?: string;
+  billing_mode?: string;
+}
+
+export interface AgencyClient {
+  id: string;
+  workspace_id: string;
+  client_advertiser_id: string;
+  client_name: string;
+  contact_email?: string;
+  monthly_budget_cap: number;
+  monthly_spend_current: number;
+  currency: string;
+  status: 'active' | 'paused' | 'archived';
+  campaigns_count: number;
+  active_campaigns_count: number;
+  total_spend: number;
+  total_clicks: number;
+  avg_ctr: number;
+  total_conversions: number;
+  avg_cpa: number;
+  create_time: number;
+}
+
+export interface CreateAgencyClientRequest {
+  client_name: string;
+  contact_email?: string;
+  monthly_budget_cap?: number;
+  currency?: string;
+}
+
+export interface AgencyMember {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  email: string;
+  role: 'agency_admin' | 'media_buyer' | 'creative_designer' | 'financial_auditor' | 'client_viewer';
+  assigned_client_ids: string[];
+  status: 'active' | 'invited' | 'suspended';
+  invite_token?: string;
+  create_time: number;
+}
+
+export interface InviteAgencyMemberRequest {
+  email: string;
+  role?: string;
+  assigned_client_ids?: string[];
+}
+
+export interface ExecutiveReportData {
+  report_id: string;
+  workspace_id: string;
+  report_title: string;
+  period_days: number;
+  generated_at: string;
+  white_label: {
+    agency_name: string;
+    agency_slug: string;
+    logo_url: string;
+    brand_color: string;
+    footer_text: string;
+  };
+  client_info: {
+    client_id?: string;
+    client_name: string;
+    currency: string;
+  };
+  kpi_summary: {
+    total_spend: number;
+    total_impressions: number;
+    total_clicks: number;
+    avg_ctr: number;
+    avg_cpc: number;
+    total_conversions: number;
+    avg_cpa: number;
+    estimated_revenue: number;
+    roas: number;
+    active_campaigns: number;
+  };
+  timeline_trends: Array<{
+    date: string;
+    spend: number;
+    clicks: number;
+    conversions: number;
+  }>;
+  channel_attribution: Array<{
+    channel: string;
+    share_percent: number;
+    conversions: number;
+    cpa: number;
+  }>;
+  top_creative_assets: Array<{
+    title: string;
+    format: string;
+    ctr: number;
+    conversions: number;
+    health_score: number;
+  }>;
+  executive_takeaways: string[];
+}
+
+export interface ShareReportResponse {
+  template_id: string;
+  share_token: string;
+  share_url: string;
+  expires_in: string;
+}
+
 export default adService;
+
 
 

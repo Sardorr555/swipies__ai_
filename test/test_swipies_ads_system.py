@@ -298,6 +298,10 @@ from api.db.db_models import (
     AdProductFeed,
     AdProductItem,
     AdCreativeMatrixAsset,
+    AdAgencyWorkspace,
+    AdAgencyClient,
+    AdAgencyMember,
+    AdAgencyReportTemplate,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -325,6 +329,7 @@ from api.db.services.ad_engine_service import (
     AdLookalikeLtvService,
     AdProductFeedService,
     AdCreativeStudioService,
+    AdAgencyService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -385,6 +390,10 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdProductFeed,
             AdProductItem,
             AdCreativeMatrixAsset,
+            AdAgencyWorkspace,
+            AdAgencyClient,
+            AdAgencyMember,
+            AdAgencyReportTemplate,
         ]
         for m in models:
             m._meta.database = test_db
@@ -451,6 +460,10 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdProductFeed,
             AdProductItem,
             AdCreativeMatrixAsset,
+            AdAgencyWorkspace,
+            AdAgencyClient,
+            AdAgencyMember,
+            AdAgencyReportTemplate,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -3710,9 +3723,188 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         remaining_feeds = AdProductFeedService.list_feeds(advertiser_id=adv.id)
         self.assertEqual(len(remaining_feeds), 0)
 
+    def test_30_agency_hub_and_whitelabel_reports(self):
+        """
+        Phase 28: Test Enterprise Multi-Account Agency Hub, Client Workspaces,
+        Role-Based Access Control (RBAC), and White-Label Executive Reporting.
+        """
+        user = User.create(id=f"user_ag_{uuid.uuid4().hex[:6]}", email=f"agency_{uuid.uuid4().hex[:6]}@apexmedia.uz", nickname="Apex Media Master")
+        tenant = Tenant.create(
+            id=f"tenant_ag_{uuid.uuid4().hex[:6]}",
+            name="Apex Media Agency Tenant",
+            llm_id="",
+            embd_id="",
+            asr_id="",
+            img2txt_id="",
+            rerank_id="",
+            parser_ids="",
+            credit=0,
+            create_time=current_timestamp(),
+        )
+        adv = Advertiser.create(
+            id=f"adv_ag_{uuid.uuid4().hex[:6]}",
+            user_id=user.id,
+            tenant_id=tenant.id,
+            company_name="Apex Media Digital Agency",
+            balance=5000.0,
+            status="approved",
+            create_time=current_timestamp(),
+        )
+
+        # 1. Get or create agency workspace
+        ws = AdAgencyService.get_or_create_workspace(
+            advertiser_id=adv.id,
+            name="Apex Global Media Group",
+            logo_url="https://apexmedia.uz/logo.png",
+            brand_color="#4f46e5",
+            report_footer_text="Apex Group Confidential Performance Analysis",
+        )
+        self.assertEqual(ws["name"], "Apex Global Media Group")
+        self.assertEqual(ws["owner_advertiser_id"], adv.id)
+        self.assertEqual(ws["members_count"], 1)  # owner admin auto-registered
+
+        # 2. Update workspace white-label branding
+        updated_ws = AdAgencyService.update_workspace(
+            workspace_id=ws["id"],
+            advertiser_id=adv.id,
+            name="Apex Performance Agency",
+            brand_color="#6366f1",
+            billing_mode="consolidated",
+        )
+        self.assertEqual(updated_ws["name"], "Apex Performance Agency")
+        self.assertEqual(updated_ws["brand_color"], "#6366f1")
+
+        # 3. Create 2 client sub-accounts
+        client1 = AdAgencyService.create_client(
+            workspace_id=ws["id"],
+            owner_advertiser_id=adv.id,
+            client_name="Uzum Market E-commerce",
+            contact_email="marketing@uzum.uz",
+            monthly_budget_cap=2500.0,
+        )
+        self.assertEqual(client1["client_name"], "Uzum Market E-commerce")
+        self.assertEqual(client1["monthly_budget_cap"], 2500.0)
+
+        client2 = AdAgencyService.create_client(
+            workspace_id=ws["id"],
+            owner_advertiser_id=adv.id,
+            client_name="Payme Fintech Hub",
+            contact_email="ads@payme.uz",
+            monthly_budget_cap=1500.0,
+        )
+        self.assertEqual(client2["client_name"], "Payme Fintech Hub")
+
+        # Create campaigns under client 1
+        cmp_cli1 = AdCampaign.create(
+            id=f"cmp_cli1_{uuid.uuid4().hex[:6]}",
+            advertiser_id=client1["client_advertiser_id"],
+            name="Uzum Mega Sale 2026",
+            product_name="Uzum Marketplace App",
+            advertisement_text="Skidki do 70% v Uzum Market",
+            landing_url="https://uzum.uz",
+            daily_budget=100.0,
+            pricing_model="cpc",
+            bid_amount=0.40,
+            total_spent=420.0,
+            conversions_count=52,
+            status="active",
+            create_time=current_timestamp(),
+        )
+        AdVariant.create(
+            id=f"var_cli1_{uuid.uuid4().hex[:6]}",
+            campaign_id=cmp_cli1.id,
+            advertiser_id=client1["client_advertiser_id"],
+            name="Variant A",
+            advertisement_text="Skidki do 70% v Uzum Market",
+            landing_url="https://uzum.uz",
+            impressions=12000,
+            clicks=480,
+            is_active=True,
+            create_time=current_timestamp(),
+        )
+
+        # 4. List clients & verify live metrics aggregation
+        clients_list = AdAgencyService.list_clients(workspace_id=ws["id"])
+        self.assertEqual(len(clients_list), 2)
+        c1_item = next(c for c in clients_list if c["id"] == client1["id"])
+        self.assertEqual(c1_item["total_spend"], 420.0)
+        self.assertEqual(c1_item["total_clicks"], 480)
+        self.assertEqual(c1_item["total_conversions"], 52)
+        self.assertGreater(c1_item["avg_ctr"], 0.0)
+
+        # 5. Invite agency collaborators with RBAC
+        member_buyer = AdAgencyService.invite_member(
+            workspace_id=ws["id"],
+            email="buyer@apexmedia.uz",
+            role="media_buyer",
+            assigned_client_ids=[client1["id"]],
+        )
+        self.assertEqual(member_buyer["role"], "media_buyer")
+
+        member_auditor = AdAgencyService.invite_member(
+            workspace_id=ws["id"],
+            email="auditor@apexmedia.uz",
+            role="financial_auditor",
+        )
+        self.assertEqual(member_auditor["role"], "financial_auditor")
+
+        members = AdAgencyService.list_members(workspace_id=ws["id"])
+        self.assertEqual(len(members), 3)  # owner + buyer + auditor
+
+        # 6. Generate White-Label Executive Performance Report
+        report = AdAgencyService.generate_executive_report(
+            workspace_id=ws["id"],
+            client_id=client1["id"],
+            days=30,
+        )
+        self.assertEqual(report["client_info"]["client_name"], "Uzum Market E-commerce")
+        self.assertEqual(report["white_label"]["agency_name"], "Apex Performance Agency")
+        self.assertEqual(report["kpi_summary"]["total_spend"], 420.0)
+        self.assertEqual(report["kpi_summary"]["total_clicks"], 480)
+        self.assertEqual(report["kpi_summary"]["total_conversions"], 52)
+        self.assertGreaterEqual(report["kpi_summary"]["roas"], 1.0)
+        self.assertEqual(len(report["timeline_trends"]), 30)
+        self.assertEqual(len(report["channel_attribution"]), 4)
+        self.assertGreaterEqual(len(report["executive_takeaways"]), 3)
+
+        # 7. Generate CSV Export
+        csv_text = AdAgencyService.generate_csv_export_data(
+            workspace_id=ws["id"],
+            client_id=client1["id"],
+            days=30,
+        )
+        self.assertIn("Date,Client,Spend_USD,Clicks,Conversions,Avg_CTR_Percent,ROAS", csv_text)
+        self.assertIn("Uzum Market E-commerce", csv_text)
+
+        # 8. Create Shareable Public Report Link & Resolve It
+        share_res = AdAgencyService.create_shareable_report_link(
+            workspace_id=ws["id"],
+            client_id=client1["id"],
+            report_title="Uzum Market Q3 Executive Summary",
+            days=30,
+        )
+        self.assertIn("share_token", share_res)
+        self.assertIn("share_url", share_res)
+
+        public_rep = AdAgencyService.get_public_report(share_token=share_res["share_token"])
+        self.assertEqual(public_rep["report_title"], "Uzum Market Q3 Executive Summary")
+        self.assertEqual(public_rep["client_info"]["client_name"], "Uzum Market E-commerce")
+
+        # 9. Remove Member & Delete Client
+        removed = AdAgencyService.remove_member(workspace_id=ws["id"], member_id=member_auditor["id"])
+        self.assertTrue(removed)
+        remaining_members = AdAgencyService.list_members(workspace_id=ws["id"])
+        self.assertEqual(len(remaining_members), 2)
+
+        deleted_cli = AdAgencyService.delete_client(workspace_id=ws["id"], client_id=client2["id"])
+        self.assertTrue(deleted_cli)
+        active_clients = AdAgencyService.list_clients(workspace_id=ws["id"])
+        self.assertEqual(len(active_clients), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

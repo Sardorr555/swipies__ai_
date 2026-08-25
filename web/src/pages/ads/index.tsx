@@ -80,6 +80,11 @@ import {
   ShoppingBag,
   Film,
   LayoutGrid,
+  Building2,
+  Briefcase,
+  FileSpreadsheet,
+  Lock,
+  Crown,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -157,6 +162,11 @@ import adService, {
   ProductSkuItem,
   CreativeMatrixResponse,
   CreativeHealthScoreResponse,
+  AgencyWorkspace,
+  AgencyClient,
+  AgencyMember,
+  ExecutiveReportData,
+  ShareReportResponse,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -710,6 +720,223 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  // Phase 28: Enterprise Agency Hub, Sub-Accounts & White-Label Reporting State
+  const [agencyWorkspace, setAgencyWorkspace] = useState<AgencyWorkspace | null>(null);
+  const [agencyClients, setAgencyClients] = useState<AgencyClient[]>([]);
+  const [agencyMembers, setAgencyMembers] = useState<AgencyMember[]>([]);
+  const [loadingAgency, setLoadingAgency] = useState(false);
+
+  const [isAgencyClientModalOpen, setIsAgencyClientModalOpen] = useState(false);
+  const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientBudgetCap, setClientBudgetCap] = useState('2000');
+  const [clientCurrency, setClientCurrency] = useState('USD');
+  const [creatingClient, setCreatingClient] = useState(false);
+
+  const [isAgencyMemberModalOpen, setIsAgencyMemberModalOpen] = useState(false);
+  const [memberEmail, setMemberEmail] = useState('');
+  const [memberRole, setMemberRole] = useState('media_buyer');
+  const [memberAssignedClients, setMemberAssignedClients] = useState<string[]>([]);
+  const [invitingAgencyMember, setInvitingAgencyMember] = useState(false);
+
+  const [isAgencySettingsModalOpen, setIsAgencySettingsModalOpen] = useState(false);
+  const [wsName, setWsName] = useState('');
+  const [wsLogoUrl, setWsLogoUrl] = useState('');
+  const [wsBrandColor, setWsBrandColor] = useState('#6366f1');
+  const [wsFooterText, setWsFooterText] = useState('');
+  const [wsBillingMode, setWsBillingMode] = useState('consolidated');
+  const [savingWsSettings, setSavingWsSettings] = useState(false);
+
+  const [isExecutiveReportModalOpen, setIsExecutiveReportModalOpen] = useState(false);
+  const [executiveReport, setExecutiveReport] = useState<ExecutiveReportData | null>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [reportPeriodDays, setReportPeriodDays] = useState(30);
+  const [reportTargetClientId, setReportTargetClientId] = useState<string | null>(null);
+  const [shareLinkData, setShareLinkData] = useState<ShareReportResponse | null>(null);
+  const [creatingShareLink, setCreatingShareLink] = useState(false);
+
+  const fetchAgencyData = async () => {
+    setLoadingAgency(true);
+    try {
+      const [wsRes, clientsRes, membersRes] = await Promise.all([
+        adService.getAgencyWorkspace(),
+        adService.getAgencyClients(),
+        adService.getAgencyMembers(),
+      ]);
+      if (wsRes.data?.data) {
+        setAgencyWorkspace(wsRes.data.data);
+        setWsName(wsRes.data.data.name);
+        setWsLogoUrl(wsRes.data.data.logo_url || '');
+        setWsBrandColor(wsRes.data.data.brand_color || '#6366f1');
+        setWsFooterText(wsRes.data.data.report_footer_text || '');
+        setWsBillingMode(wsRes.data.data.billing_mode || 'consolidated');
+      }
+      if (clientsRes.data?.data) {
+        setAgencyClients(clientsRes.data.data);
+      }
+      if (membersRes.data?.data) {
+        setAgencyMembers(membersRes.data.data);
+      }
+    } catch (err: any) {
+      // silent
+    } finally {
+      setLoadingAgency(false);
+    }
+  };
+
+  const handleSaveAgencySettings = async () => {
+    if (!wsName.trim()) {
+      message.error('Укажите название агентства');
+      return;
+    }
+    setSavingWsSettings(true);
+    try {
+      const res = await adService.updateAgencyWorkspace({
+        name: wsName.trim(),
+        logo_url: wsLogoUrl.trim() || undefined,
+        brand_color: wsBrandColor,
+        report_footer_text: wsFooterText.trim() || undefined,
+        billing_mode: wsBillingMode,
+      });
+      if (res.data?.data) {
+        setAgencyWorkspace(res.data.data);
+        message.success('Настройки агентства и брендинга сохранены!');
+        setIsAgencySettingsModalOpen(false);
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка сохранения настроек');
+    } finally {
+      setSavingWsSettings(false);
+    }
+  };
+
+  const handleCreateAgencyClient = async () => {
+    if (!clientName.trim()) {
+      message.error('Укажите название бренда / субаккаунта');
+      return;
+    }
+    setCreatingClient(true);
+    try {
+      const res = await adService.createAgencyClient({
+        client_name: clientName.trim(),
+        contact_email: clientEmail.trim() || undefined,
+        monthly_budget_cap: parseFloat(clientBudgetCap) || 0,
+        currency: clientCurrency,
+      });
+      if (res.data?.data) {
+        message.success(`Клиентский субаккаунт "${clientName}" создан!`);
+        setIsAgencyClientModalOpen(false);
+        setClientName('');
+        setClientEmail('');
+        fetchAgencyData();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка создания субаккаунта');
+    } finally {
+      setCreatingClient(false);
+    }
+  };
+
+  const handleDeleteAgencyClient = async (clientId: string, clientNameStr: string) => {
+    if (!confirm(`Вы уверены, что хотите архивировать субаккаунт "${clientNameStr}"?`)) return;
+    try {
+      const res = await adService.deleteAgencyClient(clientId);
+      if (res.data?.data?.deleted) {
+        message.success('Клиентский субаккаунт архивирован');
+        fetchAgencyData();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка удаления субаккаунта');
+    }
+  };
+
+  const handleInviteAgencyMember = async () => {
+    if (!memberEmail.trim() || !memberEmail.includes('@')) {
+      message.error('Укажите корректный email сотрудника');
+      return;
+    }
+    setInvitingAgencyMember(true);
+    try {
+      const res = await adService.inviteAgencyMember({
+        email: memberEmail.trim(),
+        role: memberRole,
+        assigned_client_ids: memberAssignedClients,
+      });
+      if (res.data?.data) {
+        message.success('Сотрудник успешно добавлен в агентство!');
+        setIsAgencyMemberModalOpen(false);
+        setMemberEmail('');
+        setMemberAssignedClients([]);
+        fetchAgencyData();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка добавления сотрудника');
+    } finally {
+      setInvitingAgencyMember(false);
+    }
+  };
+
+  const handleRemoveAgencyMember = async (memberId: string) => {
+    if (!confirm('Отозвать доступ данного сотрудника из агентства?')) return;
+    try {
+      const res = await adService.removeAgencyMember(memberId);
+      if (res.data?.data?.removed) {
+        message.success('Доступ сотрудника отозван');
+        fetchAgencyData();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка отзыва доступа');
+    }
+  };
+
+  const handleOpenExecutiveReport = async (targetClientId?: string) => {
+    setReportTargetClientId(targetClientId || null);
+    setShareLinkData(null);
+    setLoadingReport(true);
+    setIsExecutiveReportModalOpen(true);
+    try {
+      const res = await adService.getExecutiveReport({
+        client_id: targetClientId,
+        days: reportPeriodDays,
+      });
+      if (res.data?.data) {
+        setExecutiveReport(res.data.data);
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка генерации сводного отчета');
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
+  const handleCreateShareLink = async () => {
+    setCreatingShareLink(true);
+    try {
+      const res = await adService.shareAgencyReport({
+        client_id: reportTargetClientId || undefined,
+        report_title: executiveReport?.report_title,
+        days: reportPeriodDays,
+      });
+      if (res.data?.data) {
+        setShareLinkData(res.data.data);
+        const fullUrl = `${window.location.origin}${res.data.data.share_url}`;
+        navigator.clipboard.writeText(fullUrl);
+        message.success('Публичная ссылка на отчет создана и скопирована в буфер!');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка создания публичной ссылки');
+    } finally {
+      setCreatingShareLink(false);
+    }
+  };
+
+  const handleExportAgencyCsv = () => {
+    const params = new URLSearchParams();
+    if (reportTargetClientId) params.set('client_id', reportTargetClientId);
+    params.set('days', String(reportPeriodDays));
+    window.open(`/v1/ads/agency/reports/export/csv?${params.toString()}`, '_blank');
+  };
+
   const fetchDashboard = async () => {
     setLoading(true);
     try {
@@ -1212,6 +1439,7 @@ export default function SwipiesAdsPage() {
     fetchLookalikes();
     fetchLtvOverview();
     fetchProductFeeds();
+    fetchAgencyData();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -2109,6 +2337,10 @@ export default function SwipiesAdsPage() {
                 {fraudOverview.total_blocked_clicks}
               </span>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="agency" className="flex items-center gap-2 relative">
+            <Building2 className="h-4 w-4 text-indigo-500" />
+            Агентский Хаб & Sub-Accounts ({agencyClients.length})
           </TabsTrigger>
           <TabsTrigger value="guide" className="flex items-center gap-2">
             <HelpCircle className="h-4 w-4" /> How Swipies Ads Work
@@ -5261,6 +5493,380 @@ export default function SwipiesAdsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Phase 28: Enterprise Agency Hub, Sub-Accounts & RBAC Tab */}
+        <TabsContent value="agency" className="space-y-6">
+          {/* Agency Top Hero Banner */}
+          <div className="rounded-2xl border bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-background p-6 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div
+                  className="flex h-16 w-16 items-center justify-center rounded-2xl shadow-md border text-white font-bold text-xl overflow-hidden shrink-0"
+                  style={{ backgroundColor: agencyWorkspace?.brand_color || '#6366f1' }}
+                >
+                  {agencyWorkspace?.logo_url && agencyWorkspace.logo_url.startsWith('http') ? (
+                    <img
+                      src={agencyWorkspace.logo_url}
+                      alt={agencyWorkspace.name}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <Building2 className="h-8 w-8" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black tracking-tight text-foreground">
+                      {agencyWorkspace?.name || 'Agency Enterprise Hub'}
+                    </h3>
+                    <Badge variant="secondary" className="text-xs bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold">
+                      Enterprise Agency Hub
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Единый центр управления клиентскими субаккаунтами, бюджетами, командой с RBAC и White-Label отчетностью
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1 font-mono">
+                      <Briefcase className="h-3 w-3 text-indigo-500" />
+                      slug: <span className="text-foreground font-semibold">{agencyWorkspace?.agency_slug || 'agency'}</span>
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Wallet className="h-3 w-3 text-emerald-500" />
+                      Биллинг: <span className="text-foreground font-semibold capitalize">{agencyWorkspace?.billing_mode || 'consolidated'}</span>
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Lock className="h-3 w-3 text-purple-500" />
+                      RBAC Защита: <span className="text-foreground font-semibold">Включена</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsAgencySettingsModalOpen(true)}
+                  className="text-xs flex items-center gap-1.5 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10"
+                >
+                  <Settings2 className="h-3.5 w-3.5" /> White-Label Брендинг
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleOpenExecutiveReport()}
+                  className="text-xs flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" /> Сводный Executive Report
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* 4-Grid Agency KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-950/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Клиентские субаккаунты</span>
+                  <Briefcase className="h-4 w-4 text-indigo-500" />
+                </div>
+                <div className="text-2xl font-bold text-foreground mt-1">
+                  {agencyClients.length}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Активных брендов в управлении</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-emerald-500/20 bg-emerald-50/20 dark:bg-emerald-950/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Управляемый рекламный бюджет</span>
+                  <DollarSign className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  ${(agencyWorkspace?.total_managed_spend || 0).toFixed(2)}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Совокупный spend клиентов</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-purple-500/20 bg-purple-50/20 dark:bg-purple-950/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Сотрудники и RBAC роли</span>
+                  <Users className="h-4 w-4 text-purple-500" />
+                </div>
+                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                  {agencyMembers.length}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Медиабайеры, дизайнеры, аудиторы</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-blue-500/20 bg-blue-50/20 dark:bg-blue-950/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Активные кампании клиентов</span>
+                  <Layers className="h-4 w-4 text-blue-500" />
+                </div>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                  {agencyClients.reduce((sum, c) => sum + (c.active_campaigns_count || 0), 0)}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  из {agencyClients.reduce((sum, c) => sum + (c.campaigns_count || 0), 0)} запущенных
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Section 1: Sub-Accounts Management */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between py-4">
+              <div>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-indigo-500" /> Клиентские Субаккаунты (Sub-Accounts)
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Изолированные рекламные пространства для каждого клиента с персональными лимитами и аналитикой
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setIsAgencyClientModalOpen(true)}
+                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Добавить субаккаунт
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {agencyClients.length === 0 ? (
+                <div className="py-12 text-center text-xs text-muted-foreground">
+                  <Briefcase className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                  У вас пока нет созданных субаккаунтов клиентов. Нажмите «Добавить субаккаунт», чтобы подключить бренд.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-2.5 px-4">Бренд / Субаккаунт</th>
+                        <th className="py-2.5 px-4">Месячный Лимит & Spend</th>
+                        <th className="py-2.5 px-4">Кампании</th>
+                        <th className="py-2.5 px-4">Клики & CTR%</th>
+                        <th className="py-2.5 px-4">Конверсии & CPA</th>
+                        <th className="py-2.5 px-4 text-right">Отчет & Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {agencyClients.map((client) => {
+                        const spendPercent = client.monthly_budget_cap > 0
+                          ? Math.min(100, Math.round((client.total_spend / client.monthly_budget_cap) * 100))
+                          : 0;
+
+                        return (
+                          <tr key={client.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-foreground">{client.client_name}</div>
+                              <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-mono">
+                                {client.contact_email || '—'}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 min-w-[180px]">
+                              <div className="flex items-center justify-between text-[11px] font-medium mb-1">
+                                <span className="font-bold text-foreground">${client.total_spend.toFixed(2)}</span>
+                                <span className="text-muted-foreground">
+                                  {client.monthly_budget_cap > 0 ? `/ $${client.monthly_budget_cap.toFixed(2)}` : 'Без лимита'}
+                                </span>
+                              </div>
+                              {client.monthly_budget_cap > 0 && (
+                                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${
+                                      spendPercent > 90
+                                        ? 'bg-rose-500'
+                                        : spendPercent > 70
+                                        ? 'bg-amber-500'
+                                        : 'bg-indigo-600'
+                                    }`}
+                                    style={{ width: `${spendPercent}%` }}
+                                  />
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge variant="outline" className="text-[11px] font-semibold">
+                                {client.active_campaigns_count} акт. / {client.campaigns_count} всего
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-foreground">{client.total_clicks} кликов</div>
+                              <div className="text-[11px] text-muted-foreground">{client.avg_ctr}% CTR</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                {client.total_conversions} конв.
+                              </div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {client.avg_cpa > 0 ? `$${client.avg_cpa.toFixed(2)} CPA` : '—'}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenExecutiveReport(client.id)}
+                                  className="text-xs h-7 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 flex items-center gap-1 font-medium"
+                                >
+                                  <FileSpreadsheet className="h-3 w-3" /> Report
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteAgencyClient(client.id, client.client_name)}
+                                  className="text-xs h-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Section 2: Team & RBAC Permissions */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between py-4">
+              <div>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Users className="h-4 w-4 text-purple-500" /> Команда Агентства & Роли Доступа (RBAC)
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Гранулярное распределение полномочий: медиабайеры, дизайнеры, финансовые аудиторы и клиенты
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsAgencyMemberModalOpen(true)}
+                className="text-xs border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
+              >
+                <UserPlus className="h-3.5 w-3.5 mr-1" /> Пригласить сотрудника
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
+                    <tr>
+                      <th className="py-2.5 px-4">Сотрудник / Email</th>
+                      <th className="py-2.5 px-4">Роль в Агентстве (RBAC)</th>
+                      <th className="py-2.5 px-4">Доступные Субаккаунты</th>
+                      <th className="py-2.5 px-4">Статус</th>
+                      <th className="py-2.5 px-4 text-right">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {agencyMembers.map((member) => (
+                      <tr key={member.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-3 px-4 font-medium text-foreground">
+                          {member.email}
+                          <div className="text-[10px] text-muted-foreground font-mono">
+                            ID: {member.id.slice(0, 8)}...
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge
+                            variant="secondary"
+                            className={`text-[10px] font-bold ${
+                              member.role === 'agency_admin'
+                                ? 'bg-purple-500/10 text-purple-600 border-purple-500/30'
+                                : member.role === 'media_buyer'
+                                ? 'bg-blue-500/10 text-blue-600 border-blue-500/30'
+                                : member.role === 'creative_designer'
+                                ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                                : member.role === 'financial_auditor'
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            {member.role === 'agency_admin' && '👑 Agency Admin (Владелец)'}
+                            {member.role === 'media_buyer' && '🎯 Media Buyer (Кампании & Bids)'}
+                            {member.role === 'creative_designer' && '🎨 Creative Designer (Студия & Feeds)'}
+                            {member.role === 'financial_auditor' && '📊 Financial Auditor (Биллинг & Отчеты)'}
+                            {member.role === 'client_viewer' && '👁️ Client Viewer (Read-only)'}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          {member.assigned_client_ids && member.assigned_client_ids.length > 0 ? (
+                            <span className="text-[11px] text-foreground font-medium">
+                              {member.assigned_client_ids.length} субаккаунтов
+                            </span>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/20">
+                              🌐 Все субаккаунты
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/20 bg-emerald-500/10">
+                            Активен
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {member.role !== 'agency_admin' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleRemoveAgencyMember(member.id)}
+                              className="text-xs h-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                            >
+                              Отозвать
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 3: White-Label Reporting Capabilities Card */}
+          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <FileSpreadsheet className="h-5 w-5 text-indigo-500 mt-0.5 shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-foreground">
+                  White-Label Экспорт и Публичные Отчеты для Клиентов
+                </h4>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Создавайте брендированные отчеты в PDF и CSV с логотипом вашего агентства, индивидуальной цветовой палитрой и делитесь защищенными ссылками без входа в систему.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => handleOpenExecutiveReport()}
+              className="text-xs shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              Сформировать сводный отчет
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -8639,6 +9245,532 @@ async def get_swipies_ad(user_query: str):
           <DialogFooter>
             <Button size="sm" onClick={() => setIsHealthModalOpen(false)}>
               Понятно
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Phase 28: White-Label Executive Report Modal */}
+      <Dialog open={isExecutiveReportModalOpen} onOpenChange={setIsExecutiveReportModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="flex items-center gap-2 text-base font-bold">
+                  <FileSpreadsheet className="h-5 w-5 text-indigo-500" />
+                  White-Label Executive Performance Report
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Сформированный отчет высшего руководства с показателями ROAS, Multi-Touch аттрибуцией и AI-выводами
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-lg text-xs">
+                {[7, 30, 90].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => {
+                      setReportPeriodDays(d);
+                      handleOpenExecutiveReport(reportTargetClientId || undefined);
+                    }}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      reportPeriodDays === d
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {d} дней
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DialogHeader>
+
+          {loadingReport ? (
+            <div className="py-16 flex flex-col items-center justify-center text-center">
+              <RefreshCw className="h-8 w-8 animate-spin text-indigo-600 mb-2" />
+              <p className="text-xs text-muted-foreground">Генерация брендированного отчета...</p>
+            </div>
+          ) : executiveReport ? (
+            <div className="space-y-6 py-2">
+              {/* White-Label Report Paper Preview Container */}
+              <div className="rounded-xl border bg-card p-6 shadow-sm space-y-6">
+                {/* Header with Agency Branding */}
+                <div
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-2"
+                  style={{ borderColor: executiveReport.white_label.brand_color || '#6366f1' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-12 w-12 items-center justify-center rounded-xl text-white font-bold text-lg overflow-hidden shrink-0 shadow-sm"
+                      style={{ backgroundColor: executiveReport.white_label.brand_color || '#6366f1' }}
+                    >
+                      {executiveReport.white_label.logo_url && executiveReport.white_label.logo_url.startsWith('http') ? (
+                        <img
+                          src={executiveReport.white_label.logo_url}
+                          alt={executiveReport.white_label.agency_name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <Building2 className="h-6 w-6" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-base text-foreground tracking-tight">
+                        {executiveReport.white_label.agency_name}
+                      </h4>
+                      <div className="text-[11px] text-muted-foreground font-mono">
+                        {executiveReport.report_title}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right text-xs">
+                    <Badge variant="outline" className="text-[10px] font-bold text-indigo-600 border-indigo-500/30 bg-indigo-500/5">
+                      CONFIDENTIAL EXECUTIVE REPORT
+                    </Badge>
+                    <div className="text-[11px] text-muted-foreground mt-1">
+                      Клиент: <span className="font-bold text-foreground">{executiveReport.client_info.client_name}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Дата: {executiveReport.generated_at}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4 KPI Summary Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-xl border bg-muted/20">
+                    <div className="text-[11px] font-semibold text-muted-foreground">Инвестиции (Spend)</div>
+                    <div className="text-xl font-bold text-foreground mt-1">
+                      ${executiveReport.kpi_summary.total_spend.toFixed(2)}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      {executiveReport.kpi_summary.active_campaigns} активных кампаний
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border bg-muted/20">
+                    <div className="text-[11px] font-semibold text-muted-foreground">Клики и Охват</div>
+                    <div className="text-xl font-bold text-foreground mt-1">
+                      {executiveReport.kpi_summary.total_clicks.toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                      {executiveReport.kpi_summary.avg_ctr}% Avg CTR (${executiveReport.kpi_summary.avg_cpc} CPC)
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border bg-muted/20">
+                    <div className="text-[11px] font-semibold text-muted-foreground">Конверсии (Заказы)</div>
+                    <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                      {executiveReport.kpi_summary.total_conversions}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      ${executiveReport.kpi_summary.avg_cpa.toFixed(2)} CPA за заказ
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border bg-muted/20">
+                    <div className="text-[11px] font-semibold text-muted-foreground">Окупаемость (ROAS)</div>
+                    <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                      {executiveReport.kpi_summary.roas}x
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      Est. Выручка: ${executiveReport.kpi_summary.estimated_revenue.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timeline Chart */}
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <TrendingUp className="h-4 w-4 text-indigo-500" />
+                    Динамика расходов и конверсий за {executiveReport.period_days} дней
+                  </div>
+                  <div className="h-[200px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={executiveReport.timeline_trends}>
+                        <defs>
+                          <linearGradient id="execSpendGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="execConvGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                        <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
+                        <Area type="monotone" dataKey="spend" name="Spend ($)" stroke="#6366f1" fillOpacity={1} fill="url(#execSpendGrad)" />
+                        <Area type="monotone" dataKey="conversions" name="Конверсии" stroke="#10b981" fillOpacity={1} fill="url(#execConvGrad)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Multi-Touch Attribution Breakdown */}
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Route className="h-4 w-4 text-indigo-500" />
+                    Мультиканальная аттрибуция и вклад каналов в выручку
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    {executiveReport.channel_attribution.map((ch, i) => (
+                      <div key={i} className="p-3 rounded-lg border bg-muted/10 space-y-1">
+                        <div className="font-semibold text-foreground text-[11px]">{ch.channel}</div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-indigo-600 font-bold">{ch.share_percent}% доли</span>
+                          <span className="text-muted-foreground">{ch.conversions} конв.</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          CPA: <span className="font-semibold text-foreground">${ch.cpa}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top Creative Matrix Assets */}
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-purple-500" />
+                    Лучшие креативы и форматы
+                  </div>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-muted/40 text-muted-foreground uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5">Креатив</th>
+                          <th className="p-2.5">Формат</th>
+                          <th className="p-2.5">CTR</th>
+                          <th className="p-2.5">Конверсии</th>
+                          <th className="p-2.5">Health Score</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y text-[11px]">
+                        {executiveReport.top_creative_assets.map((asset, i) => (
+                          <tr key={i}>
+                            <td className="p-2.5 font-medium text-foreground">{asset.title}</td>
+                            <td className="p-2.5">
+                              <Badge variant="outline" className="text-[9px] uppercase font-mono">
+                                {asset.format.replace('_', ' ')}
+                              </Badge>
+                            </td>
+                            <td className="p-2.5 font-bold text-emerald-600">{asset.ctr}%</td>
+                            <td className="p-2.5">{asset.conversions}</td>
+                            <td className="p-2.5">
+                              <span className="font-bold text-purple-600">{asset.health_score}/100</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* AI Executive Takeaways */}
+                <div className="p-4 rounded-xl border bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-500/30 space-y-2">
+                  <div className="text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4" /> AI Стратегические выводы и рекомендации для руководства
+                  </div>
+                  <ul className="space-y-1.5">
+                    {executiveReport.executive_takeaways.map((point, i) => (
+                      <li key={i} className="text-xs text-foreground/90 flex items-start gap-2">
+                        <span className="text-indigo-500 font-bold">✓</span>
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Report Footer Disclaimer */}
+                <div className="pt-4 border-t text-center text-[10px] text-muted-foreground font-mono">
+                  {executiveReport.white_label.footer_text || `Report generated by ${executiveReport.white_label.agency_name}`} • ID: {executiveReport.report_id}
+                </div>
+              </div>
+
+              {/* Public Share Link Card if generated */}
+              {shareLinkData && (
+                <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <span className="font-mono text-muted-foreground truncate">
+                      {window.location.origin}{shareLinkData.share_url}
+                    </span>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] text-emerald-600 bg-emerald-500/10 shrink-0">
+                    Активна (30 дней)
+                  </Badge>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <DialogFooter className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportAgencyCsv}
+                className="text-xs flex items-center gap-1"
+              >
+                <Download className="h-3.5 w-3.5" /> Экспорт в CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.print()}
+                className="text-xs flex items-center gap-1"
+              >
+                <Printer className="h-3.5 w-3.5" /> Печать / PDF
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCreateShareLink}
+                disabled={creatingShareLink}
+                className="text-xs flex items-center gap-1 border-indigo-500/30 text-indigo-600 dark:text-indigo-400"
+              >
+                <Share2 className={`h-3.5 w-3.5 ${creatingShareLink ? 'animate-spin' : ''}`} />
+                {shareLinkData ? 'Скопировать ссылку' : 'Поделиться с клиентом'}
+              </Button>
+            </div>
+            <Button size="sm" onClick={() => setIsExecutiveReportModalOpen(false)}>
+              Закрыть
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Phase 28: Add Client Sub-Account Modal */}
+      <Dialog open={isAgencyClientModalOpen} onOpenChange={setIsAgencyClientModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-indigo-500" />
+              Добавить Клиентский Субаккаунт
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Создайте изолированное рекламное пространство для управления брендом клиента
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Название Бренда / Клиента *</label>
+              <Input
+                placeholder="e.g. Uzum Market, Payme, Korzinka"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Контактный Email</label>
+              <Input
+                type="email"
+                placeholder="marketing@client.com"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold">Месячный лимит ($)</label>
+                <Input
+                  type="number"
+                  placeholder="2500"
+                  value={clientBudgetCap}
+                  onChange={(e) => setClientBudgetCap(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold">Валюта</label>
+                <Select value={clientCurrency} onValueChange={setClientCurrency}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="USD" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="UZS">UZS (so'm)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsAgencyClientModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCreateAgencyClient}
+              disabled={creatingClient}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {creatingClient ? 'Создание...' : 'Создать субаккаунт'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Phase 28: Invite Agency Member Modal (RBAC) */}
+      <Dialog open={isAgencyMemberModalOpen} onOpenChange={setIsAgencyMemberModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-purple-500" />
+              Пригласить Сотрудника в Агентство
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Назначьте гранулярную роль доступа (RBAC) и выберите клиентские субаккаунты
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Email Сотрудника *</label>
+              <Input
+                type="email"
+                placeholder="colleague@agency.com"
+                value={memberEmail}
+                onChange={(e) => setMemberEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Роль в Агентстве (RBAC) *</label>
+              <Select value={memberRole} onValueChange={setMemberRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите роль" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="media_buyer">🎯 Media Buyer (Кампании, Bids, Трафик)</SelectItem>
+                  <SelectItem value="creative_designer">🎨 Creative Designer (Студия, Креативы, Feeds)</SelectItem>
+                  <SelectItem value="financial_auditor">📊 Financial Auditor (Биллинг, Счета, Отчеты)</SelectItem>
+                  <SelectItem value="client_viewer">👁️ Client Viewer (Read-only аналитика)</SelectItem>
+                  <SelectItem value="agency_admin">👑 Agency Admin (Полные права)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="p-3 rounded-lg border bg-muted/20 text-xs text-muted-foreground space-y-1">
+              <div className="font-semibold text-foreground">Права выбранной роли:</div>
+              {memberRole === 'media_buyer' && '• Создание и редактирование кампаний, управление ставками, мониторинг конверсий.'}
+              {memberRole === 'creative_designer' && '• Доступ к AI Creative Studio, генерация макетов, управление каталогами DPA.'}
+              {memberRole === 'financial_auditor' && '• Просмотр транзакций, пополнение баланса, выгрузка сводных отчетов.'}
+              {memberRole === 'client_viewer' && '• Просмотр дашборда и статистики без права внесения изменений.'}
+              {memberRole === 'agency_admin' && '• Полный контроль над аккаунтом агентства, биллингом и составом команды.'}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsAgencyMemberModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleInviteAgencyMember}
+              disabled={invitingAgencyMember}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {invitingAgencyMember ? 'Отправка...' : 'Пригласить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Phase 28: Agency White-Label Branding Settings Modal */}
+      <Dialog open={isAgencySettingsModalOpen} onOpenChange={setIsAgencySettingsModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Settings2 className="h-5 w-5 text-indigo-500" />
+              Настройки White-Label Брендинга
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Персонализируйте отчеты логотипом вашего агентства и фирменным стилем
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Название Агентства *</label>
+              <Input
+                placeholder="e.g. Apex Digital Media Global"
+                value={wsName}
+                onChange={(e) => setWsName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">URL Логотипа Агентства</label>
+              <Input
+                placeholder="https://youragency.com/logo.png"
+                value={wsLogoUrl}
+                onChange={(e) => setWsLogoUrl(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold">Фирменный Цвет (HEX)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={wsBrandColor}
+                    onChange={(e) => setWsBrandColor(e.target.value)}
+                    className="h-9 w-9 rounded border cursor-pointer p-0.5 bg-background"
+                  />
+                  <Input
+                    value={wsBrandColor}
+                    onChange={(e) => setWsBrandColor(e.target.value)}
+                    className="font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold">Режим Биллинга</label>
+                <Select value={wsBillingMode} onValueChange={setWsBillingMode}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Consolidated" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="consolidated">Единый счет агентства</SelectItem>
+                    <SelectItem value="separate">Кошелек у каждого клиента</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Дисклеймер в футере отчетов</label>
+              <Input
+                placeholder="e.g. Confidential Performance Analysis prepared by Apex Media"
+                value={wsFooterText}
+                onChange={(e) => setWsFooterText(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsAgencySettingsModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveAgencySettings}
+              disabled={savingWsSettings}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {savingWsSettings ? 'Сохранение...' : 'Сохранить настройки'}
             </Button>
           </DialogFooter>
         </DialogContent>
