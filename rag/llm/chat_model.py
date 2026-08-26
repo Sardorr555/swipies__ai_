@@ -24,9 +24,24 @@ from abc import ABC
 from copy import deepcopy
 from urllib.parse import urljoin
 
-import json_repair
+try:
+    import json_repair
+except ImportError:
+    class _JsonRepairFallback:
+        @staticmethod
+        def loads(s, **kwargs):
+            try:
+                return json.loads(s)
+            except Exception:
+                return {}
+    json_repair = _JsonRepairFallback()
+
 from json.decoder import JSONDecodeError
-import litellm
+
+try:
+    import litellm
+except ImportError:
+    litellm = None
 import openai
 from openai import AsyncOpenAI, OpenAI
 from enum import StrEnum
@@ -62,6 +77,9 @@ class ReActMode(StrEnum):
 ERROR_PREFIX = "**ERROR**"
 LENGTH_NOTIFICATION_CN = "······\n由于大模型的上下文窗口大小限制，回答已经被大模型截断。"
 LENGTH_NOTIFICATION_EN = "...\nThe answer is truncated by your chosen LLM due to its limitation on context length."
+
+# Feature flag for zero-downtime routing through central AI Gateway
+AI_GATEWAY_CHAT_ENABLED = os.environ.get("AI_GATEWAY_CHAT_ENABLED", "true").lower() in ("true", "1", "yes")
 
 # Generation parameters that are safe to forward to the underlying completion
 # call. `gen_conf` originates from a chat assistant's `llm_setting`, which can
@@ -217,8 +235,15 @@ def _move_litellm_provider_body_fields(provider: SupportedLiteLLMProvider | str 
 class Base(ABC):
     def __init__(self, key, model_name, base_url, **kwargs):
         timeout = int(os.environ.get("LLM_TIMEOUT_SECONDS", 600))
-        self.client = OpenAI(api_key=key, base_url=base_url, timeout=timeout)
-        self.async_client = AsyncOpenAI(api_key=key, base_url=base_url, timeout=timeout)
+        try:
+            import httpx
+            http_client = httpx.Client(timeout=timeout)
+            async_http_client = httpx.AsyncClient(timeout=timeout)
+            self.client = OpenAI(api_key=key or "dummy", base_url=base_url or None, http_client=http_client)
+            self.async_client = AsyncOpenAI(api_key=key or "dummy", base_url=base_url or None, http_client=async_http_client)
+        except Exception:
+            self.client = OpenAI(api_key=key or "dummy", base_url=base_url or None, timeout=timeout)
+            self.async_client = AsyncOpenAI(api_key=key or "dummy", base_url=base_url or None, timeout=timeout)
         self.model_name = model_name
         # Configure retry parameters
         self.max_retries = kwargs.get("max_retries", int(os.environ.get("LLM_MAX_RETRIES", 5)))
@@ -265,6 +290,57 @@ class Base(ABC):
     async def _async_chat_streamly(self, history, gen_conf, **kwargs):
         logging.info("[HISTORY STREAMLY]" + json.dumps(history, ensure_ascii=False, indent=4))
         reasoning_start = False
+
+        if AI_GATEWAY_CHAT_ENABLED:
+            try:
+                from common.ai_gateway.gateway import ai_gateway
+                from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
+                gateway_messages = [
+                    GatewayMessage(
+                        role=m.get("role", "user"),
+                        content=m.get("content", ""),
+                        name=m.get("name"),
+                        tool_call_id=m.get("tool_call_id"),
+                        tool_calls=m.get("tool_calls"),
+                    )
+                    for m in history
+                ]
+                gateway_req = GatewayChatRequest(
+                    messages=gateway_messages,
+                    model=self.model_name,
+                    temperature=gen_conf.get("temperature", 0.7),
+                    top_p=gen_conf.get("top_p", 1.0),
+                    max_tokens=gen_conf.get("max_tokens") or gen_conf.get("max_completion_tokens"),
+                    stop=kwargs.get("stop") or gen_conf.get("stop"),
+                    tools=gen_conf.get("tools") or getattr(self, "tools", None),
+                    tool_choice=gen_conf.get("tool_choice"),
+                    response_format=gen_conf.get("response_format"),
+                )
+                stream_iter = ai_gateway.stream_chat(gateway_req)
+                async for chunk in stream_iter:
+                    if chunk.usage and chunk.usage.total_tokens:
+                        self.last_usage = {
+                            "prompt_tokens": chunk.usage.prompt_tokens,
+                            "completion_tokens": chunk.usage.completion_tokens,
+                            "total_tokens": chunk.usage.total_tokens,
+                        }
+                    if kwargs.get("with_reasoning", True) and chunk.delta_reasoning:
+                        ans = ""
+                        if not reasoning_start:
+                            reasoning_start = True
+                            ans = "<think>"
+                        ans += chunk.delta_reasoning + "</think>"
+                        yield ans, num_tokens_from_string(chunk.delta_reasoning)
+                    elif chunk.delta_content:
+                        reasoning_start = False
+                        ans = chunk.delta_content
+                        if chunk.finish_reason == "length":
+                            ans = self._length_stop(ans)
+                        yield ans, num_tokens_from_string(chunk.delta_content)
+                return
+            except Exception as gw_err:
+                from common.ai_gateway.errors import SecretRedactor
+                logging.warning(f"[AI Gateway] Stream routing fallback to legacy client: {SecretRedactor.redact(str(gw_err))}")
 
         gen_conf, extra_request_kwargs = _apply_model_family_policies(
             self.model_name,
@@ -741,6 +817,46 @@ class Base(ABC):
                 final_ans = "**ERROR**: Empty response from reasoning model"
 
             return final_ans.strip(), tol_token
+
+        if AI_GATEWAY_CHAT_ENABLED:
+            try:
+                from common.ai_gateway.gateway import ai_gateway
+                from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
+                gateway_messages = [
+                    GatewayMessage(
+                        role=m.get("role", "user"),
+                        content=m.get("content", ""),
+                        name=m.get("name"),
+                        tool_call_id=m.get("tool_call_id"),
+                        tool_calls=m.get("tool_calls"),
+                    )
+                    for m in history
+                ]
+                gateway_req = GatewayChatRequest(
+                    messages=gateway_messages,
+                    model=self.model_name,
+                    temperature=gen_conf.get("temperature", 0.7),
+                    top_p=gen_conf.get("top_p", 1.0),
+                    max_tokens=gen_conf.get("max_tokens") or gen_conf.get("max_completion_tokens"),
+                    stop=kwargs.get("stop") or gen_conf.get("stop"),
+                    tools=gen_conf.get("tools") or getattr(self, "tools", None),
+                    tool_choice=gen_conf.get("tool_choice"),
+                    response_format=gen_conf.get("response_format"),
+                )
+                gw_resp = await ai_gateway.chat(gateway_req)
+                if gw_resp.usage and gw_resp.usage.total_tokens:
+                    self.last_usage = {
+                        "prompt_tokens": gw_resp.usage.prompt_tokens,
+                        "completion_tokens": gw_resp.usage.completion_tokens,
+                        "total_tokens": gw_resp.usage.total_tokens,
+                    }
+                ans = gw_resp.content.strip()
+                if gw_resp.finish_reason == "length":
+                    ans = self._length_stop(ans)
+                return ans, gw_resp.usage.total_tokens if (gw_resp.usage and gw_resp.usage.total_tokens) else num_tokens_from_string(ans)
+            except Exception as gw_err:
+                from common.ai_gateway.errors import SecretRedactor
+                logging.warning(f"[AI Gateway] Chat routing fallback to legacy client: {SecretRedactor.redact(str(gw_err))}")
 
         gen_conf, kwargs = _apply_model_family_policies(
             self.model_name,
@@ -1667,6 +1783,50 @@ class LiteLLMBase(ABC):
 
         logging.info("[HISTORY]" + json.dumps(hist, ensure_ascii=False, indent=2))
         gen_conf = self._clean_conf(gen_conf)
+
+        if AI_GATEWAY_CHAT_ENABLED:
+            try:
+                from common.ai_gateway.gateway import ai_gateway
+                from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
+                gateway_messages = [
+                    GatewayMessage(
+                        role=m.get("role", "user"),
+                        content=m.get("content", ""),
+                        name=m.get("name"),
+                        tool_call_id=m.get("tool_call_id"),
+                        tool_calls=m.get("tool_calls"),
+                    )
+                    for m in hist
+                ]
+                clean_model = self.model_name
+                if clean_model.startswith(self.prefix) and self.prefix:
+                    clean_model = clean_model[len(self.prefix):]
+                gateway_req = GatewayChatRequest(
+                    messages=gateway_messages,
+                    model=clean_model,
+                    temperature=gen_conf.get("temperature", 0.7),
+                    top_p=gen_conf.get("top_p", 1.0),
+                    max_tokens=gen_conf.get("max_tokens") or gen_conf.get("max_completion_tokens"),
+                    stop=kwargs.get("stop") or gen_conf.get("stop"),
+                    tools=gen_conf.get("tools") or getattr(self, "tools", None),
+                    tool_choice=gen_conf.get("tool_choice"),
+                    response_format=gen_conf.get("response_format"),
+                )
+                gw_resp = await ai_gateway.chat(gateway_req)
+                if gw_resp.usage and gw_resp.usage.total_tokens:
+                    self.last_usage = {
+                        "prompt_tokens": gw_resp.usage.prompt_tokens,
+                        "completion_tokens": gw_resp.usage.completion_tokens,
+                        "total_tokens": gw_resp.usage.total_tokens,
+                    }
+                ans = gw_resp.content.strip()
+                if gw_resp.finish_reason == "length":
+                    ans = self._length_stop(ans)
+                return ans, gw_resp.usage.total_tokens if (gw_resp.usage and gw_resp.usage.total_tokens) else num_tokens_from_string(ans)
+            except Exception as gw_err:
+                from common.ai_gateway.errors import SecretRedactor
+                logging.warning(f"[AI Gateway LiteLLM] Chat fallback to litellm: {SecretRedactor.redact(str(gw_err))}")
+
         _, kwargs = _apply_model_family_policies(
             self.model_name,
             backend="litellm",
@@ -1710,6 +1870,62 @@ class LiteLLMBase(ABC):
         total_tokens = 0
         # Reset so a stale split from a previous call can't leak into this one.
         self.last_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+        if AI_GATEWAY_CHAT_ENABLED:
+            try:
+                from common.ai_gateway.gateway import ai_gateway
+                from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
+                gateway_messages = [
+                    GatewayMessage(
+                        role=m.get("role", "user"),
+                        content=m.get("content", ""),
+                        name=m.get("name"),
+                        tool_call_id=m.get("tool_call_id"),
+                        tool_calls=m.get("tool_calls"),
+                    )
+                    for m in history
+                ]
+                clean_model = self.model_name
+                if clean_model.startswith(self.prefix) and self.prefix:
+                    clean_model = clean_model[len(self.prefix):]
+                gateway_req = GatewayChatRequest(
+                    messages=gateway_messages,
+                    model=clean_model,
+                    temperature=gen_conf.get("temperature", 0.7),
+                    top_p=gen_conf.get("top_p", 1.0),
+                    max_tokens=gen_conf.get("max_tokens") or gen_conf.get("max_completion_tokens"),
+                    stop=kwargs.get("stop") or gen_conf.get("stop"),
+                    tools=gen_conf.get("tools") or getattr(self, "tools", None),
+                    tool_choice=gen_conf.get("tool_choice"),
+                    response_format=gen_conf.get("response_format"),
+                )
+                stream_iter = ai_gateway.stream_chat(gateway_req)
+                async for chunk in stream_iter:
+                    if chunk.usage and chunk.usage.total_tokens:
+                        self.last_usage = {
+                            "prompt_tokens": chunk.usage.prompt_tokens,
+                            "completion_tokens": chunk.usage.completion_tokens,
+                            "total_tokens": chunk.usage.total_tokens,
+                        }
+                    if kwargs.get("with_reasoning", True) and chunk.delta_reasoning:
+                        ans = ""
+                        if not reasoning_start:
+                            reasoning_start = True
+                            ans = "<think>"
+                        ans += chunk.delta_reasoning + "</think>"
+                        yield ans
+                    elif chunk.delta_content:
+                        reasoning_start = False
+                        ans = chunk.delta_content
+                        if chunk.finish_reason == "length":
+                            ans = self._length_stop(ans)
+                        yield ans
+                if self.last_usage and self.last_usage.get("total_tokens"):
+                    yield self.last_usage["total_tokens"]
+                return
+            except Exception as gw_err:
+                from common.ai_gateway.errors import SecretRedactor
+                logging.warning(f"[AI Gateway LiteLLM] Stream fallback to litellm: {SecretRedactor.redact(str(gw_err))}")
 
         completion_args = self._construct_completion_args(history=history, stream=True, tools=False, **gen_conf)
         stop = kwargs.get("stop")

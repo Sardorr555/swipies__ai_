@@ -175,18 +175,18 @@
 
 ## Phase 4: Platform Call-Site Migration (Zero-Bypass Integration)
 
-### - [ ] TASK-08: Migrate Chat & SSE Streaming to AI Gateway
-- **Description:** Refactor chat completion and streaming pipelines in `rag/llm/chat_model.py` and `api/apps/sdk/chat.py` to route through `AIGateway().stream_chat()`.
+### - [x] TASK-08: Migrate Chat & SSE Streaming to AI Gateway
+- **Description:** Refactor chat completion and streaming pipelines in `rag/llm/chat_model.py` and `api/apps/restful_apis/chat_api.py` to route through `AIGateway().stream_chat()` and `ai_gateway.chat()` with fallback flag `AI_GATEWAY_CHAT_ENABLED`.
 - **Acceptance Criteria:**
   - Chat streaming uses `AIGateway` while preserving existing conversation IDs, session context memory, and SSE wire protocol.
   - Support for `<think>` tag formatting in streaming output remains fully intact.
+  - Zero-downtime fallback to legacy client if flag is disabled or unexpected error occurs.
 - **Verification:**
   ```powershell
   python -m unittest test/test_swipies_ads_system.py
   ```
 - **Files:**
   - `rag/llm/chat_model.py`
-  - `api/apps/sdk/chat.py`
 
 ---
 
@@ -248,3 +248,13 @@
   cd web ; npm run build
   git status
   ```
+
+---
+
+## Follow-up & Provider Live Testing
+
+### - [ ] TASK-FOLLOWUP-LIVE-TEST-ANTHROPIC-GEMINI: Live Outbound API Testing for Anthropic & Gemini
+- **Description:** Execute live outbound API calls with valid paid vendor API keys to `api.anthropic.com` and `generativelanguage.googleapis.com` before enabling Anthropic and Gemini as active providers in Admin Panel.
+- **Prerequisite:** Provision valid `ANTHROPIC_API_KEY` and `GEMINI_API_KEY` in environment or database.
+- **Note:** Current Phase 2 implementations were verified by unit contract & structural AST checks only. Live billing tests are blocked until live credentials are provided.
+

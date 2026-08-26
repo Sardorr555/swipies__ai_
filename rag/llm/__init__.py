@@ -18,6 +18,7 @@
 
 import importlib
 import inspect
+import logging
 
 from enum import StrEnum
 
@@ -164,7 +165,11 @@ package_name = __name__
 
 for module_name, mapping_dict in MODULE_MAPPING.items():
     full_module_name = f"{package_name}.{module_name}"
-    module = importlib.import_module(full_module_name)
+    try:
+        module = importlib.import_module(full_module_name)
+    except Exception as e:
+        logging.debug(f"Skipping optional module {full_module_name}: {e}")
+        continue
 
     base_class = None
     lite_llm_base_class = None

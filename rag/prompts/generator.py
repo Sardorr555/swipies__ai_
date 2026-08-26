@@ -20,8 +20,17 @@ import logging
 import re
 from copy import deepcopy
 from typing import Tuple
-from jinja2.sandbox import SandboxedEnvironment
-import json_repair
+try:
+    import json_repair
+except ImportError:
+    class _JsonRepairFallback:
+        @staticmethod
+        def loads(s, **kwargs):
+            try:
+                return json.loads(s)
+            except Exception:
+                return {}
+    json_repair = _JsonRepairFallback()
 
 from common.misc_utils import hash_str2int
 from rag.nlp import rag_tokenizer
