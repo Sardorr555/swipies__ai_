@@ -314,6 +314,41 @@ class TestAIGatewayCredentialResolver(unittest.TestCase):
         credential_resolver.delete_provider_credentials("openai")
         self.assertNotIn("openai:system", credential_resolver._memory_store)
 
+    def test_untested_providers_blocked_in_admin_panel(self):
+        """Case 6b: Verify Anthropic & Gemini are blocked from Admin selection until TASK-FOLLOWUP-LIVE-TEST-ANTHROPIC-GEMINI is closed"""
+        # 1. Check direct listing
+        admin_all = credential_resolver.list_providers_for_admin()
+        anthropic_rec = next((p for p in admin_all if p.provider == "anthropic"), None)
+        gemini_rec = next((p for p in admin_all if p.provider == "gemini"), None)
+        openai_rec = next((p for p in admin_all if p.provider == "openai"), None)
+
+        self.assertIsNotNone(anthropic_rec)
+        self.assertIsNotNone(gemini_rec)
+        self.assertIsNotNone(openai_rec)
+
+        # OpenAI must be live tested & available
+        self.assertTrue(openai_rec.is_live_tested)
+        self.assertTrue(openai_rec.is_available_in_admin)
+        self.assertEqual(openai_rec.verification_status, "verified")
+
+        # Anthropic & Gemini must be blocked by default
+        self.assertFalse(anthropic_rec.is_live_tested)
+        self.assertFalse(anthropic_rec.is_available_in_admin)
+        self.assertEqual(anthropic_rec.verification_status, "requires_live_test")
+        self.assertIn("requires live outbound API verification", anthropic_rec.status_reason)
+
+        self.assertFalse(gemini_rec.is_live_tested)
+        self.assertFalse(gemini_rec.is_available_in_admin)
+        self.assertEqual(gemini_rec.verification_status, "requires_live_test")
+
+        # 2. Check UI selection dropdown (only_available=True)
+        available_only = credential_resolver.list_providers_for_admin(only_available=True)
+        available_ids = [p.provider for p in available_only]
+        self.assertIn("openai", available_ids)
+        self.assertIn("deepseek", available_ids)
+        self.assertNotIn("anthropic", available_ids)
+        self.assertNotIn("gemini", available_ids)
+
 
 class TestAIGatewayAdsIntegration(unittest.TestCase):
     """Test Suite 6: Swipies Ads AI Copywriter & Semantic Embeddings Integration"""

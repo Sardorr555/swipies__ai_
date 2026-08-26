@@ -37,6 +37,10 @@ class ProviderCredentialRecord:
     masked_api_key: str = ""
     is_active: bool = True
     is_configured: bool = False
+    is_live_tested: bool = True
+    is_available_in_admin: bool = True
+    verification_status: str = "verified"  # "verified" | "requires_live_test"
+    status_reason: Optional[str] = None
     source: str = "none"  # "tenant_db" | "system_db" | "environment" | "none"
     supported_models: List[str] = field(default_factory=list)
     updated_at: Optional[int] = None
@@ -49,6 +53,10 @@ class ProviderCredentialRecord:
             "masked_api_key": self.masked_api_key,
             "is_active": self.is_active,
             "is_configured": self.is_configured,
+            "is_live_tested": self.is_live_tested,
+            "is_available_in_admin": self.is_available_in_admin,
+            "verification_status": self.verification_status,
+            "status_reason": self.status_reason,
             "source": self.source,
             "supported_models": self.supported_models,
             "updated_at": self.updated_at,
@@ -95,6 +103,7 @@ class CredentialResolver:
             "default_base_url": "https://api.openai.com/v1",
             "models": ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini", "text-embedding-3-small", "text-embedding-3-large"],
             "db_factory_names": ["OpenAI", "openai"],
+            "is_live_tested": True,
         },
         ProviderType.DEEPSEEK.value: {
             "name": "DeepSeek",
@@ -103,6 +112,7 @@ class CredentialResolver:
             "default_base_url": "https://api.deepseek.com/v1",
             "models": ["deepseek-chat", "deepseek-reasoner"],
             "db_factory_names": ["DeepSeek", "deepseek"],
+            "is_live_tested": True,
         },
         ProviderType.ANTHROPIC.value: {
             "name": "Anthropic",
@@ -111,6 +121,8 @@ class CredentialResolver:
             "default_base_url": "https://api.anthropic.com/",
             "models": ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-7-sonnet", "claude-3-opus-20240229"],
             "db_factory_names": ["Anthropic", "anthropic"],
+            "is_live_tested": False,  # Blocked in Admin Panel until TASK-FOLLOWUP-LIVE-TEST-ANTHROPIC-GEMINI is closed
+            "live_test_env_flag": "AI_GATEWAY_ANTHROPIC_LIVE_TESTED",
         },
         ProviderType.GEMINI.value: {
             "name": "Google Gemini",
@@ -120,11 +132,14 @@ class CredentialResolver:
             "default_base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
             "models": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "text-embedding-004"],
             "db_factory_names": ["Gemini", "Google", "gemini"],
+            "is_live_tested": False,  # Blocked in Admin Panel until TASK-FOLLOWUP-LIVE-TEST-ANTHROPIC-GEMINI is closed
+            "live_test_env_flag": "AI_GATEWAY_GEMINI_LIVE_TESTED",
         },
     }
 
     # In-memory transient overrides / test storage for unit tests and local overrides
     _memory_store: Dict[str, Dict[str, Any]] = {}
+    _live_tested_overrides: Dict[str, bool] = {}
 
     @classmethod
     def mask_api_key(cls, raw_key: Optional[str]) -> str:
@@ -221,15 +236,38 @@ class CredentialResolver:
     # =========================================================================
 
     @classmethod
-    def list_providers_for_admin(cls, tenant_id: Optional[str] = None) -> List[ProviderCredentialRecord]:
+    def is_provider_live_tested(cls, provider_type: Union[ProviderType, str]) -> bool:
+        """
+        Returns True if the provider has been verified with live outbound API tests.
+        Untested providers (Anthropic, Gemini) are blocked from Admin Panel selection
+        until TASK-FOLLOWUP-LIVE-TEST-ANTHROPIC-GEMINI is closed.
+        Can be overridden via environment flags (e.g. AI_GATEWAY_ENABLE_UNTESTED_PROVIDERS=true
+        or AI_GATEWAY_ANTHROPIC_LIVE_TESTED=true).
+        """
+        p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
+        if cls._live_tested_overrides.get(p_val, False):
+            return True
+        if os.environ.get("AI_GATEWAY_ENABLE_UNTESTED_PROVIDERS", "false").lower() in ("true", "1"):
+            return True
+        meta = cls.PROVIDER_METADATA.get(p_val, {})
+        env_flag = meta.get("live_test_env_flag")
+        if env_flag and os.environ.get(env_flag, "false").lower() in ("true", "1"):
+            return True
+        return meta.get("is_live_tested", True)
+
+    @classmethod
+    def list_providers_for_admin(cls, tenant_id: Optional[str] = None, only_available: bool = False) -> List[ProviderCredentialRecord]:
         """
         Lists all supported providers with their configuration status and masked keys.
         Used by Admin Panel provider dashboard.
+        If only_available=True, returns only live-tested providers available for UI selection.
         """
         records: List[ProviderCredentialRecord] = []
-        for p_val, meta in cls.PROVIDER_METADATA.items():
+        for p_val in cls.PROVIDER_METADATA.keys():
             rec = cls.get_provider_for_admin(p_val, tenant_id=tenant_id)
             if rec:
+                if only_available and not rec.is_available_in_admin:
+                    continue
                 records.append(rec)
         return records
 
@@ -247,17 +285,26 @@ class CredentialResolver:
         if not meta:
             return None
 
+        is_live = cls.is_provider_live_tested(p_val)
+        disp_name = meta.get("name", p_val.capitalize())
+        status_reason = None if is_live else f"Blocked in Admin Panel: Provider '{disp_name}' requires live outbound API verification (TASK-FOLLOWUP-LIVE-TEST-ANTHROPIC-GEMINI)."
+        verif_status = "verified" if is_live else "requires_live_test"
+
         # Check in-memory store
         mem_key = f"{p_val}:{tenant_id or 'system'}"
         if mem_key in cls._memory_store:
             item = cls._memory_store[mem_key]
             return ProviderCredentialRecord(
                 provider=p_val,
-                provider_display_name=meta.get("name", p_val.capitalize()),
+                provider_display_name=disp_name,
                 base_url=item.get("base_url") or meta.get("default_base_url"),
                 masked_api_key=cls.mask_api_key(item.get("api_key")),
-                is_active=item.get("is_active", True),
+                is_active=item.get("is_active", True) and is_live,
                 is_configured=bool(item.get("api_key")),
+                is_live_tested=is_live,
+                is_available_in_admin=is_live,
+                verification_status=verif_status,
+                status_reason=status_reason,
                 source="memory",
                 supported_models=meta.get("models", []),
                 updated_at=item.get("updated_at"),
@@ -280,11 +327,15 @@ class CredentialResolver:
                 raw_key, _, _ = TenantLLMService._decode_api_key_config(obj.api_key)
                 return ProviderCredentialRecord(
                     provider=p_val,
-                    provider_display_name=meta.get("name", p_val.capitalize()),
+                    provider_display_name=disp_name,
                     base_url=obj.api_base or meta.get("default_base_url"),
                     masked_api_key=cls.mask_api_key(raw_key),
-                    is_active=str(obj.status) == "1",
+                    is_active=str(obj.status) == "1" and is_live,
                     is_configured=bool(raw_key),
+                    is_live_tested=is_live,
+                    is_available_in_admin=is_live,
+                    verification_status=verif_status,
+                    status_reason=status_reason,
                     source="tenant_db" if tenant_id else "system_db",
                     supported_models=meta.get("models", []),
                     updated_at=getattr(obj, "update_time", None) or getattr(obj, "create_time", None),
@@ -297,11 +348,15 @@ class CredentialResolver:
         is_configured = bool(api_key)
         return ProviderCredentialRecord(
             provider=p_val,
-            provider_display_name=meta.get("name", p_val.capitalize()),
+            provider_display_name=disp_name,
             base_url=base_url or meta.get("default_base_url"),
             masked_api_key=cls.mask_api_key(api_key),
-            is_active=True,
+            is_active=is_configured and is_live,
             is_configured=is_configured,
+            is_live_tested=is_live,
+            is_available_in_admin=is_live,
+            verification_status=verif_status,
+            status_reason=status_reason,
             source="environment" if is_configured else "none",
             supported_models=meta.get("models", []),
             updated_at=None,
@@ -485,6 +540,7 @@ class CredentialResolver:
                 ))
 
             latency = (time.perf_counter() - start_t) * 1000.0
+            cls._live_tested_overrides[p_val] = True
             return ConnectionTestResult(
                 provider=p_val,
                 success=True,
