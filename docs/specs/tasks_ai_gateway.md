@@ -222,10 +222,13 @@
 
 ### - [ ] TASK-11: Implement Comprehensive AI Gateway Unit Tests
 - **Description:** Build automated unit test suite covering mock OpenAI/DeepSeek calls, streaming async generators, thought extraction, and secret redaction.
-- **Acceptance Criteria:**
-  - Mock tests verify `chat_complete`, `chat_stream`, `embed`, `count_tokens`.
-  - DeepSeek reasoning thought extraction verified with sample `<think>` payloads.
-  - Secret leakage test verifies that simulated 401 errors containing fake keys (`sk-proj-test1234567890`) are 100% sanitized.
+- **Acceptance Criteria (Mandatory Test Cases):**
+  - **Case 1 (Non-Streaming Full Cycle):** `Base.async_chat` routes through `AIGateway.chat` -> `OpenAIProvider.chat_complete`, returning exact response and verifying `last_usage` token counts without triggering fallback.
+  - **Case 2 (Streaming Full Cycle & Usage):** `Base.async_chat_streamly` routes through `AIGateway.stream_chat` -> `OpenAIProvider.chat_stream`, yielding text chunks in real-time and asserting `last_usage` (`prompt_tokens`, `completion_tokens`, `total_tokens`) at stream conclusion.
+  - **Case 3 (Thought Token Extraction):** `DeepSeekProvider` stream correctly parses `delta.reasoning_content` -> `<think>...</think>` wrapper and delivers clean final answer in `delta_content`.
+  - **Case 4 (Zero-Leak Secret Redaction):** Simulated 401/429/500 vendor exceptions containing fake API keys (`sk-proj-test1234567890abcdef1234`) and `Bearer` tokens are 100% sanitized to `[REDACTED_API_KEY]` / `[REDACTED_TOKEN]`.
+  - **Case 5 (Credential Resolver Admin CRUD & Masking):** Saving, listing, masking (`sk-proj...1234`), updating with partial mask, and deleting provider credentials.
+  - **Case 6 (Embeddings & Token Counting):** Verifying dense embeddings output and token calculation across message lists.
 - **Verification:**
   ```powershell
   python -m unittest test/test_ai_gateway.py
