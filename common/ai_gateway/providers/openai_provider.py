@@ -201,12 +201,14 @@ class OpenAIProvider(AIProvider):
             kwargs: Dict[str, Any] = {
                 "model": request.model,
                 "input": request.input_texts,
+                "encoding_format": "float",
             }
             if request.dimensions is not None:
                 kwargs["dimensions"] = request.dimensions
 
             resp = await self.client.embeddings.create(**kwargs)
-            embeddings = [item.embedding for item in resp.data]
+            sorted_data = sorted(resp.data, key=lambda d: getattr(d, "index", 0))
+            embeddings = [item.embedding for item in sorted_data]
             
             usage = TokenUsage()
             if resp.usage:
