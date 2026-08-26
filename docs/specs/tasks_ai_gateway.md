@@ -83,7 +83,7 @@
 
 ## Phase 2: Concrete Provider Adapters
 
-### - [ ] TASK-04: Implement OpenAI Provider Adapter
+### - [x] TASK-04: Implement OpenAI Provider Adapter
 - **Description:** Implement `OpenAIProvider` inheriting from `AIProvider`, utilizing `openai.AsyncOpenAI` for chat completion, streaming, and embeddings.
 - **Acceptance Criteria:**
   - Instantiates `AsyncOpenAI` client with internal backend credentials.
@@ -101,7 +101,7 @@
 
 ---
 
-### - [ ] TASK-05: Implement DeepSeek Provider Adapter
+### - [x] TASK-05: Implement DeepSeek Provider Adapter
 - **Description:** Implement `DeepSeekProvider` supporting standard chat completion and reasoning stream extraction (`deepseek-reasoner`).
 - **Acceptance Criteria:**
   - Points to `https://api.deepseek.com/v1` with `deepseek-chat` and `deepseek-reasoner` support.
@@ -114,6 +114,27 @@
   ```
 - **Files:**
   - `common/ai_gateway/providers/deepseek_provider.py`
+
+---
+
+### - [x] TASK-05b: Implement Anthropic Provider Adapter
+- **Description:** Implement `AnthropicProvider` for Claude 3.5 Sonnet, Claude 3.5 Haiku, and Claude 3.7 Sonnet models.
+- **Acceptance Criteria:**
+  - Separates system instructions from user/assistant messages.
+  - Streaming via `AsyncAnthropic` client with thought/reasoning token capture.
+  - Token usage mapped to `TokenUsage` metadata.
+- **Files:**
+  - `common/ai_gateway/providers/anthropic_provider.py`
+
+---
+
+### - [x] TASK-05c: Implement Google Gemini Provider Adapter
+- **Description:** Implement `GeminiProvider` for Gemini 2.0 Flash, Gemini 1.5 Pro, and `text-embedding-004`.
+- **Acceptance Criteria:**
+  - OpenAI-compatible endpoint integration (`https://generativelanguage.googleapis.com/v1beta/openai/`).
+  - Streaming, function calling tools, and vector embeddings supported.
+- **Files:**
+  - `common/ai_gateway/providers/gemini_provider.py`
 
 ---
 
