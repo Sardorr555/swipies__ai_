@@ -190,11 +190,12 @@
 
 ---
 
-### - [ ] TASK-09: Migrate Embedding Invocations to AI Gateway
+### - [x] TASK-09: Migrate Embedding Invocations to AI Gateway
 - **Description:** Route document and query embedding requests through `AIGateway().embeddings()`.
 - **Acceptance Criteria:**
   - `rag/llm/embedding_model.py` delegates embedding generation to `ai_gateway.embeddings()`.
   - Vector dimensions and batch processing maintain exact parity with existing knowledge base indices.
+  - Zero-downtime fallback to legacy client via `AI_GATEWAY_EMBED_ENABLED`.
 - **Verification:**
   ```powershell
   python -m unittest test/test_e2e_ads_and_billing.py

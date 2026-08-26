@@ -26,24 +26,73 @@ from common.misc_utils import pip_install_torch
 from common.constants import SVR_QUEUE_NAME, Storage
 
 import rag.utils
-import rag.utils.es_conn
-import rag.utils.infinity_conn
-import rag.utils.ob_conn
-import rag.utils.opensearch_conn
-from rag.utils.azure_sas_conn import RAGFlowAzureSasBlob
-from rag.utils.azure_spn_conn import RAGFlowAzureSpnBlob
-from rag.utils.gcs_conn import RAGFlowGCS
-from rag.utils.minio_conn import RAGFlowMinio
-from rag.utils.opendal_conn import OpenDALStorage
-from rag.utils.redis_conn import REDIS_CONN
-from rag.utils.s3_conn import RAGFlowS3
-from rag.utils.oss_conn import RAGFlowOSS
+try:
+    import rag.utils.es_conn
+except Exception:
+    pass
+try:
+    import rag.utils.infinity_conn
+except Exception:
+    pass
+try:
+    import rag.utils.ob_conn
+except Exception:
+    pass
+try:
+    import rag.utils.opensearch_conn
+except Exception:
+    pass
+try:
+    from rag.utils.azure_sas_conn import RAGFlowAzureSasBlob
+except Exception:
+    RAGFlowAzureSasBlob = None
 
-from rag.nlp import search
+try:
+    from rag.utils.azure_spn_conn import RAGFlowAzureSpnBlob
+except Exception:
+    RAGFlowAzureSpnBlob = None
 
-import memory.utils.es_conn as memory_es_conn
-import memory.utils.infinity_conn as memory_infinity_conn
-import memory.utils.ob_conn as memory_ob_conn
+try:
+    from rag.utils.gcs_conn import RAGFlowGCS
+except Exception:
+    RAGFlowGCS = None
+
+try:
+    from rag.utils.minio_conn import RAGFlowMinio
+except Exception:
+    RAGFlowMinio = None
+
+try:
+    from rag.utils.opendal_conn import OpenDALStorage
+except Exception:
+    OpenDALStorage = None
+
+try:
+    from rag.utils.redis_conn import REDIS_CONN
+except Exception:
+    REDIS_CONN = None
+
+try:
+    from rag.utils.s3_conn import RAGFlowS3
+except Exception:
+    RAGFlowS3 = None
+
+try:
+    from rag.utils.oss_conn import RAGFlowOSS
+except Exception:
+    RAGFlowOSS = None
+
+try:
+    from rag.nlp import search
+except Exception:
+    pass
+
+try:
+    import memory.utils.es_conn as memory_es_conn
+    import memory.utils.infinity_conn as memory_infinity_conn
+    import memory.utils.ob_conn as memory_ob_conn
+except Exception:
+    pass
 
 TIMEZONE = os.getenv("TZ", "Asia/Shanghai")
 

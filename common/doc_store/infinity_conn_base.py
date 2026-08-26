@@ -23,10 +23,17 @@ import time
 from abc import abstractmethod
 from typing import Callable, TypeVar
 
-import infinity
-from infinity.common import ConflictType
-from infinity.index import IndexInfo, IndexType
-from infinity.errors import ErrorCode
+try:
+    import infinity
+    from infinity.common import ConflictType
+    from infinity.index import IndexInfo, IndexType
+    from infinity.errors import ErrorCode
+except ImportError:
+    infinity = None
+    class ConflictType: Ignore = 1; Replace = 2; Error = 3
+    class IndexInfo: pass
+    class IndexType: Hnsw = 1; Ivf = 2
+    class ErrorCode: OK = 0
 import pandas as pd
 from common.file_utils import get_project_base_directory
 from rag.nlp import is_english

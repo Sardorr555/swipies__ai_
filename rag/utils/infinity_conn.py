@@ -17,8 +17,16 @@
 import re
 import json
 import copy
-from infinity.common import InfinityException, SortType
-from infinity.errors import ErrorCode
+try:
+    from infinity.common import InfinityException, SortType
+    from infinity.errors import ErrorCode
+except ImportError:
+    class InfinityException(Exception): pass
+    class SortType:
+        Asc = 1
+        Desc = 2
+    class ErrorCode:
+        OK = 0
 from common.decorator import singleton
 import pandas as pd
 from common.constants import PAGERANK_FLD, TAG_FLD

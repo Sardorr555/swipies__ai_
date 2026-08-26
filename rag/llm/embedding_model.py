@@ -21,12 +21,25 @@ from contextlib import contextmanager
 from urllib.parse import urljoin, urlparse
 from json.decoder import JSONDecodeError
 
-import dashscope
+try:
+    import dashscope
+except ImportError:
+    dashscope = None
+
 import numpy as np
 import requests
-from ollama import Client
+
+try:
+    from ollama import Client
+except ImportError:
+    Client = None
+
 from openai import OpenAI
-from zhipuai import ZhipuAI
+
+try:
+    from zhipuai import ZhipuAI
+except ImportError:
+    ZhipuAI = None
 
 from common import settings
 from common.exceptions import ModelException
@@ -41,6 +54,9 @@ logger = logging.getLogger(__name__)
 # text-embedding-*, Mistral, Bedrock Titan, ...). Inputs are truncated to this
 # many tokens so boundary-sized chunks are not rejected by the provider.
 DEFAULT_MAX_TOKENS = 8192
+
+# Feature flag for zero-downtime routing through central AI Gateway for Embeddings
+AI_GATEWAY_EMBED_ENABLED = os.environ.get("AI_GATEWAY_EMBED_ENABLED", "true").lower() in ("true", "1", "yes")
 
 
 class EmbeddingError(ModelException):
@@ -259,10 +275,44 @@ class OpenAIEmbed(Base):
     def __init__(self, key, model_name="text-embedding-ada-002", base_url="https://api.openai.com/v1"):
         if not base_url:
             base_url = "https://api.openai.com/v1"
-        self.client = OpenAI(api_key=key, base_url=base_url)
+        timeout = int(os.environ.get("LLM_TIMEOUT_SECONDS", 600))
+        try:
+            import httpx
+            http_client = httpx.Client(timeout=timeout)
+            self.client = OpenAI(api_key=key or "dummy", base_url=base_url or None, http_client=http_client)
+        except Exception:
+            self.client = OpenAI(api_key=key or "dummy", base_url=base_url or None, timeout=timeout)
         self.model_name = model_name
 
     def _call(self, batch):
+        if AI_GATEWAY_EMBED_ENABLED:
+            try:
+                import asyncio
+                from common.ai_gateway.gateway import ai_gateway
+                from common.ai_gateway.types import GatewayEmbeddingRequest
+                req = GatewayEmbeddingRequest(
+                    input_texts=batch,
+                    model=self.model_name,
+                )
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                if loop.is_running():
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        resp = pool.submit(asyncio.run, ai_gateway.embeddings(req)).result()
+                else:
+                    resp = loop.run_until_complete(ai_gateway.embeddings(req))
+
+                token_cnt = resp.usage.total_tokens if (resp.usage and resp.usage.total_tokens) else sum(num_tokens_from_string(t) for t in batch)
+                return resp.embeddings, token_cnt
+            except Exception as gw_err:
+                from common.ai_gateway.errors import SecretRedactor
+                logger.warning(f"[AI Gateway Embed] Fallback to direct client: {SecretRedactor.redact(str(gw_err))}")
+
         res = self.client.embeddings.create(input=batch, model=self.model_name, encoding_format="float", extra_body={"drop_params": True})
         return [d.embedding for d in _sorted_by_index(res.data)], total_token_count_from_response(res)
 
