@@ -2507,68 +2507,6 @@ async def sync_customer_ltv_profiles():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/creatives/generate-copy", methods=["POST"])
-@login_required
-async def generate_ai_copy():
-    """
-    AI Copywriter endpoint powered by central AIGateway.
-    Generates high-converting headlines, descriptions, CTAs, and suggested keywords.
-    """
-    try:
-        user_id = current_user.id
-        adv = AdvertiserService.get_or_create_for_user(user_id)
-        if not adv:
-            return get_data_error_result(message="Advertiser profile not found")
-
-        req = await get_request_json() or {}
-        product_name = req.get("product_name")
-        if not product_name:
-            return get_data_error_result(message="product_name is required")
-
-        res = AdEngineService.generate_copy(
-            product_name=product_name,
-            description=req.get("description", ""),
-            target_audience=req.get("target_audience", ""),
-            category=req.get("category", ""),
-            language=req.get("language", "ru"),
-            tone=req.get("tone", "persuasive"),
-            model=req.get("model", "gpt-4o"),
-        )
-        return get_json_result(data=res)
-    except Exception as e:
-        logger.exception(f"Error generating AI ad copy: {e}")
-        return get_data_error_result(message=str(e))
-
-
-@manager.route("/v1/ads/creatives/generate-ad", methods=["POST"])
-@login_required
-async def generate_ad_creative_endpoint():
-    """Generates DCO copy variations and creative assets."""
-    try:
-        user_id = current_user.id
-        adv = AdvertiserService.get_or_create_for_user(user_id)
-        if not adv:
-            return get_data_error_result(message="Advertiser profile not found")
-
-        req = await get_request_json() or {}
-        product_name = req.get("product_name")
-        if not product_name:
-            return get_data_error_result(message="product_name is required")
-
-        res = AdEngineService.generate_ad_creative(
-            campaign_id=req.get("campaign_id"),
-            product_name=product_name,
-            description=req.get("description", ""),
-            category=req.get("category", ""),
-            target_audience=req.get("target_audience", ""),
-            model=req.get("model", "gpt-4o"),
-        )
-        return get_json_result(data=res)
-    except Exception as e:
-        logger.exception(f"Error generating ad creative: {e}")
-        return get_data_error_result(message=str(e))
-
-
 @manager.route("/v1/ads/creatives/generate-matrix", methods=["POST"])
 @login_required
 async def generate_creative_matrix():
