@@ -224,7 +224,7 @@
 
 ## Phase 5: Verification, Security Audit & Build Integrity
 
-### - [ ] TASK-11: Implement Comprehensive AI Gateway Unit Tests
+### - [x] TASK-11: Implement Comprehensive AI Gateway Unit Tests
 - **Description:** Build automated unit test suite covering mock OpenAI/DeepSeek calls, streaming async generators, thought extraction, and secret redaction.
 - **Acceptance Criteria (Mandatory Test Cases):**
   - **Case 1 (Non-Streaming Full Cycle):** `Base.async_chat` routes through `AIGateway.chat` -> `OpenAIProvider.chat_complete`, returning exact response and verifying `last_usage` token counts without triggering fallback.
@@ -232,12 +232,14 @@
   - **Case 3 (Thought Token Extraction):** `DeepSeekProvider` stream correctly parses `delta.reasoning_content` -> `<think>...</think>` wrapper and delivers clean final answer in `delta_content`.
   - **Case 4 (Zero-Leak Secret Redaction):** Simulated 401/429/500 vendor exceptions containing fake API keys (`sk-proj-test1234567890abcdef1234`) and `Bearer` tokens are 100% sanitized to `[REDACTED_API_KEY]` / `[REDACTED_TOKEN]`.
   - **Case 5 (Credential Resolver Admin CRUD & Masking):** Saving, listing, masking (`sk-proj...1234`), updating with partial mask, and deleting provider credentials.
-  - **Case 6 (Embeddings & Token Counting):** Verifying dense embeddings output and token calculation across message lists.
+  - **Case 6 (Embeddings & Math Parity):** Verifying 100% vector array mathematical parity between legacy and Gateway embeddings paths, index-based response reordering, and single-query `encode_queries`.
 - **Verification:**
   ```powershell
   python -m unittest test/test_ai_gateway.py
   ```
 - **Files:**
+  - `test/test_ai_gateway.py`
+  - `common/ai_gateway/credential_resolver.py`
   - `test/test_ai_gateway.py`
 
 ---

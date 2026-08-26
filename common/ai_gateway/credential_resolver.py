@@ -502,3 +502,7 @@ class CredentialResolver:
                 latency_ms=latency,
                 message=f"Connection failed: {sanitized_err}",
             )
+
+
+# Singleton instance for centralized import
+credential_resolver = CredentialResolver()
