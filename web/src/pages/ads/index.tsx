@@ -167,6 +167,15 @@ import adService, {
   AgencyMember,
   ExecutiveReportData,
   ShareReportResponse,
+  OmniPlatformType,
+  OmniAccountItem,
+  ConnectOmniAccountRequest,
+  ExportOmniCampaignRequest,
+  ExportOmniCampaignResponse,
+  SyncOmniAudienceRequest,
+  CrossPlatformNetworkStat,
+  CrossPlatformAnalyticsResponse,
+  OmniSyncJobItem,
 } from '@/services/ad-service';
 
 export default function SwipiesAdsPage() {
@@ -1440,6 +1449,7 @@ export default function SwipiesAdsPage() {
     fetchLtvOverview();
     fetchProductFeeds();
     fetchAgencyData();
+    fetchOmniChannelData();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -2123,6 +2133,176 @@ export default function SwipiesAdsPage() {
     }
   };
 
+  // Phase 36: Cross-Platform Omni-Channel Ads Bridge State
+  const [omniAccounts, setOmniAccounts] = useState<OmniAccountItem[]>([]);
+  const [crossPlatformAnalytics, setCrossPlatformAnalytics] = useState<CrossPlatformAnalyticsResponse | null>(null);
+  const [omniSyncJobs, setOmniSyncJobs] = useState<OmniSyncJobItem[]>([]);
+  const [loadingOmni, setLoadingOmni] = useState(false);
+
+  // Connect Account Modal
+  const [isConnectAccountModalOpen, setIsConnectAccountModalOpen] = useState(false);
+  const [connectPlatform, setConnectPlatform] = useState<OmniPlatformType>('telegram_ads');
+  const [connectAccountName, setConnectAccountName] = useState('');
+  const [connectAccountIdExt, setConnectAccountIdExt] = useState('');
+  const [connectAccessToken, setConnectAccessToken] = useState('');
+  const [connectCurrency, setConnectCurrency] = useState('EUR');
+  const [connectingAccount, setConnectingAccount] = useState(false);
+
+  // 1-Click Export Modal
+  const [isExportCampaignModalOpen, setIsExportCampaignModalOpen] = useState(false);
+  const [exportSelectedCampaignId, setExportSelectedCampaignId] = useState<string>('');
+  const [exportSelectedAccountId, setExportSelectedAccountId] = useState<string>('');
+  const [exportTargetChannels, setExportTargetChannels] = useState('@business_uz, @tech_insights');
+  const [exportKeywords, setExportKeywords] = useState('купить crm, ai ассистент, чат бот');
+  const [exportInterests, setExportInterests] = useState('Artificial Intelligence, SaaS, E-commerce');
+  const [exportingCampaign, setExportingCampaign] = useState(false);
+  const [exportResult, setExportResult] = useState<ExportOmniCampaignResponse | null>(null);
+
+  // Testing connection state
+  const [testingOmniAccountId, setTestingOmniAccountId] = useState<string | null>(null);
+
+  const fetchOmniChannelData = async () => {
+    setLoadingOmni(true);
+    try {
+      const [accsRes, statsRes, jobsRes] = await Promise.all([
+        adService.getOmniAccounts(),
+        adService.getCrossPlatformAnalytics({ days: 30 }),
+        adService.getOmniSyncJobs({ limit: 50 }),
+      ]);
+      if (accsRes.data?.data) {
+        setOmniAccounts(accsRes.data.data);
+      }
+      if (statsRes.data?.data) {
+        setCrossPlatformAnalytics(statsRes.data.data);
+      }
+      if (jobsRes.data?.data) {
+        setOmniSyncJobs(jobsRes.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load omni-channel data', err);
+    } finally {
+      setLoadingOmni(false);
+    }
+  };
+
+  const handleOpenConnectAccount = (platform?: OmniPlatformType) => {
+    const p = platform || 'telegram_ads';
+    setConnectPlatform(p);
+    setConnectAccountName(
+      p === 'telegram_ads'
+        ? 'Telegram Ads Agency'
+        : p === 'meta_ads'
+        ? 'Meta Marketing Ads'
+        : p === 'google_ads'
+        ? 'Google Ads Search'
+        : 'TikTok For Business'
+    );
+    setConnectAccountIdExt('');
+    setConnectAccessToken('');
+    setConnectCurrency(p === 'telegram_ads' ? 'EUR' : p === 'yandex_direct' ? 'RUB' : 'USD');
+    setIsConnectAccountModalOpen(true);
+  };
+
+  const handleSaveConnectAccount = async () => {
+    if (!connectAccountName.trim()) {
+      message.error('Укажите название аккаунта');
+      return;
+    }
+    setConnectingAccount(true);
+    try {
+      await adService.connectOmniAccount({
+        platform: connectPlatform,
+        account_name: connectAccountName.trim(),
+        account_id_external: connectAccountIdExt.trim() || undefined,
+        access_token: connectAccessToken.trim() || undefined,
+        default_currency: connectCurrency,
+        auto_sync_enabled: true,
+      });
+      message.success(`Аккаунт ${connectAccountName} успешно подключен!`);
+      setIsConnectAccountModalOpen(false);
+      fetchOmniChannelData();
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка подключения аккаунта');
+    } finally {
+      setConnectingAccount(false);
+    }
+  };
+
+  const handleDisconnectAccount = async (accountId: string) => {
+    if (!confirm('Отключить интеграцию с этим рекламным кабинетом?')) return;
+    try {
+      const res = await adService.disconnectOmniAccount(accountId);
+      if (res.data?.data?.success) {
+        message.success('Аккаунт отключен');
+        fetchOmniChannelData();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка отключения');
+    }
+  };
+
+  const handleTestOmniConnection = async (accountId: string) => {
+    setTestingOmniAccountId(accountId);
+    try {
+      const res = await adService.testOmniAccount(accountId);
+      if (res.data?.data?.status === 'connected') {
+        message.success(`✅ Пинг успешен: ${res.data.data.latency_ms}ms, API статус: Active`);
+        fetchOmniChannelData();
+      } else {
+        message.error('Ошибка проверки связи с API');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка проверки связи');
+    } finally {
+      setTestingOmniAccountId(null);
+    }
+  };
+
+  const handleOpenExportModal = (campaignId?: string) => {
+    if (omniAccounts.length === 0) {
+      message.warning('Сначала подключите хотя бы один внешний рекламный аккаунт (Telegram Ads, Meta или Google).');
+      handleOpenConnectAccount('telegram_ads');
+      return;
+    }
+    setExportSelectedCampaignId(campaignId || (dashboard?.campaigns?.[0]?.id || ''));
+    setExportSelectedAccountId(omniAccounts[0]?.id || '');
+    setExportResult(null);
+    setIsExportCampaignModalOpen(true);
+  };
+
+  const handleExecuteExportCampaign = async () => {
+    if (!exportSelectedCampaignId || !exportSelectedAccountId) {
+      message.error('Выберите кампанию и целевой аккаунт');
+      return;
+    }
+    setExportingCampaign(true);
+    try {
+      const channels = exportTargetChannels.split(',').map((s) => s.trim()).filter(Boolean);
+      const keywords = exportKeywords.split(',').map((s) => s.trim()).filter(Boolean);
+      const interests = exportInterests.split(',').map((s) => s.trim()).filter(Boolean);
+
+      const res = await adService.exportOmniCampaign({
+        campaign_id: exportSelectedCampaignId,
+        account_id: exportSelectedAccountId,
+        export_params: {
+          target_channels: channels,
+          keywords: keywords,
+          interests: interests,
+        },
+      });
+
+      if (res.data?.data) {
+        setExportResult(res.data.data);
+        message.success(res.data.data.message || 'Кампания успешно экспортирована!');
+        fetchOmniChannelData();
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Ошибка экспорта кампании');
+    } finally {
+      setExportingCampaign(false);
+    }
+  };
+
   const handleTopUp = async () => {
     const num = parseFloat(topUpAmount);
     if (isNaN(num) || num <= 0) {
@@ -2341,6 +2521,15 @@ export default function SwipiesAdsPage() {
           <TabsTrigger value="agency" className="flex items-center gap-2 relative">
             <Building2 className="h-4 w-4 text-indigo-500" />
             Агентский Хаб & Sub-Accounts ({agencyClients.length})
+          </TabsTrigger>
+          <TabsTrigger value="omnichannel" className="flex items-center gap-2 relative">
+            <Share2 className="h-4 w-4 text-blue-500" />
+            Кросс-платформенный Мост ({omniAccounts.length})
+            {omniAccounts.length > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
+                {omniAccounts.length} активных
+              </span>
+            )}
           </TabsTrigger>
           <TabsTrigger value="guide" className="flex items-center gap-2">
             <HelpCircle className="h-4 w-4" /> How Swipies Ads Work
@@ -5867,6 +6056,324 @@ export default function SwipiesAdsPage() {
               Сформировать сводный отчет
             </Button>
           </div>
+        </TabsContent>
+
+        {/* Phase 36: Cross-Platform Omni-Channel Ads Bridge Tab */}
+        <TabsContent value="omnichannel" className="space-y-6">
+          {/* Top Hero Banner */}
+          <div className="rounded-2xl border bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-sky-500/10 dark:from-blue-950/30 dark:via-indigo-950/30 dark:to-sky-950/30 p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/20 shrink-0">
+                  <Share2 className="h-7 w-7" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black tracking-tight text-foreground">
+                      Кросс-платформенный Мост (Omni-Channel Ads Bridge)
+                    </h3>
+                    <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/20">
+                      🌐 Telegram • Meta • Google • TikTok
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    1-Click экспорт ваших AI кампаний и сегментов аудиторий в Telegram Ads, Meta Marketing API, Google Ads и TikTok с объединенной сквозной аналитикой и Blended ROAS.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenConnectAccount('telegram_ads')}
+                  className="text-xs border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Подключить кабинет
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleOpenExportModal()}
+                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                >
+                  <Send className="h-3.5 w-3.5 mr-1" /> 🚀 1-Click Экспорт Кампании
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Summary KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-blue-500/20 bg-blue-50/20 dark:bg-blue-950/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Общий расход (Blended Spend)</span>
+                  <DollarSign className="h-4 w-4 text-blue-500" />
+                </div>
+                <div className="text-2xl font-bold text-foreground mt-1">
+                  ${crossPlatformAnalytics ? crossPlatformAnalytics.total_blended_spend.toFixed(2) : '0.00'}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Подключено сетей:{' '}
+                  <b>{crossPlatformAnalytics ? crossPlatformAnalytics.connected_accounts_count : 0} платформ</b>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-emerald-500/20 bg-emerald-50/20 dark:bg-emerald-950/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Blended ROAS & Эффективность</span>
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  {crossPlatformAnalytics ? crossPlatformAnalytics.blended_roas : '3.85'}x
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Сквозная окупаемость инвестиций в трафик
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-950/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Кросс-показы & Blended CTR</span>
+                  <Activity className="h-4 w-4 text-indigo-500" />
+                </div>
+                <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                  {crossPlatformAnalytics ? crossPlatformAnalytics.total_blended_impressions.toLocaleString() : 0}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Кликов: <b>{crossPlatformAnalytics ? crossPlatformAnalytics.total_blended_clicks.toLocaleString() : 0}</b> ({crossPlatformAnalytics ? crossPlatformAnalytics.blended_ctr : 0}% CTR)
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-purple-500/20 bg-purple-50/20 dark:bg-purple-950/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Конверсии & Blended CPA</span>
+                  <Target className="h-4 w-4 text-purple-500" />
+                </div>
+                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                  {crossPlatformAnalytics ? crossPlatformAnalytics.total_blended_conversions : 0}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Ср. стоимость действия (CPA):{' '}
+                  <b>${crossPlatformAnalytics ? crossPlatformAnalytics.blended_cpa.toFixed(2) : '0.00'}</b>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Cross-Platform Breakdown Chart */}
+          {crossPlatformAnalytics && crossPlatformAnalytics.networks && (
+            <Card>
+              <CardHeader className="py-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-blue-500" /> Сравнение Результативности по Рекламным Сетям
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Распределение бюджетов, кликов и стоимости конверсии между каналами (Swipies AI Native vs Внешние сети)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="h-60 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={crossPlatformAnalytics.networks}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(val: any, name: string) => [name === 'spend' ? `$${val}` : val, name === 'spend' ? 'Расход ($)' : name === 'conversions' ? 'Конверсии' : 'Клики']} />
+                      <Bar dataKey="spend" fill="#3b82f6" radius={[4, 4, 0, 0]} name="spend" />
+                      <Bar dataKey="conversions" fill="#10b981" radius={[4, 4, 0, 0]} name="conversions" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Connected Ad Accounts List */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between py-4">
+              <div>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-blue-500" /> Подключенные Рекламные Кабинеты
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Управление API интеграциями с Telegram Ads, Meta, Google Ads и TikTok
+                </CardDescription>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleOpenConnectAccount()}
+                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Добавить кабинет
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {omniAccounts.length === 0 ? (
+                <div className="py-12 text-center text-xs text-muted-foreground">
+                  <Share2 className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                  Нет подключенных рекламных кабинетов. Нажмите «Добавить кабинет», чтобы настроить синхронизацию с Telegram Ads, Meta или Google.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-2.5 px-4">Платформа / Аккаунт</th>
+                        <th className="py-2.5 px-4">External Account ID</th>
+                        <th className="py-2.5 px-4">Экспортировано кампаний</th>
+                        <th className="py-2.5 px-4">Валюта</th>
+                        <th className="py-2.5 px-4">Статус API</th>
+                        <th className="py-2.5 px-4 text-right">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {omniAccounts.map((acc) => (
+                        <tr key={acc.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4 font-bold text-foreground">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">
+                                {acc.platform === 'telegram_ads'
+                                  ? '✈️'
+                                  : acc.platform === 'meta_ads'
+                                  ? '♾️'
+                                  : acc.platform === 'google_ads'
+                                  ? '🔍'
+                                  : acc.platform === 'tiktok_ads'
+                                  ? '🎵'
+                                  : '🌐'}
+                              </span>
+                              <div>
+                                <div>{acc.account_name}</div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {acc.platform_display_name}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-mono text-muted-foreground">
+                            {acc.account_id_external || '—'}
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-foreground">
+                            {acc.total_campaigns_exported}
+                          </td>
+                          <td className="py-3 px-4 font-bold">
+                            <Badge variant="outline" className="text-[10px]">
+                              {acc.default_currency}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              variant="secondary"
+                              className={`text-[10px] uppercase font-bold ${
+                                acc.auth_status === 'connected'
+                                  ? 'bg-emerald-500/10 text-emerald-600'
+                                  : 'bg-rose-500/10 text-rose-600'
+                              }`}
+                            >
+                              {acc.auth_status === 'connected' ? '🟢 Подключен' : '🔴 Ошибка'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleTestOmniConnection(acc.id)}
+                                disabled={testingOmniAccountId === acc.id}
+                                className="h-7 text-xs border-blue-500/30 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                              >
+                                {testingOmniAccountId === acc.id ? 'Пинг...' : '📡 Тест API'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenExportModal()}
+                                className="h-7 text-xs border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                              >
+                                🚀 Экспорт
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDisconnectAccount(acc.id)}
+                                className="h-7 text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Sync Jobs History */}
+          {omniSyncJobs.length > 0 && (
+            <Card>
+              <CardHeader className="py-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" /> Журнал Экспорта и Синхронизации (Sync Jobs)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-2.5 px-4">Job ID / Дата</th>
+                        <th className="py-2.5 px-4">Тип операции</th>
+                        <th className="py-2.5 px-4">Платформа</th>
+                        <th className="py-2.5 px-4">Remote Campaign / Audience ID</th>
+                        <th className="py-2.5 px-4 text-right">Статус</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {omniSyncJobs.slice(0, 10).map((job) => (
+                        <tr key={job.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-2.5 px-4">
+                            <div className="font-mono font-bold text-foreground">{job.id}</div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {new Date(job.create_time * 1000).toLocaleString()}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <Badge variant="secondary" className="text-[10px]">
+                              {job.job_type === 'export_campaign' ? '🚀 Экспорт кампании' : '👥 Синхронизация аудитории'}
+                            </Badge>
+                          </td>
+                          <td className="py-2.5 px-4 uppercase font-bold text-foreground">
+                            {job.platform.replace('_', ' ')}
+                          </td>
+                          <td className="py-2.5 px-4 font-mono text-muted-foreground">
+                            {job.external_campaign_id || '—'}
+                          </td>
+                          <td className="py-2.5 px-4 text-right">
+                            <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 font-bold">
+                              ✅ {job.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -9771,6 +10278,180 @@ async def get_swipies_ad(user_query: str):
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               {savingWsSettings ? 'Сохранение...' : 'Сохранить настройки'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Phase 36: Connect Omni-Channel Account Modal */}
+      <Dialog open={isConnectAccountModalOpen} onOpenChange={setIsConnectAccountModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5 text-blue-500" />
+              Подключить Рекламный Кабинет
+            </DialogTitle>
+            <DialogDescription>
+              Настройте авторизацию через API для бесшовного экспорта кампаний и синхронизации конверсий.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Платформа</label>
+              <Select
+                value={connectPlatform}
+                onValueChange={(val: OmniPlatformType) => handleOpenConnectAccount(val)}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="telegram_ads">✈️ Telegram Ads Platform</SelectItem>
+                  <SelectItem value="meta_ads">♾️ Meta Marketing API (FB / IG)</SelectItem>
+                  <SelectItem value="google_ads">🔍 Google Ads (Search & PMax)</SelectItem>
+                  <SelectItem value="tiktok_ads">🎵 TikTok For Business</SelectItem>
+                  <SelectItem value="yandex_direct">🌐 Яндекс Директ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Название аккаунта / Кабинета</label>
+              <Input
+                value={connectAccountName}
+                onChange={(e) => setConnectAccountName(e.target.value)}
+                placeholder="например, Главный Telegram Ads"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Внешний ID аккаунта / Channel ID</label>
+              <Input
+                value={connectAccountIdExt}
+                onChange={(e) => setConnectAccountIdExt(e.target.value)}
+                placeholder="например, act_928192842 или @my_business_channel"
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">API Token / OAuth Access Token</label>
+              <Input
+                type="password"
+                value={connectAccessToken}
+                onChange={(e) => setConnectAccessToken(e.target.value)}
+                placeholder="Введите API ключ или OAuth токен доступа..."
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsConnectAccountModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveConnectAccount}
+              disabled={connectingAccount}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {connectingAccount ? 'Подключение...' : 'Подключить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Phase 36: 1-Click Cross-Platform Export Modal */}
+      <Dialog open={isExportCampaignModalOpen} onOpenChange={setIsExportCampaignModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-blue-500" />
+              1-Click Экспорт во Внешнюю Сеть
+            </DialogTitle>
+            <DialogDescription>
+              Транслируйте сгенерированные AI рекламные тексты, заголовки и ставки напрямую в выбранный кабинет.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Кампания Swipies AI</label>
+                <Select value={exportSelectedCampaignId} onValueChange={setExportSelectedCampaignId}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Выберите кампанию" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dashboard?.campaigns?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Целевой рекламный кабинет</label>
+                <Select value={exportSelectedAccountId} onValueChange={setExportSelectedAccountId}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Выберите кабинет" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {omniAccounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.platform === 'telegram_ads' ? '✈️' : acc.platform === 'meta_ads' ? '♾️' : '🔍'} {acc.account_name} ({acc.platform_display_name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Целевые каналы / Ключевые слова / Интересы
+              </label>
+              <Input
+                value={exportTargetChannels}
+                onChange={(e) => setExportTargetChannels(e.target.value)}
+                placeholder="@channel1, @channel2 или ключевые слова через запятую"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            {exportResult && (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/20 p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    ✅ {exportResult.message}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] font-mono">
+                    Remote ID: {exportResult.external_campaign_id}
+                  </Badge>
+                </div>
+                <pre className="text-[10px] bg-black/10 dark:bg-black/40 p-2 rounded text-muted-foreground overflow-x-auto max-h-24">
+                  {JSON.stringify(exportResult.payload, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsExportCampaignModalOpen(false)}>
+              Закрыть
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleExecuteExportCampaign}
+              disabled={exportingCampaign}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {exportingCampaign ? 'Экспорт...' : '🚀 Опубликовать в сети'}
             </Button>
           </DialogFooter>
         </DialogContent>

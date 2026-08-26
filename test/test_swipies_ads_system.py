@@ -302,6 +302,8 @@ from api.db.db_models import (
     AdAgencyClient,
     AdAgencyMember,
     AdAgencyReportTemplate,
+    AdOmniChannelAccount,
+    AdOmniChannelSyncJob,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -330,6 +332,7 @@ from api.db.services.ad_engine_service import (
     AdProductFeedService,
     AdCreativeStudioService,
     AdAgencyService,
+    AdOmniChannelBridgeService,
 )
 from api.db.services.recurring_subscription_service import (
     RecurringSubscriptionService,
@@ -394,6 +397,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdAgencyClient,
             AdAgencyMember,
             AdAgencyReportTemplate,
+            AdOmniChannelAccount,
+            AdOmniChannelSyncJob,
         ]
         for m in models:
             m._meta.database = test_db
@@ -464,6 +469,8 @@ class TestSwipiesAdsSystem(unittest.TestCase):
             AdAgencyClient,
             AdAgencyMember,
             AdAgencyReportTemplate,
+            AdOmniChannelAccount,
+            AdOmniChannelSyncJob,
         ])
         test_db.close()
         if os.path.exists(TEST_DB_FILE):
@@ -3900,6 +3907,168 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         self.assertTrue(deleted_cli)
         active_clients = AdAgencyService.list_clients(workspace_id=ws["id"])
         self.assertEqual(len(active_clients), 1)
+
+    def test_29_omnichannel_ads_bridge_and_cross_platform_export(self):
+        """Test Phase 36: Cross-Platform Omni-Channel Ads Bridge (Telegram / Meta / Google Ads Export & Sync)."""
+        user = User.create(
+            id=f"u_omni_{uuid.uuid4().hex[:8]}",
+            nickname="Omni Advertiser",
+            email=f"omni_{uuid.uuid4().hex[:6]}@swipies.app",
+            password="hashed_password",
+            create_time=current_timestamp(),
+        )
+        tenant = Tenant.create(
+            id=f"t_omni_{uuid.uuid4().hex[:8]}",
+            name="Omni Corp",
+            llm_id="",
+            embd_id="",
+            asr_id="",
+            img2txt_id="",
+            rerank_id="",
+            parser_ids="",
+            credit=0,
+            create_time=current_timestamp(),
+        )
+        adv = Advertiser.create(
+            id=f"adv_omni_{uuid.uuid4().hex[:8]}",
+            user_id=user.id,
+            tenant_id=tenant.id,
+            company_name="Omni Growth Ltd",
+            balance=1000.0,
+            status="approved",
+            create_time=current_timestamp(),
+        )
+
+        cmp = AdCampaign.create(
+            id=f"cmp_omni_{uuid.uuid4().hex[:8]}",
+            advertiser_id=adv.id,
+            name="Swipies AI Growth Campaign",
+            product_name="Swipies B2B Automation",
+            advertisement_text="Автоматизируйте продажи и рекламу с помощью Swipies AI и нейросетей.",
+            landing_url="https://swipies.ai/enterprise",
+            daily_budget=25.0,
+            bid_amount=0.25,
+            pricing_model="cpc",
+            status="active",
+            create_time=current_timestamp(),
+        )
+        seg = AdAudienceSegment.create(
+            id=f"seg_omni_{uuid.uuid4().hex[:8]}",
+            advertiser_id=adv.id,
+            name="High-Intent B2B Buyers",
+            rule_type="custom_list",
+            member_count=450,
+            status="ready",
+            create_time=current_timestamp(),
+        )
+
+        # 1. Connect External Ad Accounts (Telegram Ads, Meta Marketing API, Google Ads)
+        tg_acc = AdOmniChannelBridgeService.connect_account(
+            advertiser_id=adv.id,
+            data={
+                "platform": "telegram_ads",
+                "account_name": "Official TG Ads Business",
+                "account_id_external": "tg_adv_channel_99",
+                "access_token": "tg_tok_secret_9981",
+                "default_currency": "EUR",
+            },
+        )
+        self.assertIn("id", tg_acc)
+        self.assertEqual(tg_acc["platform"], "telegram_ads")
+        self.assertEqual(tg_acc["default_currency"], "EUR")
+
+        meta_acc = AdOmniChannelBridgeService.connect_account(
+            advertiser_id=adv.id,
+            data={
+                "platform": "meta_ads",
+                "account_name": "Meta Global Ads Agency",
+                "account_id_external": "act_827182941",
+                "access_token": "EAAX_meta_access_token_mock",
+                "default_currency": "USD",
+            },
+        )
+        self.assertEqual(meta_acc["platform"], "meta_ads")
+
+        google_acc = AdOmniChannelBridgeService.connect_account(
+            advertiser_id=adv.id,
+            data={
+                "platform": "google_ads",
+                "account_name": "Google Ads Performance",
+                "account_id_external": "892-120-9938",
+                "access_token": "ya29.google_oauth_token",
+                "default_currency": "USD",
+            },
+        )
+        self.assertEqual(google_acc["platform"], "google_ads")
+
+        # 2. List Connected Accounts
+        accounts = AdOmniChannelBridgeService.list_accounts(advertiser_id=adv.id)
+        self.assertEqual(len(accounts), 3)
+
+        # 3. Test API Connection (Health Ping)
+        ping_res = AdOmniChannelBridgeService.test_connection(advertiser_id=adv.id, account_id=tg_acc["id"])
+        self.assertEqual(ping_res["status"], "connected")
+        self.assertGreater(ping_res["latency_ms"], 0)
+
+        # 4. 1-Click Export to Telegram Ads
+        tg_export = AdOmniChannelBridgeService.export_campaign(
+            advertiser_id=adv.id,
+            account_id=tg_acc["id"],
+            campaign_id=cmp.id,
+            export_params={"target_channels": ["@tashkent_tech", "@startup_uz"]},
+        )
+        self.assertEqual(tg_export["status"], "success")
+        self.assertEqual(tg_export["platform"], "telegram_ads")
+        self.assertIn("cpm_eur", tg_export["payload"])
+        self.assertIn("target_channels", tg_export["payload"])
+        self.assertEqual(tg_export["target_info"]["format"], "Sponsored Message (160 chars)")
+
+        # 5. 1-Click Export to Meta Ads (Facebook & Instagram)
+        meta_export = AdOmniChannelBridgeService.export_campaign(
+            advertiser_id=adv.id,
+            account_id=meta_acc["id"],
+            campaign_id=cmp.id,
+            export_params={"interests": ["AI Software", "Enterprise SaaS"]},
+        )
+        self.assertEqual(meta_export["status"], "success")
+        self.assertEqual(meta_export["payload"]["objective"], "OUTCOME_LEADS")
+        self.assertEqual(meta_export["payload"]["creative"]["call_to_action"], "LEARN_MORE")
+
+        # 6. 1-Click Export to Google Ads (Responsive Search Ad)
+        google_export = AdOmniChannelBridgeService.export_campaign(
+            advertiser_id=adv.id,
+            account_id=google_acc["id"],
+            campaign_id=cmp.id,
+            export_params={"keywords": ["ai ассистент", "купить crm"]},
+        )
+        self.assertEqual(google_export["status"], "success")
+        self.assertIn("responsive_search_ad", google_export["payload"])
+        self.assertEqual(len(google_export["payload"]["responsive_search_ad"]["headlines"]), 3)
+
+        # 7. Sync Audience Segment to External Platform
+        aud_sync = AdOmniChannelBridgeService.sync_audience(
+            advertiser_id=adv.id,
+            account_id=meta_acc["id"],
+            segment_id=seg.id,
+        )
+        self.assertEqual(aud_sync["status"], "success")
+        self.assertEqual(aud_sync["match_rate_percent"], 84.5)
+
+        # 8. Pull Consolidated Cross-Platform Analytics & Blended ROAS
+        analytics = AdOmniChannelBridgeService.pull_cross_platform_analytics(advertiser_id=adv.id, days=30)
+        self.assertEqual(analytics["connected_accounts_count"], 3)
+        self.assertGreater(analytics["total_blended_spend"], 0.0)
+        self.assertGreater(analytics["total_blended_impressions"], 0)
+        self.assertGreater(analytics["blended_roas"], 1.0)
+        self.assertGreaterEqual(len(analytics["networks"]), 4)  # Swipies native + 3 external
+
+        # 9. List Synchronization Jobs History
+        jobs = AdOmniChannelBridgeService.list_sync_jobs(advertiser_id=adv.id)
+        self.assertGreaterEqual(len(jobs), 4)  # 3 campaign exports + 1 audience sync
+
+        # 10. Disconnect Account
+        disc = AdOmniChannelBridgeService.disconnect_account(advertiser_id=adv.id, account_id=google_acc["id"])
+        self.assertTrue(disc["success"])
 
 
 if __name__ == "__main__":

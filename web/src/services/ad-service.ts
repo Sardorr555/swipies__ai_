@@ -378,6 +378,23 @@ const adService = {
     request.post<ResponseData<ShareReportResponse>>('/ads/agency/reports/share', { data }),
   getPublicSharedReport: (shareToken: string) =>
     request.get<ResponseData<ExecutiveReportData>>(`/ads/agency/reports/shared/${shareToken}`),
+  // Phase 36: Cross-Platform Omni-Channel Ads Bridge
+  getOmniAccounts: () =>
+    request.get<ResponseData<OmniAccountItem[]>>('/ads/omnichannel/accounts'),
+  connectOmniAccount: (data: ConnectOmniAccountRequest) =>
+    request.post<ResponseData<any>>('/ads/omnichannel/accounts', { data }),
+  disconnectOmniAccount: (accountId: string) =>
+    request.delete<ResponseData<{ success: boolean }>>(`/ads/omnichannel/accounts/${accountId}`),
+  testOmniAccount: (accountId: string) =>
+    request.post<ResponseData<any>>(`/ads/omnichannel/accounts/${accountId}/test`),
+  exportOmniCampaign: (data: ExportOmniCampaignRequest) =>
+    request.post<ResponseData<ExportOmniCampaignResponse>>('/ads/omnichannel/export-campaign', { data }),
+  syncOmniAudience: (data: SyncOmniAudienceRequest) =>
+    request.post<ResponseData<any>>('/ads/omnichannel/sync-audience', { data }),
+  getCrossPlatformAnalytics: (params?: { days?: number }) =>
+    request.get<ResponseData<CrossPlatformAnalyticsResponse>>('/ads/omnichannel/cross-platform-analytics', { params }),
+  getOmniSyncJobs: (params?: { limit?: number }) =>
+    request.get<ResponseData<OmniSyncJobItem[]>>('/ads/omnichannel/sync-jobs', { params }),
 };
 
 export interface DcoConfig {
@@ -1230,6 +1247,106 @@ export interface ShareReportResponse {
   share_token: string;
   share_url: string;
   expires_in: string;
+}
+
+// Phase 36: Cross-Platform Omni-Channel Ads Bridge Interfaces
+export type OmniPlatformType = 'telegram_ads' | 'meta_ads' | 'google_ads' | 'tiktok_ads' | 'yandex_direct';
+
+export interface OmniAccountItem {
+  id: string;
+  advertiser_id: string;
+  platform: OmniPlatformType;
+  platform_display_name: string;
+  account_name: string;
+  account_id_external: string | null;
+  auth_status: 'connected' | 'expired' | 'error' | 'disconnected';
+  default_currency: string;
+  auto_sync_enabled: boolean;
+  total_campaigns_exported: number;
+  total_external_spend: number;
+  last_sync_time: number | null;
+  create_time: number;
+}
+
+export interface ConnectOmniAccountRequest {
+  platform: OmniPlatformType;
+  account_name: string;
+  account_id_external?: string;
+  access_token?: string;
+  refresh_token?: string;
+  default_currency?: string;
+  auto_sync_enabled?: boolean;
+}
+
+export interface ExportOmniCampaignRequest {
+  account_id: string;
+  campaign_id: string;
+  export_params?: {
+    target_channels?: string[];
+    target_languages?: string[];
+    interests?: string[];
+    keywords?: string[];
+  };
+}
+
+export interface ExportOmniCampaignResponse {
+  job_id: string;
+  account_id: string;
+  platform: string;
+  campaign_id: string;
+  external_campaign_id: string;
+  status: string;
+  payload: any;
+  target_info: any;
+  message: string;
+}
+
+export interface SyncOmniAudienceRequest {
+  account_id: string;
+  segment_id: string;
+}
+
+export interface CrossPlatformNetworkStat {
+  platform: string;
+  name: string;
+  account_name?: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  conversions: number;
+  cpa: number;
+  share_percent: number;
+}
+
+export interface CrossPlatformAnalyticsResponse {
+  period_days: number;
+  connected_accounts_count: number;
+  total_blended_spend: number;
+  total_blended_impressions: number;
+  total_blended_clicks: number;
+  total_blended_conversions: number;
+  blended_ctr: number;
+  blended_cpa: number;
+  blended_roas: number;
+  networks: CrossPlatformNetworkStat[];
+}
+
+export interface OmniSyncJobItem {
+  id: string;
+  advertiser_id: string;
+  account_id: string;
+  campaign_id: string | null;
+  platform: string;
+  job_type: string;
+  status: string;
+  external_campaign_id: string | null;
+  payload_data: any;
+  response_data: any;
+  items_synced_count: number;
+  error_message: string | null;
+  create_time: number;
+  finish_time: number | null;
 }
 
 export default adService;

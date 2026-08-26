@@ -2379,6 +2379,47 @@ class AdAgencyReportTemplate(DataBaseModel):
         db_table = "ad_agency_report_templates"
 
 
+class AdOmniChannelAccount(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    platform = CharField(max_length=32, null=False, index=True)  # telegram_ads, meta_ads, google_ads, tiktok_ads, yandex_direct
+    account_name = CharField(max_length=128, null=False)
+    account_id_external = CharField(max_length=128, null=True)
+    access_token = TextField(null=True)
+    refresh_token = TextField(null=True)
+    auth_status = CharField(max_length=32, default="connected", index=True)  # connected, expired, error, disconnected
+    default_currency = CharField(max_length=8, default="USD")
+    auto_sync_enabled = BooleanField(default=True)
+    total_campaigns_exported = IntegerField(default=0)
+    total_external_spend = FloatField(default=0.0)
+    last_sync_time = BigIntegerField(null=True)
+    create_time = BigIntegerField(null=False, index=True)
+    update_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_omnichannel_accounts"
+
+
+class AdOmniChannelSyncJob(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    advertiser_id = CharField(max_length=32, null=False, index=True)
+    account_id = CharField(max_length=32, null=False, index=True)
+    campaign_id = CharField(max_length=32, null=True, index=True)
+    platform = CharField(max_length=32, null=False, index=True)
+    job_type = CharField(max_length=32, default="export_campaign", index=True)  # export_campaign, sync_audiences, pull_metrics
+    status = CharField(max_length=32, default="success", index=True)  # pending, running, success, failed
+    external_campaign_id = CharField(max_length=128, null=True)
+    payload_data = JSONField(null=True, default=dict)
+    response_data = JSONField(null=True, default=dict)
+    items_synced_count = IntegerField(default=1)
+    error_message = TextField(null=True)
+    create_time = BigIntegerField(null=False, index=True)
+    finish_time = BigIntegerField(null=True)
+
+    class Meta:
+        db_table = "ad_omnichannel_sync_jobs"
+
+
 class PromoCode(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     code = CharField(max_length=64, unique=True, index=True)

@@ -58,6 +58,7 @@ from api.db.services.ad_engine_service import (
     AdProductFeedService,
     AdCreativeStudioService,
     AdAgencyService,
+    AdOmniChannelBridgeService,
 )
 from api.db.services.ad_policy_service import AdPolicyService
 from api.db.services.promo_code_service import PromoCodeService
@@ -2932,6 +2933,143 @@ async def get_public_shared_report(share_token):
     except Exception as e:
         logger.exception(f"Error fetching public shared report: {e}")
         return get_data_error_result(message=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Phase 36: Cross-Platform Omni-Channel Ads Bridge & Direct Exporter Routes
+# ---------------------------------------------------------------------------
+
+
+@manager.route("/v1/ads/omnichannel/accounts", methods=["GET"])
+@login_required
+async def list_omni_accounts():
+    """List connected external ad accounts for the current advertiser."""
+    try:
+        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        accounts = AdOmniChannelBridgeService.list_accounts(advertiser_id=adv.id)
+        return get_json_result(data=accounts)
+    except Exception as e:
+        logger.exception(f"Error listing omni-channel accounts: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/omnichannel/accounts", methods=["POST"])
+@login_required
+async def connect_omni_account():
+    """Connect a new external ad platform account."""
+    try:
+        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        req = get_request_json()
+        res = AdOmniChannelBridgeService.connect_account(advertiser_id=adv.id, data=req)
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error connecting omni-channel account: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/omnichannel/accounts/<account_id>", methods=["DELETE"])
+@login_required
+async def disconnect_omni_account(account_id):
+    """Disconnect an external ad platform account."""
+    try:
+        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        res = AdOmniChannelBridgeService.disconnect_account(advertiser_id=adv.id, account_id=account_id)
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error disconnecting omni-channel account: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/omnichannel/accounts/<account_id>/test", methods=["POST"])
+@login_required
+async def test_omni_account_connection(account_id):
+    """Test API connection to external ad network."""
+    try:
+        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        res = AdOmniChannelBridgeService.test_connection(advertiser_id=adv.id, account_id=account_id)
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error testing omni-channel connection: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/omnichannel/export-campaign", methods=["POST"])
+@login_required
+async def export_campaign_to_omnichannel():
+    """1-Click export of an AI campaign into Telegram Ads, Meta Ads, Google Ads or TikTok format."""
+    try:
+        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        req = get_request_json()
+        account_id = req.get("account_id")
+        campaign_id = req.get("campaign_id")
+        export_params = req.get("export_params", {})
+
+        if not account_id or not campaign_id:
+            return get_data_error_result(message="account_id and campaign_id are required")
+
+        res = AdOmniChannelBridgeService.export_campaign(
+            advertiser_id=adv.id,
+            account_id=account_id,
+            campaign_id=campaign_id,
+            export_params=export_params,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error exporting campaign to omni-channel: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/omnichannel/sync-audience", methods=["POST"])
+@login_required
+async def sync_audience_to_omnichannel():
+    """Sync audience segment to external ad network."""
+    try:
+        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        req = get_request_json()
+        account_id = req.get("account_id")
+        segment_id = req.get("segment_id")
+
+        if not account_id or not segment_id:
+            return get_data_error_result(message="account_id and segment_id are required")
+
+        res = AdOmniChannelBridgeService.sync_audience(
+            advertiser_id=adv.id,
+            account_id=account_id,
+            segment_id=segment_id,
+        )
+        return get_json_result(data=res)
+    except Exception as e:
+        logger.exception(f"Error syncing audience to omni-channel: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/omnichannel/cross-platform-analytics", methods=["GET"])
+@login_required
+async def get_cross_platform_analytics():
+    """Consolidated cross-platform analytics and Blended ROAS."""
+    try:
+        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        days = int(request.args.get("days", 30))
+        analytics = AdOmniChannelBridgeService.pull_cross_platform_analytics(advertiser_id=adv.id, days=days)
+        return get_json_result(data=analytics)
+    except Exception as e:
+        logger.exception(f"Error fetching cross-platform analytics: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/v1/ads/omnichannel/sync-jobs", methods=["GET"])
+@login_required
+async def get_omni_sync_jobs():
+    """List recent synchronization jobs."""
+    try:
+        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        limit = int(request.args.get("limit", 50))
+        jobs = AdOmniChannelBridgeService.list_sync_jobs(advertiser_id=adv.id, limit=limit)
+        return get_json_result(data=jobs)
+    except Exception as e:
+        logger.exception(f"Error listing sync jobs: {e}")
+        return get_data_error_result(message=str(e))
+
 
 
 
