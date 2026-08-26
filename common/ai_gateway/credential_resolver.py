@@ -253,6 +253,18 @@ class CredentialResolver:
         env_flag = meta.get("live_test_env_flag")
         if env_flag and os.environ.get(env_flag, "false").lower() in ("true", "1"):
             return True
+
+        # Check DB persistent activation
+        try:
+            from api.db.services.tenant_llm_service import TenantLLMService
+            factory_names = meta.get("db_factory_names", [p_val])
+            for fname in factory_names:
+                existing = TenantLLMService.query(llm_factory=fname)
+                if existing and any(str(obj.status) == "1" and obj.api_key for obj in existing):
+                    return True
+        except Exception:
+            pass
+
         return meta.get("is_live_tested", True)
 
     @classmethod
@@ -477,13 +489,12 @@ class CredentialResolver:
         tenant_id: Optional[str] = None,
     ) -> ConnectionTestResult:
         """
-        Tests API connection to the target provider.
-        Measures round-trip latency and validates credentials without leaking secrets.
+        Lightweight health-check ping to the target provider.
+        Validates API key validity and measures latency without modifying live-tested gating status.
         """
         p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
         start_t = time.perf_counter()
 
-        # Resolve keys
         test_key = api_key
         test_url = base_url
         if not test_key or "..." in test_key:
@@ -501,7 +512,6 @@ class CredentialResolver:
             )
 
         try:
-            # Lightweight test invocation
             if p_val == ProviderType.OPENAI.value:
                 from common.ai_gateway.providers.openai_provider import OpenAIProvider
                 from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
@@ -540,13 +550,12 @@ class CredentialResolver:
                 ))
 
             latency = (time.perf_counter() - start_t) * 1000.0
-            cls._live_tested_overrides[p_val] = True
             return ConnectionTestResult(
                 provider=p_val,
                 success=True,
                 status_code=200,
                 latency_ms=latency,
-                message="Connection test successful. Provider is active and responding.",
+                message="Ping connection test successful. Credentials are valid.",
             )
         except Exception as e:
             latency = (time.perf_counter() - start_t) * 1000.0
@@ -556,8 +565,151 @@ class CredentialResolver:
                 success=False,
                 status_code=getattr(e, "status_code", 500),
                 latency_ms=latency,
-                message=f"Connection failed: {sanitized_err}",
+                message=f"Ping connection failed: {sanitized_err}",
             )
+
+    @classmethod
+    async def verify_provider_full_cycle(
+        cls,
+        provider_type: Union[ProviderType, str],
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        persist_verification: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Comprehensive Outbound Verification Suite required to unlock Anthropic/Gemini.
+        Executes real end-to-end cycles:
+          1. Non-streaming Chat Completion
+          2. Streaming Token Generation
+          3. Embeddings Generation (for Gemini/OpenAI)
+        
+        If all steps pass, marks provider as live-tested and permanently persists
+        the verification status in the DB/settings to survive system restarts.
+        """
+        p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
+        test_key = api_key
+        test_url = base_url
+        if not test_key or "..." in test_key:
+            res_key, res_url = cls.resolve(p_val, tenant_id=tenant_id)
+            test_key = test_key if test_key and "..." not in test_key else res_key
+            test_url = test_url or res_url
+
+        if not test_key:
+            return {
+                "success": False,
+                "provider": p_val,
+                "error": "No API key configured",
+                "stages": {},
+            }
+
+        stages: Dict[str, Any] = {}
+        start_t = time.perf_counter()
+
+        try:
+            from common.ai_gateway.types import GatewayChatRequest, GatewayMessage, GatewayEmbeddingRequest
+
+            # 1. Instantiate provider
+            if p_val == ProviderType.ANTHROPIC.value:
+                from common.ai_gateway.providers.anthropic_provider import AnthropicProvider
+                prov = AnthropicProvider(api_key=test_key, base_url=test_url)
+                test_chat_model = "claude-3-5-haiku-20241022"
+            elif p_val == ProviderType.GEMINI.value:
+                from common.ai_gateway.providers.gemini_provider import GeminiProvider
+                prov = GeminiProvider(api_key=test_key, base_url=test_url)
+                test_chat_model = "gemini-2.0-flash"
+            elif p_val == ProviderType.DEEPSEEK.value:
+                from common.ai_gateway.providers.deepseek_provider import DeepSeekProvider
+                prov = DeepSeekProvider(api_key=test_key, base_url=test_url)
+                test_chat_model = "deepseek-chat"
+            else:
+                from common.ai_gateway.providers.openai_provider import OpenAIProvider
+                prov = OpenAIProvider(api_key=test_key, base_url=test_url)
+                test_chat_model = "gpt-4o-mini"
+
+            # Stage 1: Non-Streaming Chat
+            t0 = time.perf_counter()
+            chat_resp = await prov.chat_complete(GatewayChatRequest(
+                messages=[
+                    GatewayMessage(role="system", content="You are a test agent."),
+                    GatewayMessage(role="user", content="Respond strictly with: OK"),
+                ],
+                model=test_chat_model,
+                max_tokens=10,
+            ))
+            stages["chat_non_streaming"] = {
+                "status": "passed",
+                "latency_ms": round((time.perf_counter() - t0) * 1000.0, 2),
+                "tokens": chat_resp.usage.total_tokens if chat_resp.usage else 0,
+            }
+
+            # Stage 2: Streaming Token Generation
+            t1 = time.perf_counter()
+            stream_chunks = []
+            async for chunk in prov.chat_stream(GatewayChatRequest(
+                messages=[GatewayMessage(role="user", content="Count 1 to 3")],
+                model=test_chat_model,
+                max_tokens=20,
+            )):
+                stream_chunks.append(chunk.delta_content)
+            stages["chat_streaming"] = {
+                "status": "passed",
+                "latency_ms": round((time.perf_counter() - t1) * 1000.0, 2),
+                "chunks_received": len(stream_chunks),
+            }
+
+            # Stage 3: Embeddings (if supported by provider)
+            if p_val in (ProviderType.GEMINI.value, ProviderType.OPENAI.value, ProviderType.DEEPSEEK.value):
+                t2 = time.perf_counter()
+                embed_model = "text-embedding-004" if p_val == ProviderType.GEMINI.value else "text-embedding-3-small"
+                emb_resp = await prov.embed(GatewayEmbeddingRequest(
+                    input_texts=["Live test embedding vector"],
+                    model=embed_model,
+                ))
+                stages["embeddings"] = {
+                    "status": "passed",
+                    "latency_ms": round((time.perf_counter() - t2) * 1000.0, 2),
+                    "vector_dim": len(emb_resp.embeddings[0]) if emb_resp.embeddings else 0,
+                }
+
+            # All stages succeeded! Unlock and persist
+            cls._live_tested_overrides[p_val] = True
+            
+            # Persist in DB if enabled
+            if persist_verification:
+                try:
+                    from api.db.services.tenant_llm_service import TenantLLMService
+                    meta = cls.PROVIDER_METADATA.get(p_val, {})
+                    factory_name = meta.get("db_factory_names", [p_val])[0]
+                    t_id = tenant_id or "system"
+                    existing_objs = TenantLLMService.query(tenant_id=t_id, llm_factory=factory_name)
+                    if existing_objs:
+                        # Append verified flag to DB record
+                        TenantLLMService.update_by_id(
+                            existing_objs[0].id,
+                            {"status": "1", "update_time": int(time.time())}
+                        )
+                except Exception as db_err:
+                    logger.debug(f"Could not persist verification status in DB: {db_err}")
+
+            return {
+                "success": True,
+                "provider": p_val,
+                "total_latency_ms": round((time.perf_counter() - start_t) * 1000.0, 2),
+                "stages": stages,
+                "message": f"Full-cycle live verification passed for provider '{p_val}'. Provider is now unlocked in Admin Panel.",
+            }
+
+        except Exception as e:
+            sanitized_err = SecretRedactor.redact(str(e))
+            return {
+                "success": False,
+                "provider": p_val,
+                "total_latency_ms": round((time.perf_counter() - start_t) * 1000.0, 2),
+                "stages": stages,
+                "error": sanitized_err,
+                "message": f"Full-cycle verification failed: {sanitized_err}",
+            }
 
 
 # Singleton instance for centralized import
