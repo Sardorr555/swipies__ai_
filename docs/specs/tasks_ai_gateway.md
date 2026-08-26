@@ -140,11 +140,12 @@
 
 ## Phase 3: Central Gateway Engine & Security Core
 
-### - [ ] TASK-06: Implement Secure Backend Credential Resolver
+### - [x] TASK-06: Implement Secure Backend Credential Resolver
 - **Description:** Create internal credential resolver that retrieves API keys and base URLs strictly from server environments (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`) or encrypted database tables (`TenantLLM`).
 - **Acceptance Criteria:**
   - `CredentialResolver.resolve(provider_type, tenant_id)` resolves in-memory credentials.
-  - Credentials are never exposed outside the backend gateway layer.
+  - Full Admin Panel CRUD suite: `list_providers_for_admin()`, `get_provider_for_admin()`, `save_provider_credentials()`, `delete_provider_credentials()`, `test_provider_connection()`.
+  - Credentials are never exposed outside the backend gateway layer (safe auto-masking `mask_api_key`).
   - Fallback logic to system-level defaults if tenant custom keys are not configured.
 - **Verification:**
   ```powershell
@@ -155,11 +156,11 @@
 
 ---
 
-### - [ ] TASK-07: Implement Central AI Gateway Service
+### - [x] TASK-07: Implement Central AI Gateway Service
 - **Description:** Implement the `AIGateway` dispatcher singleton managing provider registries, lifecycle caching, and centralized error redaction.
 - **Acceptance Criteria:**
   - `register_provider(provider_type, provider_cls)` dynamically registers provider classes.
-  - Automatically registers `OpenAIProvider` and `DeepSeekProvider` on initialization.
+  - Automatically registers `OpenAIProvider`, `DeepSeekProvider`, `AnthropicProvider`, and `GeminiProvider` on initialization.
   - `chat()`, `stream_chat()`, and `embeddings()` dispatch to the appropriate adapter.
   - Central exception interceptor sanitizes all error logs and re-raised exceptions via `SecretRedactor`.
   - Export global singleton `ai_gateway = AIGateway()`.

@@ -1,0 +1,504 @@
+#
+#  Copyright 2026 The InfiniFlow & Swipies AI Authors. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+import os
+import time
+import logging
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple, Union, Any
+
+from common.ai_gateway.types import ProviderType
+from common.ai_gateway.errors import SecretRedactor, ProviderAuthError
+
+logger = logging.getLogger("ai_gateway.credentials")
+
+
+@dataclass
+class ProviderCredentialRecord:
+    """
+    Safe provider configuration object for Admin Panel CRUD and inspection.
+    Guarantees API keys are masked by default to prevent secret exposure in UI/API responses.
+    """
+    provider: str
+    provider_display_name: str
+    base_url: Optional[str] = None
+    masked_api_key: str = ""
+    is_active: bool = True
+    is_configured: bool = False
+    source: str = "none"  # "tenant_db" | "system_db" | "environment" | "none"
+    supported_models: List[str] = field(default_factory=list)
+    updated_at: Optional[int] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "provider": self.provider,
+            "provider_display_name": self.provider_display_name,
+            "base_url": self.base_url,
+            "masked_api_key": self.masked_api_key,
+            "is_active": self.is_active,
+            "is_configured": self.is_configured,
+            "source": self.source,
+            "supported_models": self.supported_models,
+            "updated_at": self.updated_at,
+        }
+
+
+@dataclass
+class ConnectionTestResult:
+    """Standardized test result when verifying provider connectivity in Admin Panel."""
+    provider: str
+    success: bool
+    status_code: int
+    latency_ms: float
+    message: str
+    tested_at: int = field(default_factory=lambda: int(time.time()))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "provider": self.provider,
+            "success": self.success,
+            "status_code": self.status_code,
+            "latency_ms": round(self.latency_ms, 2),
+            "message": SecretRedactor.redact(self.message),
+            "tested_at": self.tested_at,
+        }
+
+
+class CredentialResolver:
+    """
+    Centralized, Single Source of Truth for AI Provider Credentials.
+    
+    Responsibilities:
+    1. Runtime Resolution: Resolves decrypted (api_key, base_url) in-memory for Gateway execution.
+    2. Admin Panel CRUD: Full management API (list, get, save, delete, test_connection) with automatic masking.
+    3. Multi-layer Fallback: Resolves from Tenant DB -> System DB -> Environment Variables.
+    4. Zero-Leak Policy: Plaintext keys never leave the secure backend memory layer.
+    """
+
+    PROVIDER_METADATA: Dict[str, Dict[str, Any]] = {
+        ProviderType.OPENAI.value: {
+            "name": "OpenAI",
+            "env_key": "OPENAI_API_KEY",
+            "env_base_url": "OPENAI_BASE_URL",
+            "default_base_url": "https://api.openai.com/v1",
+            "models": ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini", "text-embedding-3-small", "text-embedding-3-large"],
+            "db_factory_names": ["OpenAI", "openai"],
+        },
+        ProviderType.DEEPSEEK.value: {
+            "name": "DeepSeek",
+            "env_key": "DEEPSEEK_API_KEY",
+            "env_base_url": "DEEPSEEK_BASE_URL",
+            "default_base_url": "https://api.deepseek.com/v1",
+            "models": ["deepseek-chat", "deepseek-reasoner"],
+            "db_factory_names": ["DeepSeek", "deepseek"],
+        },
+        ProviderType.ANTHROPIC.value: {
+            "name": "Anthropic",
+            "env_key": "ANTHROPIC_API_KEY",
+            "env_base_url": "ANTHROPIC_BASE_URL",
+            "default_base_url": "https://api.anthropic.com/",
+            "models": ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-7-sonnet", "claude-3-opus-20240229"],
+            "db_factory_names": ["Anthropic", "anthropic"],
+        },
+        ProviderType.GEMINI.value: {
+            "name": "Google Gemini",
+            "env_key": "GEMINI_API_KEY",
+            "env_key_fallback": "GOOGLE_API_KEY",
+            "env_base_url": "GEMINI_BASE_URL",
+            "default_base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+            "models": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "text-embedding-004"],
+            "db_factory_names": ["Gemini", "Google", "gemini"],
+        },
+    }
+
+    # In-memory transient overrides / test storage for unit tests and local overrides
+    _memory_store: Dict[str, Dict[str, Any]] = {}
+
+    @classmethod
+    def mask_api_key(cls, raw_key: Optional[str]) -> str:
+        """Masks an API key for safe UI display: sk-proj-1234567890abcdef1234 -> sk-proj...1234"""
+        if not raw_key:
+            return ""
+        k = raw_key.strip()
+        if len(k) <= 8:
+            return "********"
+        prefix = k[:7] if k.startswith("sk-") or k.startswith("AIza") else k[:4]
+        suffix = k[-4:]
+        return f"{prefix}...{suffix}"
+
+    @classmethod
+    def resolve(
+        cls,
+        provider_type: Union[ProviderType, str],
+        tenant_id: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> Tuple[str, Optional[str]]:
+        """
+        Primary execution entry point for AI Gateway.
+        Resolves decrypted API key and base URL in order:
+          1. In-memory custom configuration (if configured)
+          2. TenantLLM in DB (if tenant_id supplied)
+          3. System / Admin TenantLLM in DB
+          4. Environment Variables
+        
+        Returns: (api_key: str, base_url: Optional[str])
+        """
+        p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
+        meta = cls.PROVIDER_METADATA.get(p_val, {
+            "name": p_val.capitalize(),
+            "env_key": f"{p_val.upper()}_API_KEY",
+            "env_base_url": f"{p_val.upper()}_BASE_URL",
+            "default_base_url": None,
+            "db_factory_names": [p_val],
+        })
+
+        # 1. Check in-memory store (e.g. for testing or tenant sessions)
+        mem_key = f"{p_val}:{tenant_id or 'system'}"
+        if mem_key in cls._memory_store and cls._memory_store[mem_key].get("is_active", True):
+            mem_data = cls._memory_store[mem_key]
+            if mem_data.get("api_key"):
+                return mem_data["api_key"], mem_data.get("base_url") or meta.get("default_base_url")
+
+        # 2 & 3. Check Database (TenantLLM)
+        try:
+            from api.db.services.tenant_llm_service import TenantLLMService
+            factory_names = meta.get("db_factory_names", [p_val])
+            
+            # Query tenant DB
+            if tenant_id:
+                for fname in factory_names:
+                    llm_obj = TenantLLMService.get_api_key(tenant_id=tenant_id, model_name=model or fname)
+                    if llm_obj and llm_obj.api_key:
+                        raw_key, _, _ = TenantLLMService._decode_api_key_config(llm_obj.api_key)
+                        if raw_key:
+                            base_url = llm_obj.api_base or meta.get("default_base_url")
+                            return raw_key, base_url
+
+            # Query system DB (Admin Tenant)
+            admin_tenant_id = None
+            try:
+                from api.db.services.tenant_model_provider_service import TenantModelProviderService
+                admin_tenant_id = TenantModelProviderService._get_admin_tenant_id()
+            except Exception:
+                pass
+
+            if admin_tenant_id and admin_tenant_id != tenant_id:
+                for fname in factory_names:
+                    llm_obj = TenantLLMService.get_api_key(tenant_id=admin_tenant_id, model_name=model or fname)
+                    if llm_obj and llm_obj.api_key:
+                        raw_key, _, _ = TenantLLMService._decode_api_key_config(llm_obj.api_key)
+                        if raw_key:
+                            base_url = llm_obj.api_base or meta.get("default_base_url")
+                            return raw_key, base_url
+        except Exception as e:
+            logger.debug(f"DB credential resolution fallback for {p_val}: {e}")
+
+        # 4. Fallback to Environment Variables
+        env_key_name = meta.get("env_key", f"{p_val.upper()}_API_KEY")
+        api_key = os.environ.get(env_key_name, "")
+        if not api_key and "env_key_fallback" in meta:
+            api_key = os.environ.get(meta["env_key_fallback"], "")
+
+        env_base_url_name = meta.get("env_base_url", f"{p_val.upper()}_BASE_URL")
+        base_url = os.environ.get(env_base_url_name) or meta.get("default_base_url")
+
+        return api_key, base_url
+
+    # =========================================================================
+    # Admin Panel CRUD Operations (Reusable by Admin API / UI Endpoints)
+    # =========================================================================
+
+    @classmethod
+    def list_providers_for_admin(cls, tenant_id: Optional[str] = None) -> List[ProviderCredentialRecord]:
+        """
+        Lists all supported providers with their configuration status and masked keys.
+        Used by Admin Panel provider dashboard.
+        """
+        records: List[ProviderCredentialRecord] = []
+        for p_val, meta in cls.PROVIDER_METADATA.items():
+            rec = cls.get_provider_for_admin(p_val, tenant_id=tenant_id)
+            if rec:
+                records.append(rec)
+        return records
+
+    @classmethod
+    def get_provider_for_admin(
+        cls,
+        provider_type: Union[ProviderType, str],
+        tenant_id: Optional[str] = None,
+    ) -> Optional[ProviderCredentialRecord]:
+        """
+        Retrieves a single provider's configuration record with masked API key for Admin Panel.
+        """
+        p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
+        meta = cls.PROVIDER_METADATA.get(p_val)
+        if not meta:
+            return None
+
+        # Check in-memory store
+        mem_key = f"{p_val}:{tenant_id or 'system'}"
+        if mem_key in cls._memory_store:
+            item = cls._memory_store[mem_key]
+            return ProviderCredentialRecord(
+                provider=p_val,
+                provider_display_name=meta.get("name", p_val.capitalize()),
+                base_url=item.get("base_url") or meta.get("default_base_url"),
+                masked_api_key=cls.mask_api_key(item.get("api_key")),
+                is_active=item.get("is_active", True),
+                is_configured=bool(item.get("api_key")),
+                source="memory",
+                supported_models=meta.get("models", []),
+                updated_at=item.get("updated_at"),
+            )
+
+        # Check DB
+        try:
+            from api.db.services.tenant_llm_service import TenantLLMService
+            factory_names = meta.get("db_factory_names", [p_val])
+            t_id = tenant_id or "system"
+            
+            objs = []
+            for fname in factory_names:
+                objs = TenantLLMService.query(tenant_id=t_id, llm_factory=fname)
+                if objs:
+                    break
+
+            if objs and objs[0].api_key:
+                obj = objs[0]
+                raw_key, _, _ = TenantLLMService._decode_api_key_config(obj.api_key)
+                return ProviderCredentialRecord(
+                    provider=p_val,
+                    provider_display_name=meta.get("name", p_val.capitalize()),
+                    base_url=obj.api_base or meta.get("default_base_url"),
+                    masked_api_key=cls.mask_api_key(raw_key),
+                    is_active=str(obj.status) == "1",
+                    is_configured=bool(raw_key),
+                    source="tenant_db" if tenant_id else "system_db",
+                    supported_models=meta.get("models", []),
+                    updated_at=getattr(obj, "update_time", None) or getattr(obj, "create_time", None),
+                )
+        except Exception:
+            pass
+
+        # Check Environment
+        api_key, base_url = cls.resolve(p_val, tenant_id=tenant_id)
+        is_configured = bool(api_key)
+        return ProviderCredentialRecord(
+            provider=p_val,
+            provider_display_name=meta.get("name", p_val.capitalize()),
+            base_url=base_url or meta.get("default_base_url"),
+            masked_api_key=cls.mask_api_key(api_key),
+            is_active=True,
+            is_configured=is_configured,
+            source="environment" if is_configured else "none",
+            supported_models=meta.get("models", []),
+            updated_at=None,
+        )
+
+    @classmethod
+    def save_provider_credentials(
+        cls,
+        provider_type: Union[ProviderType, str],
+        api_key: str,
+        base_url: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        is_active: bool = True,
+    ) -> ProviderCredentialRecord:
+        """
+        Creates or updates provider credentials.
+        If api_key is masked (e.g. 'sk-proj...1234') or empty, preserves the existing stored key.
+        Saves to memory / DB and returns the updated ProviderCredentialRecord.
+        """
+        p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
+        meta = cls.PROVIDER_METADATA.get(p_val, {"name": p_val.capitalize(), "models": [], "default_base_url": None})
+        
+        now = int(time.time())
+        mem_key = f"{p_val}:{tenant_id or 'system'}"
+
+        # If incoming key is masked or empty, preserve existing key
+        effective_key = api_key
+        if "..." in (api_key or "") or not api_key:
+            existing_key, existing_url = cls.resolve(p_val, tenant_id=tenant_id)
+            effective_key = existing_key
+            if not base_url:
+                base_url = existing_url
+
+        effective_base_url = base_url or meta.get("default_base_url")
+
+        # Save in memory store
+        cls._memory_store[mem_key] = {
+            "api_key": effective_key,
+            "base_url": effective_base_url,
+            "is_active": is_active,
+            "updated_at": now,
+        }
+
+        # Try persisting to database if TenantLLM is available
+        try:
+            from api.db.services.tenant_llm_service import TenantLLMService
+            from api.db.db_models import TenantLLM
+            t_id = tenant_id or "system"
+            factory_name = meta.get("db_factory_names", [p_val])[0]
+            
+            existing_objs = TenantLLMService.query(tenant_id=t_id, llm_factory=factory_name)
+            encoded_key = TenantLLMService._encode_api_key_config(effective_key, is_tools=True)
+            if existing_objs:
+                TenantLLMService.update_by_id(
+                    existing_objs[0].id,
+                    {
+                        "api_key": encoded_key,
+                        "api_base": effective_base_url or "",
+                        "status": "1" if is_active else "0",
+                        "update_time": now,
+                    }
+                )
+            else:
+                TenantLLMService.save(
+                    tenant_id=t_id,
+                    llm_factory=factory_name,
+                    model_type="CHAT",
+                    llm_name=meta.get("models", [factory_name])[0],
+                    api_key=encoded_key,
+                    api_base=effective_base_url or "",
+                    status="1" if is_active else "0",
+                )
+        except Exception as e:
+            logger.debug(f"DB persist optional fallback for {p_val}: {e}")
+
+        return ProviderCredentialRecord(
+            provider=p_val,
+            provider_display_name=meta.get("name", p_val.capitalize()),
+            base_url=effective_base_url,
+            masked_api_key=cls.mask_api_key(effective_key),
+            is_active=is_active,
+            is_configured=bool(effective_key),
+            source="tenant_db" if tenant_id else "system_db",
+            supported_models=meta.get("models", []),
+            updated_at=now,
+        )
+
+    @classmethod
+    def delete_provider_credentials(
+        cls,
+        provider_type: Union[ProviderType, str],
+        tenant_id: Optional[str] = None,
+    ) -> bool:
+        """Deletes/deactivates provider configuration for a tenant or system."""
+        p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
+        mem_key = f"{p_val}:{tenant_id or 'system'}"
+        cls._memory_store.pop(mem_key, None)
+
+        try:
+            from api.db.services.tenant_llm_service import TenantLLMService
+            meta = cls.PROVIDER_METADATA.get(p_val, {})
+            factory_names = meta.get("db_factory_names", [p_val])
+            t_id = tenant_id or "system"
+            for fname in factory_names:
+                existing = TenantLLMService.query(tenant_id=t_id, llm_factory=fname)
+                for obj in existing:
+                    TenantLLMService.delete_by_id(obj.id)
+            return True
+        except Exception:
+            return True
+
+    @classmethod
+    async def test_provider_connection(
+        cls,
+        provider_type: Union[ProviderType, str],
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+    ) -> ConnectionTestResult:
+        """
+        Tests API connection to the target provider.
+        Measures round-trip latency and validates credentials without leaking secrets.
+        """
+        p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
+        start_t = time.perf_counter()
+
+        # Resolve keys
+        test_key = api_key
+        test_url = base_url
+        if not test_key or "..." in test_key:
+            res_key, res_url = cls.resolve(p_val, tenant_id=tenant_id)
+            test_key = test_key if test_key and "..." not in test_key else res_key
+            test_url = test_url or res_url
+
+        if not test_key:
+            return ConnectionTestResult(
+                provider=p_val,
+                success=False,
+                status_code=400,
+                latency_ms=0.0,
+                message="No API Key configured or provided for connection test",
+            )
+
+        try:
+            # Lightweight test invocation
+            if p_val == ProviderType.OPENAI.value:
+                from common.ai_gateway.providers.openai_provider import OpenAIProvider
+                from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
+                prov = OpenAIProvider(api_key=test_key, base_url=test_url)
+                await prov.chat_complete(GatewayChatRequest(
+                    messages=[GatewayMessage(role="user", content="ping")],
+                    model="gpt-4o-mini",
+                    max_tokens=1,
+                ))
+            elif p_val == ProviderType.DEEPSEEK.value:
+                from common.ai_gateway.providers.deepseek_provider import DeepSeekProvider
+                from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
+                prov = DeepSeekProvider(api_key=test_key, base_url=test_url)
+                await prov.chat_complete(GatewayChatRequest(
+                    messages=[GatewayMessage(role="user", content="ping")],
+                    model="deepseek-chat",
+                    max_tokens=1,
+                ))
+            elif p_val == ProviderType.ANTHROPIC.value:
+                from common.ai_gateway.providers.anthropic_provider import AnthropicProvider
+                from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
+                prov = AnthropicProvider(api_key=test_key, base_url=test_url)
+                await prov.chat_complete(GatewayChatRequest(
+                    messages=[GatewayMessage(role="user", content="ping")],
+                    model="claude-3-5-haiku-20241022",
+                    max_tokens=1,
+                ))
+            elif p_val == ProviderType.GEMINI.value:
+                from common.ai_gateway.providers.gemini_provider import GeminiProvider
+                from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
+                prov = GeminiProvider(api_key=test_key, base_url=test_url)
+                await prov.chat_complete(GatewayChatRequest(
+                    messages=[GatewayMessage(role="user", content="ping")],
+                    model="gemini-2.0-flash",
+                    max_tokens=1,
+                ))
+
+            latency = (time.perf_counter() - start_t) * 1000.0
+            return ConnectionTestResult(
+                provider=p_val,
+                success=True,
+                status_code=200,
+                latency_ms=latency,
+                message="Connection test successful. Provider is active and responding.",
+            )
+        except Exception as e:
+            latency = (time.perf_counter() - start_t) * 1000.0
+            sanitized_err = SecretRedactor.redact(str(e))
+            return ConnectionTestResult(
+                provider=p_val,
+                success=False,
+                status_code=getattr(e, "status_code", 500),
+                latency_ms=latency,
+                message=f"Connection failed: {sanitized_err}",
+            )

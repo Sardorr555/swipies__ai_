@@ -35,6 +35,15 @@ from common.ai_gateway.errors import (
     SecretRedactor,
 )
 from common.ai_gateway.base import AIProvider
+from common.ai_gateway.credential_resolver import (
+    CredentialResolver,
+    ProviderCredentialRecord,
+    ConnectionTestResult,
+)
+from common.ai_gateway.gateway import (
+    AIGateway,
+    ai_gateway,
+)
 from common.ai_gateway.providers.openai_provider import OpenAIProvider
 from common.ai_gateway.providers.deepseek_provider import DeepSeekProvider
 from common.ai_gateway.providers.anthropic_provider import AnthropicProvider
@@ -59,6 +68,11 @@ __all__ = [
     "ContentFilterError",
     "SecretRedactor",
     "AIProvider",
+    "CredentialResolver",
+    "ProviderCredentialRecord",
+    "ConnectionTestResult",
+    "AIGateway",
+    "ai_gateway",
     "OpenAIProvider",
     "DeepSeekProvider",
     "AnthropicProvider",
