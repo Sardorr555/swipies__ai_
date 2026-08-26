@@ -205,17 +205,20 @@
 
 ---
 
-### - [ ] TASK-10: Migrate Swipies Ads AI Copywriter & Creative Generators to AI Gateway
-- **Description:** Update AI copy generation and dynamic creative optimization in `api/db/services/ad_engine_service.py` to invoke `ai_gateway.chat()`.
+### - [x] TASK-10: Migrate Swipies Ads AI Copywriter & Creative Generators to AI Gateway
+- **Description:** Update AI copy generation, dynamic creative optimization, and semantic campaign embeddings in `api/db/services/ad_engine_service.py` to invoke `ai_gateway.chat()` and `ai_gateway.embeddings()`.
 - **Acceptance Criteria:**
   - `AdEngineService.generate_copy` and `generate_ad_creative` call `ai_gateway.chat()` without direct vendor imports.
-  - Recommended bids, keywords, and copy variations generate correctly.
+  - `AdEngineService.compute_semantic_embedding` routes targeting/retrieval embeddings through `ai_gateway.embeddings()`.
+  - `AdCreativeStudioService.generate_creative_matrix` dynamically utilizes `AdEngineService.generate_copy` for multi-format copy generation.
+  - Recommended bids, keywords, and copy variations generate correctly with zero-leak error redaction and fallback.
 - **Verification:**
   ```powershell
   python -m unittest test/test_swipies_ads_system.py
   ```
 - **Files:**
   - `api/db/services/ad_engine_service.py`
+  - `api/apps/ad_app.py`
 
 ---
 

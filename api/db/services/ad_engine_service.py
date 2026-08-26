@@ -1294,6 +1294,170 @@ class AdEngineService:
             "regions": region_counts,
         }
 
+    @classmethod
+    def generate_copy(
+        cls,
+        product_name: str,
+        description: str = "",
+        target_audience: str = "",
+        category: str = "",
+        language: str = "ru",
+        tone: str = "persuasive",
+        model: str = "gpt-4o",
+    ) -> dict:
+        """
+        AI Copywriter & Creative Generator powered by central AIGateway.
+        Generates high-converting ad headlines, persuasive descriptions, call-to-actions,
+        suggested target keywords, and recommended CPC/CPM bids without direct vendor SDK calls.
+        """
+        import asyncio
+        import concurrent.futures
+        from common.ai_gateway.gateway import ai_gateway
+        from common.ai_gateway.types import GatewayChatRequest, GatewayMessage
+        from common.ai_gateway.errors import SecretRedactor
+
+        prompt = f"""You are an elite advertising copywriter and programmatic growth marketer.
+Generate a high-converting ad creative copy package for the following product:
+- Product Name: {product_name}
+- Product Description: {description or 'Premium product'}
+- Product Category: {category or 'General'}
+- Target Audience: {target_audience or 'Target customers'}
+- Target Language: {language}
+- Copywriting Tone: {tone}
+
+Output ONLY a valid JSON object matching this exact schema:
+{{
+    "headlines": ["Headline 1", "Headline 2", "Headline 3"],
+    "descriptions": ["Persuasive Description 1", "Persuasive Description 2", "Persuasive Description 3"],
+    "ctas": ["CTA 1", "CTA 2", "CTA 3"],
+    "recommended_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+    "suggested_bid_cpc": 0.15,
+    "suggested_bid_cpm": 1.50,
+    "badges": ["Badge 1", "Badge 2"]
+}}"""
+
+        try:
+            req = GatewayChatRequest(
+                model=model,
+                messages=[
+                    GatewayMessage(role="system", content="You are a professional advertising copywriter. Output strictly valid JSON without explanation."),
+                    GatewayMessage(role="user", content=prompt),
+                ],
+                temperature=0.7,
+                max_tokens=800,
+            )
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    resp = pool.submit(asyncio.run, ai_gateway.chat(req)).result()
+            else:
+                resp = asyncio.run(ai_gateway.chat(req))
+
+            raw_text = resp.content.strip()
+            if raw_text.startswith("```"):
+                raw_text = re.sub(r"^```(?:json)?\n?", "", raw_text)
+                raw_text = re.sub(r"\n?```$", "", raw_text)
+
+            parsed = json.loads(raw_text)
+            return {
+                "success": True,
+                "headlines": parsed.get("headlines", [f"{product_name} — Премиум выбор"]),
+                "descriptions": parsed.get("descriptions", [f"Узнайте больше о {product_name}"]),
+                "ctas": parsed.get("ctas", ["Купить онлайн", "Узнать подробнее"]),
+                "recommended_keywords": parsed.get("recommended_keywords", [product_name.lower()]),
+                "suggested_bid_cpc": float(parsed.get("suggested_bid_cpc", 0.15)),
+                "suggested_bid_cpm": float(parsed.get("suggested_bid_cpm", 1.50)),
+                "badges": parsed.get("badges", ["⭐ 4.9 Рейтинг", "🚚 Быстрая доставка"]),
+                "generated_by": f"ai_gateway:{resp.provider}:{resp.model}",
+            }
+        except Exception as e:
+            logger.warning(f"[AdEngineService.generate_copy] AI Gateway fallback to template heuristic: {SecretRedactor.redact(str(e))}")
+            cat_label = category or "продуктов данной категории"
+            aud_label = target_audience or "наших клиентов"
+            return {
+                "success": True,
+                "headlines": [
+                    f"{product_name} — Выгодные условия в {cat_label}",
+                    f"Ищете надежный {product_name}? Закажите онлайн",
+                    f"Специальное предложение: {product_name} со скидкой",
+                ],
+                "descriptions": [
+                    f"Откройте для себя преимущества {product_name}. Высокое качество и персональный сервис для {aud_label}.",
+                    f"Выгодное предложение на {product_name}! Успейте оформить заказ с быстрой доставкой.",
+                    f"Тысячи покупателей выбирают {product_name}. Оцените непревзойденный комфорт и надежность уже сегодня.",
+                ],
+                "ctas": ["Купить онлайн", "Узнать подробнее", "Заказать со скидкой"],
+                "recommended_keywords": [product_name.lower(), cat_label.lower(), "купить онлайн", "цена", "скидки"],
+                "suggested_bid_cpc": 0.15,
+                "suggested_bid_cpm": 1.50,
+                "badges": ["⭐ 4.9 Рейтинг", "🚚 Быстрая доставка", "🛡️ Гарантия 100%"],
+                "generated_by": "heuristic_fallback",
+            }
+
+    @classmethod
+    def generate_ad_creative(
+        cls,
+        campaign_id: str = None,
+        product_name: str = "",
+        description: str = "",
+        category: str = "",
+        target_audience: str = "",
+        model: str = "gpt-4o",
+    ) -> dict:
+        """Generates dynamic creative optimization (DCO) copy variations and visual badges."""
+        copy_res = cls.generate_copy(
+            product_name=product_name,
+            description=description,
+            target_audience=target_audience,
+            category=category,
+            model=model,
+        )
+        return {
+            "campaign_id": campaign_id,
+            "product_name": product_name,
+            "creative_matrix": copy_res,
+            "dco_ready": True,
+        }
+
+    @classmethod
+    def compute_semantic_embedding(cls, text: str, model: str = "text-embedding-3-small") -> list[float]:
+        """
+        Generates dense semantic vector embedding for ad targeting & campaign retrieval
+        strictly routed through AIGateway.embeddings().
+        """
+        if not text or not text.strip():
+            return []
+        import asyncio
+        import concurrent.futures
+        from common.ai_gateway.gateway import ai_gateway
+        from common.ai_gateway.types import GatewayEmbeddingRequest
+        from common.ai_gateway.errors import SecretRedactor
+
+        try:
+            req = GatewayEmbeddingRequest(input_texts=[text.strip()], model=model)
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    resp = pool.submit(asyncio.run, ai_gateway.embeddings(req)).result()
+            else:
+                resp = asyncio.run(ai_gateway.embeddings(req))
+
+            if resp.embeddings and len(resp.embeddings) > 0:
+                return resp.embeddings[0]
+            return []
+        except Exception as e:
+            logger.warning(f"[AdEngineService.compute_semantic_embedding] Embedding generation error: {SecretRedactor.redact(str(e))}")
+            return []
+
 
 class AttributionService(CommonService):
     model = AdAttributionVisit
@@ -1387,7 +1551,6 @@ class AttributionService(CommonService):
             "utm_link": AdPolicyService.build_attribution_url(user_id=user_id),
             "recent_visits": recent_visits,
         }
-
 
 class ConversionTrackingService(CommonService):
     model = AdConversion
@@ -5778,32 +5941,38 @@ class AdCreativeStudioService:
         cat_label = category or "продуктов данной категории"
         aud_label = target_audience or "наших клиентов"
 
+        # Generate rich AI copy variations via central AIGateway
+        copy_data = AdEngineService.generate_copy(
+            product_name=product_name,
+            description=description,
+            target_audience=target_audience,
+            category=category,
+        )
+
+        headlines = copy_data.get("headlines") or [f"{product_name} — Премиум выбор"]
+        descriptions = copy_data.get("descriptions") or [f"Откройте для себя преимущества {product_name}"]
+        ctas = copy_data.get("ctas") or ["Купить онлайн", "Узнать подробнее", "Заказать со скидкой"]
+        badges = copy_data.get("badges") or ["⭐ 4.9 Рейтинг", "🚚 Быстрая доставка", "🛡️ Гарантия 100%"]
+
         # 1. Format: Text & Conversational AI Chat Card
         text_card_payload = {
-            "headlines": [
-                f"{product_name} — Премиум выбор в категории {cat_label}",
-                f"Ищете надежный {product_name}? Лучшие условия онлайн",
-                f"Эксклюзивная цена на {product_name} с гарантией",
-            ],
-            "descriptions": [
-                f"Откройте для себя преимущества {product_name}. Высокое качество, удобство и быстрая доставка для {aud_label}.",
-                f"Выгодное предложение на {product_name}! Успейте оформить заказ с персональной скидкой и официальным сервисом.",
-                f"Тысячи покупателей уже выбрали {product_name}. Оцените непревзойденный комфорт и надежность уже сегодня.",
-            ],
-            "ctas": ["Купить онлайн", "Узнать подробнее", "Забронировать скидку"],
-            "badges": ["⭐ 4.9 Рейтинг", "🚚 Быстрая доставка", "🛡️ Гарантия 100%"],
+            "headlines": headlines,
+            "descriptions": descriptions,
+            "ctas": ctas,
+            "badges": badges,
+            "generated_by": copy_data.get("generated_by", "ai_gateway"),
         }
 
         # 2. Format: Rich Interactive Widget Card (Collapsible, Carousel, Price Tag)
         rich_card_payload = {
             "widget_title": f"Интерактивный виджет: {product_name}",
-            "headline": f"✨ {product_name} — Специальное предложение",
+            "headline": f"✨ {headlines[0] if headlines else product_name}",
             "features": [
                 f"Официальная гарантия и сертификация в {cat_label}",
                 "Бесплатная примерка и быстрая доставка до двери",
                 "Мгновенная оплата через Uzcard, Humo, Visa или в рассрочку",
             ],
-            "primary_cta": "Перейти в каталог",
+            "primary_cta": ctas[0] if ctas else "Перейти в каталог",
             "secondary_cta": "Задать вопрос в чате",
             "visual_style": "glassmorphic_card",
             "rating": 4.9,
@@ -5816,7 +5985,7 @@ class AdCreativeStudioService:
             "resolution": "1080x1920",
             "title_overlay": product_name.upper(),
             "subtitle": f"Твой идеальный выбор среди {cat_label}",
-            "sticker_badge": "🔥 СКИДКА ДО -30%",
+            "sticker_badge": badges[0] if badges else "🔥 СКИДКА ДО -30%",
             "swipe_up_text": "Смахните вверх, чтобы заказать",
             "background_gradient": "from-indigo-600 via-purple-600 to-pink-500",
         }
@@ -5824,9 +5993,9 @@ class AdCreativeStudioService:
         # 4. Format: Responsive Display & Leaderboard Banner (1200x628 / 728x90)
         leaderboard_payload = {
             "dimensions": ["1200x628 (Social Feed)", "728x90 (Leaderboard)", "300x250 (Medium Rectangle)"],
-            "banner_header": f"{product_name} — Выбор экспертов",
-            "banner_body": f"Лучшие предложения и выгодные условия для {aud_label}.",
-            "button_text": "Узнать больше →",
+            "banner_header": headlines[0] if headlines else f"{product_name} — Выбор экспертов",
+            "banner_body": descriptions[0] if descriptions else f"Лучшие предложения и выгодные условия для {aud_label}.",
+            "button_text": f"{ctas[0]} →" if ctas else "Узнать больше →",
             "color_theme": "dark_modern",
         }
 
