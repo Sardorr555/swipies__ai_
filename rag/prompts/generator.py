@@ -20,6 +20,7 @@ import logging
 import re
 from copy import deepcopy
 from typing import Tuple
+from jinja2.sandbox import SandboxedEnvironment
 try:
     import json_repair
 except ImportError:

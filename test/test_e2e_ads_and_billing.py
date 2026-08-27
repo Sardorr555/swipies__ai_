@@ -430,9 +430,9 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
         test_db.connect(reuse_if_open=True)
         test_db.create_tables(models, safe=True)
 
-        SubscriptionPlan.create(id="free", name="Free", daily_token_limit=50000, monthly_token_limit=1000000)
-        SubscriptionPlan.create(id="plus", name="Plus", daily_token_limit=200000, monthly_token_limit=5000000)
-        SubscriptionPlan.create(id="pro", name="Pro", daily_token_limit=1000000, monthly_token_limit=20000000)
+        SubscriptionPlan.get_or_create(id="free", defaults={"name": "Free", "daily_token_limit": 50000, "monthly_token_limit": 1000000})
+        SubscriptionPlan.get_or_create(id="plus", defaults={"name": "Plus", "daily_token_limit": 200000, "monthly_token_limit": 5000000})
+        SubscriptionPlan.get_or_create(id="pro", defaults={"name": "Pro", "daily_token_limit": 1000000, "monthly_token_limit": 20000000})
 
     @classmethod
     def tearDownClass(cls):

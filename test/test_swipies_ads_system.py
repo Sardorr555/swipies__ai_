@@ -405,23 +405,17 @@ class TestSwipiesAdsSystem(unittest.TestCase):
         test_db.connect(reuse_if_open=True)
         test_db.create_tables(models, safe=True)
 
-        SubscriptionPlan.create(
+        SubscriptionPlan.get_or_create(
             id="free",
-            name="Free",
-            daily_token_limit=50000,
-            monthly_token_limit=1000000,
+            defaults={"name": "Free", "daily_token_limit": 50000, "monthly_token_limit": 1000000}
         )
-        SubscriptionPlan.create(
+        SubscriptionPlan.get_or_create(
             id="plus",
-            name="Plus",
-            daily_token_limit=300000,
-            monthly_token_limit=6000000,
+            defaults={"name": "Plus", "daily_token_limit": 300000, "monthly_token_limit": 6000000}
         )
-        SubscriptionPlan.create(
+        SubscriptionPlan.get_or_create(
             id="pro",
-            name="Pro",
-            daily_token_limit=1000000,
-            monthly_token_limit=20000000,
+            defaults={"name": "Pro", "daily_token_limit": 1000000, "monthly_token_limit": 20000000}
         )
 
     @classmethod

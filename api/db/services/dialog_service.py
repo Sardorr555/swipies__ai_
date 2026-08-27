@@ -39,7 +39,7 @@ from api.utils.reference_metadata_utils import (
     enrich_chunks_with_document_metadata,
     resolve_reference_metadata_preferences,
 )
-from api.utils.sensitive_data_utils import anonymize_messages, deanonymize_text
+from api.utils.sensitive_data_utils import anonymize_messages, deanonymize_text, StreamingDeanonymizer
 from api.db.joint_services.tenant_model_service import get_tenant_default_model_by_type, get_model_config_from_provider_instance, get_model_type_by_name
 from common.time_utils import current_timestamp, datetime_format
 from common.text_utils import normalize_arabic_digits
@@ -315,6 +315,11 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
             text_attachments, image_files = split_file_attachments(messages[-1]["files"], raw=True)
         attachments = "\n\n".join(text_attachments)
 
+    sensitive_config = (dialog.prompt_config or {}).get("sensitive_data_replacement") or {}
+    sensitive_enabled = bool(sensitive_config.get("enabled"))
+    sensitive_rules = sensitive_config.get("rules") or []
+    deanonymizer = StreamingDeanonymizer(sensitive_rules) if (sensitive_enabled and sensitive_rules) else None
+
     prompt_config = dialog.prompt_config
     tts_mdl = None
     if prompt_config.get("tts"):
@@ -331,15 +336,22 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
         else:
             stream_iter = chat_mdl.async_chat_streamly_delta(prompt_config.get("system", ""), msg, dialog.llm_setting, images=image_files)
         last_state = None
-        async for kind, value, state in _stream_with_think_delta(stream_iter):
-            last_state = state
-            if kind == "marker":
-                flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
-                yield {"answer": "", "reference": {}, "audio_binary": None, "prompt": "", "created_at": time.time(), "final": False, **flags}
-                continue
-            if sensitive_enabled and sensitive_rules and value:
-                value = deanonymize_text(value, sensitive_rules)
-            yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "prompt": "", "created_at": time.time(), "final": False}
+        try:
+            async for kind, value, state in _stream_with_think_delta(stream_iter):
+                last_state = state
+                if kind == "marker":
+                    flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
+                    yield {"answer": "", "reference": {}, "audio_binary": None, "prompt": "", "created_at": time.time(), "final": False, **flags}
+                    continue
+                if deanonymizer and value:
+                    value = deanonymizer.feed(value)
+                if value:
+                    yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "prompt": "", "created_at": time.time(), "final": False}
+        finally:
+            if deanonymizer:
+                remaining = deanonymizer.flush(final=True)
+                if remaining:
+                    yield {"answer": remaining, "reference": {}, "audio_binary": tts(tts_mdl, remaining), "prompt": "", "created_at": time.time(), "final": False}
 
         full_answer = last_state.full_text if last_state else ""
         if full_answer:
@@ -942,15 +954,23 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
         else:
             stream_iter = chat_mdl.async_chat_streamly_delta(prompt + prompt4citation, msg[1:], gen_conf, images=image_files)
         last_state = None
-        async for kind, value, state in _stream_with_think_delta(stream_iter):
-            last_state = state
-            if kind == "marker":
-                flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
-                yield {"answer": "", "reference": {}, "audio_binary": None, "final": False, **flags}
-                continue
-            if sensitive_enabled and sensitive_rules and value:
-                value = deanonymize_text(value, sensitive_rules)
-            yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "final": False}
+        deanonymizer = StreamingDeanonymizer(sensitive_rules) if (sensitive_enabled and sensitive_rules) else None
+        try:
+            async for kind, value, state in _stream_with_think_delta(stream_iter):
+                last_state = state
+                if kind == "marker":
+                    flags = {"start_to_think": True} if value == "<think>" else {"end_to_think": True}
+                    yield {"answer": "", "reference": {}, "audio_binary": None, "final": False, **flags}
+                    continue
+                if deanonymizer and value:
+                    value = deanonymizer.feed(value)
+                if value:
+                    yield {"answer": value, "reference": {}, "audio_binary": tts(tts_mdl, value), "final": False}
+        finally:
+            if deanonymizer:
+                remaining = deanonymizer.flush(final=True)
+                if remaining:
+                    yield {"answer": remaining, "reference": {}, "audio_binary": tts(tts_mdl, remaining), "final": False}
         full_answer = last_state.full_text if last_state else ""
         if full_answer:
             final = await decorate_answer(_extract_visible_answer(thought + full_answer))
