@@ -20,7 +20,7 @@ from peewee import fn
 from quart import Blueprint, request
 
 from api.apps import current_user, login_required
-from api.db.db_models import AIModel, AIProvider, SubscriptionAIPolicy, User
+from api.db.db_models import AIModel, AIProvider, SubscriptionAIPolicy, User, UserTokenLimit
 from api.db.services.ai_audit_log_service import AIAuditLogService
 from api.db.services.ai_policy_service import (
     AIModelService,
@@ -237,10 +237,247 @@ async def admin_delete_provider(provider_id):
         return auth_err
 
     try:
+        from common.ai_gateway.credential_resolver import CredentialResolver
+        result = CredentialResolver.wipe_provider_api_key(provider_id)
         success = AIProviderService.delete_global_provider(provider_id, admin_user_id=current_user.id)
-        return get_json_result(data=success)
+        return get_json_result(data={"success": success, "wipe_cascade": result})
     except Exception as e:
         logging.exception("admin_delete_provider error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/providers/<path:provider_name>/api-key", methods=["DELETE"])  # noqa: F821
+@login_required
+async def admin_wipe_provider_api_key(provider_name):
+    """
+    Wipe Cascade: Completely removes the API key for the provider,
+    sets provider status to 'unconfigured', and cascades all registered models
+    of this provider into status='unconfigured_provider' (enabled=False).
+    """
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        from common.ai_gateway.credential_resolver import CredentialResolver
+        result = CredentialResolver.wipe_provider_api_key(provider_name)
+        
+        # Log to Audit Log
+        AIAuditLogService.log_action(
+            user_id=current_user.id,
+            action="PROVIDER_KEY_WIPE",
+            target_type="ai_provider",
+            target_id=provider_name,
+            old_val=None,
+            new_val=result,
+        )
+        return get_json_result(data=result)
+    except Exception as e:
+        logging.exception("admin_wipe_provider_api_key error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/providers/<path:provider_name>/api-key", methods=["POST"])  # noqa: F821
+@login_required
+async def admin_replace_provider_api_key(provider_name):
+    """
+    Replaces or updates the API key for a provider, triggering auto-reactivation
+    of all previously disabled models (status='active', enabled=True).
+    """
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        req = await get_request_json() or {}
+        api_key = req.get("api_key", "").strip()
+        base_url = req.get("base_url")
+
+        if not api_key:
+            return get_data_error_result(message="api_key is required.")
+
+        from common.ai_gateway.credential_resolver import CredentialResolver
+        record = CredentialResolver.replace_provider_api_key(
+            provider_type=provider_name,
+            new_api_key=api_key,
+            base_url=base_url,
+        )
+
+        AIAuditLogService.log_action(
+            user_id=current_user.id,
+            action="PROVIDER_KEY_REPLACE",
+            target_type="ai_provider",
+            target_id=provider_name,
+            old_val=None,
+            new_val={"provider": provider_name, "is_configured": record.is_configured},
+        )
+        return get_json_result(data=record.to_dict())
+    except Exception as e:
+        logging.exception("admin_replace_provider_api_key error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/providers/<path:provider_name>/models/exclude", methods=["POST"])  # noqa: F821
+@login_required
+async def admin_toggle_model_exclusion(provider_name):
+    """
+    Manages explicit administrator model exclusions for a provider.
+    Exclusions persist in AIProvider.extra['excluded_models'] and take highest priority
+    at Level 1 of the 5-Tier Policy Gate.
+    """
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        req = await get_request_json() or {}
+        model_id = req.get("model_id") or req.get("model_name")
+        excluded = req.get("excluded", True)
+        bulk_excluded = req.get("excluded_models")
+
+        prov = AIProvider.get_or_none(AIProvider.provider_name == provider_name, AIProvider.is_global == True)
+        if not prov:
+            prov = AIProvider.get_or_none(AIProvider.id == provider_name, AIProvider.is_global == True)
+        if not prov:
+            return get_data_error_result(message=f"Provider '{provider_name}' not found.")
+
+        extra = prov.extra or {}
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except Exception:
+                extra = {}
+        excluded_list = list(extra.get("excluded_models", []))
+
+        if bulk_excluded is not None and isinstance(bulk_excluded, list):
+            excluded_list = list(set(bulk_excluded))
+        elif model_id:
+            pure_name = model_id.split("/")[-1] if "/" in model_id else model_id
+            if excluded:
+                if model_id not in excluded_list:
+                    excluded_list.append(model_id)
+                if pure_name not in excluded_list:
+                    excluded_list.append(pure_name)
+            else:
+                excluded_list = [m for m in excluded_list if m != model_id and m != pure_name]
+        else:
+            return get_data_error_result(message="model_id or excluded_models list is required.")
+
+        extra["excluded_models"] = excluded_list
+        prov.extra = extra
+        prov.update_time = current_timestamp()
+        prov.save()
+
+        # Invalidate gateway cache
+        try:
+            from common.ai_gateway.gateway import ai_gateway
+            ai_gateway.clear_cache()
+        except Exception:
+            pass
+
+        AIAuditLogService.log_action(
+            user_id=current_user.id,
+            action="MODEL_EXCLUSION_UPDATE",
+            target_type="ai_provider",
+            target_id=provider_name,
+            old_val=None,
+            new_val={"provider": provider_name, "excluded_models": excluded_list},
+        )
+        return get_json_result(data={"provider": provider_name, "excluded_models": excluded_list})
+    except Exception as e:
+        logging.exception("admin_toggle_model_exclusion error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/providers/<path:provider_name>/models", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_get_provider_models_dynamic(provider_name):
+    """
+    Dynamic API Model Discovery with Exclusion Annotations:
+    1. Fetches live available models from provider's API.
+    2. Annotates each model with is_excluded (persisted in AIProvider.extra['excluded_models']).
+    3. Provides is_active and is_configured status flags for Admin UI.
+    """
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        from common.ai_gateway.credential_resolver import CredentialResolver
+        raw_key, base_url = CredentialResolver.resolve(provider_name)
+        
+        prov = AIProvider.get_or_none(AIProvider.provider_name == provider_name, AIProvider.is_global == True)
+        if not prov:
+            prov = AIProvider.get_or_none(AIProvider.id == provider_name, AIProvider.is_global == True)
+        
+        extra = getattr(prov, "extra", {}) or {} if prov else {}
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except Exception:
+                extra = {}
+        excluded_models = set(extra.get("excluded_models", []))
+
+        # 1. Try dynamic live discovery if API key configured
+        live_models = []
+        if raw_key:
+            try:
+                success, msg, discovered = await AIProviderService.async_discover_live_provider_models(
+                    provider_name=provider_name,
+                    raw_api_key=raw_key,
+                    base_url=base_url or "",
+                )
+                if success and discovered:
+                    live_models = discovered
+            except Exception as e:
+                logging.warning("Live discovery fallback: %s", e)
+
+        # 2. Fallback to registered models in AIModel table or PROVIDER_METADATA
+        if not live_models:
+            db_models = list(AIModel.select().where(AIModel.provider == provider_name, AIModel.is_global == True))
+            for dm in db_models:
+                live_models.append({
+                    "model_name": dm.model_name,
+                    "model_type": dm.model_type,
+                    "max_tokens": dm.max_tokens or 8192,
+                    "display_name": dm.model_name,
+                })
+
+        if not live_models:
+            meta = CredentialResolver.PROVIDER_METADATA.get(provider_name.lower(), {})
+            for m_name in meta.get("models", []):
+                live_models.append({
+                    "model_name": m_name,
+                    "model_type": "CHAT",
+                    "max_tokens": 8192,
+                    "display_name": m_name,
+                })
+
+        # 3. Annotate models with is_excluded and is_active flags
+        result_models = []
+        is_provider_configured = bool(raw_key and (not prov or prov.status != "unconfigured"))
+        for m in live_models:
+            m_name = m.get("model_name", "")
+            full_id = f"{provider_name.lower()}/{m_name}"
+            is_excluded = (m_name in excluded_models) or (full_id in excluded_models)
+            
+            m_dict = dict(m)
+            m_dict["id"] = full_id
+            m_dict["provider"] = provider_name
+            m_dict["is_excluded"] = is_excluded
+            m_dict["is_configured"] = is_provider_configured
+            m_dict["is_active"] = is_provider_configured and not is_excluded
+            result_models.append(m_dict)
+
+        return get_json_result(data={
+            "provider": provider_name,
+            "models": result_models,
+            "excluded_models": list(excluded_models),
+            "is_configured": is_provider_configured,
+            "count": len(result_models),
+        })
+    except Exception as e:
+        logging.exception("admin_get_provider_models_dynamic error: %s", e)
         return get_data_error_result(message=str(e))
 
 
@@ -533,15 +770,21 @@ async def admin_update_plan(plan_id):
 
 @manager.route("/policies", methods=["GET"])  # noqa: F821
 @login_required
-async def admin_get_policies():
+async def admin_get_policies(plan_id=None):
     auth_err = require_superuser()
     if auth_err:
         return auth_err
 
     try:
-        plan_id = request.args.get("plan_id")
-        if plan_id:
-            policies = SubscriptionAIPolicyService.query(plan_id=plan_id)
+        req_plan_id = plan_id
+        if not req_plan_id:
+            try:
+                req_plan_id = request.args.get("plan_id")
+            except Exception:
+                req_plan_id = None
+
+        if req_plan_id:
+            policies = SubscriptionAIPolicyService.query(plan_id=req_plan_id)
         else:
             policies = SubscriptionAIPolicyService.get_all()
 
@@ -611,14 +854,19 @@ async def admin_update_policies():
 @manager.route("/metrics", methods=["GET"])  # noqa: F821
 @manager.route("/usage-stats", methods=["GET"])  # noqa: F821
 @login_required
-async def admin_get_analytics():
+async def admin_get_analytics(period=None):
     auth_err = require_superuser()
     if auth_err:
         return auth_err
 
     try:
-        period = request.args.get("period")
-        data = AIPolicyManager.get_admin_analytics(period)
+        req_period = period
+        if not req_period:
+            try:
+                req_period = request.args.get("period")
+            except Exception:
+                req_period = None
+        data = AIPolicyManager.get_admin_analytics(req_period)
         return get_json_result(data=data)
     except Exception as e:
         logging.exception("admin_get_analytics error: %s", e)
@@ -627,18 +875,33 @@ async def admin_get_analytics():
 
 @manager.route("/audit-logs", methods=["GET"])  # noqa: F821
 @login_required
-async def admin_get_audit_logs():
+async def admin_get_audit_logs(limit=None, offset=None, action=None, target_type=None):
     auth_err = require_superuser()
     if auth_err:
         return auth_err
 
     try:
-        limit = int(request.args.get("limit", 50))
-        offset = int(request.args.get("offset", 0))
-        action = request.args.get("action")
-        target_type = request.args.get("target_type")
+        req_limit = limit
+        req_offset = offset
+        req_action = action
+        req_target_type = target_type
 
-        logs, total = AIAuditLogService.get_logs(limit=limit, offset=offset, action=action, target_type=target_type)
+        try:
+            if req_limit is None:
+                req_limit = int(request.args.get("limit", 50))
+            if req_offset is None:
+                req_offset = int(request.args.get("offset", 0))
+            if req_action is None:
+                req_action = request.args.get("action")
+            if req_target_type is None:
+                req_target_type = request.args.get("target_type")
+        except Exception:
+            pass
+
+        req_limit = int(req_limit or 50)
+        req_offset = int(req_offset or 0)
+
+        logs, total = AIAuditLogService.get_logs(limit=req_limit, offset=req_offset, action=req_action, target_type=req_target_type)
         return get_json_result(data={"items": logs, "total": total})
     except Exception as e:
         logging.exception("admin_get_audit_logs error: %s", e)
@@ -670,8 +933,239 @@ async def admin_get_byok_stats():
 
 
 # ==========================================
-# Admin APIs: User Token Overrides
 # ==========================================
+# Admin APIs: Per-User AI Policy Overrides
+# ==========================================
+
+
+@manager.route("/users/overrides", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_list_user_policy_overrides():
+    """List all users who have explicit model or token overrides."""
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        users_with_overrides = []
+        users = list(User.select())
+        for u in users:
+            u_extra = getattr(u, "extra", None) or {}
+            if isinstance(u_extra, str):
+                try:
+                    u_extra = json.loads(u_extra)
+                except Exception:
+                    u_extra = {}
+            
+            ul = UserTokenLimit.get_or_none(UserTokenLimit.user_id == u.id)
+            ul_extra = getattr(ul, "extra", None) or {} if ul else {}
+            if isinstance(ul_extra, str):
+                try:
+                    ul_extra = json.loads(ul_extra)
+                except Exception:
+                    ul_extra = {}
+
+            has_model_override = bool(u_extra.get("model_overrides") or ul_extra.get("model_overrides"))
+            has_token_override = bool(ul and ul.monthly_token_limit > 0)
+
+            if has_model_override or has_token_override:
+                users_with_overrides.append({
+                    "user_id": u.id,
+                    "email": u.email,
+                    "nickname": u.nickname,
+                    "has_model_overrides": has_model_override,
+                    "has_token_override": has_token_override,
+                })
+
+        return get_json_result(data=users_with_overrides)
+    except Exception as e:
+        logging.exception("admin_list_user_policy_overrides error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/users/<path:user_id>/policy", methods=["GET"])  # noqa: F821
+@manager.route("/user-policy/<path:user_id>", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_get_user_policy(user_id):
+    """Retrieve full AI policy details and active overrides for a specific user."""
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        user = User.get_or_none(User.id == user_id)
+        if not user:
+            return get_data_error_result(message=f"User '{user_id}' not found.")
+
+        u_extra = getattr(user, "extra", None) or {}
+        if isinstance(u_extra, str):
+            try:
+                u_extra = json.loads(u_extra)
+            except Exception:
+                u_extra = {}
+
+        ul = UserTokenLimit.get_or_none(UserTokenLimit.user_id == user_id)
+        ul_extra = getattr(ul, "extra", None) or {} if ul else {}
+        if isinstance(ul_extra, str):
+            try:
+                ul_extra = json.loads(ul_extra)
+            except Exception:
+                ul_extra = {}
+
+        model_overrides = u_extra.get("model_overrides") or ul_extra.get("model_overrides", {})
+        
+        allowed_models_override = []
+        forbidden_models = []
+        for m_id, ov in model_overrides.items():
+            ov_type = ov.get("access_type", "").upper() if isinstance(ov, dict) else str(ov).upper()
+            if ov_type == "ALLOW":
+                allowed_models_override.append(m_id)
+            elif ov_type == "DENY":
+                forbidden_models.append(m_id)
+
+        monthly_limit = ul.monthly_token_limit if ul else 0
+        limit_enabled = ul.enabled if ul else True
+
+        plan = AIPolicyManager.get_user_plan(user_id, user_id)
+        
+        daily_used = AIPolicyManager.get_user_total_tokens_used(user_id, period="daily")
+        monthly_used = AIPolicyManager.get_user_total_tokens_used(user_id, period="monthly")
+        all_time_used = AIPolicyManager.get_user_total_tokens_used(user_id, period="all")
+
+        return get_json_result(data={
+            "user_id": user_id,
+            "email": user.email,
+            "nickname": user.nickname,
+            "tenant_id": user_id,
+            "plan": plan,
+            "allowed_models_override": allowed_models_override,
+            "forbidden_models": forbidden_models,
+            "model_overrides": model_overrides,
+            "monthly_token_limit": monthly_limit,
+            "token_limit_enabled": limit_enabled,
+            "token_usage": {
+                "daily_tokens": daily_used,
+                "monthly_tokens": monthly_used,
+                "total_tokens": all_time_used,
+            },
+        })
+    except Exception as e:
+        logging.exception("admin_get_user_policy error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/users/<path:user_id>/policy", methods=["PUT"])  # noqa: F821
+@manager.route("/user-policy/<path:user_id>", methods=["PUT"])  # noqa: F821
+@manager.route("/user-policy", methods=["PUT"])  # noqa: F821
+@login_required
+async def admin_set_user_policy(user_id=None):
+    """Set or update granular per-user AI policy overrides (Level 3 models & Level 5 tokens)."""
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        req = await get_request_json() or {}
+        target_user_id = user_id or req.get("user_id")
+        if not target_user_id:
+            return get_data_error_result(message="user_id is required.")
+
+        user = User.get_or_none(User.id == target_user_id)
+        if not user:
+            return get_data_error_result(message=f"User '{target_user_id}' not found.")
+
+        # Build model_overrides dictionary
+        model_overrides = {}
+        if "model_overrides" in req and isinstance(req["model_overrides"], dict):
+            model_overrides = dict(req["model_overrides"])
+        else:
+            for m_id in req.get("allowed_models_override", []):
+                model_overrides[m_id] = {"access_type": "ALLOW", "enabled": True}
+            for m_id in req.get("forbidden_models", []):
+                model_overrides[m_id] = {"access_type": "DENY", "enabled": True}
+
+        # Update User.extra if attribute exists on model
+        if hasattr(user, "extra"):
+            u_extra = getattr(user, "extra", None) or {}
+            if isinstance(u_extra, str):
+                try:
+                    u_extra = json.loads(u_extra)
+                except Exception:
+                    u_extra = {}
+            u_extra["model_overrides"] = model_overrides
+            user.extra = u_extra
+            user.update_time = current_timestamp()
+            user.save()
+
+        # Update UserTokenLimit (persists model_overrides and monthly_token_limit)
+        monthly_limit = req.get("monthly_token_limit", 0)
+        limit_enabled = req.get("token_limit_enabled", True)
+        
+        ul_extra = {"model_overrides": model_overrides}
+        if UserTokenLimitService.query(user_id=target_user_id):
+            UserTokenLimitService.filter_update(
+                [UserTokenLimitService.model.user_id == target_user_id],
+                {"monthly_token_limit": int(monthly_limit or 0), "enabled": limit_enabled, "extra": ul_extra},
+            )
+        else:
+            UserTokenLimitService.save(
+                user_id=target_user_id,
+                monthly_token_limit=int(monthly_limit or 0),
+                enabled=limit_enabled,
+                extra=ul_extra,
+            )
+
+        AIAuditLogService.log_action(
+            user_id=current_user.id,
+            action="USER_POLICY_UPDATE",
+            target_type="user",
+            target_id=target_user_id,
+            new_val={"model_overrides": model_overrides, "monthly_token_limit": monthly_limit},
+        )
+
+        return get_json_result(data=True)
+    except Exception as e:
+        logging.exception("admin_set_user_policy error: %s", e)
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/users/<path:user_id>/policy", methods=["DELETE"])  # noqa: F821
+@manager.route("/user-policy/<path:user_id>", methods=["DELETE"])  # noqa: F821
+@login_required
+async def admin_delete_user_policy(user_id):
+    """Clear all per-user AI policy overrides, reverting user to standard tenant plan policy."""
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+
+    try:
+        user = User.get_or_none(User.id == user_id)
+        if user and hasattr(user, "extra"):
+            u_extra = getattr(user, "extra", None) or {}
+            if isinstance(u_extra, str):
+                try:
+                    u_extra = json.loads(u_extra)
+                except Exception:
+                    u_extra = {}
+            if "model_overrides" in u_extra:
+                del u_extra["model_overrides"]
+                user.extra = u_extra
+                user.update_time = current_timestamp()
+                user.save()
+
+        UserTokenLimitService.filter_delete([UserTokenLimitService.model.user_id == user_id])
+
+        AIAuditLogService.log_action(
+            user_id=current_user.id,
+            action="USER_POLICY_RESET",
+            target_type="user",
+            target_id=user_id,
+        )
+
+        return get_json_result(data=True)
+    except Exception as e:
+        logging.exception("admin_delete_user_policy error: %s", e)
+        return get_data_error_result(message=str(e))
 
 
 @manager.route("/user-limits/<user_id>", methods=["GET"])  # noqa: F821

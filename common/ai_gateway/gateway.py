@@ -19,7 +19,17 @@ from typing import AsyncIterator, Dict, List, Optional, Type, Union
 
 from common.ai_gateway.base import AIProvider
 from common.ai_gateway.credential_resolver import CredentialResolver
-from common.ai_gateway.errors import AIGatewayError, ModelNotFoundError, SecretRedactor
+from common.ai_gateway.errors import (
+    AIGatewayError,
+    AIGatewayPolicyError,
+    ModelExcludedFromProviderError,
+    ModelGloballyDisabledError,
+    UserModelForbiddenError,
+    SubscriptionModelNotAllowedError,
+    SubscriptionTokenLimitReachedError,
+    ModelNotFoundError,
+    SecretRedactor,
+)
 from common.ai_gateway.providers.openai_provider import OpenAIProvider
 from common.ai_gateway.providers.deepseek_provider import DeepSeekProvider
 from common.ai_gateway.providers.anthropic_provider import AnthropicProvider
@@ -46,26 +56,65 @@ class AIGateway:
     2. Dynamic Provider Registry: New providers register dynamically via register_provider().
     3. Seamless Credential Resolution: Injects credentials from CredentialResolver securely in-memory.
     4. Zero-Leak Error Sanitization: All logs and exceptions are passed through SecretRedactor.
+    5. 5-Tier Pre-Flight Policy Enforcement: Blocks unauthorized models, quotas, and disabled models before vendor dispatch.
     """
 
-    _registry: Dict[ProviderType, Type[AIProvider]] = {}
-
-    @classmethod
-    def register_provider(cls, provider_type: ProviderType, provider_cls: Type[AIProvider]) -> None:
-        """Registers a concrete AIProvider class with the Gateway."""
-        cls._registry[provider_type] = provider_cls
-        logger.info(f"[AI Gateway] Registered provider adapter: {provider_type.value}")
-
     def __init__(self):
+        self._registry: Dict[ProviderType, Type[AIProvider]] = {}
         self._instances: Dict[str, AIProvider] = {}
-        self._bootstrap_default_providers()
+        self._register_default_providers()
 
-    def _bootstrap_default_providers(self) -> None:
-        """Initializes default built-in providers."""
-        self.register_provider(ProviderType.OPENAI, OpenAIProvider)
-        self.register_provider(ProviderType.DEEPSEEK, DeepSeekProvider)
-        self.register_provider(ProviderType.ANTHROPIC, AnthropicProvider)
-        self.register_provider(ProviderType.GEMINI, GeminiProvider)
+    def _register_default_providers(self) -> None:
+        """Initializes default built-in provider adapters."""
+        self._registry[ProviderType.OPENAI] = OpenAIProvider
+        self._registry[ProviderType.DEEPSEEK] = DeepSeekProvider
+        self._registry[ProviderType.ANTHROPIC] = AnthropicProvider
+        self._registry[ProviderType.GEMINI] = GeminiProvider
+
+    def register_provider(self, provider_type: ProviderType, provider_cls: Type[AIProvider]) -> None:
+        """Allows dynamic registration of new custom or third-party AI provider adapters."""
+        self._registry[provider_type] = provider_cls
+        logger.info(f"Registered dynamic provider adapter: {provider_type.value}")
+
+    def _enforce_subscription_policy(
+        self,
+        model_name: str,
+        tenant_id: Optional[str],
+        user_id: Optional[str] = None,
+        model_type: str = "CHAT",
+    ) -> None:
+        """
+        Executes 5-tier pre-flight policy evaluation before outbound vendor dispatch.
+        Raises typed AIGatewayPolicyError subclasses on rejection.
+        """
+        if not tenant_id or tenant_id == "system":
+            return
+
+        try:
+            from api.db.services.ai_policy_service import AIPolicyManager
+            allowed, message, status_code, error_code = AIPolicyManager.check_model_access_extended(
+                tenant_id=tenant_id,
+                model_name=model_name,
+                model_type=model_type,
+                user_id=user_id or tenant_id,
+            )
+            if not allowed:
+                if error_code == "PROVIDER_EXCLUDED":
+                    raise ModelExcludedFromProviderError(message)
+                elif error_code == "GLOBALLY_DISABLED":
+                    raise ModelGloballyDisabledError(message)
+                elif error_code == "USER_RESTRICTED":
+                    raise UserModelForbiddenError(message)
+                elif error_code == "PLAN_RESTRICTED":
+                    raise SubscriptionModelNotAllowedError(message)
+                elif error_code == "QUOTA_EXCEEDED" or status_code == 429:
+                    raise SubscriptionTokenLimitReachedError(message)
+                else:
+                    raise AIGatewayPolicyError(message, status_code=status_code)
+        except AIGatewayPolicyError:
+            raise
+        except Exception as e:
+            logger.debug(f"[AI Gateway] Pre-flight policy check bypassed on internal error: {e}")
 
     def resolve_provider_for_model(self, model_name: str) -> ProviderType:
         """
@@ -92,11 +141,13 @@ class AIGateway:
         model: Optional[str] = None,
     ) -> AIProvider:
         """
-        Resolves, instantiates, and caches an AIProvider adapter with secure backend credentials.
+        Resolves or dynamically creates a cached provider instance with valid credentials.
         """
-        # Determine provider enum
-        if provider_type is None and model:
-            p_enum = self.resolve_provider_for_model(model)
+        if provider_type is None:
+            if model:
+                p_enum = self.resolve_provider_for_model(model)
+            else:
+                p_enum = ProviderType.OPENAI
         elif isinstance(provider_type, ProviderType):
             p_enum = provider_type
         elif isinstance(provider_type, str):
@@ -113,9 +164,8 @@ class AIGateway:
         # Resolve credentials securely via CredentialResolver
         api_key, base_url = CredentialResolver.resolve(p_enum, tenant_id=tenant_id, model=model)
         
-        # Instance cache key based on provider, tenant, and key hash
-        key_hash = hashlib.md5((api_key or "").encode()).hexdigest()[:8]
-        cache_key = f"{p_enum.value}:{tenant_id or 'system'}:{key_hash}"
+        # Instance cache key based on provider and tenant
+        cache_key = f"{p_enum.value}:{tenant_id or 'system'}"
 
         if cache_key not in self._instances:
             prov_cls = self._registry[p_enum]
@@ -131,7 +181,14 @@ class AIGateway:
         """
         Executes a standard non-streaming chat completion through the appropriate AI provider.
         """
-        provider = self.get_provider(request.provider, tenant_id=tenant_id, model=request.model)
+        effective_tenant = request.tenant_id or tenant_id
+        self._enforce_subscription_policy(
+            model_name=request.model,
+            tenant_id=effective_tenant,
+            user_id=request.user_id,
+            model_type="CHAT",
+        )
+        provider = self.get_provider(request.provider, tenant_id=effective_tenant, model=request.model)
         try:
             return await provider.chat_complete(request)
         except Exception as e:
@@ -145,7 +202,14 @@ class AIGateway:
         """
         Executes a streaming chat completion yielding GatewayStreamChunk chunks in real-time.
         """
-        provider = self.get_provider(request.provider, tenant_id=tenant_id, model=request.model)
+        effective_tenant = request.tenant_id or tenant_id
+        self._enforce_subscription_policy(
+            model_name=request.model,
+            tenant_id=effective_tenant,
+            user_id=request.user_id,
+            model_type="CHAT",
+        )
+        provider = self.get_provider(request.provider, tenant_id=effective_tenant, model=request.model)
         try:
             async for chunk in provider.chat_stream(request):
                 yield chunk
@@ -160,7 +224,14 @@ class AIGateway:
         """
         Computes dense vector embeddings for input texts through the appropriate provider.
         """
-        provider = self.get_provider(request.provider, tenant_id=tenant_id, model=request.model)
+        effective_tenant = request.tenant_id or tenant_id
+        self._enforce_subscription_policy(
+            model_name=request.model,
+            tenant_id=effective_tenant,
+            user_id=request.user_id,
+            model_type="EMBEDDING",
+        )
+        provider = self.get_provider(request.provider, tenant_id=effective_tenant, model=request.model)
         try:
             return await provider.embed(request)
         except Exception as e:

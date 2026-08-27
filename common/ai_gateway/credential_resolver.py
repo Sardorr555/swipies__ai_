@@ -186,7 +186,16 @@ class CredentialResolver:
             if mem_data.get("api_key"):
                 return mem_data["api_key"], mem_data.get("base_url") or meta.get("default_base_url")
 
-        # 2 & 3. Check Database (TenantLLM)
+        # 2. Check AIProvider in Database (Single Source of Truth)
+        try:
+            from api.db.db_models import AIProvider
+            prov_obj = AIProvider.get_or_none(AIProvider.provider_name == p_val, AIProvider.is_global == True)
+            if prov_obj and prov_obj.api_key and prov_obj.status != "unconfigured":
+                return prov_obj.api_key, prov_obj.base_url or meta.get("default_base_url")
+        except Exception:
+            pass
+
+        # 3. Check Database (TenantLLM)
         try:
             from api.db.services.tenant_llm_service import TenantLLMService
             factory_names = meta.get("db_factory_names", [p_val])
@@ -322,7 +331,30 @@ class CredentialResolver:
                 updated_at=item.get("updated_at"),
             )
 
-        # Check DB
+        # Check AIProvider in DB
+        try:
+            from api.db.db_models import AIProvider
+            prov_obj = AIProvider.get_or_none(AIProvider.provider_name == p_val, AIProvider.is_global == True)
+            if prov_obj and prov_obj.api_key:
+                return ProviderCredentialRecord(
+                    provider=p_val,
+                    provider_display_name=disp_name,
+                    base_url=prov_obj.base_url or meta.get("default_base_url"),
+                    masked_api_key=cls.mask_api_key(prov_obj.api_key),
+                    is_active=prov_obj.status == "verified" and is_live,
+                    is_configured=bool(prov_obj.api_key),
+                    is_live_tested=is_live,
+                    is_available_in_admin=is_live,
+                    verification_status=verif_status,
+                    status_reason=status_reason,
+                    source="system_db",
+                    supported_models=meta.get("models", []),
+                    updated_at=prov_obj.update_time or prov_obj.create_time,
+                )
+        except Exception:
+            pass
+
+        # Check DB (TenantLLM)
         try:
             from api.db.services.tenant_llm_service import TenantLLMService
             factory_names = meta.get("db_factory_names", [p_val])
@@ -384,9 +416,14 @@ class CredentialResolver:
         is_active: bool = True,
     ) -> ProviderCredentialRecord:
         """
-        Creates or updates provider credentials.
+        Creates or updates provider credentials with Clean Replacement & Auto-Reactivation.
         If api_key is masked (e.g. 'sk-proj...1234') or empty, preserves the existing stored key.
-        Saves to memory / DB and returns the updated ProviderCredentialRecord.
+        When a new key is saved:
+        1. Updates memory store and TenantLLM.
+        2. Updates AIProvider (status="verified", api_key=effective_key).
+        3. Auto-Reactivation Cascade: all AIModel records previously marked as 'unconfigured_provider'
+           are restored to status='active', enabled=True.
+        4. Invalidates ai_gateway provider instance cache.
         """
         p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
         meta = cls.PROVIDER_METADATA.get(p_val, {"name": p_val.capitalize(), "models": [], "default_base_url": None})
@@ -412,10 +449,51 @@ class CredentialResolver:
             "updated_at": now,
         }
 
-        # Try persisting to database if TenantLLM is available
+        # 1. Update AIProvider in DB
+        try:
+            from api.db.db_models import AIProvider
+            prov_obj = AIProvider.get_or_none(AIProvider.provider_name == p_val)
+            if prov_obj:
+                AIProvider.update(
+                    api_key=effective_key,
+                    base_url=effective_base_url or prov_obj.base_url,
+                    status="verified" if effective_key else "unconfigured",
+                    is_global=True,
+                    update_time=now,
+                ).where(AIProvider.id == prov_obj.id).execute()
+            else:
+                AIProvider.create(
+                    id=p_val,
+                    provider_name=p_val,
+                    base_url=effective_base_url,
+                    api_key=effective_key,
+                    status="verified" if effective_key else "unconfigured",
+                    is_global=True,
+                    create_time=now,
+                    update_time=now,
+                )
+        except Exception as e:
+            logger.debug(f"AIProvider DB persist fallback for {p_val}: {e}")
+
+        # 2. Auto-Reactivation Cascade: reactivate models disabled due to unconfigured_provider
+        if effective_key:
+            try:
+                from api.db.db_models import AIModel
+                AIModel.update(
+                    status="active",
+                    enabled=True,
+                    update_time=now,
+                ).where(
+                    AIModel.provider == p_val,
+                    AIModel.status == "unconfigured_provider",
+                    AIModel.is_global == True,
+                ).execute()
+            except Exception as e:
+                logger.debug(f"AIModel auto-reactivation cascade for {p_val}: {e}")
+
+        # 3. Try persisting to database if TenantLLM is available
         try:
             from api.db.services.tenant_llm_service import TenantLLMService
-            from api.db.db_models import TenantLLM
             t_id = tenant_id or "system"
             factory_name = meta.get("db_factory_names", [p_val])[0]
             
@@ -444,6 +522,13 @@ class CredentialResolver:
         except Exception as e:
             logger.debug(f"DB persist optional fallback for {p_val}: {e}")
 
+        # 4. Invalidate gateway cache
+        try:
+            from common.ai_gateway.gateway import ai_gateway
+            ai_gateway.clear_cache()
+        except Exception:
+            pass
+
         return ProviderCredentialRecord(
             provider=p_val,
             provider_display_name=meta.get("name", p_val.capitalize()),
@@ -457,16 +542,76 @@ class CredentialResolver:
         )
 
     @classmethod
-    def delete_provider_credentials(
+    def replace_provider_api_key(
+        cls,
+        provider_type: Union[ProviderType, str],
+        new_api_key: str,
+        base_url: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+    ) -> ProviderCredentialRecord:
+        """
+        Replaces the API key for a provider and auto-reactivates its models.
+        Convenience wrapper around save_provider_credentials.
+        """
+        return cls.save_provider_credentials(
+            provider_type=provider_type,
+            api_key=new_api_key,
+            base_url=base_url,
+            tenant_id=tenant_id,
+            is_active=True,
+        )
+
+    @classmethod
+    def wipe_provider_api_key(
         cls,
         provider_type: Union[ProviderType, str],
         tenant_id: Optional[str] = None,
-    ) -> bool:
-        """Deletes/deactivates provider configuration for a tenant or system."""
+    ) -> Dict[str, Any]:
+        """
+        Wipes API key for a provider and executes Wipe Cascade:
+        1. Clears in-memory store: removes key from cls._memory_store.
+        2. Clears TenantLLM: deletes or resets api_key.
+        3. Updates AIProvider: sets api_key=None, status="unconfigured".
+        4. Wipe Cascade on AIModel: marks all models for this provider as status="unconfigured_provider", enabled=False.
+        5. Invalidates ai_gateway provider instance cache.
+        
+        Returns summary of cascade impact:
+        {"provider": p_val, "status": "unconfigured", "wiped": True, "models_disabled_count": int}
+        """
         p_val = provider_type.value if isinstance(provider_type, ProviderType) else str(provider_type).lower()
         mem_key = f"{p_val}:{tenant_id or 'system'}"
         cls._memory_store.pop(mem_key, None)
 
+        now = int(time.time())
+        models_disabled = 0
+
+        # 1. Update AIProvider in DB
+        try:
+            from api.db.db_models import AIProvider
+            AIProvider.update(
+                api_key=None,
+                status="unconfigured",
+                update_time=now,
+            ).where(AIProvider.provider_name == p_val).execute()
+        except Exception as e:
+            logger.debug(f"AIProvider wipe fallback for {p_val}: {e}")
+
+        # 2. Cascade disable all AIModel records for this provider
+        try:
+            from api.db.db_models import AIModel
+            models_disabled = (
+                AIModel.update(
+                    status="unconfigured_provider",
+                    enabled=False,
+                    update_time=now,
+                )
+                .where(AIModel.provider == p_val, AIModel.is_global == True)
+                .execute()
+            )
+        except Exception as e:
+            logger.debug(f"AIModel cascade disable for {p_val}: {e}")
+
+        # 3. Clear TenantLLM
         try:
             from api.db.services.tenant_llm_service import TenantLLMService
             meta = cls.PROVIDER_METADATA.get(p_val, {})
@@ -476,9 +621,32 @@ class CredentialResolver:
                 existing = TenantLLMService.query(tenant_id=t_id, llm_factory=fname)
                 for obj in existing:
                     TenantLLMService.delete_by_id(obj.id)
-            return True
+        except Exception as e:
+            logger.debug(f"TenantLLM delete fallback for {p_val}: {e}")
+
+        # 4. Invalidate gateway cache
+        try:
+            from common.ai_gateway.gateway import ai_gateway
+            ai_gateway.clear_cache()
         except Exception:
-            return True
+            pass
+
+        return {
+            "provider": p_val,
+            "status": "unconfigured",
+            "wiped": True,
+            "models_disabled_count": int(models_disabled or 0),
+        }
+
+    @classmethod
+    def delete_provider_credentials(
+        cls,
+        provider_type: Union[ProviderType, str],
+        tenant_id: Optional[str] = None,
+    ) -> bool:
+        """Deletes/wipes provider configuration and executes wipe cascade."""
+        res = cls.wipe_provider_api_key(provider_type=provider_type, tenant_id=tenant_id)
+        return res.get("wiped", True)
 
     @classmethod
     async def test_provider_connection(

@@ -108,3 +108,44 @@ class ContentFilterError(AIGatewayError):
     """Raised when content is blocked by provider safety policy."""
     def __init__(self, message: str = "Content filtered by AI safety guidelines", **kwargs):
         super().__init__(message, status_code=400, **kwargs)
+
+
+# =========================================================================
+# Subscription Policy & Governance Exceptions (Immune to Safe Fallback)
+# =========================================================================
+
+class AIGatewayPolicyError(AIGatewayError):
+    """Base exception for policy, governance, and subscription tier rejections."""
+    def __init__(self, message: str = "AI Gateway policy violation", status_code: int = 403, error_code: str = "POLICY_ERROR", **kwargs):
+        self.error_code = error_code
+        super().__init__(message, status_code=status_code, **kwargs)
+
+
+class ModelExcludedFromProviderError(AIGatewayPolicyError):
+    """Level 1: Raised when model is persistently excluded from provider by admin."""
+    def __init__(self, message: str = "Model is excluded from provider by administrator", **kwargs):
+        super().__init__(message, status_code=403, error_code="PROVIDER_EXCLUDED", **kwargs)
+
+
+class ModelGloballyDisabledError(AIGatewayPolicyError):
+    """Level 2: Raised when model is globally disabled platform-wide or provider has no API key."""
+    def __init__(self, message: str = "Model is globally disabled or provider is unconfigured", **kwargs):
+        super().__init__(message, status_code=403, error_code="GLOBALLY_DISABLED", **kwargs)
+
+
+class UserModelForbiddenError(AIGatewayPolicyError):
+    """Level 3: Raised when access is explicitly forbidden for a specific user."""
+    def __init__(self, message: str = "Model access is explicitly restricted for this user", **kwargs):
+        super().__init__(message, status_code=403, error_code="USER_RESTRICTED", **kwargs)
+
+
+class SubscriptionModelNotAllowedError(AIGatewayPolicyError):
+    """Level 4: Raised when model is not permitted under the user's subscription plan."""
+    def __init__(self, message: str = "Model is not allowed in current subscription plan", **kwargs):
+        super().__init__(message, status_code=403, error_code="PLAN_RESTRICTED", **kwargs)
+
+
+class SubscriptionTokenLimitReachedError(AIGatewayPolicyError):
+    """Level 5: Raised when user/tenant has exhausted daily or monthly token quota."""
+    def __init__(self, message: str = "Subscription token limit reached", **kwargs):
+        super().__init__(message, status_code=429, error_code="QUOTA_EXCEEDED", **kwargs)

@@ -93,6 +93,8 @@ class GatewayChatRequest:
     tool_choice: Optional[Union[str, Dict[str, Any]]] = None
     response_format: Optional[Dict[str, Any]] = None
     with_reasoning: bool = True
+    tenant_id: Optional[str] = None
+    user_id: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -158,6 +160,8 @@ class GatewayEmbeddingRequest:
     model: str
     provider: Optional[ProviderType] = None
     dimensions: Optional[int] = None
+    tenant_id: Optional[str] = None
+    user_id: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 

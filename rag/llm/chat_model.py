@@ -48,6 +48,7 @@ from enum import StrEnum
 
 from common.misc_utils import thread_pool_exec
 from common.token_utils import num_tokens_from_string, total_token_count_from_response, usage_from_response
+from common.ai_gateway.errors import AIGatewayPolicyError
 from rag.llm import FACTORY_DEFAULT_BASE_URL, LITELLM_PROVIDER_PREFIX, SupportedLiteLLMProvider
 from rag.llm.key_utils import _normalize_replicate_key
 from rag.llm.tool_decorator import FunctionToolSession, is_tool
@@ -305,6 +306,8 @@ class Base(ABC):
                     )
                     for m in history
                 ]
+                tenant_id = kwargs.get("tenant_id") or getattr(self, "tenant_id", None)
+                user_id = kwargs.get("user_id") or getattr(self, "user_id", None)
                 gateway_req = GatewayChatRequest(
                     messages=gateway_messages,
                     model=self.model_name,
@@ -315,8 +318,10 @@ class Base(ABC):
                     tools=gen_conf.get("tools") or getattr(self, "tools", None),
                     tool_choice=gen_conf.get("tool_choice"),
                     response_format=gen_conf.get("response_format"),
+                    tenant_id=tenant_id,
+                    user_id=user_id,
                 )
-                stream_iter = ai_gateway.stream_chat(gateway_req)
+                stream_iter = ai_gateway.stream_chat(gateway_req, tenant_id=tenant_id)
                 async for chunk in stream_iter:
                     if chunk.usage and chunk.usage.total_tokens:
                         self.last_usage = {
@@ -338,6 +343,8 @@ class Base(ABC):
                             ans = self._length_stop(ans)
                         yield ans, num_tokens_from_string(chunk.delta_content)
                 return
+            except AIGatewayPolicyError:
+                raise  # Policy violations are intentional business rejections; never fallback to legacy client
             except Exception as gw_err:
                 from common.ai_gateway.errors import SecretRedactor
                 logging.warning(f"[AI Gateway] Stream routing fallback to legacy client: {SecretRedactor.redact(str(gw_err))}")
@@ -401,6 +408,8 @@ class Base(ABC):
 
                 yield total_tokens
                 return
+            except AIGatewayPolicyError:
+                raise
             except Exception as e:
                 e = await self._exceptions_async(e, attempt)
                 if e:
@@ -790,6 +799,8 @@ class Base(ABC):
                 yield total_tokens
                 return
 
+            except AIGatewayPolicyError:
+                raise
             except Exception as e:
                 e = await self._exceptions_async(e, attempt)
                 if e:
@@ -832,6 +843,8 @@ class Base(ABC):
                     )
                     for m in history
                 ]
+                tenant_id = kwargs.get("tenant_id") or getattr(self, "tenant_id", None)
+                user_id = kwargs.get("user_id") or getattr(self, "user_id", None)
                 gateway_req = GatewayChatRequest(
                     messages=gateway_messages,
                     model=self.model_name,
@@ -842,8 +855,10 @@ class Base(ABC):
                     tools=gen_conf.get("tools") or getattr(self, "tools", None),
                     tool_choice=gen_conf.get("tool_choice"),
                     response_format=gen_conf.get("response_format"),
+                    tenant_id=tenant_id,
+                    user_id=user_id,
                 )
-                gw_resp = await ai_gateway.chat(gateway_req)
+                gw_resp = await ai_gateway.chat(gateway_req, tenant_id=tenant_id)
                 if gw_resp.usage and gw_resp.usage.total_tokens:
                     self.last_usage = {
                         "prompt_tokens": gw_resp.usage.prompt_tokens,
@@ -854,6 +869,8 @@ class Base(ABC):
                 if gw_resp.finish_reason == "length":
                     ans = self._length_stop(ans)
                 return ans, gw_resp.usage.total_tokens if (gw_resp.usage and gw_resp.usage.total_tokens) else num_tokens_from_string(ans)
+            except AIGatewayPolicyError:
+                raise  # Policy violations are intentional business rejections; never fallback to legacy client
             except Exception as gw_err:
                 from common.ai_gateway.errors import SecretRedactor
                 logging.warning(f"[AI Gateway] Chat routing fallback to legacy client: {SecretRedactor.redact(str(gw_err))}")
@@ -885,6 +902,8 @@ class Base(ABC):
         for attempt in range(self.max_retries + 1):
             try:
                 return await self._async_chat(history, gen_conf, **kwargs)
+            except AIGatewayPolicyError:
+                raise
             except Exception as e:
                 e = await self._exceptions_async(e, attempt)
                 if e:

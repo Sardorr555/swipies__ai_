@@ -1608,6 +1608,7 @@ class UserTokenLimit(DataBaseModel):
     user_id = CharField(max_length=32, primary_key=True)
     monthly_token_limit = BigIntegerField(default=0, help_text="0 means fallback to plan limit")
     enabled = BooleanField(default=True)
+    extra = JSONField(null=True, default={})
 
     class Meta:
         db_table = "user_token_limit"

@@ -46,13 +46,58 @@ export interface SystemDefaultModels {
 export interface AIProviderItem {
   id: string;
   provider_name: string;
+  display_name?: string;
   base_url?: string;
+  /** Write-only input parameter for saving/replacing keys; NEVER populated in GET responses */
+  api_key?: string;
+  /** Masked key representation (e.g. "sk-proj...1234") returned by GET /providers */
   api_key_masked?: string;
-  has_api_key: boolean;
+  /** Alias for api_key_masked returned by key replace/credential resolver endpoints */
+  masked_api_key?: string;
+  has_api_key?: boolean;
+  is_configured?: boolean;
   organization?: string;
   api_version?: string;
-  status: string;
+  status: 'verified' | 'unverified' | 'unconfigured' | 'error' | string;
+  last_error?: string;
+  latency_ms?: number;
+  models_count?: number;
   is_global: boolean;
+  extra?: {
+    excluded_models?: string[];
+    [key: string]: any;
+  };
+}
+
+export interface ConnectionTestResult {
+  success: boolean;
+  message: string;
+  latency_ms?: number;
+  models_detected?: string[];
+  count?: number;
+}
+
+export interface LiveVerificationResult {
+  success: boolean;
+  message: string;
+  verified?: boolean;
+  available_models?: any[];
+  count?: number;
+  latency_ms?: number;
+}
+
+export interface DynamicProviderModelItem {
+  id: string;
+  provider: string;
+  model_name: string;
+  model_type: 'CHAT' | 'EMBEDDING' | 'RERANK' | 'IMAGE2TEXT' | 'SPEECH2TEXT' | 'TTS' | 'OCR' | string;
+  is_excluded: boolean;
+  is_active: boolean;
+  is_discovered?: boolean;
+  input_token_price?: number;
+  output_token_price?: number;
+  max_tokens?: number;
+  status?: string;
 }
 
 export interface SubscriptionPlanItem {
@@ -64,27 +109,28 @@ export interface SubscriptionPlanItem {
   monthly_request_limit?: number;
   requests_per_minute?: number;
   max_tokens_per_request?: number;
-  limit_mode: 'shared' | 'per_model';
-  max_storage_gb: number;
-  max_datasets: number;
-  max_agents: number;
-  allow_custom_providers: boolean;
-  allow_custom_models: boolean;
-  allow_custom_endpoints: boolean;
-  allow_private_servers: boolean;
+  limit_mode?: 'shared' | 'per_model';
+  max_storage_gb?: number;
+  max_datasets?: number;
+  max_agents?: number;
+  allow_custom_providers?: boolean;
+  allow_custom_models?: boolean;
+  allow_custom_endpoints?: boolean;
+  allow_private_servers?: boolean;
   allow_byok?: boolean;
   max_byok_models?: number;
   default_llm_id?: string;
   default_embd_id?: string;
   default_rerank_id?: string;
-  status: string;
+  is_active?: boolean;
+  status?: string;
 }
 
 export interface AIModelItem {
   id: string;
   provider: string;
   model_name: string;
-  model_type: 'CHAT' | 'EMBEDDING' | 'RERANK' | 'IMAGE2TEXT' | 'SPEECH2TEXT' | 'TTS' | 'OCR';
+  model_type: 'CHAT' | 'EMBEDDING' | 'RERANK' | 'IMAGE2TEXT' | 'SPEECH2TEXT' | 'TTS' | 'OCR' | string;
   base_url?: string;
   api_key?: string;
   api_key_masked?: string;
@@ -114,6 +160,32 @@ export interface UserTokenLimitItem {
   user_id: string;
   monthly_token_limit: number;
   enabled: boolean;
+}
+
+export interface UserPolicyOverrideSummaryItem {
+  user_id: string;
+  email?: string;
+  nickname?: string;
+  has_model_overrides: boolean;
+  has_token_override: boolean;
+}
+
+export interface UserPolicyOverrideDetail {
+  user_id: string;
+  email?: string;
+  nickname?: string;
+  tenant_id?: string;
+  plan?: SubscriptionPlanItem;
+  allowed_models_override: string[];
+  forbidden_models: string[];
+  model_overrides: Record<string, { access_type: 'ALLOW' | 'DENY'; enabled?: boolean }>;
+  monthly_token_limit: number;
+  token_limit_enabled: boolean;
+  token_usage: {
+    daily_tokens: number;
+    monthly_tokens: number;
+    total_tokens: number;
+  };
 }
 
 export interface ModelUsageBreakdown {
@@ -170,7 +242,10 @@ export interface AIAuditLogItem {
   create_time: number;
 }
 
+// ============================================================
 // Global Instance & System Default Models
+// ============================================================
+
 export const getAdminInstance = () =>
   request.get<ResponseData<GlobalInstanceStats>>('/v1/admin/ai/instance');
 
@@ -183,7 +258,10 @@ export const getAdminDefaultModels = () =>
 export const updateAdminDefaultModels = (data: SystemDefaultModels) =>
   request.put<ResponseData<GlobalInstanceStats>>('/v1/admin/ai/defaults', { data });
 
-// Providers
+// ============================================================
+// Providers Management (CRUD, Key Wipe, Live Test & Discovery)
+// ============================================================
+
 export const getAdminProviders = () =>
   request.get<ResponseData<AIProviderItem[]>>('/v1/admin/ai/providers');
 
@@ -192,19 +270,66 @@ export const getAdminAvailableProviders = () =>
     '/v1/admin/ai/providers/available'
   );
 
-export const verifyAdminProvider = (data: { provider_name: string; api_key: string; base_url?: string; extra?: any }) =>
-  request.post<ResponseData<{ success: boolean; message: string; available_models: any[]; count: number }>>(
-    '/v1/admin/ai/providers/verify',
-    { data }
-  );
-
 export const saveAdminProvider = (data: Partial<AIProviderItem> & { api_key?: string }) =>
   request.post<ResponseData<AIProviderItem>>('/v1/admin/ai/providers', { data });
 
 export const deleteAdminProvider = (providerId: string) =>
   request.delete<ResponseData<boolean>>(`/v1/admin/ai/providers/${encodeURIComponent(providerId)}`);
 
-// Models & Pricing
+export const wipeAdminProviderKey = (provider: string) =>
+  request.delete<ResponseData<{ wiped: boolean; provider: string; cascaded_models_count: number }>>(
+    `/v1/admin/ai/providers/${encodeURIComponent(provider)}/api-key`
+  );
+
+export const replaceAdminProviderKey = (provider: string, apiKey: string, baseUrl?: string) =>
+  request.post<ResponseData<{ updated: boolean; provider: string; is_configured: boolean; masked_api_key: string; reactivated_models_count: number }>>(
+    `/v1/admin/ai/providers/${encodeURIComponent(provider)}/api-key`,
+    {
+      data: {
+        api_key: apiKey,
+        base_url: baseUrl,
+      },
+    }
+  );
+
+export const testAdminProviderConnection = (provider: string, data?: { api_key?: string; base_url?: string }) =>
+  request.post<ResponseData<ConnectionTestResult>>(
+    `/v1/admin/ai/providers/${encodeURIComponent(provider)}/test-connection`,
+    { data }
+  );
+
+export const verifyAdminProviderLive = (provider: string, data?: { provider_name?: string; api_key?: string; base_url?: string; extra?: any }) =>
+  request.post<ResponseData<LiveVerificationResult>>(
+    `/v1/admin/ai/providers/${encodeURIComponent(provider)}/verify-live`,
+    { data }
+  );
+
+export const verifyAdminProvider = (data: { provider_name: string; api_key: string; base_url?: string; extra?: any }) =>
+  request.post<ResponseData<{ success: boolean; message: string; available_models: any[]; count: number }>>(
+    '/v1/admin/ai/providers/verify',
+    { data }
+  );
+
+export const getAdminProviderModelsDynamic = (provider: string) =>
+  request.get<ResponseData<DynamicProviderModelItem[]>>(
+    `/v1/admin/ai/providers/${encodeURIComponent(provider)}/models`
+  );
+
+export const toggleModelExclusion = (provider: string, modelName: string, excluded: boolean) =>
+  request.post<ResponseData<{ provider: string; model_name: string; excluded: boolean; excluded_models: string[] }>>(
+    `/v1/admin/ai/providers/${encodeURIComponent(provider)}/models/exclude`,
+    {
+      data: {
+        model_name: modelName,
+        excluded,
+      },
+    }
+  );
+
+// ============================================================
+// Models & Global Kill-Switch Governance
+// ============================================================
+
 export const getAdminModels = () =>
   request.get<ResponseData<AIModelItem[]>>('/v1/admin/ai/models');
 
@@ -214,7 +339,15 @@ export const saveAdminModel = (data: Partial<AIModelItem> & { allowed_plans?: st
 export const deleteAdminModel = (modelId: string) =>
   request.delete<ResponseData<boolean>>(`/v1/admin/ai/models/${encodeURIComponent(modelId)}`);
 
-// Plans & Policies
+export const toggleGlobalModel = (modelId: string, enabled: boolean) =>
+  request.put<ResponseData<boolean>>(`/v1/admin/ai/models/${encodeURIComponent(modelId)}/toggle-global`, {
+    data: { enabled },
+  });
+
+// ============================================================
+// Subscription Plans & Policies Matrix
+// ============================================================
+
 export const getAdminPlans = () =>
   request.get<ResponseData<SubscriptionPlanItem[]>>('/v1/admin/ai/plans');
 
@@ -234,19 +367,33 @@ export const updateAdminPolicies = (planId: string, policies: Partial<Subscripti
     },
   });
 
-// Analytics & Logs
-export const getAdminAnalytics = (period?: string) =>
-  request.get<ResponseData<AdminAnalyticsData>>('/v1/admin/ai/metrics', {
-    params: { period },
+// ============================================================
+// Per-User Policy Overrides (Level 3 Models & Level 5 Tokens)
+// ============================================================
+
+export const getAdminUserPolicyOverrides = () =>
+  request.get<ResponseData<UserPolicyOverrideSummaryItem[]>>('/v1/admin/ai/users/overrides');
+
+export const getAdminUserPolicy = (userId: string) =>
+  request.get<ResponseData<UserPolicyOverrideDetail>>(`/v1/admin/ai/users/${encodeURIComponent(userId)}/policy`);
+
+export const setAdminUserPolicy = (
+  userId: string,
+  data: {
+    allowed_models_override?: string[];
+    forbidden_models?: string[];
+    model_overrides?: Record<string, any>;
+    monthly_token_limit?: number;
+    token_limit_enabled?: boolean;
+  }
+) =>
+  request.put<ResponseData<boolean>>(`/v1/admin/ai/users/${encodeURIComponent(userId)}/policy`, {
+    data,
   });
 
-export const getAdminAuditLogs = (params?: { limit?: number; offset?: number; action?: string; target_type?: string }) =>
-  request.get<ResponseData<{ items: AIAuditLogItem[]; total: number }>>('/v1/admin/ai/audit-logs', { params });
+export const deleteAdminUserPolicy = (userId: string) =>
+  request.delete<ResponseData<boolean>>(`/v1/admin/ai/users/${encodeURIComponent(userId)}/policy`);
 
-export const getAdminByokStats = () =>
-  request.get<ResponseData<{ total_byok_models: number; active_byok_models: number; locked_byok_models: number; byok_users_count: number }>>('/v1/admin/ai/byok-stats');
-
-// User Limits
 export const getAdminUserLimit = (userId: string) =>
   request.get<ResponseData<UserTokenLimitItem>>(`/v1/admin/ai/user-limits/${userId}`);
 
@@ -259,7 +406,25 @@ export const setAdminUserLimit = (userId: string, limit: number, enabled: boolea
     },
   });
 
-// User Endpoints
+// ============================================================
+// Analytics, Metrics & Security Audit Logs
+// ============================================================
+
+export const getAdminAnalytics = (period?: string) =>
+  request.get<ResponseData<AdminAnalyticsData>>('/v1/admin/ai/metrics', {
+    params: { period },
+  });
+
+export const getAdminAuditLogs = (params?: { limit?: number; offset?: number; action?: string; target_type?: string }) =>
+  request.get<ResponseData<{ items: AIAuditLogItem[]; total: number }>>('/v1/admin/ai/audit-logs', { params });
+
+export const getAdminByokStats = () =>
+  request.get<ResponseData<{ total_byok_models: number; active_byok_models: number; locked_byok_models: number; byok_users_count: number }>>('/v1/admin/ai/byok-stats');
+
+// ============================================================
+// User-Facing Endpoints
+// ============================================================
+
 export const getUserAiUsage = () =>
   request.get<ResponseData<UserAIUsageSummary>>('/v1/user/ai/usage');
 

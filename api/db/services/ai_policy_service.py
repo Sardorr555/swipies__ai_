@@ -377,6 +377,18 @@ class AIPolicyManager:
 
     @classmethod
     @DB.connection_context()
+    def get_user_total_tokens_used(cls, user_id: str, period: str = None) -> int:
+        if not period:
+            period = cls.get_current_period()
+        res = (
+            TokenUsageLog.select(fn.SUM(TokenUsageLog.total_tokens))
+            .where(TokenUsageLog.user_id == user_id, TokenUsageLog.billing_period == period)
+            .scalar()
+        )
+        return int(res or 0)
+
+    @classmethod
+    @DB.connection_context()
     def get_tenant_daily_tokens_used(cls, tenant_id: str, date_str: str = None) -> int:
         if not date_str:
             date_str = cls.get_current_date_str()
@@ -430,49 +442,45 @@ class AIPolicyManager:
         user_id: str = None,
     ) -> tuple[bool, str, int]:
         """
-        Validate model access based on single Global Instance subscription policy and token quotas.
-        Returns: (allowed: bool, message: str, status_code: int)
+        Backward compatible access check returning (allowed, message, status_code).
+        Delegates directly to check_model_access_extended.
         """
-        if not tenant_id:
-            return True, "OK", 200
+        allowed, msg, status_code, _ = cls.check_model_access_extended(
+            tenant_id=tenant_id,
+            model_name=model_name,
+            model_type=model_type,
+            user_id=user_id,
+        )
+        return allowed, msg, status_code
+
+    @classmethod
+    @DB.connection_context()
+    def check_model_access_extended(
+        cls,
+        tenant_id: str,
+        model_name: str,
+        model_type: str = None,
+        user_id: str = None,
+    ) -> tuple[bool, str, int, str]:
+        """
+        5-Tier Pre-Flight Policy Evaluation:
+        Level 1: Provider Model Exclusion (PROVIDER_EXCLUDED, 403)
+        Level 2: Global Model Kill-Switch & Unconfigured Provider (GLOBALLY_DISABLED, 403)
+        Level 3: Per-User Model Overrides (USER_RESTRICTED, 403 / bypasses Level 4 on ALLOW)
+        Level 4: Subscription Plan Tier allowed_models (PLAN_RESTRICTED, 403)
+        Level 5: Token Quotas & Request Limits (QUOTA_EXCEEDED, 429)
+
+        Returns: (allowed: bool, message: str, status_code: int, error_code: str)
+        """
+        if not tenant_id or tenant_id == "system":
+            return True, "OK", 200, "OK"
 
         target_user_id = user_id or tenant_id
         is_super = False
+        user_obj = None
         if target_user_id:
-            u = User.get_or_none(User.id == target_user_id)
-            is_super = bool(u and getattr(u, "is_superuser", False))
-
-        plan = cls.get_user_plan(tenant_id, target_user_id)
-        plan_id = plan["id"].lower()
-        monthly_token_limit = plan.get("monthly_token_limit", 1000000)
-        daily_token_limit = plan.get("daily_token_limit", 50000)
-        daily_request_limit = plan.get("daily_request_limit", 500)
-        monthly_request_limit = plan.get("monthly_request_limit", 10000)
-
-        # Check user-specific limit override if configured
-        if target_user_id:
-            user_limits = UserTokenLimitService.query(user_id=target_user_id, enabled=True)
-            if user_limits and user_limits[0].monthly_token_limit > 0:
-                monthly_token_limit = user_limits[0].monthly_token_limit
-
-        if not is_super:
-            # 1. Total monthly token quota check
-            monthly_used = cls.get_tenant_total_tokens_used(tenant_id)
-            if monthly_token_limit > 0 and monthly_used >= monthly_token_limit:
-                msg = f"Monthly AI token limit reached ({monthly_used:,} / {monthly_token_limit:,}). Upgrade to PLUS or PRO to continue using AI."
-                return False, msg, 429
-
-            # 2. Daily token quota check
-            daily_used = cls.get_tenant_daily_tokens_used(tenant_id)
-            if daily_token_limit > 0 and daily_used >= daily_token_limit:
-                msg = f"Daily AI token limit reached ({daily_used:,} / {daily_token_limit:,}). Upgrade your plan to increase limits."
-                return False, msg, 429
-
-            # 3. Daily request quota check
-            daily_req_count = cls.get_tenant_daily_requests_used(tenant_id)
-            if daily_request_limit > 0 and daily_req_count >= daily_request_limit:
-                msg = f"Daily AI request limit reached ({daily_req_count:,} / {daily_request_limit:,})."
-                return False, msg, 429
+            user_obj = User.get_or_none(User.id == target_user_id)
+            is_super = bool(user_obj and getattr(user_obj, "is_superuser", False))
 
         # Normalize model identifiers
         from api.db.services.tenant_llm_service import TenantLLMService
@@ -481,7 +489,37 @@ class AIPolicyManager:
         if fid:
             candidate_ids.extend([f"{fid}/{pure_name}", f"{pure_name}@{fid}", f"{fid}/{model_name}"])
 
-        # Check if requested model is a user-owned BYOK model
+        # Infer provider name from model name, factory, or database
+        provider_name = fid or (pure_name.split("/")[0] if "/" in pure_name else None)
+        if not provider_name:
+            ai_m = AIModel.get_or_none(AIModel.model_name == pure_name) or AIModel.get_or_none(AIModel.id == model_name)
+            if ai_m:
+                provider_name = ai_m.provider
+        if not provider_name:
+            try:
+                from common.ai_gateway.gateway import ai_gateway
+                p_enum = ai_gateway.resolve_provider_for_model(model_name)
+                provider_name = p_enum.value
+            except Exception:
+                pass
+
+        # -------------------------------------------------------------
+        # Level 1: Provider Model Exclusion Check (Admin Persistent Blacklist)
+        # -------------------------------------------------------------
+        if provider_name:
+            prov_objs = AIProvider.select().where(
+                (fn.LOWER(AIProvider.provider_name) == provider_name.lower()) |
+                (fn.LOWER(AIProvider.id) == provider_name.lower())
+            )
+            for p_obj in prov_objs:
+                p_extra = p_obj.extra if isinstance(p_obj.extra, dict) else (json.loads(p_obj.extra) if p_obj.extra else {})
+                excluded_models = p_extra.get("excluded_models", [])
+                if any(m.lower() in [ex.lower() for ex in excluded_models] for m in [pure_name, model_name] + candidate_ids):
+                    return False, f"Model '{model_name}' has been excluded from provider '{p_obj.provider_name}' by administrator.", 403, "PROVIDER_EXCLUDED"
+
+        # -------------------------------------------------------------
+        # Level 2: Global Model Kill-Switch & Unconfigured Provider Check
+        # -------------------------------------------------------------
         byok_model = None
         for cid in candidate_ids:
             found_byok = AIModel.get_or_none(AIModel.id == cid, AIModel.is_custom == True)
@@ -491,96 +529,185 @@ class AIPolicyManager:
         if not byok_model:
             byok_model = AIModel.get_or_none(AIModel.model_name == pure_name, AIModel.is_custom == True)
 
+        ai_model = None
+        if not byok_model:
+            for cid in candidate_ids:
+                models = AIModelService.query(id=cid)
+                if models:
+                    ai_model = models[0]
+                    break
+            if not ai_model:
+                models = AIModelService.query(model_name=pure_name)
+                if models:
+                    ai_model = models[0]
+
+        # Check explicit global disable on AIModel
+        if ai_model:
+            if not ai_model.enabled or ai_model.status in ["disabled", "unconfigured_provider"]:
+                status_msg = f"Model '{model_name}' is currently unavailable because provider '{ai_model.provider}' has no configured API key." if ai_model.status == "unconfigured_provider" else f"Model '{model_name}' is currently disabled globally by administrator."
+                return False, status_msg, 403, "GLOBALLY_DISABLED"
+
+        # Check if underlying provider has no configured key
+        if ai_model and not ai_model.is_custom and provider_name:
+            prov_objs = AIProvider.select().where(
+                (fn.LOWER(AIProvider.provider_name) == provider_name.lower()) |
+                (fn.LOWER(AIProvider.id) == provider_name.lower())
+            )
+            for p_obj in prov_objs:
+                if not p_obj.api_key or p_obj.status == "unconfigured":
+                    return False, f"Model '{model_name}' is currently unavailable because provider '{p_obj.provider_name}' has no configured API key.", 403, "GLOBALLY_DISABLED"
+
+        # -------------------------------------------------------------
+        # Level 3: Granular Per-User Model Overrides Check
+        # -------------------------------------------------------------
+        user_explicit_allowed = False
+        user_extra = getattr(user_obj, "extra", {}) or {} if user_obj else {}
+        if isinstance(user_extra, str):
+            try:
+                user_extra = json.loads(user_extra)
+            except Exception:
+                user_extra = {}
+        if isinstance(user_extra, dict):
+            user_overrides = user_extra.get("model_overrides", {})
+            for cid in candidate_ids + [model_name, pure_name]:
+                if cid in user_overrides:
+                    ov = user_overrides[cid]
+                    ov_type = ov.get("access_type") if isinstance(ov, dict) else str(ov)
+                    ov_enabled = ov.get("enabled", True) if isinstance(ov, dict) else True
+                    if ov_enabled:
+                        if ov_type.upper() == "DENY":
+                            return False, f"Access to model '{model_name}' is explicitly restricted for your user account.", 403, "USER_RESTRICTED"
+                        elif ov_type.upper() == "ALLOW":
+                            user_explicit_allowed = True
+                            break
+
+        user_limit_obj = None
+        # Also check UserTokenLimit.extra for user overrides if configured
+        if target_user_id:
+            user_limit_obj = UserTokenLimit.get_or_none(UserTokenLimit.user_id == target_user_id, UserTokenLimit.enabled == True)
+            if user_limit_obj and not user_explicit_allowed:
+                ul_extra = getattr(user_limit_obj, "extra", {}) or {}
+                if isinstance(ul_extra, str):
+                    try:
+                        ul_extra = json.loads(ul_extra)
+                    except Exception:
+                        ul_extra = {}
+                user_overrides = ul_extra.get("model_overrides", {})
+                for cid in candidate_ids + [model_name, pure_name]:
+                    if cid in user_overrides:
+                        ov = user_overrides[cid]
+                        ov_type = ov.get("access_type") if isinstance(ov, dict) else str(ov)
+                        ov_enabled = ov.get("enabled", True) if isinstance(ov, dict) else True
+                        if ov_enabled:
+                            if ov_type.upper() == "DENY":
+                                return False, f"Access to model '{model_name}' is explicitly restricted for your user account.", 403, "USER_RESTRICTED"
+                            elif ov_type.upper() == "ALLOW":
+                                user_explicit_allowed = True
+                                break
+
+        # -------------------------------------------------------------
+        # Level 4: Subscription Plan Tier Gating (allowed_models)
+        # -------------------------------------------------------------
+        plan = cls.get_user_plan(tenant_id, target_user_id)
+        plan_id = plan["id"].lower()
+
         if byok_model:
             # Enforce BYOK access rules
             if not is_super:
                 if not plan.get("allow_byok", False) and plan_id not in ["pro", "enterprise"]:
-                    return False, "BYOK_NOT_AVAILABLE: Connect Your Own AI is available only with the PRO subscription.", 403
+                    return False, "BYOK_NOT_AVAILABLE: Connect Your Own AI is available only with the PRO subscription.", 403, "PLAN_RESTRICTED"
 
                 # Ownership check
                 if byok_model.owner_user_id and byok_model.owner_user_id != target_user_id and byok_model.owner_tenant_id != tenant_id:
-                    return False, "Access denied: This custom AI model belongs to another account.", 403
+                    return False, "Access denied: This custom AI model belongs to another account.", 403, "PLAN_RESTRICTED"
 
                 # Status check (e.g. locked after downgrade)
                 if byok_model.status == "locked_pro_required":
-                    return False, "LOCKED_PRO_REQUIRED: This custom AI model is locked because your PRO subscription expired. Upgrade to PRO to reactivate.", 403
+                    return False, "LOCKED_PRO_REQUIRED: This custom AI model is locked because your PRO subscription expired. Upgrade to PRO to reactivate.", 403, "PLAN_RESTRICTED"
                 if not byok_model.enabled or byok_model.status != "active":
-                    return False, f"Custom AI Model '{byok_model.model_name}' is currently disabled.", 403
+                    return False, f"Custom AI Model '{byok_model.model_name}' is currently disabled.", 403, "PLAN_RESTRICTED"
 
-            return True, "OK", 200
+            return True, "OK", 200, "OK"
 
-        # Platform Model Check
-        ai_model = None
-        for cid in candidate_ids:
-            models = AIModelService.query(id=cid, is_global=True)
-            if models:
-                ai_model = models[0]
-                break
-
-        if not ai_model:
-            models = AIModelService.query(model_name=pure_name, is_global=True)
-            if models:
-                ai_model = models[0]
-
-        if ai_model and not ai_model.enabled:
-            return False, f"Model '{model_name}' is currently disabled by administrator.", 403
-
-        # Always allow system default models configured by admin
-        try:
-            from api.db.services.global_instance_service import GlobalInstanceService
-            g_inst = GlobalInstanceService.get_instance_stats()
-            system_default_models = {
-                g_inst.get("default_chat_model"),
-                g_inst.get("default_free_model_id"),
-                g_inst.get("default_plus_model_id"),
-                g_inst.get("default_pro_model_id"),
-                g_inst.get("default_embd_id"),
-                g_inst.get("default_rerank_id"),
-                g_inst.get("default_image2text_model"),
-                g_inst.get("default_asr_model"),
-                g_inst.get("default_tts_model"),
-            }
-            system_default_models.discard(None)
-            system_default_models.discard("")
-            if any(cid in system_default_models for cid in candidate_ids) or pure_name in system_default_models:
-                return True, "OK", 200
-        except Exception:
-            pass
-
-        # Subscription policy check for platform model
         policy = None
-        if ai_model:
-            policies = SubscriptionAIPolicyService.query(plan_id=plan_id, model_id=ai_model.id)
-            if policies:
-                policy = policies[0]
+        if not is_super and not user_explicit_allowed:
+            # Check if this model is the designated default model for the user's specific plan
+            is_plan_default = False
+            plan_default = plan.get("default_llm_id") or plan.get("default_embd_id") or plan.get("default_rerank_id")
+            if plan_default and (plan_default in candidate_ids or pure_name == plan_default):
+                is_plan_default = True
 
-        if not policy:
-            for cid in candidate_ids:
-                policies = SubscriptionAIPolicyService.query(plan_id=plan_id, model_id=cid)
-                if policies:
-                    policy = policies[0]
-                    break
+            if not is_plan_default:
+                if ai_model:
+                    policy = SubscriptionAIPolicy.get_or_none(SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.model_id == ai_model.id)
 
-        if policy is not None:
-            if not policy.enabled and not is_super:
-                return False, f"Model '{model_name}' is not authorized for your {plan['name']} subscription plan.", 403
-        else:
-            if ai_model and ai_model.allowed_plans:
-                try:
-                    allowed_plans = ai_model.allowed_plans if isinstance(ai_model.allowed_plans, list) else json.loads(ai_model.allowed_plans)
-                    if plan_id not in [p.lower() for p in allowed_plans] and not is_super:
-                        return False, f"Model '{model_name}' is not included in your {plan['name']} subscription plan.", 403
-                except Exception:
-                    pass
+                if not policy:
+                    for cid in candidate_ids:
+                        policy = SubscriptionAIPolicy.get_or_none(SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.model_id == cid)
+                        if policy:
+                            break
 
-        # Per-model token cap check
-        if policy and policy.model_token_limit > 0 and not is_super:
-            used_for_model = cls.get_tenant_model_tokens_used(tenant_id, policy.model_id)
-            if used_for_model >= policy.model_token_limit:
-                msg = f"Monthly token limit reached for model '{pure_name}' ({used_for_model:,} / {policy.model_token_limit:,})."
-                return False, msg, 429
+                if policy is not None:
+                    if not policy.enabled:
+                        return False, f"Model '{model_name}' is not authorized for your {plan['name']} subscription plan.", 403, "PLAN_RESTRICTED"
+                else:
+                    allowed_plans = getattr(ai_model, "allowed_plans", None)
+                    if not allowed_plans and ai_model and isinstance(ai_model.extra, dict):
+                        allowed_plans = ai_model.extra.get("allowed_plans")
+                    elif not allowed_plans and ai_model and isinstance(ai_model.extra, str):
+                        try:
+                            allowed_plans = json.loads(ai_model.extra).get("allowed_plans")
+                        except Exception:
+                            allowed_plans = None
+                    if allowed_plans:
+                        if isinstance(allowed_plans, str):
+                            try:
+                                allowed_plans = json.loads(allowed_plans)
+                            except Exception:
+                                allowed_plans = [allowed_plans]
+                        if plan_id not in [p.lower() for p in allowed_plans]:
+                            return False, f"Model '{model_name}' is not included in your {plan['name']} subscription plan.", 403, "PLAN_RESTRICTED"
 
-        return True, "OK", 200
+        # -------------------------------------------------------------
+        # Level 5: Token Quota & Request Limits Check
+        # -------------------------------------------------------------
+        if not is_super:
+            monthly_token_limit = plan.get("monthly_token_limit", 1000000)
+            daily_token_limit = plan.get("daily_token_limit", 50000)
+            daily_request_limit = plan.get("daily_request_limit", 500)
+
+            # Check user-specific limit override if configured
+            is_user_override = False
+            if user_limit_obj and user_limit_obj.monthly_token_limit > 0:
+                monthly_token_limit = user_limit_obj.monthly_token_limit
+                is_user_override = True
+
+            # 1. Total monthly token quota check
+            monthly_used = cls.get_user_total_tokens_used(target_user_id) if (is_user_override and target_user_id) else cls.get_tenant_total_tokens_used(tenant_id)
+            if monthly_token_limit > 0 and monthly_used >= monthly_token_limit:
+                msg = f"Monthly AI token limit reached ({monthly_used:,} / {monthly_token_limit:,}). Upgrade to PLUS or PRO to continue using AI."
+                return False, msg, 429, "QUOTA_EXCEEDED"
+
+            # 2. Daily token quota check
+            daily_used = cls.get_tenant_daily_tokens_used(tenant_id)
+            if daily_token_limit > 0 and daily_used >= daily_token_limit:
+                msg = f"Daily AI token limit reached ({daily_used:,} / {daily_token_limit:,}). Upgrade your plan to increase limits."
+                return False, msg, 429, "QUOTA_EXCEEDED"
+
+            # 3. Daily request quota check
+            daily_req_count = cls.get_tenant_daily_requests_used(tenant_id)
+            if daily_request_limit > 0 and daily_req_count >= daily_request_limit:
+                msg = f"Daily AI request limit reached ({daily_req_count:,} / {daily_request_limit:,})."
+                return False, msg, 429, "QUOTA_EXCEEDED"
+
+            # 4. Per-model token cap check
+            if policy and policy.model_token_limit > 0:
+                used_for_model = cls.get_tenant_model_tokens_used(tenant_id, policy.model_id)
+                if used_for_model >= policy.model_token_limit:
+                    msg = f"Monthly token limit reached for model '{pure_name}' ({used_for_model:,} / {policy.model_token_limit:,})."
+                    return False, msg, 429, "QUOTA_EXCEEDED"
+
+        return True, "OK", 200, "OK"
 
     @classmethod
     @DB.connection_context()
