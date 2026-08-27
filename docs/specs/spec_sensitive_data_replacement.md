@@ -89,11 +89,11 @@ flowchart TD
 
 ### 3.2 Key Acceptance Criteria (Gated Checklist)
 
-- [ ] **AC-1 (Solo Chat Fix & Parity):**
+- [x] **AC-1 (Solo Chat Fix & Parity):**
   - `async_chat_solo()` in `api/db/services/dialog_service.py` extracts `sensitive_config = (dialog.prompt_config or {}).get("sensitive_data_replacement") or {}`, `sensitive_enabled`, and `sensitive_rules` identically to `async_chat()`.
   - Both streaming and non-streaming modes in `async_chat_solo` execute substitution and deanonymization without `NameError`.
 
-- [ ] **AC-2 (Stateful Streaming Deanonymizer Buffer & Latency Bounds):**
+- [x] **AC-2 (Stateful Streaming Deanonymizer Buffer & Latency Bounds):**
   - Implement a `StreamingDeanonymizer` class in `api/utils/sensitive_data_utils.py` that buffers incoming token chunks against potential partial matches of all active `replace` placeholders.
   - **Latency & Streaming Bounding:**
     - The buffer holds **at most** `max_prefix_len = max(len(rule['replace']) - 1)` characters, representing only the active tentative prefix of a placeholder.
@@ -103,22 +103,22 @@ flowchart TD
     - On stream completion (`finish_reason: stop`, generator exhaustion, client cancellation, or connection disconnect), `flush(final=True)` is guaranteed to execute (e.g. via `try...finally`).
     - Any leftover incomplete buffer fragment (which turned out to be normal text, not a placeholder) is **flushed immediately to the client as-is**, guaranteeing **zero silently dropped or lost characters**.
 
-- [ ] **AC-3 (Whole-Word Boundary Matching for Plaintext Rules):**
+- [x] **AC-3 (Whole-Word Boundary Matching for Plaintext Rules):**
   - In `anonymize_text()` and `deanonymize_text()`, when `is_regex` is `False`:
     - For search terms starting and ending with alphanumeric characters/underscores (`\w`), word boundary anchors `\b` are automatically wrapped around the escaped pattern (e.g. `r"\b" + re.escape(search_val) + r"\b"`).
     - For search terms containing leading/trailing punctuation or symbols (e.g. `"$100"`, `"+1-800-555"`), pattern matching respects punctuation boundaries without breaking valid symbol replacement.
   - When `is_regex` is `True`, the user's custom regular expression is applied directly without automatic `\b` wrapping.
 
-- [ ] **AC-4 (Case Sensitivity & Multiple Occurrences):**
+- [x] **AC-4 (Case Sensitivity & Multiple Occurrences):**
   - `case_sensitive = False` applies `re.IGNORECASE` during both anonymization ($A \to B$) and deanonymization ($B \to A$).
   - Multiple occurrences of Word A in a single message or across multiple messages are 100% replaced.
   - Rules continue to be sorted by descending length of `search` / `replace` value to prevent substring collisions between rules.
 
-- [ ] **AC-5 (Conversation History DB Integrity):**
+- [x] **AC-5 (Conversation History DB Integrity):**
   - User messages in `conversation.message` remain stored with original Word A.
   - Assistant answers in `conversation.message` remain stored with restored Word A.
 
-- [ ] **AC-6 (Comprehensive Automated Test Suite):**
+- [x] **AC-6 (Comprehensive Automated Test Suite):**
   - Implement `test/test_sensitive_data_replacement.py` covering:
     1. Plaintext word boundary isolation (`"cat"` does NOT replace `"category"`).
     2. Substring punctuation / symbol replacement (e.g. `"$100"`, `"user@acme.corp"`).
