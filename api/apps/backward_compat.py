@@ -83,6 +83,12 @@ async def deprecated_system_healthz():
     result, all_ok = run_health_checks()
     return jsonify(result), (200 if all_ok else 500)
 
+
+@legacy_v1_manager.route("/licenses/verify", methods=["POST"])
+async def legacy_verify_license():
+    from api.apps.restful_apis.system_api import verify_license_status
+    return await verify_license_status()
+
 # =============================================================================
 # Chat Completion APIs
 # =============================================================================

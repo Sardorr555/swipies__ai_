@@ -7,7 +7,7 @@ from nacl import encoding, public
 # Target repository info
 TARGET_OWNER = "Sardorr555"
 TARGET_REPO = "Swipies_docs"
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
 # Secrets to copy: source_name -> target_name
 SECRETS_MAP = {

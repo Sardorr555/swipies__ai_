@@ -657,3 +657,134 @@ async def activate_license():
     })
 
 
+_IN_MEMORY_RATE_LIMITS = {}
+_LAST_CLEANUP_TS = 0
+
+def _check_in_memory_ratelimit(key: str, limit: int, window_sec: int) -> bool:
+    global _LAST_CLEANUP_TS
+    import time
+    now = time.time()
+    if now - _LAST_CLEANUP_TS > 60:
+        _LAST_CLEANUP_TS = now
+        expired_keys = [k for k, (ts, _) in _IN_MEMORY_RATE_LIMITS.items() if now - ts > 300]
+        for k in expired_keys:
+            _IN_MEMORY_RATE_LIMITS.pop(k, None)
+
+    record = _IN_MEMORY_RATE_LIMITS.get(key)
+    if not record or (now - record[0] > window_sec):
+        _IN_MEMORY_RATE_LIMITS[key] = (now, 1)
+        return True
+    ts, count = record
+    if count >= limit:
+        return False
+    _IN_MEMORY_RATE_LIMITS[key] = (ts, count + 1)
+    return True
+
+
+@manager.route("/licenses/verify", methods=["POST"])  # noqa: F821
+async def verify_license_status():
+    import hashlib
+    from quart import request
+    from api.utils.api_utils import get_request_json
+    from api.utils.license_verifier import decode_license
+    from api.db.services.license_key_service import LicenseKeyService
+    from rag.utils.redis_conn import REDIS_CONN
+
+    # Extract client IP: prefer X-Real-IP from trusted reverse proxy, or rightmost element of X-Forwarded-For
+    client_ip = request.headers.get("X-Real-IP")
+    if not client_ip and request.headers.get("X-Forwarded-For"):
+        client_ip = request.headers.get("X-Forwarded-For").split(",")[-1].strip()
+    if not client_ip:
+        client_ip = request.remote_addr or "127.0.0.1"
+
+    req = await get_request_json() or {}
+    license_key = req.get("license_key", "").strip()
+
+    # 1. Multi-dimensional Rate Limiting (by IP and by Key Hash)
+    key_hash = hashlib.sha256(license_key.encode("utf-8", errors="ignore")).hexdigest()[:16] if license_key else "empty"
+    rate_limited = False
+    try:
+        # IP Rate Limit: 60 requests/minute
+        ip_count = REDIS_CONN.generate_auto_increment_id(
+            key_prefix="ratelimit",
+            namespace=f"lic_verify_ip:{client_ip}",
+            increment=1
+        )
+        if ip_count == 1 and REDIS_CONN.REDIS:
+            REDIS_CONN.REDIS.expire(f"ratelimit:lic_verify_ip:{client_ip}", 60)
+        
+        # Key Rate Limit: 10 requests / 5 minutes per key across all IPs (botnet protection)
+        key_count = REDIS_CONN.generate_auto_increment_id(
+            key_prefix="ratelimit",
+            namespace=f"lic_verify_key:{key_hash}",
+            increment=1
+        )
+        if key_count == 1 and REDIS_CONN.REDIS:
+            REDIS_CONN.REDIS.expire(f"ratelimit:lic_verify_key:{key_hash}", 300)
+
+        if ip_count > 60 or key_count > 10:
+            rate_limited = True
+    except Exception as e:
+        logging.critical("CRITICAL: Redis unavailable in license verification rate limiter. Falling back to local in-memory rate limiting: %s", e)
+        ip_ok = _check_in_memory_ratelimit(f"ip:{client_ip}", 60, 60)
+        key_ok = _check_in_memory_ratelimit(f"key:{key_hash}", 10, 300)
+        if not ip_ok or not key_ok:
+            rate_limited = True
+
+    if rate_limited:
+        logging.warning("Rate limit triggered on verify [IP=%s, key_hash=%s]", client_ip, key_hash)
+        return jsonify({
+            "valid": False,
+            "reason": "rate_limit_exceeded",
+            "message": "Too many requests. Please try again later.",
+            "code": 429
+        }), 429
+
+    if not license_key:
+        return jsonify({"valid": False, "reason": "license_invalid", "code": 102}), 200
+
+    # 2. Cryptographic signature check
+    payload = decode_license(license_key)
+    crypto_valid = payload is not None
+
+    # 3. Always execute DB query regardless of crypto_valid to equalize response timing (Anti-Timing Attack)
+    lic_records = LicenseKeyService.query(license_key=license_key) if license_key else []
+
+    if not crypto_valid:
+        logging.info("License verify failed [IP=%s, key_hash=%s]: invalid cryptographic signature", client_ip, key_hash)
+        return jsonify({"valid": False, "reason": "license_invalid", "code": 102}), 200
+
+    expiry_str = payload.get("expiry")
+    if not expiry_str:
+        logging.info("License verify failed [IP=%s, key_hash=%s]: missing expiry", client_ip, key_hash)
+        return jsonify({"valid": False, "reason": "license_invalid", "code": 102}), 200
+
+    try:
+        expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d")
+        if datetime.now() > expiry_date:
+            logging.info("License verify failed [IP=%s, key_hash=%s]: expired on %s", client_ip, key_hash, expiry_str)
+            return jsonify({"valid": False, "reason": "license_invalid", "code": 102}), 200
+    except ValueError:
+        logging.info("License verify failed [IP=%s, key_hash=%s]: invalid expiry date %s", client_ip, key_hash, expiry_str)
+        return jsonify({"valid": False, "reason": "license_invalid", "code": 102}), 200
+
+    # 4. Check DB status if record exists
+    if lic_records:
+        lic = lic_records[0]
+        if not lic.is_paid or lic.status != "active":
+            logging.info("License verify failed [IP=%s, key_hash=%s]: db record inactive/unpaid (status=%s, is_paid=%s)", client_ip, key_hash, lic.status, lic.is_paid)
+            return jsonify({"valid": False, "reason": "license_invalid", "code": 102}), 200
+        if lic.expiry_date and datetime.now() > lic.expiry_date:
+            logging.info("License verify failed [IP=%s, key_hash=%s]: db record expired on %s", client_ip, key_hash, lic.expiry_date)
+            return jsonify({"valid": False, "reason": "license_invalid", "code": 102}), 200
+
+    return jsonify({
+        "valid": True,
+        "expiry": expiry_str,
+        "type": payload.get("type", "yearly"),
+        "code": 0
+    }), 200
+
+
+
+

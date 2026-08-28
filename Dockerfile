@@ -235,12 +235,8 @@ COPY docs docs
 RUN --mount=type=cache,id=ragflow_npm,target=/root/.npm,sharing=locked \
     cd web && NODE_OPTIONS="--max-old-space-size=8192" VITE_BUILD_SOURCEMAP=false VITE_MINIFY=esbuild npm run build
 
-COPY .git /ragflow/.git
-
-RUN version_info=$(git describe --tags --match=v* --first-parent --always); \
-    version_info="$version_info"; \
-    echo "RAGFlow version: $version_info"; \
-    echo $version_info > /ragflow/VERSION
+ARG RAGFLOW_VERSION=dev
+RUN echo "${RAGFLOW_VERSION}" > /ragflow/VERSION
 
 # production stage
 FROM base AS production
@@ -267,7 +263,6 @@ COPY common common
 COPY memory memory
 COPY bin bin
 COPY tools/scripts tools/scripts
-COPY generate_license.py ./
 
 COPY docker/service_conf.yaml.template ./conf/service_conf.yaml.template
 COPY docker/entrypoint.sh ./

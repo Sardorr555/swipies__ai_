@@ -56,3 +56,13 @@ htmlcov/
 
 # ── Docker env (contains secrets) ───────────────────────────────────────────
 docker/.env
+
+# ── Git metadata & security exclusions ──────────────────────────────────────
+.git/
+.git
+generate_license.py
+internal/licensing/
+*private*.pem
+*.key
+copy_secrets.py
+

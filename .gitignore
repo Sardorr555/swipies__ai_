@@ -7,7 +7,13 @@ hudet/
 cv/
 layout_app.py
 api/flask_session
-venv/
+# Licensing security and private keys
+generate_license.py
+internal/licensing/
+*private*.pem
+*.key
+copy_secrets.py
+
 # Remove Cargo.lock from gitignore if creating an executable, leave it for libraries
 # More information here https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html
 Cargo.lock
@@ -235,12 +241,14 @@ internal/cpp/cmake-build-debug/
 # Go server build output
 bin/*
 !bin/.gitkeep
+!bin/reissue_paid_licenses.py
 .claude/settings.local.json
 
 .run/
 # Local agent tooling state (per-developer; not for commit)
 .omc/
 .marscode/
+.specify/
 
 # Parser test fixtures and python tools
 internal/deepdoc/parser/pdf/testdata/

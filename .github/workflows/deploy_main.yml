@@ -42,14 +42,17 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
           command_timeout: 45m
+          envs: GITHUB_TOKEN
+          env:
+            GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           script: |
             set -e
             if [ ! -d ~/swipies__ai_ ]; then
               echo "🚀 Директория ~/swipies__ai_ не найдена. Клонируем репозиторий..."
-              git clone -b licence_v https://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@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
+              git clone -b licence_v https://${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
             fi
             cd ~/swipies__ai_
-            git remote set-url origin https://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@github.com/Sardorr555/swipies__ai_.git || true
+            git remote set-url origin https://${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git || true
 
             echo "📥 Обновляем код..."
             git fetch origin licence_v

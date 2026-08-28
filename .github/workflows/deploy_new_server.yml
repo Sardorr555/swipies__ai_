@@ -29,6 +29,7 @@ jobs:
 
       - name: Replicate Secrets to Swipies_docs
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
           EC2_HOST: "100.31.87.176"
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
         run: |
@@ -40,6 +41,9 @@ jobs:
           host: "100.31.87.176"
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          envs: GITHUB_TOKEN
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
           command_timeout: 45m
           script: |
             set -e
@@ -82,11 +86,11 @@ jobs:
 
             echo "🚀 Клонируем/обновляем репозиторий Swipies..."
             if [ ! -d ~/swipies__ai_ ]; then
-              git clone -b licence_v https://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@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
+              git clone -b licence_v https://${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
             fi
 
             cd ~/swipies__ai_
-            git remote set-url origin https://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@github.com/Sardorr555/swipies__ai_.git || true
+            git remote set-url origin https://${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git || true
             git fetch origin licence_v
             git reset --hard origin/licence_v
 

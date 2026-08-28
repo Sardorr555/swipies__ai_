@@ -220,13 +220,10 @@ EOF
 # 6. Pull prebuilt docker images
 echo "🚚 Pulling prebuilt Swipies Docker containers..."
 sudo docker rm -f $(sudo docker ps -a -q --filter name=swipies-) 2>/dev/null || true
-if ! sudo docker compose pull 2>/dev/null; then
-    echo "⚠️ Prebuilt GHCR containers are publishing... Cloning repo to build locally..."
-    cd "$HOME"
-    git clone -b licence_v https://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@github.com/Sardorr555/swipies__ai_.git "$HOME/swipies__ai_" 2>/dev/null || true
-    cd "$HOME/swipies__ai_/docker"
-    sudo docker compose build
-    sudo docker compose up -d --remove-orphans
+if ! sudo docker compose pull; then
+    echo "❌ Failed to pull docker images from GitHub Container Registry."
+    echo "Please verify your internet connection and try running: sudo docker compose pull"
+    exit 1
 else
     echo "🚀 Starting Swipies AI stack..."
     sudo docker compose up -d

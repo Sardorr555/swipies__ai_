@@ -436,6 +436,7 @@ async def limit_license():
     allowed_prefixes = [
         "/v1/system/license",
         "/v1/system/config",
+        "/v1/licenses/verify",
         "/v1/user/login",
         "/v1/user/register",
         "/v1/user/logout",
@@ -443,6 +444,7 @@ async def limit_license():
         "/v1/users",
         "/api/v1/system/license",
         "/api/v1/system/config",
+        "/api/v1/licenses/verify",
         "/api/v1/user/login",
         "/api/v1/user/register",
         "/api/v1/user/logout",

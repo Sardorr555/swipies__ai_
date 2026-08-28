@@ -47,6 +47,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          build-args: |
+            RAGFLOW_VERSION=${{ github.ref_name }}-${{ github.sha }}
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
 
