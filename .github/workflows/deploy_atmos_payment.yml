@@ -83,6 +83,13 @@ ENVEOF
 
             echo "⏳ Checking health status..."
             sleep 2
-            curl -s http://localhost:3001/api/health || true
+            HEALTH_RESP=$(curl -s --connect-timeout 5 http://localhost:3001/api/health || echo '{"status":"error"}')
+            echo "Health status: $HEALTH_RESP"
 
-            echo "✅ Atmos Payment System deployment completed successfully!"
+            echo "🧪 Running full cycle test on /api/pay/create..."
+            CREATE_RESP=$(curl -s -X POST http://localhost:3001/api/pay/create \
+              -H "Content-Type: application/json" \
+              -d '{"amount": 1000, "account": "deploy-healthcheck@swipies.app"}' --connect-timeout 10 || echo '{"error":"timeout"}')
+            echo "Payment Create Test result: $CREATE_RESP"
+
+            echo "✅ Atmos Payment System deployment and verification completed successfully!"

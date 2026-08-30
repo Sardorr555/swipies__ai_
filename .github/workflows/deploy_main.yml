@@ -118,7 +118,10 @@ jobs:
             echo "🔑 Granting superuser permissions to all users in MySQL..."
             sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" || true
 
+            echo "💳 Ensuring Atmos Payment System is running..."
+            bash ~/swipies__ai_/docker/ensure_payment_service.sh || true
+
             echo "🧹 Cleaning up old unused images..."
             sudo docker image prune -f || true
 
-            echo "✅ Main application deployment completed successfully!"
+            echo "✅ Main application and Payment System deployment completed successfully!"

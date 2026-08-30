@@ -56,6 +56,31 @@ const generateUUID = () => {
   });
 };
 
+const safeFetchJson = async (url: string, options?: RequestInit) => {
+  let res: Response;
+  try {
+    res = await fetch(url, options);
+  } catch (err: any) {
+    throw new Error(`Не удалось подключиться к серверу (${err.message || 'Network Error'}). Проверьте подключение.`);
+  }
+
+  const text = await res.text();
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    if (!res.ok) {
+      throw new Error(`Платежный шлюз временно недоступен (Код ${res.status}: ${res.statusText || 'Bad Gateway'}). Убедитесь, что сервис оплаты запущен.`);
+    }
+    throw new Error(`Некорректный ответ от сервера (${res.status}): ${text.slice(0, 120)}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.error || data?.result?.description || data?.message || `Ошибка запроса (${res.status})`);
+  }
+  return data;
+};
+
 const checkoutTranslations: Record<string, any> = {
   en: {
     back: 'Go Back',
@@ -335,37 +360,6 @@ export default function CheckoutPage() {
     }
   };
 
-  const triggerProvision = async () => {
-    try {
-      const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + selectedPeriod * 30);
-
-      const res = await fetch('/api/ragflow/provision', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: userEmail,
-          plan: planQuery,
-          months: selectedPeriod,
-          expiryDate: expiryDate.toISOString(),
-          // Pass license key name if self-hosted
-          license_name: planQuery === 'license' ? licenseName : undefined,
-          amount: finalAmount,
-          payment_id: transactionId || generateUUID(),
-        }),
-      });
-
-      const rfData = await res.json();
-      if (!res.ok) throw new Error(rfData.error || 'Account provisioning failed');
-
-      setSuccessResult(rfData);
-      setStep('success');
-    } catch (err: any) {
-      setSuccessResult({ success: false, error: err.message });
-      setStep('success');
-    }
-  };
-
   const handleCardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (planQuery === 'license' && !licenseName.trim()) {
@@ -396,7 +390,7 @@ export default function CheckoutPage() {
           ? finalAmount
           : Math.round(finalAmount * USD_RATE);
 
-        const res = await fetch('/api/pay/mps', {
+        const txData = await safeFetchJson('/api/pay/mps', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -408,9 +402,6 @@ export default function CheckoutPage() {
             ext_id: generateUUID(),
           }),
         });
-
-        const txData = await res.json();
-        if (!res.ok) throw new Error(txData.error || 'International card payment failed');
 
         if (txData.payload?.redirect_uri) {
           window.location.href = txData.payload.redirect_uri;
@@ -439,7 +430,7 @@ export default function CheckoutPage() {
           setStep('otp');
         } else {
           // Use Node.js payment server
-          const createRes = await fetch('/api/pay/create', {
+          const txData = await safeFetchJson('/api/pay/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -448,12 +439,9 @@ export default function CheckoutPage() {
             }),
           });
 
-          const txData = await createRes.json();
-          if (!createRes.ok) throw new Error(txData.error || txData.result?.description || 'Payment init failed');
-
           setTransactionId(txData.transaction_id);
 
-          const preRes = await fetch('/api/pay/pre-apply', {
+          const preData = await safeFetchJson('/api/pay/pre-apply', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -462,9 +450,6 @@ export default function CheckoutPage() {
               expiry: formattedExpiry,
             }),
           });
-
-          const preData = await preRes.json();
-          if (!preRes.ok) throw new Error(preData.error || preData.result?.description || 'Card validation failed');
 
           const phone = preData.phone || preData.phone_number || preData.phoneMask || (preData.payload && preData.payload.phone) || '';
           setMaskedPhone(phone);
@@ -501,17 +486,22 @@ export default function CheckoutPage() {
           licenseKey: confirmData.license_key
         });
         setStep('success');
-      } else {
         // Use Node.js payment server
-        const res = await fetch('/api/pay/apply', {
+        const applyRes = await safeFetchJson('/api/pay/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transaction_id: transactionId, otp }),
+          body: JSON.stringify({
+            transaction_id: transactionId,
+            otp,
+            email: userEmail,
+            plan: planQuery,
+            months: selectedPeriod,
+            license_name: planQuery === 'license' ? licenseName : undefined,
+          }),
         });
-        const confirmData = await res.json();
-        if (!res.ok) throw new Error(confirmData.error || 'Payment verification failed');
 
-        await triggerProvision();
+        setSuccessResult(applyRes.provision || { success: true });
+        setStep('success');
       }
     } catch (err: any) {
       setError(err.message || 'Invalid verification code. Please try again.');

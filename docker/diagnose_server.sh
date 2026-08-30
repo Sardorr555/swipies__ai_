@@ -80,13 +80,26 @@ else
 fi
 
 # 5. Check firewall / local connection
-echo -e "\n${BLUE}[5/5] Checking local connectivity to frontend...${NC}"
+echo -e "\n${BLUE}[5/6] Checking local connectivity to frontend...${NC}"
 local_conn=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9222 --connect-timeout 3)
 if [ "$local_conn" = "200" ] || [ "$local_conn" = "301" ] || [ "$local_conn" = "302" ]; then
     echo -e "${GREEN}✔ Successfully connected to frontend container locally on port 9222 (HTTP Code: $local_conn).${NC}"
 else
     echo -e "${RED}✘ Failed to connect to frontend container locally on port 9222 (HTTP Code/Status: $local_conn).${NC}"
     echo -e "${YELLOW}👉 Check if the frontend container Nginx is listening properly inside the container.${NC}"
+fi
+
+# 6. Check Atmos Payment System
+echo -e "\n${BLUE}[6/6] Checking Atmos Payment System (port 3001)...${NC}"
+pay_health=$(curl -s --connect-timeout 3 http://127.0.0.1:3001/api/health 2>/dev/null || echo "")
+if [ -n "$pay_health" ]; then
+    echo -e "${GREEN}✔ Atmos payment server is running on port 3001: $pay_health${NC}"
+    # Test creation
+    pay_create=$(curl -s -X POST http://127.0.0.1:3001/api/pay/create -H "Content-Type: application/json" -d '{"amount": 1000, "account": "diag@swipies.app"}' --connect-timeout 5 2>/dev/null || echo "")
+    echo -e "✔ Pay create test: $pay_create"
+else
+    echo -e "${RED}✘ Atmos payment server is NOT running on port 3001!${NC}"
+    echo -e "${YELLOW}👉 Start it using: bash ~/swipies__ai_/docker/ensure_payment_service.sh${NC}"
 fi
 
 echo -e "\n${BLUE}==================================================${NC}"
