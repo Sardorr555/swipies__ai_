@@ -60,7 +60,7 @@ export default function AdminPaymentsPage() {
     isLoading: isAnalyticsLoading,
     refetch: refetchAnalytics,
   } = useQuery({
-    queryKey: ['admin/payments/analytics'],
+    queryKey: ['admin/payments/summary'],
     queryFn: async () => {
       const res = await getPaymentAnalytics();
       return res?.data?.data;
@@ -110,7 +110,7 @@ export default function AdminPaymentsPage() {
         }
         setIsReconcileModalOpen(false);
         queryClient.invalidateQueries({ queryKey: ['admin/payments/transactions'] });
-        queryClient.invalidateQueries({ queryKey: ['admin/payments/analytics'] });
+        queryClient.invalidateQueries({ queryKey: ['admin/payments/summary'] });
       } else {
         message.error(data?.message || 'Reconciliation failed');
       }

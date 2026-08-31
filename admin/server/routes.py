@@ -896,3 +896,175 @@ def get_onboarding_stats():
     except Exception as e:
         return error_response(str(e), 500)
 
+
+# =============================================================================
+# Payment Ledger, Analytics & Reconciliation Endpoints (Admin Service)
+# =============================================================================
+
+@admin_bp.route("/payments/transactions", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_payment_transactions():
+    """Query paginated payment transactions with multi-field filters."""
+    try:
+        from api.db.services.payment_transaction_service import PaymentTransactionService
+        page = int(request.args.get("page", 1))
+        size = int(request.args.get("size", 20))
+        status = request.args.get("status")
+        plan_type = request.args.get("plan_type")
+        email = request.args.get("email")
+        search = request.args.get("search")
+        date_from = request.args.get("date_from")
+        date_to = request.args.get("date_to")
+
+        res = PaymentTransactionService.get_transactions_paginated(
+            page=page,
+            page_size=size,
+            status=status if status and status != "ALL" else None,
+            plan_type=plan_type if plan_type and plan_type != "ALL" else None,
+            email=email,
+            search=search,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        return success_response(res)
+    except Exception as e:
+        logging.exception(f"Error fetching payment transactions: {e}")
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/payments/summary", methods=["GET"])
+@admin_bp.route("/payments/analytics", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_payment_summary():
+    """Calculate financial KPIs and checkout conversion summary."""
+    try:
+        from api.db.services.payment_transaction_service import PaymentTransactionService
+        summary = PaymentTransactionService.get_analytics_summary()
+        return success_response(summary)
+    except Exception as e:
+        logging.exception(f"Error fetching payment summary: {e}")
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/payments/reconcile", methods=["POST"])
+@login_required
+@check_admin_auth
+def admin_reconcile_payment():
+    """Manual reconciliation action on payment transaction by superuser."""
+    try:
+        from api.db.db_models import DB, PaymentTransaction, Tenant
+        from api.db.services.payment_transaction_service import PaymentTransactionService
+        from api.db.services.user_service import TenantService
+        from common.time_utils import datetime_format
+
+        req = request.get_json() or {}
+        transaction_id = str(req.get("transaction_id", "")).strip()
+        action = str(req.get("action", "")).strip()
+        paid_amount_uzs = req.get("paid_amount_uzs")
+        audit_note = str(req.get("audit_note", "")).strip()
+
+        if not transaction_id or not action:
+            return error_response("transaction_id and action are required", 400)
+
+        tx = PaymentTransactionService.get_by_tx_id(transaction_id)
+        if not tx:
+            return error_response(f"Transaction {transaction_id} not found", 404)
+
+        admin_email = getattr(current_user, "email", "admin")
+        admin_note = f"Manual admin reconciliation by {admin_email}: {audit_note}".strip()
+
+        with DB.connection_context(), DB.atomic():
+            if action == "mark_paid":
+                amount = int(paid_amount_uzs) if paid_amount_uzs is not None else tx.expected_amount_uzs
+                updated_tx = PaymentTransactionService.mark_paid(
+                    transaction_id=transaction_id,
+                    paid_amount_uzs=amount,
+                    audit_note=admin_note,
+                )
+                if tx.user_id:
+                    from datetime import timedelta
+                    months = max(1, int(tx.duration_months or 1))
+                    expiry_date = datetime.now() + timedelta(days=months * 30)
+                    credits = 5000 * months if tx.plan_type == "plus" else (10000 * months if tx.plan_type == "pro" else 999999 * months)
+                    TenantService.update_by_id(
+                        tx.user_id,
+                        {
+                            "plan_type": tx.plan_type,
+                            "plan_expiry_date": datetime_format(expiry_date),
+                            "credit": credits,
+                        }
+                    )
+                return success_response({
+                    "success": True,
+                    "downgraded": False,
+                    "transaction": updated_tx.to_dict() if updated_tx else None
+                })
+
+            elif action == "mark_failed":
+                updated_tx = PaymentTransactionService.mark_failed(
+                    transaction_id=transaction_id,
+                    error_code=req.get("error_code") or "MANUAL_REVOKED",
+                    error_message=audit_note or "Revoked by admin during reconciliation",
+                    audit_note=admin_note,
+                )
+
+                # Check if tenant has any OTHER active confirmed PAID transaction
+                other_active_paid = PaymentTransaction.select().where(
+                    (PaymentTransaction.user_id == tx.user_id) &
+                    (PaymentTransaction.id != tx.id) &
+                    (PaymentTransaction.status == "PAID")
+                ).order_by(PaymentTransaction.create_date.desc()).first()
+
+                downgraded = False
+                warning_message = None
+
+                if other_active_paid and not req.get("force_downgrade", False):
+                    warning_message = (
+                        f"Transaction #{transaction_id} marked as FAILED in ledger. Tenant '{tx.account_email}' was NOT "
+                        f"downgraded because account has another confirmed PAID transaction (#{other_active_paid.transaction_id}, plan: {other_active_paid.plan_type})."
+                    )
+                elif tx.user_id:
+                    default_credit = Tenant.credit.default if hasattr(Tenant.credit, 'default') and Tenant.credit.default is not None else 512
+                    TenantService.update_by_id(
+                        tx.user_id,
+                        {
+                            "plan_type": "free",
+                            "plan_expiry_date": None,
+                            "credit": default_credit,
+                        }
+                    )
+                    downgraded = True
+
+                # Revoke self-hosted license key if applicable (raises on DB failure inside atomic block)
+                if tx.plan_type == "license":
+                    from api.db.db_models import LicenseKey
+                    LicenseKey.update(status="revoked").where(
+                        (LicenseKey.payment_id == transaction_id) | (LicenseKey.user_id == tx.user_id)
+                    ).execute()
+
+                return success_response({
+                    "success": True,
+                    "downgraded": downgraded,
+                    "warning": warning_message,
+                    "transaction": updated_tx.to_dict() if updated_tx else None
+                })
+
+            elif action == "set_audit_note":
+                PaymentTransaction.update(audit_note=admin_note).where(PaymentTransaction.transaction_id == transaction_id).execute()
+                updated_tx = PaymentTransactionService.get_by_tx_id(transaction_id)
+                return success_response({
+                    "success": True,
+                    "downgraded": False,
+                    "transaction": updated_tx.to_dict() if updated_tx else None
+                })
+
+            else:
+                return error_response(f"Unknown action '{action}'. Valid actions: mark_paid, mark_failed, set_audit_note.", 400)
+
+    except Exception as e:
+        logging.exception(f"Error in admin_reconcile_payment: {e}")
+        return error_response(str(e), 500)
+
+
