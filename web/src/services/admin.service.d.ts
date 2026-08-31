@@ -231,4 +231,35 @@ declare namespace AdminService {
     provider_type: string;
     config: Record<string, unknown>;
   };
+
+  export type PaymentTransactionItem = {
+    id: string;
+    transaction_id: string;
+    user_id: string;
+    tenant_id: string;
+    account_email: string;
+    plan_type: string;
+    duration_months: number;
+    expected_amount_uzs: number;
+    paid_amount_uzs: number | null;
+    currency: string;
+    payment_method: string;
+    status: 'PAID' | 'PENDING' | 'FAILED' | 'REQUIRES_AUDIT' | 'EXPIRED' | 'CANCELLED';
+    error_code?: string | null;
+    error_message?: string | null;
+    is_provisioned: boolean;
+    audit_note?: string | null;
+    create_date: string;
+    update_date: string;
+  };
+
+  export type PaymentAnalyticsSummary = {
+    total_revenue_uzs: number;
+    mrr_uzs: number;
+    total_initiated_count: number;
+    paid_transactions_count: number;
+    conversion_rate_pct: number;
+    plan_breakdown: Record<string, { count: number; total_paid_uzs: number }>;
+    status_distribution: Record<string, number>;
+  };
 }

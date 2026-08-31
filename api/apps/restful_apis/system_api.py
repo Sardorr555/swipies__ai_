@@ -16,13 +16,18 @@
 
 import json
 import logging
-from datetime import datetime
+import os
+import base64
+import httpx
+from datetime import datetime, timedelta
 from timeit import default_timer as timer
 
-from quart import jsonify
+from quart import jsonify, request
 
 from api.apps import login_required, current_user
-from api.utils.api_utils import get_json_result, get_data_error_result, server_error_response, generate_confirmation_token
+from api.utils.api_utils import get_json_result, get_data_error_result, server_error_response, generate_confirmation_token, get_request_json
+from api.db.db_models import APIToken, MysqlDatabaseLock, DB
+from api.db.services.payment_transaction_service import PaymentTransactionService
 from api.utils.health_utils import run_health_checks, get_oceanbase_status
 from common.versions import get_ragflow_version
 from common.constants import RetCode
@@ -563,6 +568,332 @@ async def system_provision():
     return get_json_result(data={"license_key": license_key} if license_key else True)
 
 
+def check_system_api_auth() -> bool:
+    """Verifies that the request provides Authorization: Bearer <RAGFLOW_API_KEY>."""
+    auth_header = request.headers.get("Authorization", "").strip()
+    token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else auth_header
+    expected_key = os.getenv("RAGFLOW_API_KEY", "").strip()
+    if not expected_key or token != expected_key:
+        return False
+    return True
+
+
+async def verify_atmos_transaction(transaction_id: str, plan_type: str, duration_months: int):
+    """
+    Independently verifies payment in Atmos Gateway using server credentials.
+    Enforces that the confirmed status is successful and paid amount >= expected minimum.
+    """
+    expected_amount = PaymentTransactionService.calculate_expected_amount_uzs(plan_type, duration_months)
+    expected_tiyins = int(expected_amount * 100)
+
+    # In production, mock bypass is strictly forbidden
+    is_prod = (
+        os.getenv("ENV", "").lower() == "production"
+        or os.getenv("NODE_ENV", "").lower() == "production"
+    )
+    is_mock = (os.getenv("ATMOS_MOCK", "").lower() in ("true", "1")) and not is_prod
+
+    if is_mock and str(transaction_id).startswith("mock-tx-"):
+        return True, expected_amount, {
+            "mock": True,
+            "transaction_id": transaction_id,
+            "amount": expected_tiyins,
+            "result": {"code": "OK"}
+        }, None
+
+    key = os.getenv("ATMOS_KEY", "TpLRLagJ1SXiZ0dT_om5BT_I3Nga")
+    secret = os.getenv("ATMOS_SECRET", "bMH7gjat2EgI3fTXoLJX7CRUcbAa")
+    store_id = os.getenv("ATMOS_STORE_ID", "100506")
+    base_url = os.getenv("ATMOS_BASE_URL", "https://apigw.atmos.uz")
+
+    credentials = f"{key}:{secret}"
+    encoded_creds = base64.b64encode(credentials.encode()).decode()
+
+    headers_token = {
+        "Authorization": f"Basic {encoded_creds}",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            token_resp = await client.post(
+                f"{base_url}/token",
+                headers=headers_token,
+                data={"grant_type": "client_credentials"}
+            )
+            token_resp.raise_for_status()
+            access_token = token_resp.json().get("access_token")
+        except Exception as e:
+            logging.error(f"[Atmos Verify] Failed to get Atmos token: {e}")
+            return False, 0, None, f"Failed to get Atmos token: {e}"
+
+        headers_api = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        clean_tx_id = int(transaction_id) if (isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit())) else transaction_id
+
+        try:
+            status_resp = await client.post(
+                f"{base_url}/merchant/pay/status",
+                headers=headers_api,
+                json={"transaction_id": clean_tx_id, "store_id": str(store_id)}
+            )
+            status_data = status_resp.json()
+        except Exception as e:
+            logging.error(f"[Atmos Verify] Failed to query Atmos transaction status: {e}")
+            return False, 0, None, f"Failed to query Atmos transaction status: {e}"
+
+    res = status_data.get("result") or {}
+    res_code = res.get("code")
+    res_status = str(status_data.get("status", "")).upper()
+    is_success = (res_code in ("OK", 1, "1", 0, "0")) or (res_status in ("PAID", "SUCCESS", "CONFIRMED", "OK"))
+
+    if not is_success:
+        desc = res.get("description") or res.get("message") or status_data.get("message") or f"Gateway code {res_code}"
+        return False, 0, status_data, f"Transaction unconfirmed by gateway: {desc}"
+
+    gateway_amount = status_data.get("amount")
+    if gateway_amount is None:
+        return False, 0, status_data, "Atmos status response missing amount"
+
+    if int(gateway_amount) < expected_tiyins:
+        return False, 0, status_data, f"Price mismatch: paid {gateway_amount} tiyins, required {expected_tiyins} tiyins for {plan_type} ({duration_months}m)"
+
+    paid_uzs = int(gateway_amount) // 100
+    return True, paid_uzs, status_data, None
+
+
+@manager.route("/system/payment/init", methods=["POST"])  # noqa: F821
+async def system_payment_init():
+    """Idempotently initialize a pending payment transaction in the ledger."""
+    if not check_system_api_auth():
+        return get_json_result(
+            data=False,
+            message="Invalid or missing System API key.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    req = await get_request_json()
+    transaction_id = str(req.get("transaction_id", "")).strip()
+    email = str(req.get("email", "")).strip().lower()
+    plan = str(req.get("plan", "plus")).strip().lower()
+    months = max(1, int(req.get("months", 1)))
+    payment_method = str(req.get("payment_method", "atmos_uzcard_humo")).strip()
+
+    if not transaction_id or not email:
+        return get_data_error_result(message="transaction_id and email are required")
+
+    from api.db.services.user_service import UserService
+    users = UserService.query(email=email)
+    if not users:
+        return get_data_error_result(message=f"User {email} not found")
+
+    user = users[0]
+    expected_amount = PaymentTransactionService.calculate_expected_amount_uzs(plan, months)
+
+    tx, is_created = PaymentTransactionService.create_pending(
+        transaction_id=transaction_id,
+        user_id=user.id,
+        tenant_id=user.id,
+        account_email=email,
+        plan_type=plan,
+        duration_months=months,
+        expected_amount_uzs=expected_amount,
+        payment_method=payment_method,
+    )
+
+    return get_json_result(data={"success": True, "created": is_created, "transaction": tx.to_dict()})
+
+
+@manager.route("/system/payment/finalize", methods=["POST"])  # noqa: F821
+async def system_payment_finalize():
+    """
+    Zero-Trust finalized payment provisioning with session-level GET_LOCK concurrency protection
+    and server-side Atmos verification.
+    """
+    if not check_system_api_auth():
+        return get_json_result(
+            data=False,
+            message="Invalid or missing System API key.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    req = await get_request_json()
+    transaction_id = str(req.get("transaction_id", "")).strip()
+    email = str(req.get("email", "")).strip().lower()
+    plan = str(req.get("plan", "plus")).strip().lower()
+    months = max(1, int(req.get("months", 1)))
+
+    if not transaction_id or not email:
+        return get_data_error_result(message="transaction_id and email are required")
+
+    from api.db.services.user_service import UserService, TenantService
+    users = UserService.query(email=email)
+    if not users:
+        return get_data_error_result(message=f"User {email} not found")
+    user = users[0]
+
+    # Acquire dedicated MySQL Advisory Lock to serialize concurrent apply/webhook calls
+    lock_name = f"swipies_pay_{transaction_id}"
+    lock_acquired = False
+    with DB.connection_context():
+        try:
+            cursor = DB.cursor()
+            cursor.execute("SELECT GET_LOCK(%s, 10)", (lock_name,))
+            res = cursor.fetchone()
+            if not res or res[0] != 1:
+                # Lock timeout or acquisition failure
+                existing_tx = PaymentTransactionService.get_by_tx_id(transaction_id)
+                if existing_tx and existing_tx.status == "PAID" and existing_tx.is_provisioned:
+                    return get_json_result(data={
+                        "already_provisioned": True,
+                        "plan": existing_tx.plan_type,
+                        "status": "PAID",
+                        "paid_amount_uzs": existing_tx.paid_amount_uzs,
+                    })
+                return get_json_result(data=False, message="Lock timeout while waiting for transaction finalization", code=RetCode.SERVER_ERROR)
+
+            lock_acquired = True
+
+            # 1. Check idempotency: if already paid & provisioned, return success immediately
+            existing_tx = PaymentTransactionService.get_by_tx_id(transaction_id)
+            if existing_tx and existing_tx.status == "PAID" and existing_tx.is_provisioned:
+                return get_json_result(data={
+                    "already_provisioned": True,
+                    "plan": existing_tx.plan_type,
+                    "status": "PAID",
+                    "paid_amount_uzs": existing_tx.paid_amount_uzs,
+                })
+
+            # Ensure PENDING record exists in ledger before finalization
+            if not existing_tx:
+                PaymentTransactionService.create_pending(
+                    transaction_id=transaction_id,
+                    user_id=user.id,
+                    tenant_id=user.id,
+                    account_email=email,
+                    plan_type=plan,
+                    duration_months=months,
+                )
+
+            # 2. Python independently verifies transaction status & amount against Atmos
+            is_valid, paid_amount_uzs, gateway_resp, err_msg = await verify_atmos_transaction(transaction_id, plan, months)
+            if not is_valid:
+                PaymentTransactionService.mark_failed(
+                    transaction_id=transaction_id,
+                    error_code="GATEWAY_REJECTED",
+                    error_message=err_msg,
+                    gateway_response=gateway_resp,
+                    audit_note=f"Rejected during finalize verification: {err_msg}",
+                )
+                return get_data_error_result(message=err_msg or "Atmos payment verification failed")
+
+            # 3. Provision Tenant Subscription
+            expiry_date = datetime.now() + timedelta(days=months * 30)
+            license_key = None
+
+            if plan == "plus":
+                credits = 5000 * months
+            elif plan == "pro":
+                credits = 10000 * months
+            elif plan == "license":
+                credits = 999999 * months
+                try:
+                    from generate_license import generate_license
+                except ImportError:
+                    import sys
+                    from pathlib import Path
+                    sys.path.append(str(Path(__file__).resolve().parents[3]))
+                    from generate_license import generate_license
+                from api.db.services.license_key_service import LicenseKeyService
+                import uuid
+
+                license_name = req.get("license_name") or "Self-Hosted License"
+                expiry_str = expiry_date.strftime("%Y-%m-%d")
+                lic_type = "yearly" if months >= 12 else "6_months"
+                license_key = generate_license(owner=email, expiry=expiry_str, lic_type=lic_type)
+
+                lic_record = {
+                    "id": uuid.uuid4().hex,
+                    "user_id": user.id,
+                    "name": license_name,
+                    "amount": float(paid_amount_uzs),
+                    "duration_months": months,
+                    "expiry_date": expiry_date,
+                    "payment_id": transaction_id,
+                    "is_paid": True,
+                    "status": "active",
+                    "license_key": license_key,
+                }
+                LicenseKeyService.insert(**lic_record)
+            else:
+                credits = 5000 * months
+
+            TenantService.update_by_id(
+                user.id,
+                {
+                    "plan_type": plan,
+                    "plan_expiry_date": datetime_format(expiry_date),
+                    "credit": credits,
+                }
+            )
+
+            # 4. Mark transaction as PAID in ledger
+            updated_tx = PaymentTransactionService.mark_paid(
+                transaction_id=transaction_id,
+                paid_amount_uzs=paid_amount_uzs,
+                gateway_response=gateway_resp,
+                audit_note="Verified & provisioned via System API",
+            )
+
+            return get_json_result(data={
+                "provisioned": True,
+                "plan": plan,
+                "months": months,
+                "paid_amount_uzs": paid_amount_uzs,
+                "expiry_date": datetime_format(expiry_date),
+                "license_key": license_key,
+                "transaction": updated_tx.to_dict() if updated_tx else None,
+            })
+        finally:
+            if lock_acquired:
+                try:
+                    cursor.execute("SELECT RELEASE_LOCK(%s)", (lock_name,))
+                except Exception as ex:
+                    logging.warning(f"Error releasing MySQL lock {lock_name}: {ex}")
+
+
+@manager.route("/system/payment/fail", methods=["POST"])  # noqa: F821
+async def system_payment_fail():
+    """Record a failed payment attempt in the ledger."""
+    if not check_system_api_auth():
+        return get_json_result(
+            data=False,
+            message="Invalid or missing System API key.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    req = await get_request_json()
+    transaction_id = str(req.get("transaction_id", "")).strip()
+    error_code = req.get("error_code")
+    error_message = req.get("error_message")
+    gateway_response = req.get("gateway_response")
+
+    if not transaction_id:
+        return get_data_error_result(message="transaction_id is required")
+
+    tx = PaymentTransactionService.mark_failed(
+        transaction_id=transaction_id,
+        error_code=error_code,
+        error_message=error_message,
+        gateway_response=gateway_response,
+    )
+
+    return get_json_result(data={"success": True, "transaction": tx.to_dict() if tx else None})
+
+
 
 @manager.route("/system/license", methods=["GET"])  # noqa: F821
 @login_required
@@ -727,5 +1058,214 @@ async def update_system_variable():
             update_date=datetime_format(datetime.now())
         )
     return get_json_result(data=True)
+
+
+@manager.route("/admin/payments/transactions", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_get_payment_transactions():
+    """Paginated list of payment transactions with filters for superusers."""
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    page = int(request.args.get("page", 1))
+    page_size = min(100, int(request.args.get("page_size", 20)))
+    status = request.args.get("status")
+    plan_type = request.args.get("plan_type")
+    search = request.args.get("search")
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+
+    start_date = None
+    end_date = None
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        except ValueError:
+            pass
+
+    res = PaymentTransactionService.get_transactions_paginated(
+        page=page,
+        page_size=page_size,
+        status=status,
+        plan_type=plan_type,
+        search=search,
+        date_from=start_date_str,
+        date_to=end_date_str,
+    )
+
+    return get_json_result(data=res)
+
+
+@manager.route("/admin/payments/analytics", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_get_payment_analytics():
+    """Payment analytics KPI summary (revenue, conversions, plans breakdown)."""
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+
+    start_date = None
+    end_date = None
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        except ValueError:
+            pass
+
+    summary = PaymentTransactionService.get_analytics_summary(
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return get_json_result(data=summary)
+
+
+@manager.route("/admin/payments/reconcile", methods=["POST"])  # noqa: F821
+@login_required
+async def admin_reconcile_payment_transaction():
+    """Manual reconciliation action on payment transaction by superuser."""
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    req = await get_request_json()
+    transaction_id = str(req.get("transaction_id", "")).strip()
+    action = str(req.get("action", "")).strip()
+    paid_amount_uzs = req.get("paid_amount_uzs")
+    audit_note = str(req.get("audit_note", "")).strip()
+    grant_plan = req.get("grant_plan", False)
+
+    if not transaction_id or not action:
+        return get_data_error_result(message="transaction_id and action are required.")
+
+    tx = PaymentTransactionService.get_by_tx_id(transaction_id)
+    if not tx:
+        return get_data_error_result(message=f"Transaction {transaction_id} not found.")
+
+    admin_email = getattr(current_user, "email", "admin")
+    admin_note = f"Manual admin reconciliation by {admin_email}: {audit_note}".strip()
+
+    try:
+        with DB.connection_context(), DB.atomic():
+            if action == "mark_paid":
+                amount = int(paid_amount_uzs) if paid_amount_uzs is not None else tx.expected_amount_uzs
+                updated_tx = PaymentTransactionService.mark_paid(
+                    transaction_id=transaction_id,
+                    paid_amount_uzs=amount,
+                    audit_note=admin_note,
+                )
+                if tx.user_id:
+                    from api.db.services.user_service import TenantService
+                    from datetime import timedelta
+                    months = max(1, int(tx.duration_months or 1))
+                    expiry_date = datetime.now() + timedelta(days=months * 30)
+                    credits = 5000 * months if tx.plan_type == "plus" else (10000 * months if tx.plan_type == "pro" else 999999 * months)
+                    TenantService.update_by_id(
+                        tx.user_id,
+                        {
+                            "plan_type": tx.plan_type,
+                            "plan_expiry_date": datetime_format(expiry_date),
+                            "credit": credits,
+                        }
+                    )
+                return get_json_result(data={
+                    "success": True,
+                    "downgraded": False,
+                    "transaction": updated_tx.to_dict() if updated_tx else None
+                })
+
+            elif action == "mark_failed":
+                from api.db.db_models import PaymentTransaction, Tenant
+                from api.db.services.user_service import TenantService
+
+                updated_tx = PaymentTransactionService.mark_failed(
+                    transaction_id=transaction_id,
+                    error_code=req.get("error_code") or "MANUAL_REVOKED",
+                    error_message=audit_note or "Revoked by admin during reconciliation",
+                    audit_note=admin_note,
+                )
+
+                # Check if tenant has any OTHER active confirmed PAID transaction
+                other_active_paid = PaymentTransaction.select().where(
+                    (PaymentTransaction.user_id == tx.user_id) &
+                    (PaymentTransaction.id != tx.id) &
+                    (PaymentTransaction.status == "PAID")
+                ).order_by(PaymentTransaction.create_date.desc()).first()
+
+                downgraded = False
+                warning_message = None
+
+                if other_active_paid and not req.get("force_downgrade", False):
+                    warning_message = (
+                        f"Transaction #{transaction_id} marked as FAILED in ledger. Tenant '{tx.account_email}' was NOT "
+                        f"downgraded because account has another confirmed PAID transaction (#{other_active_paid.transaction_id}, plan: {other_active_paid.plan_type})."
+                    )
+                elif tx.user_id:
+                    # Resolve default free credits from Tenant schema (Tenant.credit.default = 512)
+                    default_credit = Tenant.credit.default if hasattr(Tenant.credit, 'default') and Tenant.credit.default is not None else 512
+                    TenantService.update_by_id(
+                        tx.user_id,
+                        {
+                            "plan_type": "free",
+                            "plan_expiry_date": None,
+                            "credit": default_credit,
+                        }
+                    )
+                    downgraded = True
+
+                # Revoke self-hosted license key if applicable (raises on DB failure inside atomic block)
+                if tx.plan_type == "license":
+                    from api.db.db_models import LicenseKey
+                    LicenseKey.update(status="revoked").where(
+                        (LicenseKey.payment_id == transaction_id) | (LicenseKey.user_id == tx.user_id)
+                    ).execute()
+
+                return get_json_result(data={
+                    "success": True,
+                    "downgraded": downgraded,
+                    "warning": warning_message,
+                    "transaction": updated_tx.to_dict() if updated_tx else None
+                })
+
+            elif action == "set_audit_note":
+                from api.db.db_models import PaymentTransaction
+                PaymentTransaction.update(audit_note=admin_note).where(PaymentTransaction.transaction_id == transaction_id).execute()
+                updated_tx = PaymentTransactionService.get_by_tx_id(transaction_id)
+                return get_json_result(data={
+                    "success": True,
+                    "downgraded": False,
+                    "transaction": updated_tx.to_dict() if updated_tx else None
+                })
+
+            else:
+                return get_data_error_result(message=f"Unknown action '{action}'. Valid actions: mark_paid, mark_failed, set_audit_note.")
+
+    except Exception as ex:
+        logging.exception(f"Reconciliation error on tx {transaction_id}: {ex}")
+        return get_data_error_result(message=f"Reconciliation failed: {str(ex)}")
+
 
 

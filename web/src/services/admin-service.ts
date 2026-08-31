@@ -111,6 +111,9 @@ const {
   adminGetVariables,
   adminUpdateVariable,
   adminListReferrals,
+  adminListPaymentTransactions,
+  adminGetPaymentAnalytics,
+  adminReconcilePayment,
   adminDeleteUser,
   adminListUserDatasets,
   adminListUserAgents,
@@ -354,6 +357,43 @@ export const getReferrals = (params: {
   size: number;
   search?: string;
 }) => request.get<ResponseData<any>>(adminListReferrals, { params });
+
+export const getPaymentTransactions = (params: {
+  page: number;
+  size: number;
+  search?: string;
+  status?: string;
+  plan_type?: string;
+  start_date?: string;
+  end_date?: string;
+}) =>
+  request.get<
+    ResponseData<{
+      records: AdminService.PaymentTransactionItem[];
+      total: number;
+      page: number;
+      page_size: number;
+    }>
+  >(adminListPaymentTransactions, { params });
+
+export const getPaymentAnalytics = () =>
+  request.get<ResponseData<AdminService.PaymentAnalyticsSummary>>(
+    adminGetPaymentAnalytics,
+  );
+
+export const reconcilePayment = (params: {
+  transaction_id: string;
+  action: 'mark_paid' | 'mark_failed' | 'set_audit_note';
+  paid_amount_uzs?: number;
+  error_message?: string;
+  audit_note: string;
+}) =>
+  request.post<
+    ResponseData<{
+      reconciled: boolean;
+      transaction: AdminService.PaymentTransactionItem;
+    }>
+  >(adminReconcilePayment, params);
 
 export const getOnboardingStats = () =>
   request.get<ResponseData<any>>('/api/v1/admin/onboarding/stats');

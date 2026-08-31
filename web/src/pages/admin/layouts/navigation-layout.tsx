@@ -15,6 +15,7 @@ import {
   LucideZap,
   Key,
   Bot,
+  CreditCard,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -59,6 +60,11 @@ const AdminNavigationLayout = () => {
         path: Routes.AdminPricingSettings,
         name: 'Pricing & Subscriptions',
         icon: <Coins className="size-[1em]" />,
+      },
+      {
+        path: Routes.AdminPayments,
+        name: 'Payments & Revenue',
+        icon: <CreditCard className="size-[1em]" />,
       },
       {
         path: Routes.AdminAIManagement,
