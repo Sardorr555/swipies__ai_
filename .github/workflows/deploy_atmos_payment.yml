@@ -61,35 +61,7 @@ RAGFLOW_ADMIN_PASSWORD=your-admin-password
 RAGFLOW_PUBLIC_KEY_PATH=./ragflow_public.pem
 ENVEOF
 
-            echo "🔌 Freeing port 3001 from hanging processes..."
-            sudo fuser -k 3001/tcp 2>/dev/null || true
-
-            # Load NVM and PM2 environment
-            export NVM_DIR="$HOME/.nvm"
-            if [ -s "$NVM_DIR/nvm.sh" ]; then
-              . "$NVM_DIR/nvm.sh"
-            fi
-            export PATH="$PATH:$HOME/.npm-global/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
-
-            if ! command -v pm2 &> /dev/null; then
-              echo "⚙️ Installing PM2 globally..."
-              npm install -g pm2 || sudo npm install -g pm2 || true
-            fi
-
-            echo "🔄 Restarting Atmos Payment service in PM2..."
-            pm2 delete atmos-payment 2>/dev/null || true
-            pm2 start index.js --name "atmos-payment" --update-env
-            pm2 save || true
-
-            echo "⏳ Checking health status..."
-            sleep 2
-            HEALTH_RESP=$(curl -s --connect-timeout 5 http://localhost:3001/api/health || echo '{"status":"error"}')
-            echo "Health status: $HEALTH_RESP"
-
-            echo "🧪 Running full cycle test on /api/pay/create..."
-            CREATE_RESP=$(curl -s -X POST http://localhost:3001/api/pay/create \
-              -H "Content-Type: application/json" \
-              -d '{"amount": 1000, "account": "deploy-healthcheck@swipies.app"}' --connect-timeout 10 || echo '{"error":"timeout"}')
-            echo "Payment Create Test result: $CREATE_RESP"
+            echo "🛡️ Running Indestructible Payment Service Provisioner..."
+            bash ~/swipies__ai_/docker/ensure_payment_service.sh
 
             echo "✅ Atmos Payment System deployment and verification completed successfully!"
