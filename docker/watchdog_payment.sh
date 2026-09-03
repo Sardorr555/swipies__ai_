@@ -4,7 +4,7 @@
 # ==============================================================================
 
 LOG_FILE="/var/log/atmos-watchdog.log"
-SERVER_DIR="/home/ubuntu/swipies__ai_/atmos payment system/server"
+SERVER_DIR="/home/ubuntu/swipies__ai_/atmos_payment_system/server"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE" 2>&1

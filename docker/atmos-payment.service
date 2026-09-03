@@ -7,15 +7,15 @@ Wants=network-online.target
 Type=simple
 User=ubuntu
 Group=ubuntu
-WorkingDirectory=/home/ubuntu/swipies__ai_/atmos payment system/server
-EnvironmentFile=-/home/ubuntu/swipies__ai_/atmos payment system/server/.env
+WorkingDirectory=/home/ubuntu/swipies__ai_/atmos_payment_system/server
+EnvironmentFile=-/home/ubuntu/swipies__ai_/atmos_payment_system/server/.env
 ExecStartPre=-/bin/bash -c "fuser -k 3001/tcp 2>/dev/null || true"
-ExecStart=/usr/bin/node /home/ubuntu/swipies__ai_/atmos payment system/server/index.js
+ExecStart=/usr/bin/node /home/ubuntu/swipies__ai_/atmos_payment_system/server/index.js
 Restart=always
 RestartSec=3
 RestartPreventExitStatus=0
-StandardOutput=append:/home/ubuntu/swipies__ai_/atmos payment system/server/atmos.log
-StandardError=append:/home/ubuntu/swipies__ai_/atmos payment system/server/atmos.log
+StandardOutput=append:/home/ubuntu/swipies__ai_/atmos_payment_system/server/atmos.log
+StandardError=append:/home/ubuntu/swipies__ai_/atmos_payment_system/server/atmos.log
 LimitNOFILE=65535
 
 [Install]

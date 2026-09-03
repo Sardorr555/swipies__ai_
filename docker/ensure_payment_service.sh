@@ -42,6 +42,12 @@ if [ -z "$SERVER_DIR" ]; then
 fi
 
 echo -e "${BLUE}📁 Server Directory: $SERVER_DIR${NC}"
+
+# Create safe symlink without spaces for systemd and scripts
+if [ -d "$HOME/swipies__ai_/atmos payment system" ]; then
+  ln -sfn "$HOME/swipies__ai_/atmos payment system" "$HOME/swipies__ai_/atmos_payment_system"
+fi
+
 cd "$SERVER_DIR"
 
 # 1. Ensure dependencies
