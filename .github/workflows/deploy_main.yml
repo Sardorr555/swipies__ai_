@@ -60,6 +60,9 @@ jobs:
             git checkout main || true
             git pull origin main || true
 
+            echo "💳 Ensuring Atmos Payment System is armed and running immediately..."
+            bash ~/swipies__ai_/docker/ensure_payment_service.sh || true
+
             cd ~/swipies__ai_/docker
 
             if ! grep -q "dh-mirror.gitverse.ru" /etc/docker/daemon.json 2>/dev/null; then
@@ -73,8 +76,9 @@ jobs:
             set +e
             echo "🛑 Stopping old containers..."
             sudo docker compose -f docker-compose.yml --profile "*" down --remove-orphans -t 2 2>/dev/null || true
-            for c in $(sudo docker ps -a -q --filter "name=swipies-"); do sudo docker rm -f "$c" 2>/dev/null || true; done
-            for c in $(sudo docker ps -a -q); do sudo docker rm -f "$c" 2>/dev/null || true; done
+            sudo docker rm -f -v swipies-minio swipies-redis swipies-mysql swipies-es01 swipies-docs swipies-frontend swipies-cpu 2>/dev/null || true
+            for c in $(sudo docker ps -a -q --filter "name=swipies-"); do sudo docker rm -f -v "$c" 2>/dev/null || true; done
+            for c in $(sudo docker ps -a -q); do sudo docker rm -f -v "$c" 2>/dev/null || true; done
             sudo docker container prune -f 2>/dev/null || true
             sudo docker network rm docker_ragflow 2>/dev/null || true
             sudo docker network prune -f 2>/dev/null || true
@@ -89,12 +93,13 @@ jobs:
             set +e
             echo "🛑 Ensuring clean state before stack start..."
             sudo docker compose -f docker-compose.yml --profile "*" down --remove-orphans -t 2 2>/dev/null || true
-            for c in $(sudo docker ps -a -q --filter "name=swipies-"); do sudo docker rm -f "$c" 2>/dev/null || true; done
-            for c in $(sudo docker ps -a -q); do sudo docker rm -f "$c" 2>/dev/null || true; done
+            sudo docker rm -f -v swipies-minio swipies-redis swipies-mysql swipies-es01 swipies-docs swipies-frontend swipies-cpu 2>/dev/null || true
+            for c in $(sudo docker ps -a -q --filter "name=swipies-"); do sudo docker rm -f -v "$c" 2>/dev/null || true; done
+            for c in $(sudo docker ps -a -q); do sudo docker rm -f -v "$c" 2>/dev/null || true; done
             sudo docker container prune -f 2>/dev/null || true
             sudo docker network rm docker_ragflow 2>/dev/null || true
             sudo docker network prune -f 2>/dev/null || true
-            sleep 2
+            sleep 3
             set -e
 
             echo "🚀 Starting Docker stack..."
