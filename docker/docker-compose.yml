@@ -190,6 +190,8 @@ services:
       - "host.docker.internal:host-gateway"
 
   docs:
+    profiles:
+      - docs
     build:
       context: ..
       dockerfile: ragflow-docs/Dockerfile
