@@ -379,3 +379,5 @@ We would like to express our gratitude to the [RAGFlow](https://github.com/infin
 <p><strong>Built with ❤️ by the Swipies AI team</strong></p>
 <p><em>Powered by RAGFlow • Enhanced for Swipies AI</em></p>
 </div>
+
+<!-- Security scan triggered at 2026-09-05 07:48:08 -->
