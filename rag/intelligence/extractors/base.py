@@ -24,3 +24,7 @@ class BaseKnowledgeExtractor(ABC):
     def extract(self, text_content: str, metadata: Dict[str, Any], llm_client: Any = None) -> Dict[str, Any]:
         """Runs knowledge extraction on text content and returns structured JSON output."""
         pass
+
+
+BaseExtractor = BaseKnowledgeExtractor
+

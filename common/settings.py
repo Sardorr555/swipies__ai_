@@ -85,14 +85,22 @@ except Exception:
 try:
     from rag.nlp import search
 except Exception:
-    pass
+    search = None
 
 try:
     import memory.utils.es_conn as memory_es_conn
+except Exception:
+    memory_es_conn = None
+
+try:
     import memory.utils.infinity_conn as memory_infinity_conn
+except Exception:
+    memory_infinity_conn = None
+
+try:
     import memory.utils.ob_conn as memory_ob_conn
 except Exception:
-    pass
+    memory_ob_conn = None
 
 TIMEZONE = os.getenv("TZ", "Asia/Shanghai")
 
@@ -263,10 +271,16 @@ def _get_or_create_secret_key():
     import logging
 
     generated_key = secrets.token_hex(32)
-    secret_key = REDIS_CONN.get_or_create_secret_key("ragflow:system:secret_key", generated_key)
-    if generated_key == secret_key:
-        logging.warning("SECURITY WARNING: Using auto-generated SECRET_KEY.")
-    return secret_key
+    if REDIS_CONN:
+        try:
+            secret_key = REDIS_CONN.get_or_create_secret_key("ragflow:system:secret_key", generated_key)
+            if generated_key == secret_key:
+                logging.warning("SECURITY WARNING: Using auto-generated SECRET_KEY.")
+            return secret_key
+        except Exception as e:
+            logging.warning(f"Failed to get secret key from Redis: {e}")
+            return generated_key
+    return generated_key
 
 class StorageFactory:
     storage_mapping = {
@@ -401,16 +415,16 @@ def init_settings():
     # use the same engine for message store
     if DOC_ENGINE == "elasticsearch":
         ES = get_base_config("es", {})
-        msgStoreConn = memory_es_conn.ESConnection()
+        msgStoreConn = memory_es_conn.ESConnection() if memory_es_conn else None
     elif DOC_ENGINE == "infinity":
         INFINITY = get_base_config("infinity", {
             "uri": "infinity:23817",
             "postgres_port": 5432,
             "db_name": "default_db"
         })
-        msgStoreConn = memory_infinity_conn.InfinityConnection()
+        msgStoreConn = memory_infinity_conn.InfinityConnection() if memory_infinity_conn else None
     elif lower_case_doc_engine in ["oceanbase", "seekdb"]:
-        msgStoreConn = memory_ob_conn.OBConnection()
+        msgStoreConn = memory_ob_conn.OBConnection() if memory_ob_conn else None
 
     global AZURE, S3, MINIO, OSS, GCS
     if STORAGE_IMPL_TYPE in ['AZURE_SPN', 'AZURE_SAS']:
@@ -448,10 +462,21 @@ def init_settings():
         STORAGE_IMPL = storage_impl
 
     global retriever, kg_retriever
-    retriever = search.Dealer(docStoreConn)
-    from rag.graphrag import search as kg_search
+    if search and docStoreConn:
+        try:
+            retriever = search.Dealer(docStoreConn)
+        except Exception as e:
+            logging.warning(f"Failed to initialize search Dealer: {e}")
+            retriever = None
+    else:
+        retriever = None
 
-    kg_retriever = kg_search.KGSearch(docStoreConn)
+    try:
+        from rag.graphrag import search as kg_search
+        kg_retriever = kg_search.KGSearch(docStoreConn) if docStoreConn else None
+    except Exception as e:
+        logging.warning(f"Failed to initialize KGSearch: {e}")
+        kg_retriever = None
 
     global SANDBOX_HOST
     if int(os.environ.get("SANDBOX_ENABLED", "0")):

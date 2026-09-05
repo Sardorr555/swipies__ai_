@@ -597,7 +597,7 @@ def my_llms():
             # Fallback to Admin-registered global AIModels
             try:
                 from api.db.services.ai_policy_service import AIModelService
-                from api.db.services.llm_service import LLMFactoriesService
+                from api.db.services.tenant_llm_service import LLMFactoriesService
                 factories = LLMFactoriesService.query(status=StatusEnum.VALID.value)
                 factories_dict = {f.name: f.tags for f in factories}
                 global_models = AIModelService.get_platform_models()
