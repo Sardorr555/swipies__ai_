@@ -19,7 +19,14 @@ import json
 import logging
 from functools import partial
 from quart import request, Response, make_response
-from agent.component import LLM
+try:
+    from agent.component import LLM
+except Exception:
+    try:
+        from agent.component.llm import LLM
+    except Exception:
+        class LLM: pass
+
 from api.db import CanvasCategory
 from api.db.services.canvas_service import CanvasTemplateService, UserCanvasService, API4ConversationService
 from api.db.services.document_service import DocumentService

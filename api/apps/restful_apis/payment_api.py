@@ -13,4 +13,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-from api.apps.payment_app import *  # noqa: F401, F403
+# Swipies Payment routes are consolidated in api/apps/payment_app.py
+# mounted at /v1/payment
+

@@ -2831,6 +2831,21 @@ class EILAuditLog(DataBaseModel):
         db_table = "eil_audit_log"
 
 
+class UserOnboarding(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    user_id = CharField(max_length=32, null=False, unique=True, index=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    department = CharField(max_length=128, null=True)
+    role_description = TextField(null=True)
+    expertise_tags = JSONField(null=True, default=list)
+    primary_projects = JSONField(null=True, default=list)
+    is_completed = IntegerField(default=0)
+
+    class Meta:
+        db_table = "user_onboarding"
+
+
+
 def migrate_db():
     logging.disable(logging.ERROR)
     migrator = DatabaseMigrator[settings.DATABASE_TYPE.upper()].value(DB)

@@ -359,7 +359,11 @@ def register_page(page_path):
     page.app = app
     page.manager = Blueprint(page_name, module_name)
     sys.modules[module_name] = page
-    spec.loader.exec_module(page)
+    try:
+        spec.loader.exec_module(page)
+    except Exception as e:
+        logging.exception(f"Failed to load page {module_name} from {page_path}: {e}")
+        return None
     page_name = getattr(page, "page_name", page_name)
     restful_api_path = "\\restful_apis\\" if sys.platform.startswith("win") else "/restful_apis/"
     url_prefix = f"/api/{API_VERSION}" if restful_api_path in path else f"/{API_VERSION}/{page_name}"
@@ -380,12 +384,16 @@ pages_dir = [
     Path(__file__).parent.parent / "api" / "apps" / "sdk",
 ]
 
-client_urls_prefix = [register_page(path) for directory in pages_dir for path in search_pages_path(directory)]
+client_urls_prefix = [p for p in (register_page(path) for directory in pages_dir for path in search_pages_path(directory)) if p is not None]
+
 
 # Register backward compatibility routes for deprecated APIs
-from api.apps.backward_compat import register_backward_compat_routes
+try:
+    from api.apps.backward_compat import register_backward_compat_routes
+    register_backward_compat_routes(app)
+except Exception as e:
+    logging.exception(f"Failed to register backward compatibility routes: {e}")
 
-register_backward_compat_routes(app)
 
 
 @app.errorhandler(404)
