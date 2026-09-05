@@ -49,6 +49,7 @@ jobs:
             cd ~/swipies__ai_
 
             echo "📥 Updating main repository..."
+            sudo chown -R ubuntu:ubuntu ~/swipies__ai_
             git fetch origin swipies_26
             git reset --hard origin/swipies_26
 
