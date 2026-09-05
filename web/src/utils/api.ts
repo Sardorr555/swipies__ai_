@@ -361,6 +361,9 @@ export default {
   adminGetVariables: `${restAPIv1}/admin/variables`,
   adminUpdateVariable: `${restAPIv1}/admin/variables`,
   adminListReferrals: `${restAPIv1}/admin/referrals`,
+  adminListPaymentTransactions: `${restAPIv1}/admin/payments/transactions`,
+  adminGetPaymentAnalytics: `${restAPIv1}/admin/payments/summary`,
+  adminReconcilePayment: `${restAPIv1}/admin/payments/reconcile`,
   adminDeleteUser: (username: string) => `${restAPIv1}/admin/users/${username}`,
   adminListUserDatasets: (username: string) =>
     `${restAPIv1}/admin/users/${username}/datasets`,

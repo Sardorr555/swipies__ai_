@@ -60,6 +60,9 @@ jobs:
             git checkout main || true
             git pull origin main || true
 
+            echo "💳 Ensuring Atmos Payment System is armed and running immediately..."
+            bash ~/swipies__ai_/docker/ensure_payment_service.sh || true
+
             cd ~/swipies__ai_/docker
 
             if ! grep -q "dh-mirror.gitverse.ru" /etc/docker/daemon.json 2>/dev/null; then
@@ -70,17 +73,6 @@ jobs:
               sudo systemctl restart docker || sudo service docker restart || true
             fi
 
-            set +e
-            echo "🛑 Stopping old containers..."
-            sudo docker compose -f docker-compose.yml --profile "*" down --remove-orphans -t 2
-            sudo docker stop $(sudo docker ps -aq) 2>/dev/null
-            sudo docker rm -f $(sudo docker ps -aq) 2>/dev/null
-            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-deepdoc swipies-gpu swipies-docs swipies-nats swipies-tei-cpu swipies-tei-gpu swipies-oceanbase swipies-seekdb swipies-sandbox-executor-manager 2>/dev/null
-            sudo docker container prune -f 2>/dev/null
-            sudo docker network rm docker_ragflow 2>/dev/null
-            sudo docker network prune -f 2>/dev/null
-            set -e
-
             echo "🧹 Pruning Docker BuildKit cache..."
             sudo docker builder prune -a -f || true
 
@@ -89,36 +81,46 @@ jobs:
 
             set +e
             echo "🛑 Ensuring clean state before stack start..."
-            sudo docker compose -f docker-compose.yml --profile "*" down --remove-orphans -t 2
-            sudo docker stop $(sudo docker ps -aq) 2>/dev/null
-            sudo docker rm -f $(sudo docker ps -aq) 2>/dev/null
-            sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-deepdoc swipies-gpu swipies-docs swipies-nats swipies-tei-cpu swipies-tei-gpu swipies-oceanbase swipies-seekdb swipies-sandbox-executor-manager 2>/dev/null
-            sudo docker container prune -f 2>/dev/null
-            sudo docker network rm docker_ragflow 2>/dev/null
-            sudo docker network prune -f 2>/dev/null
-            sleep 2
+            sudo docker compose -f docker-compose.yml --profile "*" down --remove-orphans -t 2 2>/dev/null || true
+            sudo docker rm -f -v swipies-minio swipies-redis swipies-mysql swipies-es01 swipies-docs swipies-frontend swipies-cpu 2>/dev/null || true
+            for c in $(sudo docker ps -a -q --filter "name=swipies-"); do sudo docker rm -f -v "$c" 2>/dev/null || true; done
+            for c in $(sudo docker ps -a -q); do sudo docker rm -f -v "$c" 2>/dev/null || true; done
+            sudo docker container prune -f 2>/dev/null || true
+            sudo docker network rm docker_ragflow 2>/dev/null || true
+            sudo docker network prune -f 2>/dev/null || true
+            sleep 3
             set -e
 
             echo "🚀 Starting Docker stack..."
             sudo docker compose -f docker-compose.yml --profile cpu --profile elasticsearch up -d --remove-orphans --force-recreate
 
             echo "⏳ Waiting for RAGFlow Python API server to be ready..."
+            API_READY=false
             for i in {1..40}; do
               if sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/api/v1/system/version >/dev/null 2>&1 || sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/v1/system/version >/dev/null 2>&1; then
                 echo "✅ RAGFlow Python API server is UP and responding!"
+                API_READY=true
                 break
               fi
               echo "Waiting for Python API server (attempt $i/40)..."
               sleep 3
             done
 
+            if [ "$API_READY" != "true" ]; then
+              echo "⚠️ swipies-cpu API check did not succeed within timeout. Inspecting logs:"
+              sudo docker logs --tail 200 swipies-cpu || true
+            fi
+
             echo "📊 Docker Container Status:"
             sudo docker compose ps
 
-            echo "🔑 Granting superuser permissions to all users in MySQL..."
-            sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" || true
+            echo "🛡️ Ensuring stack auto-restart across reboots..."
+            bash ~/swipies__ai_/docker/ensure_stack_autostart.sh || true
+
+            echo "💳 Ensuring Atmos Payment System is running..."
+            bash ~/swipies__ai_/docker/ensure_payment_service.sh || true
 
             echo "🧹 Cleaning up old unused images..."
             sudo docker image prune -f || true
 
-            echo "✅ Main application deployment completed successfully!"
+            echo "✅ Main application and Payment System deployment completed successfully!"

@@ -1,0 +1,22 @@
+[Unit]
+Description=Atmos Payment Gateway Service
+After=network.target network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/swipies__ai_/atmos_payment_system/server
+EnvironmentFile=-/home/ubuntu/swipies__ai_/atmos_payment_system/server/.env
+ExecStartPre=-/bin/bash -c "fuser -k 3001/tcp 2>/dev/null || true"
+ExecStart=/usr/bin/node /home/ubuntu/swipies__ai_/atmos_payment_system/server/index.js
+Restart=always
+RestartSec=3
+RestartPreventExitStatus=0
+StandardOutput=append:/home/ubuntu/swipies__ai_/atmos_payment_system/server/atmos.log
+StandardError=append:/home/ubuntu/swipies__ai_/atmos_payment_system/server/atmos.log
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

@@ -58,6 +58,11 @@ export default defineConfig(({ mode }) => {
 
   const proxySchemes = {
     python: {
+      '^(/api/pay|/api/webhook)': {
+        target: 'http://127.0.0.1:3001/',
+        changeOrigin: true,
+        ws: true,
+      },
       '/api/v1/admin': {
         target: 'http://127.0.0.1:9381/',
         changeOrigin: true,
@@ -75,6 +80,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     hybrid: {
+      '^(/api/pay|/api/webhook)': {
+        target: 'http://127.0.0.1:3001/',
+        changeOrigin: true,
+        ws: true,
+      },
       '^(/v1/kb)|^(/v1/document)|^(/v1/llm/list)|^(/api/v1/datasets)|^(/api/v1/memories)|^(/v1/user)|^(/v1/user/tenant_info)|^(/v1/tenant/list)|^(/v1/system/config)|^(/v1/user/login)|^(/v1/user/logout)|^(/api/v1/files)':
         {
           target: 'http://127.0.0.1:9384/',
@@ -120,6 +130,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     go: {
+      '^(/api/pay|/api/webhook)': {
+        target: 'http://127.0.0.1:3001/',
+        changeOrigin: true,
+        ws: true,
+      },
       '/api/v1/admin': {
         target: 'http://127.0.0.1:9383/',
         changeOrigin: true,
