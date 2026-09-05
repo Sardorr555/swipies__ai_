@@ -95,17 +95,27 @@ jobs:
             sudo docker compose -f docker-compose.yml --profile cpu --profile elasticsearch up -d --remove-orphans --force-recreate
 
             echo "⏳ Waiting for RAGFlow Python API server to be ready..."
+            API_READY=false
             for i in {1..40}; do
               if sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/api/v1/system/version >/dev/null 2>&1 || sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/v1/system/version >/dev/null 2>&1; then
                 echo "✅ RAGFlow Python API server is UP and responding!"
+                API_READY=true
                 break
               fi
               echo "Waiting for Python API server (attempt $i/40)..."
               sleep 3
             done
 
+            if [ "$API_READY" != "true" ]; then
+              echo "⚠️ swipies-cpu API check did not succeed within timeout. Inspecting logs:"
+              sudo docker logs --tail 200 swipies-cpu || true
+            fi
+
             echo "📊 Docker Container Status:"
             sudo docker compose ps
+
+            echo "🛡️ Ensuring stack auto-restart across reboots..."
+            bash ~/swipies__ai_/docker/ensure_stack_autostart.sh || true
 
             echo "💳 Ensuring Atmos Payment System is running..."
             bash ~/swipies__ai_/docker/ensure_payment_service.sh || true
