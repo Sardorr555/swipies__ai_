@@ -574,6 +574,16 @@ export default function SwipiesAdsPage() {
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
 
+  // Notification & Alert Settings State
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
+  const [loadingNotifs, setLoadingNotifs] = useState<boolean>(false);
+  const [isNotifModalOpen, setIsNotifModalOpen] = useState<boolean>(false);
+  const [isNotifSettingsModalOpen, setIsNotifSettingsModalOpen] = useState<boolean>(false);
+  const [notifSettings, setNotifSettings] = useState<any>(null);
+  const [savingNotifSettings, setSavingNotifSettings] = useState<boolean>(false);
+  const [testingNotifChannel, setTestingNotifChannel] = useState<string | null>(null);
+
   const fetchProductFeeds = async () => {
     setLoadingFeeds(true);
     try {
