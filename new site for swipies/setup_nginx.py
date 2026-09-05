@@ -13,7 +13,7 @@ NGINX_CONF = """\
 server {
     listen 80;
     listen [::]:80;
-    server_name swipies.app www.swipies.app;
+    server_name swipies.app www.swipies.app 51.20.190.248;
 
     # Redirect HTTP to HTTPS
     return 301 https://$host$request_uri;
@@ -22,7 +22,7 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name swipies.app www.swipies.app;
+    server_name swipies.app www.swipies.app 51.20.190.248;
 
     ssl_certificate     /etc/letsencrypt/live/swipies.app/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/swipies.app/privkey.pem;
