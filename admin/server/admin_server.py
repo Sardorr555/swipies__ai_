@@ -63,8 +63,15 @@ if __name__ == '__main__':
     login_manager.init_app(app)
     settings.init_settings()
     setup_auth(login_manager)
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        from responses import error_response
+        return error_response("Authentication required", 401)
+
     init_default_admin()
     SERVICE_CONFIGS.configs = load_configurations(SERVICE_CONF)
+
 
     try:
         logging.info(f"RAGFlow admin is ready after {time.time() - start_ts}s initialization.")

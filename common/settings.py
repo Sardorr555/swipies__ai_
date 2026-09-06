@@ -240,47 +240,62 @@ def get_svr_queue_names(suffix:str):
     return [get_svr_queue_name(priority, suffix) for priority in [1, 0]]
 
 def init_secret_key():
-    secret_key = os.environ.get("RAGFLOW_SECRET_KEY")
-    if secret_key and len(secret_key) >= 32:
-        return secret_key
-
-    # Check if there's a configured secret key
-    configured_key = get_base_config(RAG_FLOW_SERVICE_NAME, {}).get("secret_key")
-    if configured_key and configured_key != str(date.today()) and len(configured_key) >= 32:
-        return configured_key
-    return None
+    global SECRET_KEY
+    SECRET_KEY = get_secret_key()
+    return SECRET_KEY
 
 
 def get_secret_key():
     global SECRET_KEY
-    if SECRET_KEY is None:
-        return _get_or_create_secret_key()
+    if SECRET_KEY and len(str(SECRET_KEY).strip()) >= 32:
+        return SECRET_KEY
+    SECRET_KEY = _get_or_create_secret_key()
     return SECRET_KEY
 
+
 def _get_or_create_secret_key():
-    # secret_key = os.environ.get("RAGFLOW_SECRET_KEY")
-    # if secret_key and len(secret_key) >= 32:
-    #     return secret_key
-    #
-    # # Check if there's a configured secret key
-    # configured_key = get_base_config(RAG_FLOW_SERVICE_NAME, {}).get("secret_key")
-    # if configured_key and configured_key != str(date.today()) and len(configured_key) >= 32:
-    #     return configured_key
+    # 1. Check environment variable
+    secret_key = os.environ.get("RAGFLOW_SECRET_KEY")
+    if secret_key and len(secret_key.strip()) >= 32:
+        return secret_key.strip()
 
-    # Generate a new secure key and warn about it
-    import logging
+    # 2. Check service_conf configured key
+    try:
+        configured_key = get_base_config(RAG_FLOW_SERVICE_NAME, {}).get("secret_key")
+        if configured_key and configured_key != str(date.today()) and len(configured_key.strip()) >= 32:
+            return configured_key.strip()
+    except Exception:
+        pass
 
+    # 3. Check Redis via RedisDB instance
     generated_key = secrets.token_hex(32)
-    if REDIS_CONN:
-        try:
-            secret_key = REDIS_CONN.get_or_create_secret_key("ragflow:system:secret_key", generated_key)
-            if generated_key == secret_key:
-                logging.warning("SECURITY WARNING: Using auto-generated SECRET_KEY.")
-            return secret_key
-        except Exception as e:
-            logging.warning(f"Failed to get secret key from Redis: {e}")
-            return generated_key
+    try:
+        from rag.utils.redis_conn import RedisDB
+        redis_db = RedisDB()
+        if redis_db and getattr(redis_db, "REDIS", None):
+            secret_key = redis_db.get_or_create_secret_key("ragflow:system:secret_key", generated_key)
+            if secret_key:
+                return secret_key
+    except Exception as e:
+        import logging
+        logging.warning(f"Failed to get secret key from Redis: {e}")
+
+    # 4. Fallback to a shared file on disk in a persistent location
+    fallback_file = os.path.join(os.path.dirname(__file__), ".secret_key")
+    try:
+        if os.path.exists(fallback_file):
+            with open(fallback_file, "r", encoding="utf-8") as f:
+                k = f.read().strip()
+                if len(k) >= 32:
+                    return k
+        with open(fallback_file, "w", encoding="utf-8") as f:
+            f.write(generated_key)
+        return generated_key
+    except Exception:
+        pass
+
     return generated_key
+
 
 class StorageFactory:
     storage_mapping = {

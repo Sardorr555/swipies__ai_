@@ -45,46 +45,61 @@ def setup_auth(login_manager):
         from common import settings
 
         authorization = web_request.headers.get("Authorization")
-        if authorization:
-            try:
-                # Strip "Bearer " prefix if present
-                jwt_token = authorization
-                if jwt_token.startswith("Bearer "):
-                    jwt_token = jwt_token[7:]
-
-                jwt_token = jwt_token.strip()
-                if not jwt_token:
-                    logging.warning("Authentication attempt with empty JWT token")
-                    return None
-
-                # Decode JWT to get the UUID access_token
-                jwt = Serializer(secret_key=settings.get_secret_key())
-                access_token = str(jwt.loads(jwt_token))
-
-                if not access_token or not access_token.strip():
-                    logging.warning("Authentication attempt with empty access token after JWT decode")
-                    return None
-
-                # Access tokens stored in database are UUIDs (32 hex characters)
-                if len(access_token) < 32:
-                    logging.warning(f"Authentication attempt with invalid token format: {len(access_token)} chars")
-                    return None
-
-                user = UserService.query(
-                    access_token=access_token, status=StatusEnum.VALID.value
-                )
-                if user:
-                    if not user[0].access_token or not user[0].access_token.strip():
-                        logging.warning(f"User {user[0].email} has empty access_token in database")
-                        return None
-                    return user[0]
-                else:
-                    return None
-            except Exception as e:
-                logging.warning(f"load_user got exception {e}")
-                return None
-        else:
+        if not authorization:
             return None
+
+        try:
+            # Strip "Bearer " prefix if present
+            jwt_token = authorization.strip()
+            if jwt_token.startswith("Bearer "):
+                jwt_token = jwt_token[7:].strip()
+
+            if not jwt_token:
+                logging.warning("Authentication attempt with empty token")
+                return None
+
+            access_token = None
+            # 1. Try decoding JWT
+            try:
+                jwt = Serializer(secret_key=settings.get_secret_key())
+                access_token = str(jwt.loads(jwt_token)).strip()
+            except Exception as e_jwt:
+                logging.debug(f"JWT decode failed: {e_jwt}")
+
+            # 2. If JWT decode failed or raw token was passed
+            if not access_token or len(access_token) < 32:
+                access_token = jwt_token
+
+            if not access_token or len(access_token) < 32:
+                logging.warning(f"Authentication attempt with invalid token format: {len(access_token)} chars")
+                return None
+
+            user = UserService.query(
+                access_token=access_token, status=StatusEnum.VALID.value
+            )
+            if user:
+                if not user[0].access_token or not user[0].access_token.strip():
+                    logging.warning(f"User {user[0].email} has empty access_token in database")
+                    return None
+                return user[0]
+
+            # 3. Try as API token
+            try:
+                from api.db.db_models import APIToken
+                objs = APIToken.query(token=access_token)
+                objs = [o for o in objs if getattr(o, "status", "1") != "0"]
+                if objs:
+                    user = UserService.query(id=objs[0].tenant_id, status=StatusEnum.VALID.value)
+                    if user and user[0].access_token:
+                        return user[0]
+            except Exception:
+                pass
+
+            return None
+        except Exception as e:
+            logging.warning(f"load_user got exception {e}")
+            return None
+
 
 
 def init_default_admin():
@@ -144,17 +159,23 @@ def add_tenant_for_admin(user_info: dict, role: str):
 def check_admin_auth(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        user = UserService.filter_by_id(current_user.id)
+        if not current_user or not getattr(current_user, "is_authenticated", False):
+            from responses import error_response
+            return error_response("Authentication required", 401)
+        user_id = getattr(current_user, "id", None)
+        user_email = getattr(current_user, "email", "unknown")
+        user = UserService.filter_by_id(user_id) if user_id else None
         if not user:
-            raise UserNotFoundError(current_user.email)
-        if not user.is_superuser:
+            raise UserNotFoundError(user_email)
+        if not getattr(user, "is_superuser", False):
             raise AdminException("Not admin", 403)
-        if user.is_active == ActiveEnum.INACTIVE.value:
-            raise AdminException(f"User {current_user.email} inactive", 403)
+        if getattr(user, "is_active", None) == ActiveEnum.INACTIVE.value:
+            raise AdminException(f"User {user_email} inactive", 403)
 
         return func(*args, **kwargs)
 
     return wrapper
+
 
 
 def login_admin(email: str, password: str):

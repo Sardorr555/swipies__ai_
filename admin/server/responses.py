@@ -25,8 +25,10 @@ def success_response(data=None, message="Success", code=0):
 
 
 def error_response(message="Error", code=-1, data=None):
+    http_status = code if (isinstance(code, int) and 100 <= code < 600) else 400
     return jsonify({
         "code": code,
         "message": message,
         "data": data
-    }), 400
+    }), http_status
+
