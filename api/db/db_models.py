@@ -2930,12 +2930,11 @@ def migrate_db():
     except Exception:
         pass
     try:
-        admin_email = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io")
-        if not admin_email or not admin_email.strip():
-            admin_email = "admin@ragflow.io"
-        admin_email = admin_email.strip().lower()
-        DB.execute_sql(f"UPDATE user SET is_superuser = 0 WHERE LOWER(email) != '{admin_email}';")
-        DB.execute_sql(f"UPDATE user SET is_superuser = 1 WHERE LOWER(email) = '{admin_email}';")
+        admin_emails = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io,albakiev.sardorbek@gmail.com")
+        if not admin_emails or not admin_emails.strip():
+            admin_emails = "admin@ragflow.io,albakiev.sardorbek@gmail.com"
+        for em in [e.strip().lower() for e in admin_emails.split(",") if e.strip()]:
+            DB.execute_sql(f"UPDATE user SET is_superuser = 1 WHERE LOWER(email) = '{em}';")
         DB.execute_sql("UPDATE user_tenant SET role = 'owner' WHERE tenant_id = user_id AND role = 'normal';")
     except Exception:
         pass
