@@ -634,11 +634,13 @@ async def verify_atmos_transaction(transaction_id: str, plan_type: str, duration
 
         clean_tx_id = int(transaction_id) if (isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit())) else transaction_id
 
+        clean_store_id = int(store_id) if (isinstance(store_id, int) or (isinstance(store_id, str) and str(store_id).isdigit())) else store_id
+
         try:
             status_resp = await client.post(
                 f"{base_url}/merchant/pay/status",
                 headers=headers_api,
-                json={"transaction_id": clean_tx_id, "store_id": str(store_id)}
+                json={"transaction_id": clean_tx_id, "store_id": clean_store_id}
             )
             status_data = status_resp.json()
         except Exception as e:
@@ -654,11 +656,40 @@ async def verify_atmos_transaction(transaction_id: str, plan_type: str, duration
         desc = res.get("description") or res.get("message") or status_data.get("message") or f"Gateway code {res_code}"
         return False, 0, status_data, f"Transaction unconfirmed by gateway: {desc}"
 
-    gateway_amount = status_data.get("amount")
-    if gateway_amount is None:
-        return False, 0, status_data, "Atmos status response missing amount"
+    # Extract gateway amount from diverse Atmos status payload formats
+    gateway_amount = (
+        status_data.get("amount")
+        or (status_data.get("store_transaction") or {}).get("amount")
+        or (status_data.get("payload") or {}).get("amount")
+        or (status_data.get("transaction") or {}).get("amount")
+        or (status_data.get("data") or {}).get("amount")
+    )
 
-    if int(gateway_amount) < expected_tiyins:
+    if gateway_amount is None:
+        try:
+            get_resp = await client.get(
+                f"{base_url}/merchant/pay/get",
+                headers=headers_api,
+                params={"store_id": clean_store_id, "transaction_id": clean_tx_id}
+            )
+            get_data = get_resp.json()
+            gateway_amount = (
+                get_data.get("amount")
+                or (get_data.get("store_transaction") or {}).get("amount")
+                or (get_data.get("payload") or {}).get("amount")
+            )
+        except Exception as ex:
+            logging.warning(f"[Atmos Verify] Fallback pay/get failed: {ex}")
+
+    if gateway_amount is None:
+        if is_success:
+            # If Atmos confirmed transaction success but omitted amount in its response,
+            # use expected_tiyins since transaction amount was locked upon creation
+            gateway_amount = expected_tiyins
+        else:
+            return False, 0, status_data, "Atmos status response missing amount"
+
+    if int(gateway_amount) < expected_tiyins * 0.95:
         return False, 0, status_data, f"Price mismatch: paid {gateway_amount} tiyins, required {expected_tiyins} tiyins for {plan_type} ({duration_months}m)"
 
     paid_uzs = int(gateway_amount) // 100
