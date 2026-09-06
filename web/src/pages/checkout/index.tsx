@@ -492,6 +492,7 @@ export default function CheckoutPage() {
           licenseKey: confirmData.license_key
         });
         setStep('success');
+      } else {
         // Use Node.js payment server
         const applyRes = await safeFetchJson('/api/pay/apply', {
           method: 'POST',
