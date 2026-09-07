@@ -9,6 +9,10 @@ on:
       - '.github/workflows/deploy_atmos_payment.yml'
   workflow_dispatch:
 
+concurrency:
+  group: deploy-atmos
+  cancel-in-progress: false
+
 jobs:
   deploy-payment:
     runs-on: ubuntu-latest
@@ -32,12 +36,19 @@ jobs:
 
             cd ~/swipies__ai_
 
+            echo "🧹 Cleaning git locks and stale processes..."
+            sudo chown -R ubuntu:ubuntu ~/swipies__ai_ 2>/dev/null || true
+            sudo killall git 2>/dev/null || true
+            sudo find ~/swipies__ai_ -name "*.lock" -type f -delete 2>/dev/null || true
+
             echo "📥 Fetching latest code..."
             git fetch origin swipies_26
             git reset --hard origin/swipies_26
 
             echo "📥 Updating Atmos Payment System Submodule..."
             cd ~/swipies__ai_/"atmos payment system"
+            sudo killall git 2>/dev/null || true
+            sudo find . -name "*.lock" -type f -delete 2>/dev/null || true
             git checkout main || true
             git pull origin main || true
 
@@ -53,9 +64,9 @@ jobs:
             ATMOS_SECRET=bMH7gjat2EgI3fTXoLJX7CRUcbAa
             ATMOS_BASE_URL=https://apigw.atmos.uz
             PORT=3001
-            FRONTEND_URL=https://swipies.app
+            FRONTEND_URL=https://app.swipies.app
             ADMIN_PASSWORD=0czavZsPcYfroExMAdb
-            RAGFLOW_BASE_URL=https://swipies.app
+            RAGFLOW_BASE_URL=https://app.swipies.app
             RAGFLOW_ADMIN_EMAIL=your-admin@swipies.app
             RAGFLOW_ADMIN_PASSWORD=your-admin-password
             RAGFLOW_PUBLIC_KEY_PATH=./ragflow_public.pem

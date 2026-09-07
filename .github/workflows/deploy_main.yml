@@ -9,6 +9,10 @@ on:
       - 'landing_swipies/**'
   workflow_dispatch:
 
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
 jobs:
   deploy-main:
     runs-on: ubuntu-latest
@@ -62,18 +66,21 @@ jobs:
             cd ~/swipies__ai_
 
             echo "📥 Updating main repository..."
-            sudo chown -R ubuntu:ubuntu ~/swipies__ai_
-            sudo rm -f ~/swipies__ai_/.git/index.lock ~/swipies__ai_/.git/shallow.lock 2>/dev/null || true
+            sudo chown -R ubuntu:ubuntu ~/swipies__ai_ 2>/dev/null || true
+            sudo killall git 2>/dev/null || true
+            sudo find ~/swipies__ai_ -name "*.lock" -type f -delete 2>/dev/null || true
             git fetch origin swipies_26
             git reset --hard origin/swipies_26
 
             echo "📥 Syncing submodules..."
-            sudo rm -f ~/swipies__ai_/"atmos payment system"/.git/index.lock 2>/dev/null || true
+            sudo killall git 2>/dev/null || true
+            sudo find ~/swipies__ai_ -name "*.lock" -type f -delete 2>/dev/null || true
             git submodule sync --recursive
             git submodule update --init --recursive --force
 
             cd ~/swipies__ai_/"atmos payment system"
-            sudo rm -f .git/index.lock 2>/dev/null || true
+            sudo killall git 2>/dev/null || true
+            sudo find . -name "*.lock" -type f -delete 2>/dev/null || true
             git checkout main || true
             git pull origin main || true
 
