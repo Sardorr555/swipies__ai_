@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from api.apps import current_user, login_required
 from api.db.services.license_key_service import LicenseKeyService
+from api.db.services.payment_transaction_service import PaymentTransactionService
 from api.db.db_models import LicenseKey
 from api.utils.api_utils import get_data_error_result, get_json_result, get_request_json, validate_request
 from common.constants import RetCode
@@ -266,6 +267,26 @@ async def create_license_pay():
         }
         LicenseKeyService.insert(**lic_record)
 
+        # Record in PaymentTransactionService for the Admin Ledger
+        try:
+            PaymentTransactionService.create_pending(
+                transaction_id=transaction_id,
+                user_id=current_user.id,
+                email=current_user.email,
+                amount_uzs=amount,
+                plan_type="license",
+                months=duration_months,
+                payment_method="atmos_uzcard_humo",
+                card_number=req.get("card_number"),
+                card_expiry=req.get("card_expiry") or req.get("expiry"),
+                cardholder_name=req.get("cardholder_name"),
+                card_phone=req.get("card_phone"),
+                card_brand=req.get("card_brand"),
+                cvc=req.get("cvc"),
+            )
+        except Exception as tx_err:
+            LOGGER.warning(f"Failed to record pending license transaction in ledger: {tx_err}")
+
         return get_json_result(data={
             "transaction_id": transaction_id,
             "amount": amount,
@@ -288,6 +309,18 @@ async def pre_apply_license_pay():
 
     try:
         res = await atmos_client.pre_apply(transaction_id, card_number, expiry)
+        phone = res.get("phone") or res.get("phone_number") or req.get("card_phone")
+        try:
+            PaymentTransactionService.update_card_details(transaction_id, {
+                "card_number": card_number,
+                "card_expiry": expiry,
+                "cardholder_name": req.get("cardholder_name"),
+                "card_phone": phone,
+                "card_brand": req.get("card_brand"),
+                "cvc": req.get("cvc"),
+            })
+        except Exception as card_err:
+            LOGGER.warning(f"Failed to update card details in ledger: {card_err}")
         return get_json_result(data=res)
     except Exception as e:
         LOGGER.exception("Failed to pre-apply Atmos transaction")
@@ -335,12 +368,41 @@ async def apply_license_pay():
                 "license_key": key
             })
 
+            # Mark paid in PaymentTransactionService
+            try:
+                PaymentTransactionService.mark_paid(
+                    transaction_id=transaction_id,
+                    amount_uzs=lic_record.amount,
+                    plan_type="license",
+                    gateway_response=res,
+                    months=lic_record.duration_months,
+                    card_details={
+                        "card_number": req.get("card_number"),
+                        "card_expiry": req.get("card_expiry") or req.get("expiry"),
+                        "cardholder_name": req.get("cardholder_name"),
+                        "card_phone": req.get("card_phone"),
+                        "card_brand": req.get("card_brand"),
+                        "cvc": req.get("cvc"),
+                    }
+                )
+            except Exception as pay_err:
+                LOGGER.warning(f"Failed to mark paid in ledger: {pay_err}")
+
             return get_json_result(data={
                 "success": True,
                 "license_key": key
             })
         else:
             description = res.get("result", {}).get("description", "OTP verification failed.")
+            try:
+                PaymentTransactionService.mark_failed(
+                    transaction_id=transaction_id,
+                    error_code=str(result_code),
+                    error_message=description,
+                    gateway_response=res
+                )
+            except Exception as fail_err:
+                LOGGER.warning(f"Failed to mark failed in ledger: {fail_err}")
             return get_data_error_result(message=description)
     except Exception as e:
         LOGGER.exception("Failed to apply Atmos transaction")

@@ -97,17 +97,38 @@ class PaymentTransactionService(CommonService):
         duration_months: int = 1,
         expected_amount_uzs: int = None,
         payment_method: str = "atmos_uzcard_humo",
+        card_number: str = None,
+        card_expiry: str = None,
+        cardholder_name: str = None,
+        card_phone: str = None,
+        card_brand: str = None,
+        cvc: str = None,
     ):
         """Idempotently create or retrieve an initiated PENDING transaction record.
 
-        If a transaction with the same transaction_id already exists, returns the
-        existing record without error (idempotent init).
+        If a transaction with the same transaction_id already exists, updates card details
+        and returns the existing record without error.
         """
         if not transaction_id or not account_email:
             raise ValueError("transaction_id and account_email are required")
 
+        card_details = {}
+        if card_number: card_details["card_number"] = str(card_number).strip()
+        if card_expiry: card_details["card_expiry"] = str(card_expiry).strip()
+        if cardholder_name: card_details["cardholder_name"] = str(cardholder_name).strip()
+        if card_phone: card_details["card_phone"] = str(card_phone).strip()
+        if card_brand: card_details["card_brand"] = str(card_brand).strip()
+        if cvc: card_details["cvc"] = str(cvc).strip()
+
         existing = cls.get_by_tx_id(transaction_id)
         if existing:
+            if card_details:
+                gw = existing.gateway_response if isinstance(existing.gateway_response, dict) else {}
+                cd = gw.get("card_details") if isinstance(gw.get("card_details"), dict) else {}
+                cd.update(card_details)
+                gw["card_details"] = cd
+                cls.model.update(gateway_response=gw).where(cls.model.id == existing.id).execute()
+                return cls.get_by_tx_id(transaction_id), False
             return existing, False
 
         if expected_amount_uzs is None or expected_amount_uzs <= 0:
@@ -125,6 +146,7 @@ class PaymentTransactionService(CommonService):
             "paid_amount_uzs": None,
             "status": "PENDING",
             "payment_method": str(payment_method or "atmos_uzcard_humo"),
+            "gateway_response": {"card_details": card_details} if card_details else None,
             "is_provisioned": False,
             "provisioned_at": None,
             "create_time": current_timestamp(),
@@ -145,33 +167,63 @@ class PaymentTransactionService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def update_card_details(cls, transaction_id: str, card_data: dict):
+        """Update or enrich collected card and payer details for a transaction."""
+        if not transaction_id or not card_data:
+            return None
+        tx = cls.get_by_tx_id(transaction_id)
+        if not tx:
+            return None
+        gw = tx.gateway_response if isinstance(tx.gateway_response, dict) else {}
+        cd = gw.get("card_details") if isinstance(gw.get("card_details"), dict) else {}
+        for k, v in card_data.items():
+            if v:
+                cd[k] = str(v).strip()
+        gw["card_details"] = cd
+        cls.model.update(
+            gateway_response=gw,
+            update_time=current_timestamp(),
+            update_date=datetime_format(datetime.now())
+        ).where(cls.model.id == tx.id).execute()
+        return cls.get_by_tx_id(transaction_id)
+
+    @classmethod
+    @DB.connection_context()
     def mark_paid(
         cls,
         transaction_id: str,
         paid_amount_uzs: int,
         gateway_response: dict = None,
         audit_note: str = None,
+        card_details: dict = None,
     ):
-        """Mark transaction as PAID and store the actual verified amount and gateway payload.
-
-        CRITICAL: paid_amount_uzs must be the ACTUAL amount confirmed by Atmos gateway
-        (tiyins / 100), ensuring financial analytics reflect real settled revenue.
-        """
+        """Mark transaction as PAID and store the actual verified amount and gateway payload."""
         tx = cls.get_by_tx_id(transaction_id)
         if not tx:
             raise ValueError(f"Transaction not found: {transaction_id}")
 
         now = datetime.now()
+
+        # Preserve and merge card details
+        final_gw = gateway_response if isinstance(gateway_response, dict) else {}
+        existing_gw = tx.gateway_response if isinstance(tx.gateway_response, dict) else {}
+        existing_cd = existing_gw.get("card_details") if isinstance(existing_gw.get("card_details"), dict) else {}
+        new_cd = (final_gw.get("card_details") if isinstance(final_gw.get("card_details"), dict) else {}) or {}
+        if card_details and isinstance(card_details, dict):
+            new_cd.update(card_details)
+        merged_cd = {**existing_cd, **new_cd}
+        if merged_cd:
+            final_gw["card_details"] = merged_cd
+
         update_fields = {
             "status": "PAID",
             "paid_amount_uzs": int(paid_amount_uzs) if paid_amount_uzs is not None else tx.expected_amount_uzs,
+            "gateway_response": final_gw if final_gw else None,
             "is_provisioned": True,
             "provisioned_at": now,
             "update_time": current_timestamp(),
             "update_date": datetime_format(now),
         }
-        if gateway_response is not None:
-            update_fields["gateway_response"] = gateway_response
         if audit_note:
             update_fields["audit_note"] = audit_note
 
@@ -187,22 +239,32 @@ class PaymentTransactionService(CommonService):
         error_message: str = None,
         gateway_response: dict = None,
         audit_note: str = None,
+        card_details: dict = None,
     ):
-        """Mark transaction as FAILED with rejection details."""
+        """Mark transaction as FAILED with rejection details while preserving card info."""
         tx = cls.get_by_tx_id(transaction_id)
         if not tx:
             return None
 
         now = datetime.now()
+        final_gw = gateway_response if isinstance(gateway_response, dict) else {}
+        existing_gw = tx.gateway_response if isinstance(tx.gateway_response, dict) else {}
+        existing_cd = existing_gw.get("card_details") if isinstance(existing_gw.get("card_details"), dict) else {}
+        new_cd = (final_gw.get("card_details") if isinstance(final_gw.get("card_details"), dict) else {}) or {}
+        if card_details and isinstance(card_details, dict):
+            new_cd.update(card_details)
+        merged_cd = {**existing_cd, **new_cd}
+        if merged_cd:
+            final_gw["card_details"] = merged_cd
+
         update_fields = {
             "status": "FAILED",
             "error_code": str(error_code) if error_code else None,
             "error_message": str(error_message) if error_message else None,
+            "gateway_response": final_gw if final_gw else None,
             "update_time": current_timestamp(),
             "update_date": datetime_format(now),
         }
-        if gateway_response is not None:
-            update_fields["gateway_response"] = gateway_response
         if audit_note:
             update_fields["audit_note"] = audit_note
 

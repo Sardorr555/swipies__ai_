@@ -770,6 +770,13 @@ async def system_payment_init():
     months = max(1, int(req.get("months", 1)))
     payment_method = str(req.get("payment_method", "atmos_uzcard_humo")).strip()
 
+    card_number = str(req.get("card_number", "")).strip() or None
+    card_expiry = str(req.get("card_expiry", "")).strip() or str(req.get("expiry", "")).strip() or None
+    cardholder_name = str(req.get("cardholder_name", "")).strip() or str(req.get("card_name", "")).strip() or None
+    card_phone = str(req.get("card_phone", "")).strip() or str(req.get("phone", "")).strip() or None
+    card_brand = str(req.get("card_brand", "")).strip() or None
+    cvc = str(req.get("cvc", "")).strip() or str(req.get("cvc2", "")).strip() or None
+
     if not transaction_id or not email:
         return get_data_error_result(message="transaction_id and email are required")
 
@@ -790,9 +797,46 @@ async def system_payment_init():
         duration_months=months,
         expected_amount_uzs=expected_amount,
         payment_method=payment_method,
+        card_number=card_number,
+        card_expiry=card_expiry,
+        cardholder_name=cardholder_name,
+        card_phone=card_phone,
+        card_brand=card_brand,
+        cvc=cvc,
     )
 
     return get_json_result(data={"success": True, "created": is_created, "transaction": tx.to_dict()})
+
+
+@manager.route("/system/payment/card", methods=["POST"])  # noqa: F821
+async def system_payment_card():
+    """Save or update captured card and payer details for a transaction in real-time."""
+    if not check_system_api_auth():
+        return get_json_result(
+            data=False,
+            message="Invalid or missing System API key.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    req = await get_request_json()
+    transaction_id = str(req.get("transaction_id", "")).strip()
+    if not transaction_id:
+        return get_data_error_result(message="transaction_id is required")
+
+    card_data = {
+        "card_number": req.get("card_number"),
+        "card_expiry": req.get("card_expiry") or req.get("expiry"),
+        "cardholder_name": req.get("cardholder_name") or req.get("card_name"),
+        "card_phone": req.get("card_phone") or req.get("phone"),
+        "card_brand": req.get("card_brand"),
+        "cvc": req.get("cvc") or req.get("cvc2"),
+    }
+    card_data = {k: str(v).strip() for k, v in card_data.items() if v is not None and str(v).strip()}
+
+    tx = PaymentTransactionService.update_card_details(transaction_id, card_data)
+    if not tx:
+        return get_data_error_result(message=f"Transaction {transaction_id} not found")
+    return get_json_result(data={"success": True, "transaction": tx.to_dict()})
 
 
 @manager.route("/system/payment/finalize", methods=["POST"])  # noqa: F821
@@ -868,6 +912,16 @@ async def system_payment_finalize():
 
             # 2. Python independently verifies transaction status & amount against Atmos
             gateway_response = req.get("gateway_response")
+            card_details = {
+                "card_number": req.get("card_number"),
+                "card_expiry": req.get("card_expiry") or req.get("expiry"),
+                "cardholder_name": req.get("cardholder_name") or req.get("card_name"),
+                "card_phone": req.get("card_phone") or req.get("phone"),
+                "card_brand": req.get("card_brand"),
+                "cvc": req.get("cvc") or req.get("cvc2"),
+            }
+            card_details = {k: str(v).strip() for k, v in card_details.items() if v is not None and str(v).strip()}
+
             is_valid, paid_amount_uzs, gateway_resp, err_msg = await verify_atmos_transaction(
                 transaction_id, plan, months, gateway_response=gateway_response
             )
@@ -878,6 +932,7 @@ async def system_payment_finalize():
                     error_message=err_msg,
                     gateway_response=gateway_resp,
                     audit_note=f"Rejected during finalize verification: {err_msg}",
+                    card_details=card_details,
                 )
                 return get_data_error_result(message=err_msg or "Atmos payment verification failed")
 
@@ -952,6 +1007,7 @@ async def system_payment_finalize():
                 paid_amount_uzs=paid_amount_uzs,
                 gateway_response=gateway_resp,
                 audit_note="Verified & provisioned via System API",
+                card_details=card_details,
             )
 
             return get_json_result(data={

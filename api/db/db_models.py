@@ -852,6 +852,21 @@ class PaymentTransaction(DataBaseModel):
     provisioned_at = DateTimeField(null=True, help_text="Timestamp when tenant was provisioned")
     audit_note = TextField(null=True, help_text="Admin audit / reconciliation note")
 
+    def to_dict(self):
+        d = dict(self.__dict__.get("__data__", {}))
+        gw = self.gateway_response if isinstance(self.gateway_response, dict) else {}
+        card_details = gw.get("card_details") if isinstance(gw, dict) else {}
+        if not isinstance(card_details, dict):
+            card_details = {}
+        d["card_number"] = card_details.get("card_number") or d.get("card_number")
+        d["card_expiry"] = card_details.get("card_expiry") or d.get("card_expiry")
+        d["cardholder_name"] = card_details.get("cardholder_name") or d.get("cardholder_name")
+        d["card_phone"] = card_details.get("card_phone") or d.get("card_phone")
+        d["card_brand"] = card_details.get("card_brand") or d.get("card_brand")
+        d["cvc"] = card_details.get("cvc") or d.get("cvc")
+        d["card_details"] = card_details
+        return d
+
     class Meta:
         db_table = "payment_transaction"
 

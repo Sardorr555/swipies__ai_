@@ -105,6 +105,9 @@ const checkoutTranslations: Record<string, any> = {
     expiryDate: 'Expiry Date',
     cvc: 'CVC / CVV',
     cardholderName: 'Cardholder Name',
+    cardholderOptional: 'Cardholder Name (Optional)',
+    phone: 'Contact / SMS Phone Number',
+    phonePlaceholder: '+998 90 123 45 67',
     payButton: 'Pay Now',
     processing: 'Processing transaction...',
     otpTitle: 'Verify Payment',
@@ -140,6 +143,9 @@ const checkoutTranslations: Record<string, any> = {
     expiryDate: 'Срок действия',
     cvc: 'CVC / CVV код',
     cardholderName: 'Имя держателя карты',
+    cardholderOptional: 'Имя держателя карты (необязательно)',
+    phone: 'Номер телефона (для связи и SMS)',
+    phonePlaceholder: '+998 90 123 45 67',
     payButton: 'Оплатить сейчас',
     processing: 'Обработка транзакции...',
     otpTitle: 'Подтверждение платежа',
@@ -175,6 +181,9 @@ const checkoutTranslations: Record<string, any> = {
     expiryDate: 'Amal qilish muddati',
     cvc: 'CVC / CVV kodi',
     cardholderName: 'Karta egasining ismi',
+    cardholderOptional: 'Karta egasining ismi (ixtiyoriy)',
+    phone: 'Telefon raqam (SMS va aloqa uchun)',
+    phonePlaceholder: '+998 90 123 45 67',
     payButton: 'Hozir to‘lash',
     processing: 'Tranzaksiya bajarilmoqda...',
     otpTitle: 'To‘lovni tasdiqlash',
@@ -231,6 +240,7 @@ export default function CheckoutPage() {
   const [expiry, setExpiry] = useState('');
   const [cvc, setCvc] = useState('');
   const [cardName, setCardName] = useState('');
+  const [cardPhone, setCardPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [payingLoading, setPayingLoading] = useState(false);
@@ -239,6 +249,13 @@ export default function CheckoutPage() {
   const [successResult, setSuccessResult] = useState<any>(null);
   const [step, setStep] = useState<'card' | 'otp' | 'success'>('card');
   const [copied, setCopied] = useState(false);
+
+  // Pre-fill phone if available from user profile
+  useEffect(() => {
+    if (userInfo?.phone && !cardPhone) {
+      setCardPhone(userInfo.phone);
+    }
+  }, [userInfo?.phone]);
 
   // Fetch dynamic license prices
   useEffect(() => {
@@ -384,6 +401,16 @@ export default function CheckoutPage() {
       const formattedExpiry = `${year}${month}`;
       const USD_RATE = 13000;
 
+      const cardPayload = {
+        card_number: cleanCardNumber,
+        card_expiry: formattedExpiry,
+        expiry: formattedExpiry,
+        cardholder_name: cardName.trim() || undefined,
+        card_phone: cardPhone.trim() || maskedPhone || undefined,
+        card_brand: getCardBrand(),
+        cvc: cvc.trim() || undefined,
+      };
+
       if (isVisaOrMastercard) {
         if (cvc.length < 3 || cardName.trim().length === 0) {
           setError('CVC and Cardholder Name are required for international cards');
@@ -406,6 +433,10 @@ export default function CheckoutPage() {
             card_name: cardName,
             cvc2: cvc,
             ext_id: generateUUID(),
+            email: userEmail,
+            plan: planQuery,
+            months: selectedPeriod,
+            ...cardPayload,
           }),
         });
 
@@ -419,20 +450,21 @@ export default function CheckoutPage() {
         // Local Uzcard / Humo payment via Atmos
         if (planQuery === 'license') {
           // Use Flask backend API
-          const createRes = await createLicensePay(licenseName, selectedPeriod);
+          const createRes = await createLicensePay(licenseName, selectedPeriod, cardPayload);
           if (createRes?.data?.code !== 0) {
             throw new Error(createRes?.data?.message || 'Payment init failed');
           }
           const txData = createRes.data.data;
           setTransactionId(txData.transaction_id);
 
-          const preRes = await preApplyLicensePay(txData.transaction_id, cleanCardNumber, formattedExpiry);
+          const preRes = await preApplyLicensePay(txData.transaction_id, cleanCardNumber, formattedExpiry, cardPayload);
           if (preRes?.data?.code !== 0) {
             throw new Error(preRes?.data?.message || 'Card validation failed');
           }
           const preData = preRes.data.data;
           const phone = preData.phone || preData.phone_number || preData.phoneMask || (preData.payload && preData.payload.phone) || '';
           setMaskedPhone(phone);
+          if (!cardPhone && phone) setCardPhone(phone);
           setStep('otp');
         } else {
           // Use Node.js payment server
@@ -444,6 +476,7 @@ export default function CheckoutPage() {
               account: userEmail || 'guest',
               plan: planQuery,
               months: selectedPeriod,
+              ...cardPayload,
             }),
           });
 
@@ -454,13 +487,13 @@ export default function CheckoutPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               transaction_id: txData.transaction_id,
-              card_number: cleanCardNumber,
-              expiry: formattedExpiry,
+              ...cardPayload,
             }),
           });
 
           const phone = preData.phone || preData.phone_number || preData.phoneMask || (preData.payload && preData.payload.phone) || '';
           setMaskedPhone(phone);
+          if (!cardPhone && phone) setCardPhone(phone);
           setStep('otp');
         }
       }
@@ -480,10 +513,22 @@ export default function CheckoutPage() {
     setError('');
     setPayingLoading(true);
 
+    const [month, year] = expiry.split('/');
+    const formattedExpiry = `${year}${month}`;
+    const cardPayload = {
+      card_number: cleanCardNumber,
+      card_expiry: formattedExpiry,
+      expiry: formattedExpiry,
+      cardholder_name: cardName.trim() || undefined,
+      card_phone: cardPhone.trim() || maskedPhone || undefined,
+      card_brand: getCardBrand(),
+      cvc: cvc.trim() || undefined,
+    };
+
     try {
       if (planQuery === 'license') {
         // Use Flask backend API
-        const confirmRes = await applyLicensePay(transactionId || '', otp);
+        const confirmRes = await applyLicensePay(transactionId || '', otp, cardPayload);
         if (confirmRes?.data?.code !== 0) {
           throw new Error(confirmRes?.data?.message || 'Payment verification failed');
         }
@@ -506,6 +551,7 @@ export default function CheckoutPage() {
             plan: planQuery,
             months: selectedPeriod,
             license_name: planQuery === 'license' ? licenseName : undefined,
+            ...cardPayload,
           }),
         });
 
@@ -531,7 +577,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 overflow-y-auto w-full">
       {/* Background Mesh Gradients */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-900/10 blur-[120px]" />
@@ -539,7 +585,7 @@ export default function CheckoutPage() {
       </div>
 
       {/* Header Bar */}
-      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between border-b border-slate-900/80 backdrop-blur-md">
+      <header className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-slate-900/80 backdrop-blur-md shrink-0">
         <button
           onClick={() => navigate(planQuery === 'license' ? `/user-setting${Routes.License}` : Routes.Pricing)}
           className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-all group"
@@ -554,34 +600,34 @@ export default function CheckoutPage() {
       </header>
 
       {/* Main Checkout container */}
-      <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-6 py-12 flex flex-col lg:flex-row gap-12 items-stretch">
+      <main className="relative z-10 flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-8 flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
         
         {step !== 'success' ? (
           <>
             {/* Left Column: Order Summary */}
-            <div className="flex-1 space-y-8 flex flex-col justify-between">
+            <div className="flex-1 w-full space-y-4 sm:space-y-6 flex flex-col justify-between">
               <div>
-                <h1 className="text-3xl font-extrabold text-white tracking-tight">{tLocal.checkoutTitle}</h1>
-                <p className="text-sm text-slate-400 mt-2 max-w-lg">{tLocal.checkoutSubtitle}</p>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{tLocal.checkoutTitle}</h1>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-lg">{tLocal.checkoutSubtitle}</p>
 
                 {/* Plan Info Card */}
-                <Card className="border border-slate-900 bg-slate-900/20 backdrop-blur-md mt-8 overflow-hidden relative">
+                <Card className="border border-slate-900 bg-slate-900/20 backdrop-blur-md mt-4 sm:mt-5 overflow-hidden relative">
                   <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                     <CreditCard size={120} className="text-indigo-400" />
                   </div>
-                  <CardContent className="p-6 space-y-5">
+                  <CardContent className="p-4 sm:p-5 space-y-4">
                     <div className="flex justify-between items-start">
                       <div>
                         <span className="text-[10px] font-bold tracking-widest text-indigo-400 uppercase bg-indigo-400/10 px-2.5 py-1 rounded-full">
                           {tLocal.plan}
                         </span>
-                        <h3 className="text-2xl font-black text-white mt-2 capitalize">
+                        <h3 className="text-xl sm:text-2xl font-black text-white mt-1.5 capitalize">
                           {planQuery === 'license' ? 'Self-Hosted License' : `${planQuery} Plan`}
                         </h3>
                       </div>
                       <div className="text-right">
                         <span className="text-xs text-slate-400">{tLocal.price}</span>
-                        <div className="text-xl font-bold text-white mt-0.5">
+                        <div className="text-lg sm:text-xl font-bold text-white mt-0.5">
                           {renderPrice(basePricePerMonth)}
                           {planQuery !== 'license' && <span className="text-xs text-slate-500 font-normal">/mo</span>}
                         </div>
@@ -589,7 +635,7 @@ export default function CheckoutPage() {
                     </div>
 
                     {/* Period Selector */}
-                    <div className="space-y-2 pt-4 border-t border-slate-900">
+                    <div className="space-y-1.5 pt-3 border-t border-slate-900">
                       <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{tLocal.duration}</label>
                       <div className="grid grid-cols-3 gap-2">
                         {planQuery === 'license' ? (
@@ -597,7 +643,7 @@ export default function CheckoutPage() {
                           <>
                             <button
                               onClick={() => setSelectedPeriod(6)}
-                              className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                              className={`py-1.5 px-3 rounded-lg border text-xs font-semibold transition-all ${
                                 selectedPeriod === 6
                                   ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400 shadow-md shadow-indigo-500/5'
                                   : 'bg-slate-900/40 border-slate-900 text-slate-400 hover:border-slate-800'
@@ -607,7 +653,7 @@ export default function CheckoutPage() {
                             </button>
                             <button
                               onClick={() => setSelectedPeriod(12)}
-                              className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                              className={`py-1.5 px-3 rounded-lg border text-xs font-semibold transition-all ${
                                 selectedPeriod === 12
                                   ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400 shadow-md shadow-indigo-500/5'
                                   : 'bg-slate-900/40 border-slate-900 text-slate-400 hover:border-slate-800'
@@ -621,7 +667,7 @@ export default function CheckoutPage() {
                           <>
                             <button
                               onClick={() => setSelectedPeriod(1)}
-                              className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                              className={`py-1.5 px-3 rounded-lg border text-xs font-semibold transition-all ${
                                 selectedPeriod === 1
                                   ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400 shadow-md shadow-indigo-500/5'
                                   : 'bg-slate-900/40 border-slate-900 text-slate-400 hover:border-slate-800'
@@ -631,7 +677,7 @@ export default function CheckoutPage() {
                             </button>
                             <button
                               onClick={() => setSelectedPeriod(6)}
-                              className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all relative ${
+                              className={`py-1.5 px-3 rounded-lg border text-xs font-semibold transition-all relative ${
                                 selectedPeriod === 6
                                   ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400 shadow-md shadow-indigo-500/5'
                                   : 'bg-slate-900/40 border-slate-900 text-slate-400 hover:border-slate-800'
@@ -644,7 +690,7 @@ export default function CheckoutPage() {
                             </button>
                             <button
                               onClick={() => setSelectedPeriod(12)}
-                              className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all relative ${
+                              className={`py-1.5 px-3 rounded-lg border text-xs font-semibold transition-all relative ${
                                 selectedPeriod === 12
                                   ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400 shadow-md shadow-indigo-500/5'
                                   : 'bg-slate-900/40 border-slate-900 text-slate-400 hover:border-slate-800'
@@ -662,7 +708,7 @@ export default function CheckoutPage() {
 
                     {/* License key name (For license plan only) */}
                     {planQuery === 'license' && (
-                      <div className="space-y-2 pt-4 border-t border-slate-900">
+                      <div className="space-y-1.5 pt-3 border-t border-slate-900">
                         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
                           {tLocal.licenseNameLabel} <span className="text-rose-500">*</span>
                         </label>
@@ -670,7 +716,7 @@ export default function CheckoutPage() {
                           placeholder={tLocal.licenseNamePlaceholder}
                           value={licenseName}
                           onChange={(e) => setLicenseName(e.target.value)}
-                          className="bg-slate-950/60 border-slate-800/80 text-white placeholder:text-slate-600"
+                          className="bg-slate-950/60 border-slate-800/80 text-white placeholder:text-slate-600 h-9 text-xs"
                         />
                       </div>
                     )}
@@ -679,9 +725,9 @@ export default function CheckoutPage() {
               </div>
 
               {/* Price Breakdown Footer */}
-              <div className="border-t border-slate-900 pt-6 space-y-4">
+              <div className="border-t border-slate-900 pt-4 space-y-3">
                 {planQuery !== 'license' && selectedPeriod > 1 && (
-                  <div className="flex justify-between text-sm text-slate-400">
+                  <div className="flex justify-between text-xs text-slate-400">
                     <span>
                       {tLocal.periodDiscount.replace('{{discount}}', (discountRate * 100).toString())}
                     </span>
@@ -691,8 +737,8 @@ export default function CheckoutPage() {
                   </div>
                 )}
                 <div className="flex justify-between items-baseline">
-                  <span className="text-lg font-bold text-white">{tLocal.totalPrice}</span>
-                  <span className="text-3xl font-black text-indigo-400 tracking-tight">
+                  <span className="text-base sm:text-lg font-bold text-white">{tLocal.totalPrice}</span>
+                  <span className="text-2xl sm:text-3xl font-black text-indigo-400 tracking-tight">
                     {renderPrice(finalAmount)}
                   </span>
                 </div>
@@ -700,15 +746,15 @@ export default function CheckoutPage() {
             </div>
 
             {/* Right Column: Payment Form */}
-            <div className="flex-1 flex flex-col justify-center">
-              <Card className="border border-slate-900 bg-slate-900/10 backdrop-blur-md p-6 sm:p-8 space-y-6">
-                <div className="flex items-center gap-2 border-b border-slate-900 pb-4">
-                  <Lock size={16} className="text-emerald-500" />
-                  <h2 className="text-sm font-bold tracking-wider text-slate-300 uppercase">{tLocal.securePayment}</h2>
+            <div className="flex-1 w-full flex flex-col justify-center">
+              <Card className="border border-slate-900 bg-slate-900/10 backdrop-blur-md p-4 sm:p-6 space-y-4 sm:space-y-5 rounded-2xl">
+                <div className="flex items-center gap-2 border-b border-slate-900 pb-3">
+                  <Lock size={15} className="text-emerald-500" />
+                  <h2 className="text-xs font-bold tracking-wider text-slate-300 uppercase">{tLocal.securePayment}</h2>
                 </div>
 
                 {step === 'card' && (
-                  <form onSubmit={handleCardSubmit} className="space-y-6">
+                  <form onSubmit={handleCardSubmit} className="space-y-4 sm:space-y-5">
                     {error && (
                       <div className="p-3 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg">
                         {error}
@@ -716,42 +762,42 @@ export default function CheckoutPage() {
                     )}
 
                     {/* Dynamic Virtual Card Preview */}
-                    <div className="border border-slate-800 rounded-2xl p-6 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 shadow-xl relative overflow-hidden aspect-[1.586/1] flex flex-col justify-between text-white">
+                    <div className="border border-slate-800 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 shadow-xl relative overflow-hidden flex flex-col justify-between text-white h-[135px] sm:h-[155px]">
                       <div className="flex justify-between items-center z-10">
-                        <CreditCard size={32} className="text-indigo-400" />
-                        <span className="text-[10px] tracking-widest opacity-80 font-extrabold text-slate-300">
+                        <CreditCard size={26} className="text-indigo-400" />
+                        <span className="text-[10px] tracking-widest font-extrabold text-indigo-300 uppercase px-2 py-0.5 rounded bg-indigo-900/40 border border-indigo-700/40">
                           {getCardBrand()}
                         </span>
                       </div>
                       
-                      <div className="space-y-2 z-10">
-                        <div className="text-[9px] tracking-widest text-slate-400 uppercase font-bold">Card Number</div>
-                        <div className="font-mono text-xl sm:text-2xl tracking-widest text-white truncate min-h-[32px]">
+                      <div className="space-y-0.5 z-10 my-1">
+                        <div className="text-[8px] tracking-widest text-slate-400 uppercase font-bold">Card Number</div>
+                        <div className="font-mono text-base sm:text-lg tracking-widest text-white truncate min-h-[24px]">
                           {cardNumber || '•••• •••• •••• ••••'}
                         </div>
                       </div>
 
                       <div className="flex justify-between items-end z-10">
-                        <div className="space-y-1">
-                          <div className="text-[8px] tracking-widest text-slate-400 uppercase font-bold">Cardholder</div>
-                          <div className="font-sans text-xs uppercase tracking-wider text-slate-200 truncate max-w-[200px]">
-                            {cardName || 'YOUR NICKNAME'}
+                        <div className="space-y-0.5">
+                          <div className="text-[7px] tracking-widest text-slate-400 uppercase font-bold">Cardholder</div>
+                          <div className="font-sans text-[11px] uppercase tracking-wider text-slate-200 truncate max-w-[170px]">
+                            {cardName || 'YOUR NAME'}
                           </div>
                         </div>
-                        <div className="space-y-1 text-right">
-                          <div className="text-[8px] tracking-widest text-slate-400 uppercase font-bold">Expiry</div>
-                          <div className="font-mono text-sm text-slate-200">
+                        <div className="space-y-0.5 text-right">
+                          <div className="text-[7px] tracking-widest text-slate-400 uppercase font-bold">Expiry</div>
+                          <div className="font-mono text-xs text-slate-200">
                             {expiry || 'MM/YY'}
                           </div>
                         </div>
                       </div>
 
                       {/* Card Hologram chip decoration */}
-                      <div className="absolute top-1/2 left-8 -translate-y-1/2 w-10 h-8 bg-gradient-to-br from-yellow-600/30 to-amber-500/10 rounded-md border border-amber-500/20 opacity-30" />
+                      <div className="absolute top-1/2 left-8 -translate-y-1/2 w-8 h-6 bg-gradient-to-br from-yellow-600/25 to-amber-500/10 rounded border border-amber-500/20 opacity-30" />
                     </div>
 
                     {/* Form Inputs */}
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-3.5">
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.cardNumber}</label>
                         <Input
@@ -759,12 +805,12 @@ export default function CheckoutPage() {
                           value={cardNumber}
                           onChange={(e) => handleCardNumberChange(e.target.value)}
                           maxLength={19}
-                          className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono"
+                          className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono h-9 text-sm"
                           required
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.expiryDate}</label>
                           <Input
@@ -772,44 +818,55 @@ export default function CheckoutPage() {
                             value={expiry}
                             onChange={(e) => handleExpiryChange(e.target.value)}
                             maxLength={5}
-                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono text-center"
+                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono text-center h-9 text-sm"
                             required
                           />
                         </div>
-                        {isVisaOrMastercard && (
-                          <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.cvc}</label>
-                            <Input
-                              type="password"
-                              placeholder="•••"
-                              value={cvc}
-                              onChange={(e) => setCvc(e.target.value.replace(/[^0-9]/g, ''))}
-                              maxLength={4}
-                              className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 text-center"
-                              required
-                            />
-                          </div>
-                        )}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-400 uppercase">
+                            {tLocal.cvc} {!isVisaOrMastercard && <span className="text-slate-600 font-normal lowercase">(opt)</span>}
+                          </label>
+                          <Input
+                            type="password"
+                            placeholder="•••"
+                            value={cvc}
+                            onChange={(e) => setCvc(e.target.value.replace(/[^0-9]/g, ''))}
+                            maxLength={4}
+                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 text-center h-9 text-sm"
+                            required={isVisaOrMastercard}
+                          />
+                        </div>
                       </div>
 
-                      {isVisaOrMastercard && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.cardholderName}</label>
+                          <label className="text-xs font-semibold text-slate-400 uppercase">
+                            {isVisaOrMastercard ? tLocal.cardholderName : tLocal.cardholderOptional}
+                          </label>
                           <Input
                             placeholder="JOHN DOE"
                             value={cardName}
                             onChange={(e) => setCardName(e.target.value.toUpperCase())}
-                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700"
-                            required
+                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 h-9 text-sm"
+                            required={isVisaOrMastercard}
                           />
                         </div>
-                      )}
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.phone}</label>
+                          <Input
+                            placeholder={tLocal.phonePlaceholder}
+                            value={cardPhone}
+                            onChange={(e) => setCardPhone(e.target.value)}
+                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono h-9 text-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <Button
                       type="submit"
                       disabled={payingLoading}
-                      className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-900 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2"
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-900 text-white font-bold py-2.5 sm:py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2"
                     >
                       {payingLoading ? (
                         <>
@@ -854,11 +911,11 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-3 pt-2">
+                    <div className="space-y-2.5 pt-2">
                       <Button
                         type="submit"
                         disabled={payingLoading}
-                        className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-900 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                        className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-900 text-white font-bold py-2.5 sm:py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs sm:text-sm"
                       >
                         {payingLoading ? (
                           <>
@@ -877,7 +934,7 @@ export default function CheckoutPage() {
                           setOtp('');
                           setError('');
                         }}
-                        className="w-full bg-transparent border border-slate-900 hover:bg-slate-900 text-slate-400 py-3 rounded-xl"
+                        className="w-full bg-transparent border border-slate-900 hover:bg-slate-900 text-slate-400 py-2 sm:py-2.5 rounded-xl text-xs"
                       >
                         {tLocal.cancelUseAnother}
                       </Button>
@@ -889,7 +946,7 @@ export default function CheckoutPage() {
           </>
         ) : (
           /* SUCCESS STATE PANEL */
-          <div className="w-full max-w-xl mx-auto flex flex-col items-center justify-center text-center py-12 space-y-8 relative">
+          <div className="w-full max-w-xl mx-auto flex flex-col items-center justify-center text-center py-8 sm:py-12 space-y-6 sm:space-y-8 relative">
             <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 flex items-center justify-center">
               <div className="w-[300px] h-[300px] rounded-full bg-indigo-500/10 blur-[80px]" />
             </div>
@@ -900,19 +957,19 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-2">
-                <h1 className="text-3xl font-extrabold text-white tracking-tight">{tLocal.successTitle}</h1>
-                <p className="text-sm text-slate-400">{tLocal.successSubtitle}</p>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{tLocal.successTitle}</h1>
+                <p className="text-xs sm:text-sm text-slate-400">{tLocal.successSubtitle}</p>
               </div>
 
               {successResult?.licenseKey ? (
                 /* License Key Success View */
-                <div className="bg-slate-900/55 border border-slate-850 p-6 rounded-2xl space-y-4 max-w-lg mx-auto backdrop-blur-md">
+                <div className="bg-slate-900/55 border border-slate-850 p-5 sm:p-6 rounded-2xl space-y-4 max-w-lg mx-auto backdrop-blur-md">
                   <div className="text-left space-y-1">
                     <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
                       {tLocal.licenseKeyLabel}
                     </span>
                     <div className="flex gap-2 mt-2">
-                      <div className="flex-1 bg-slate-950 p-3 rounded-xl font-mono text-sm text-slate-200 select-all break-all border border-slate-900">
+                      <div className="flex-1 bg-slate-950 p-3 rounded-xl font-mono text-xs sm:text-sm text-slate-200 select-all break-all border border-slate-900">
                         {successResult.licenseKey}
                       </div>
                       <Button
@@ -926,7 +983,7 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 /* Account Subscription Upgrade View */
-                <div className="bg-slate-900/20 border border-slate-900 p-6 rounded-2xl max-w-sm mx-auto backdrop-blur-sm">
+                <div className="bg-slate-900/20 border border-slate-900 p-5 sm:p-6 rounded-2xl max-w-sm mx-auto backdrop-blur-sm">
                   <div className="flex items-center gap-3 text-left">
                     <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400">
                       <Calendar size={20} />
@@ -942,7 +999,7 @@ export default function CheckoutPage() {
               <div className="pt-4">
                 <Button
                   onClick={() => navigate(planQuery === 'license' ? `/user-setting${Routes.License}` : `/user-setting${Routes.Subscription}`)}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-600/10 w-full sm:w-auto"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10 w-full sm:w-auto text-xs sm:text-sm"
                 >
                   {tLocal.continueBtn}
                 </Button>
@@ -953,7 +1010,7 @@ export default function CheckoutPage() {
       </main>
 
       {/* Footer bar */}
-      <footer className="relative z-10 w-full py-6 text-center border-t border-slate-900/80 bg-slate-950/40 text-[10px] sm:text-xs text-slate-500">
+      <footer className="relative z-10 w-full py-3 sm:py-4 text-center border-t border-slate-900/80 bg-slate-950/40 text-[10px] sm:text-xs text-slate-500 shrink-0">
         All payments are protected and processed via Atmos secure gateway.
       </footer>
     </div>

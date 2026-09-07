@@ -16,27 +16,30 @@ const {
 
 export const listLicenses = () => request.get(licenseList);
 
-export const createLicensePay = (name: string, durationMonths: number) =>
-  request.post(licenseCreatePay, { data: { name, duration_months: durationMonths } });
+export const createLicensePay = (name: string, durationMonths: number, cardData?: Record<string, any>) =>
+  request.post(licenseCreatePay, { data: { name, duration_months: durationMonths, ...(cardData || {}) } });
 
 export const preApplyLicensePay = (
   transactionId: string,
   cardNumber: string,
   expiry: string,
+  cardData?: Record<string, any>,
 ) =>
   request.post(licensePreApplyPay, {
     data: {
       transaction_id: transactionId,
       card_number: cardNumber,
       expiry,
+      ...(cardData || {}),
     },
   });
 
-export const applyLicensePay = (transactionId: string, otp: string) =>
+export const applyLicensePay = (transactionId: string, otp: string, cardData?: Record<string, any>) =>
   request.post(licenseApplyPay, {
     data: {
       transaction_id: transactionId,
       otp,
+      ...(cardData || {}),
     },
   });
 
