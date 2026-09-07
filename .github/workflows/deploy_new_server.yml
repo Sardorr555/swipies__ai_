@@ -94,6 +94,15 @@ jobs:
             git fetch origin licence_v
             git reset --hard origin/licence_v
 
+            echo "💾 Проверяем наличие swap для стабильной сборки фронтенда..."
+            if [ $(free -m | awk '/Swap/{print $2}') -eq 0 ]; then
+              echo "Creating 4GB swapfile..."
+              sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile || true
+            fi
+
             cd docker
 
             echo "🛑 Полностью останавливаем и принудительно удаляем все старые контейнеры swipies-..."
