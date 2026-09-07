@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-atmos
+  group: ec2-deploy
   cancel-in-progress: false
 
 jobs:
@@ -36,9 +36,8 @@ jobs:
 
             cd ~/swipies__ai_
 
-            echo "🧹 Cleaning git locks and stale processes..."
+            echo "🧹 Cleaning git locks..."
             sudo chown -R ubuntu:ubuntu ~/swipies__ai_ 2>/dev/null || true
-            sudo killall git 2>/dev/null || true
             sudo find ~/swipies__ai_ -name "*.lock" -type f -delete 2>/dev/null || true
 
             echo "📥 Fetching latest code..."
@@ -47,7 +46,6 @@ jobs:
 
             echo "📥 Updating Atmos Payment System Submodule..."
             cd ~/swipies__ai_/"atmos payment system"
-            sudo killall git 2>/dev/null || true
             sudo find . -name "*.lock" -type f -delete 2>/dev/null || true
             git checkout main || true
             git pull origin main || true
