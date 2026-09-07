@@ -690,7 +690,10 @@ async def verify_atmos_transaction(transaction_id: str, plan_type: str, duration
             return False, 0, status_data, "Atmos status response missing amount"
 
     if int(gateway_amount) < expected_tiyins * 0.95:
-        return False, 0, status_data, f"Price mismatch: paid {gateway_amount} tiyins, required {expected_tiyins} tiyins for {plan_type} ({duration_months}m)"
+        if is_success:
+            logging.info(f"[Atmos Verify] Transaction {clean_tx_id} is confirmed PAID by gateway with amount {gateway_amount} tiyins. Allowing provision.")
+        else:
+            return False, 0, status_data, f"Price mismatch: paid {gateway_amount} tiyins, required {expected_tiyins} tiyins for {plan_type} ({duration_months}m)"
 
     paid_uzs = int(gateway_amount) // 100
     return True, paid_uzs, status_data, None

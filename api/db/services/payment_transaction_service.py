@@ -51,11 +51,22 @@ class PaymentTransactionService(CommonService):
         if p == "free":
             return 0
 
-        monthly_price = 199000  # plus default
-        if p == "pro":
-            monthly_price = 400000
-        elif p == "plus":
-            monthly_price = 199000
+        # Dynamically read pricing configured in the Admin Panel (system_settings table)
+        from api.db.services.system_settings_service import SystemSettingsService
+        monthly_price = 199000.0
+        try:
+            var_name = f"pricing.{p}.uzs"
+            objs = SystemSettingsService.get_by_name(var_name)
+            if objs and objs[0].value:
+                monthly_price = float(objs[0].value)
+            elif p == "pro":
+                monthly_price = 400000.0
+            else:
+                monthly_price = 199000.0
+        except Exception as ex:
+            import logging
+            logging.warning(f"[PaymentTransactionService] Failed to load dynamic pricing from SystemSettingsService for {p}: {ex}")
+            monthly_price = 400000.0 if p == "pro" else 199000.0
 
         discount = 0.0
         if m == 6:

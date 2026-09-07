@@ -442,6 +442,8 @@ export default function CheckoutPage() {
             body: JSON.stringify({
               amount: finalAmount,
               account: userEmail || 'guest',
+              plan: planQuery,
+              months: selectedPeriod,
             }),
           });
 
