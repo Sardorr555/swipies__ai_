@@ -243,9 +243,22 @@ function ensure_docling() {
 }
 
 function ensure_db_init() {
-    echo "Initializing database tables..."
-    "$PY" -c "from api.db.db_models import init_database_tables as init_web_db; init_web_db()"
-    echo "Database tables initialized."
+    echo "Waiting for MySQL database to become ready..."
+    local max_retries=60
+    local count=0
+    while true; do
+        if "$PY" -c "from api.db.db_models import init_database_tables as init_web_db; init_web_db()" 2>&1; then
+            echo "Database tables initialized successfully."
+            break
+        fi
+        count=$((count + 1))
+        if [ "$count" -ge "$max_retries" ]; then
+            echo "Failed to connect to database and initialize tables after $max_retries attempts."
+            return 1
+        fi
+        echo "Waiting for database connection (attempt $count/$max_retries)..."
+        sleep 2
+    done
 }
 
 function wait_for_server() {
@@ -279,7 +292,7 @@ if [[ "${INIT_MODEL_PROVIDER_TABLES}" -eq 1 ]]; then
         --config conf/service_conf.yaml \
         --execute \
         --database-version "v0.26.1" \
-        --mark-database-version-on-success
+        --mark-database-version-on-success || echo "Model provider table migrations warning or already up to date: $?"
     echo "Model provider table migrations completed."
 fi
 

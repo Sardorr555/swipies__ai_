@@ -117,8 +117,22 @@ jobs:
             sudo docker rm -f $(sudo docker ps -a -q --filter name=swipies-) 2>/dev/null || true
             sudo docker compose up -d --remove-orphans
 
-            echo "⏳ Ждем запуска сервисов..."
-            sleep 15
+            echo "⏳ Ждем запуска сервисов и готовности Python API сервера..."
+            API_READY=false
+            for i in $(seq 1 40); do
+              if sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/api/v1/system/version >/dev/null 2>&1 || sudo docker exec swipies-cpu curl -s -f http://127.0.0.1:9380/v1/system/version >/dev/null 2>&1; then
+                echo "✅ RAGFlow Python API сервер успешно запущен и отвечает!"
+                API_READY=true
+                break
+              fi
+              echo "Ожидание готовности API сервера (попытка $i/40)..."
+              sleep 3
+            done
+
+            if [ "$API_READY" != "true" ]; then
+              echo "⚠️ swipies-cpu логи при запуске:"
+              sudo docker logs --tail 100 swipies-cpu || true
+            fi
 
             echo "📊 Статус контейнеров:"
             sudo docker compose ps

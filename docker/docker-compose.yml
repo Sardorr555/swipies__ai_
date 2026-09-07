@@ -71,7 +71,10 @@ services:
       - ../common:/ragflow/common
     env_file: .env
     networks:
-      - ragflow
+      ragflow:
+        aliases:
+          - ragflow-cpu
+          - swipies-cpu
     restart: unless-stopped
     # https://docs.docker.com/engine/daemon/prometheus/#create-a-prometheus-configuration
     # If you use Docker Desktop, the --add-host flag is optional. This flag ensures that the host's internal IP is exposed to the Prometheus container.
@@ -177,7 +180,8 @@ services:
       - RAGFLOW_ADMIN_BACKEND=${RAGFLOW_ADMIN_BACKEND:-http://swipies-cpu:9381}
       - NGINX_ENVSUBST_FILTER=RAGFLOW_BACKEND|RAGFLOW_ADMIN_BACKEND
     ports:
-      - "${SVR_WEB_HTTP_PORT}:80"
+      - "80:80"
+      - "${SVR_WEB_HTTP_PORT:-9222}:80"
     networks:
       - ragflow
     restart: unless-stopped
