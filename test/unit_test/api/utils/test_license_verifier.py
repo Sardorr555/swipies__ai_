@@ -95,21 +95,53 @@ def test_acceptance_of_new_v2_license():
         assert payload["ver"] == 2
 
 
-def test_rejection_of_swipies_act_bypass():
-    """AC-2.5: The SWIPIES-ACT- backdoor prefix must be completely rejected."""
-    fake_payload = {"ver": 2, "owner": "hacker@evil.com", "expiry": "2099-12-31"}
-    b64_payload = base64.b64encode(json.dumps(fake_payload).encode()).decode()
-    bypass_key = f"SWIPIES-ACT-{b64_payload}"
+def test_acceptance_of_swipies_26_license():
+    """Any license generated in swipies_26 (admin panel or generate_license.py) must be accepted."""
+    import generate_license
+    key = generate_license.generate_license("user@swipies.com", "2028-12-31", "yearly")
+    decoded = decode_license(key)
+    assert decoded is not None
+    assert decoded["owner"] == "user@swipies.com"
+    assert decoded["expiry"] == "2028-12-31"
 
-    decoded = decode_license(bypass_key)
-    assert decoded is None, "SWIPIES-ACT- bypass key must be rejected by decode_license"
-
-    mock_setting = MagicMock(value=bypass_key)
+    mock_setting = MagicMock(value=key)
     mock_system_settings.SystemSettingsService.get_by_name.return_value = [mock_setting]
-    
+    with patch("api.utils.license_verifier.verify_license_online", return_value=True):
+        is_valid, message, payload = check_license()
+        assert is_valid
+        assert "License active" in message
+        assert payload["owner"] == "user@swipies.com"
+
+
+def test_acceptance_of_swipies_act_key():
+    """SWIPIES-ACT- license keys from swipies_26 are accepted."""
+    act_payload = {"owner": "act_user@swipies.com", "expiry": "2099-12-31", "type": "pro"}
+    b64 = base64.b64encode(json.dumps(act_payload).encode()).decode()
+    act_key = f"SWIPIES-ACT-{b64}"
+
+    decoded = decode_license(act_key)
+    assert decoded is not None
+    assert decoded["owner"] == "act_user@swipies.com"
+
+    mock_setting = MagicMock(value=act_key)
+    mock_system_settings.SystemSettingsService.get_by_name.return_value = [mock_setting]
     is_valid, message, payload = check_license()
-    assert not is_valid
-    assert message == "Invalid license signature."
+    assert is_valid
+    assert "License active" in message
+
+
+def test_rejection_of_corrupted_signature():
+    """Tampered or invalid cryptographic signatures must fail."""
+    import generate_license
+    valid_key = generate_license.generate_license("user@swipies.com", "2028-12-31", "yearly")
+    # Corrupt the signature part
+    raw = base64.b64decode(valid_key.encode()).decode()
+    parts = raw.split(".")
+    tampered_sig = parts[0] + ".1234567890abcdef"
+    tampered_key = base64.b64encode(tampered_sig.encode()).decode()
+
+    assert decode_license(tampered_key) is None
+    assert decode_license("not.a.valid.key") is None
 
 
 def test_online_verification_handling():

@@ -7,8 +7,6 @@ hudet/
 cv/
 layout_app.py
 api/flask_session
-# Licensing security and private keys
-generate_license.py
 internal/licensing/
 *private*.pem
 *.key
