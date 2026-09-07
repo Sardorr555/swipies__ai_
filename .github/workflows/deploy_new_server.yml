@@ -37,13 +37,13 @@ jobs:
 
       - name: Install Docker and Deploy Swipies
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
         with:
           host: "51.20.190.248"
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
           envs: GITHUB_TOKEN
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
           command_timeout: 45m
           script: |
             set -e
