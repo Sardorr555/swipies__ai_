@@ -54,8 +54,10 @@ jobs:
             echo "🛑 Temporarily disabling watchdog to prevent container startup races..."
             sudo rm -f /etc/cron.d/swipies-stack-watchdog 2>/dev/null || true
             sudo systemctl stop swipies-stack.service 2>/dev/null || true
-            sudo pkill -9 -f watchdog_stack.sh 2>/dev/null || true
-            sudo pkill -9 -f "docker compose.*up" 2>/dev/null || true
+            if [ -f /tmp/swipies_watchdog.pid ]; then
+              sudo kill -9 "$(cat /tmp/swipies_watchdog.pid)" 2>/dev/null || true
+              sudo rm -f /tmp/swipies_watchdog.pid 2>/dev/null || true
+            fi
 
             cd ~/swipies__ai_
 
@@ -93,17 +95,17 @@ jobs:
 
             set +e
             echo "🛑 Ensuring clean state before stack start..."
-            # Stop any background watchdogs or compose processes
-            sudo pkill -9 -f watchdog_stack.sh 2>/dev/null || true
-            sudo pkill -9 -f "docker compose.*up" 2>/dev/null || true
-            sudo pkill -9 -f "docker compose" 2>/dev/null || true
-            sleep 2
+            if [ -f /tmp/swipies_watchdog.pid ]; then
+              sudo kill -9 "$(cat /tmp/swipies_watchdog.pid)" 2>/dev/null || true
+              sudo rm -f /tmp/swipies_watchdog.pid 2>/dev/null || true
+            fi
 
             # Take down compose cleanly
             sudo docker compose -f docker-compose.yml --profile "*" down --remove-orphans -t 5 2>/dev/null || true
 
-            # Force kill & remove all possible swipies containers
+            # Force stop & remove all possible swipies containers
             for name in swipies-minio swipies-redis swipies-mysql swipies-es01 swipies-docs swipies-frontend swipies-cpu swipies-deepdoc swipies-oceanbase swipies-seekdb swipies-sandbox-executor-manager swipies-opensearch01 swipies-infinity; do
+              sudo docker stop "$name" 2>/dev/null || true
               sudo docker rm -f -v "$name" 2>/dev/null || true
             done
             for c in $(sudo docker ps -a -q --filter "name=swipies-"); do sudo docker rm -f -v "$c" 2>/dev/null || true; done

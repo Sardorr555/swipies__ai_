@@ -46,6 +46,9 @@ if ! flock -n 200; then
     exit 0
 fi
 
+echo $$ | sudo tee /tmp/swipies_watchdog.pid > /dev/null
+trap 'sudo rm -f /tmp/swipies_watchdog.pid 2>/dev/null || true' EXIT
+
 if ! sudo docker ps --format '{{.Names}} {{.Status}}' | grep -q "swipies-cpu Up"; then
     if [ -f /tmp/swipies_deploying.lock ]; then
         exit 0
