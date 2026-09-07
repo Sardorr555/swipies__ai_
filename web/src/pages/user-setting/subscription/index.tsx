@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import Spotlight from '@/components/spotlight';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { useFetchTenantInfo, useFetchUserInfo } from '@/hooks/use-user-setting-request';
+import { useFetchTenantInfo, useFetchUserInfo, UserSettingApiAction } from '@/hooks/use-user-setting-request';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatDate } from '@/utils/date';
 import {
   ArrowUpRight,
@@ -234,9 +235,15 @@ const ALL_PLAN_CARDS = [
 const SubscriptionPage = () => {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: userInfo } = useFetchUserInfo();
   const { data: tenantInfo, loading } = useFetchTenantInfo();
   const [aiUsage, setAiUsage] = useState<UserAIUsageSummary | null>(null);
+
+  // Invalidate and refetch tenant info on mount so new plan activations show up immediately
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: [UserSettingApiAction.TenantInfo] });
+  }, [queryClient]);
 
   useEffect(() => {
     getUserAiUsage()

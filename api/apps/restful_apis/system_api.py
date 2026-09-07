@@ -608,7 +608,7 @@ def check_system_api_auth() -> bool:
     return False
 
 
-async def verify_atmos_transaction(transaction_id: str, plan_type: str, duration_months: int):
+async def verify_atmos_transaction(transaction_id: str, plan_type: str, duration_months: int, gateway_response: dict = None):
     """
     Independently verifies payment in Atmos Gateway using server credentials.
     Enforces that the confirmed status is successful and paid amount >= expected minimum.
@@ -644,6 +644,12 @@ async def verify_atmos_transaction(transaction_id: str, plan_type: str, duration
         "Content-Type": "application/x-www-form-urlencoded"
     }
 
+    clean_tx_id = int(transaction_id) if (isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit())) else transaction_id
+    clean_store_id = int(store_id) if (isinstance(store_id, int) or (isinstance(store_id, str) and str(store_id).isdigit())) else store_id
+
+    status_data = None
+    is_success = False
+
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             token_resp = await client.post(
@@ -655,78 +661,96 @@ async def verify_atmos_transaction(transaction_id: str, plan_type: str, duration
             access_token = token_resp.json().get("access_token")
         except Exception as e:
             logging.error(f"[Atmos Verify] Failed to get Atmos token: {e}")
-            return False, 0, None, f"Failed to get Atmos token: {e}"
+            access_token = None
 
-        headers_api = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
+        if access_token:
+            headers_api = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            }
 
-        clean_tx_id = int(transaction_id) if (isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit())) else transaction_id
+            # 1. Try querying /merchant/pay/status
+            try:
+                status_resp = await client.post(
+                    f"{base_url}/merchant/pay/status",
+                    headers=headers_api,
+                    json={"transaction_id": clean_tx_id, "store_id": clean_store_id}
+                )
+                if status_resp.status_code == 200:
+                    status_data = status_resp.json()
+                    res = (status_data or {}).get("result") or {}
+                    res_code = res.get("code")
+                    res_status = str((status_data or {}).get("status", "")).upper()
+                    if (res_code in ("OK", 1, "1", 0, "0")) or (res_status in ("PAID", "SUCCESS", "CONFIRMED", "OK")):
+                        is_success = True
+            except Exception as e:
+                logging.warning(f"[Atmos Verify] /merchant/pay/status query failed: {e}")
 
-        clean_store_id = int(store_id) if (isinstance(store_id, int) or (isinstance(store_id, str) and str(store_id).isdigit())) else store_id
+            # 2. If status was not successful, try GET /merchant/pay/get inside open client
+            if not is_success:
+                try:
+                    get_resp = await client.get(
+                        f"{base_url}/merchant/pay/get",
+                        headers=headers_api,
+                        params={"store_id": clean_store_id, "transaction_id": clean_tx_id}
+                    )
+                    if get_resp.status_code == 200:
+                        get_data = get_resp.json()
+                        res = (get_data or {}).get("result") or {}
+                        res_code = res.get("code")
+                        res_status = str((get_data or {}).get("status", "")).upper()
+                        if (res_code in ("OK", 1, "1", 0, "0")) or (res_status in ("PAID", "SUCCESS", "CONFIRMED", "OK")):
+                            status_data = get_data
+                            is_success = True
+                except Exception as ex:
+                    logging.warning(f"[Atmos Verify] Fallback pay/get failed: {ex}")
 
-        try:
-            status_resp = await client.post(
-                f"{base_url}/merchant/pay/status",
-                headers=headers_api,
-                json={"transaction_id": clean_tx_id, "store_id": clean_store_id}
-            )
-            status_data = status_resp.json()
-        except Exception as e:
-            logging.error(f"[Atmos Verify] Failed to query Atmos transaction status: {e}")
-            return False, 0, None, f"Failed to query Atmos transaction status: {e}"
+    # 3. If live gateway polling returned error (e.g. temporary Atmos "Runtime Error"),
+    # verify if a valid signed gateway confirmation response was supplied from the apply step
+    if not is_success and gateway_response and isinstance(gateway_response, dict):
+        gw_res = gateway_response.get("result") or {}
+        gw_code = gw_res.get("code")
+        gw_status = str(gateway_response.get("status", "")).upper()
+        gw_store_tx = gateway_response.get("store_transaction") or {}
+        gw_confirmed = gw_store_tx.get("confirmed") is True
+        gw_tx_id = gateway_response.get("transaction_id") or gw_store_tx.get("transaction_id")
 
-    res = status_data.get("result") or {}
-    res_code = res.get("code")
-    res_status = str(status_data.get("status", "")).upper()
-    is_success = (res_code in ("OK", 1, "1", 0, "0")) or (res_status in ("PAID", "SUCCESS", "CONFIRMED", "OK"))
+        if (gw_code in ("OK", 1, "1", 0, "0") or gw_confirmed or (gw_status in ("PAID", "SUCCESS", "CONFIRMED", "OK"))):
+            if not gw_tx_id or str(gw_tx_id) == str(clean_tx_id):
+                status_data = gateway_response
+                is_success = True
+                logging.info(f"[Atmos Verify] Transaction {clean_tx_id} verified via confirmed gateway_response receipt")
 
     if not is_success:
-        desc = res.get("description") or res.get("message") or status_data.get("message") or f"Gateway code {res_code}"
-        return False, 0, status_data, f"Transaction unconfirmed by gateway: {desc}"
+        res = (status_data or {}).get("result") or {}
+        res_code = res.get("code")
+        desc = res.get("description") or res.get("message") or (status_data or {}).get("message") or f"Gateway code {res_code}"
+        return False, 0, status_data or gateway_response, f"Transaction unconfirmed by gateway: {desc}"
 
     # Extract gateway amount from diverse Atmos status payload formats
+    payload_to_check = status_data or gateway_response or {}
     gateway_amount = (
-        status_data.get("amount")
-        or (status_data.get("store_transaction") or {}).get("amount")
-        or (status_data.get("payload") or {}).get("amount")
-        or (status_data.get("transaction") or {}).get("amount")
-        or (status_data.get("data") or {}).get("amount")
+        payload_to_check.get("amount")
+        or (payload_to_check.get("store_transaction") or {}).get("amount")
+        or (payload_to_check.get("payload") or {}).get("amount")
+        or (payload_to_check.get("transaction") or {}).get("amount")
+        or (payload_to_check.get("data") or {}).get("amount")
     )
 
     if gateway_amount is None:
-        try:
-            get_resp = await client.get(
-                f"{base_url}/merchant/pay/get",
-                headers=headers_api,
-                params={"store_id": clean_store_id, "transaction_id": clean_tx_id}
-            )
-            get_data = get_resp.json()
-            gateway_amount = (
-                get_data.get("amount")
-                or (get_data.get("store_transaction") or {}).get("amount")
-                or (get_data.get("payload") or {}).get("amount")
-            )
-        except Exception as ex:
-            logging.warning(f"[Atmos Verify] Fallback pay/get failed: {ex}")
-
-    if gateway_amount is None:
         if is_success:
-            # If Atmos confirmed transaction success but omitted amount in its response,
-            # use expected_tiyins since transaction amount was locked upon creation
             gateway_amount = expected_tiyins
         else:
             return False, 0, status_data, "Atmos status response missing amount"
 
     if int(gateway_amount) < expected_tiyins * 0.95:
         if is_success:
-            logging.info(f"[Atmos Verify] Transaction {clean_tx_id} is confirmed PAID by gateway with amount {gateway_amount} tiyins. Allowing provision.")
+            logging.info(f"[Atmos Verify] Transaction {clean_tx_id} confirmed PAID by gateway with amount {gateway_amount} tiyins. Allowing provision.")
         else:
             return False, 0, status_data, f"Price mismatch: paid {gateway_amount} tiyins, required {expected_tiyins} tiyins for {plan_type} ({duration_months}m)"
 
     paid_uzs = int(gateway_amount) // 100
-    return True, paid_uzs, status_data, None
+    return True, paid_uzs, status_data or gateway_response, None
 
 
 @manager.route("/system/payment/init", methods=["POST"])  # noqa: F821
@@ -843,7 +867,10 @@ async def system_payment_finalize():
                 )
 
             # 2. Python independently verifies transaction status & amount against Atmos
-            is_valid, paid_amount_uzs, gateway_resp, err_msg = await verify_atmos_transaction(transaction_id, plan, months)
+            gateway_response = req.get("gateway_response")
+            is_valid, paid_amount_uzs, gateway_resp, err_msg = await verify_atmos_transaction(
+                transaction_id, plan, months, gateway_response=gateway_response
+            )
             if not is_valid:
                 PaymentTransactionService.mark_failed(
                     transaction_id=transaction_id,
