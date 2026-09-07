@@ -37,7 +37,19 @@ cat << 'EOF' | sudo tee /home/ubuntu/swipies__ai_/docker/watchdog_stack.sh > /de
 # Swipies Docker Stack Self-Healing Watchdog
 # Runs every 2 minutes via cron
 
+if [ -f /tmp/swipies_deploying.lock ]; then
+    exit 0
+fi
+
+exec 200>/tmp/swipies_watchdog.lock
+if ! flock -n 200; then
+    exit 0
+fi
+
 if ! sudo docker ps --format '{{.Names}} {{.Status}}' | grep -q "swipies-cpu Up"; then
+    if [ -f /tmp/swipies_deploying.lock ]; then
+        exit 0
+    fi
     echo "$(date '+%Y-%m-%d %H:%M:%S') [STACK WATCHDOG] swipies-cpu is down or restarting. Re-starting stack..." >> /var/log/swipies-stack-watchdog.log
     cd /home/ubuntu/swipies__ai_/docker
     sudo docker compose -f docker-compose.yml --profile cpu --profile elasticsearch up -d --remove-orphans >> /var/log/swipies-stack-watchdog.log 2>&1
