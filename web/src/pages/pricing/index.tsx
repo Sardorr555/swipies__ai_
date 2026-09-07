@@ -472,7 +472,7 @@ export default function PricingPage() {
   const { data: tenantInfo } = useFetchTenantInfo();
   const currentPlan = (
     tenantInfo?.plan_type ||
-    (userInfo?.is_superuser ? 'pro' : 'free')
+    'free'
   ).toLowerCase();
   const expiryDate = tenantInfo?.plan_expiry_date;
 

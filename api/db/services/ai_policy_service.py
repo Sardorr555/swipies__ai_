@@ -326,19 +326,21 @@ class AIPolicyManager:
         """Resolve subscription plan for tenant or user (fallback to FREE)."""
         plan_type = "free"
         try:
-            target_id = user_id or tenant_id
-            if target_id:
-                user = User.get_or_none(User.id == target_id)
-                if user and getattr(user, "is_superuser", False):
-                    # Superuser enjoys unrestricted Pro capabilities
-                    pro_plan = SubscriptionPlanService.query(id="pro")
-                    if pro_plan:
-                        return pro_plan[0].to_dict()
-
             if tenant_id:
                 tenant = Tenant.get_or_none(Tenant.id == tenant_id)
                 if tenant and getattr(tenant, "plan_type", None):
-                    plan_type = tenant.plan_type.lower()
+                    p = str(tenant.plan_type).lower().strip()
+                    if p:
+                        plan_type = p
+
+            if plan_type == "free" and user_id:
+                user = User.get_or_none(User.id == user_id)
+                if user:
+                    tenants = TenantService.get_info_by(user.id)
+                    if tenants and tenants[0].get("plan_type"):
+                        p = str(tenants[0]["plan_type"]).lower().strip()
+                        if p:
+                            plan_type = p
         except Exception as e:
             logger.warning("Error fetching tenant plan: %s", e)
 

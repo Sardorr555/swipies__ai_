@@ -258,24 +258,22 @@ const SubscriptionPage = () => {
         : 'en';
   const tLocal = pricingTranslations[lang] || pricingTranslations.en;
 
-  // Resolve plan type candidate tokens from all sources of truth
-  const planCandidates = [
-    tenantInfo?.plan_type,
-    typeof aiUsage?.plan === 'object' ? (aiUsage?.plan?.id || aiUsage?.plan?.name) : aiUsage?.plan,
-    userInfo?.is_superuser ? 'pro' : '',
-  ]
-    .filter(Boolean)
-    .map((p) => String(p).toLowerCase());
+  // Resolve plan type: tenantInfo.plan_type is the primary database source of truth
+  const rawPlan = (
+    tenantInfo?.plan_type ||
+    (typeof aiUsage?.plan === 'object' ? (aiUsage?.plan?.id || aiUsage?.plan?.name) : aiUsage?.plan) ||
+    'free'
+  ).toString().toLowerCase();
 
   let planKey = 'free';
-  if (planCandidates.some((p) => p.includes('enterprise'))) {
+  if (rawPlan.includes('enterprise')) {
     planKey = 'enterprise';
-  } else if (planCandidates.some((p) => p.includes('license'))) {
+  } else if (rawPlan.includes('license')) {
     planKey = 'license';
-  } else if (planCandidates.some((p) => p.includes('pro'))) {
-    planKey = 'pro';
-  } else if (planCandidates.some((p) => p.includes('plus'))) {
+  } else if (rawPlan.includes('plus')) {
     planKey = 'plus';
+  } else if (rawPlan.includes('pro')) {
+    planKey = 'pro';
   }
 
   const planInfo =

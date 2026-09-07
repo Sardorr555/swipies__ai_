@@ -44,7 +44,7 @@ export function Header({
   const { data: tenantInfo } = useFetchTenantInfo();
   const currentPlan = (
     tenantInfo?.plan_type ||
-    (userInfo?.is_superuser ? 'pro' : 'free')
+    'free'
   ).toLowerCase();
 
   const upgradeLabel = useMemo(() => {
