@@ -4,7 +4,7 @@ export function useFindMcpById() {
   const { data } = useListMcpServer();
 
   const findMcpById = (id: string) =>
-    data.mcp_servers.find((item) => item.id === id);
+    data?.mcp_servers?.find((item) => item.id === id);
 
   return {
     findMcpById,

@@ -318,7 +318,7 @@ const routeConfigOptions = [
           },
           {
             path: `${Routes.UserSetting}${Routes.Referrals}`,
-            Component: () => import('@/pages/user-setting/referrals'),
+            element: <Navigate to={`${Routes.UserSetting}/profile`} replace />,
           },
           {
             path: `${Routes.UserSetting}${Routes.Subscription}`,
@@ -436,7 +436,7 @@ const routeConfigOptions = [
               },
               {
                 path: Routes.AdminReferrals,
-                Component: () => import('@/pages/admin/referrals'),
+                element: <Navigate to={Routes.AdminUserManagement} replace />,
               },
               {
                 path: Routes.AdminLicenses,

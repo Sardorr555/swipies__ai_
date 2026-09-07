@@ -61,12 +61,6 @@ export default function AdminPricingSettings() {
     defaultRole: '',
   });
 
-  const [referralValues, setReferralValues] = useState({
-    enabled: true,
-    storageGb: '1.0',
-    agentsLimit: '5',
-  });
-
   // Load backend variables into local states when queries succeed
   useEffect(() => {
     if (variablesRes && Array.isArray(variablesRes)) {
@@ -97,12 +91,6 @@ export default function AdminPricingSettings() {
         enableWhitelist: varsMap.get('enable_whitelist') !== 'false',
         defaultRole: varsMap.get('default_role') || '',
       });
-
-      setReferralValues({
-        enabled: varsMap.get('referral.enabled') !== 'false',
-        storageGb: varsMap.get('referral.storage_gb') || '1.0',
-        agentsLimit: varsMap.get('referral.agents_limit') || '5',
-      });
     }
   }, [variablesRes]);
 
@@ -118,28 +106,6 @@ export default function AdminPricingSettings() {
       queryClient.invalidateQueries({ queryKey: ['admin/getVariables'] });
     },
   });
-
-  const handleSaveReferral = async () => {
-    try {
-      await Promise.all([
-        saveVariableMutation.mutateAsync({
-          name: 'referral.enabled',
-          value: referralValues.enabled ? 'true' : 'false',
-        }),
-        saveVariableMutation.mutateAsync({
-          name: 'referral.storage_gb',
-          value: referralValues.storageGb,
-        }),
-        saveVariableMutation.mutateAsync({
-          name: 'referral.agents_limit',
-          value: referralValues.agentsLimit,
-        }),
-      ]);
-      message.success('Referral program settings updated successfully!');
-    } catch (e: any) {
-      message.error(`Failed to update referral settings: ${e.message}`);
-    }
-  };
 
   const handleSavePricing = async () => {
     try {
@@ -272,13 +238,6 @@ export default function AdminPricingSettings() {
               >
                 <Settings className="size-4" />
                 Policies & System
-              </TabsTrigger>
-              <TabsTrigger
-                value="referrals"
-                className="flex items-center gap-2 text-text-secondary border-0.5 border-border-button data-[state=active]:bg-bg-card px-4 py-2 rounded-md"
-              >
-                <Gift className="size-4" />
-                Referrals
               </TabsTrigger>
             </TabsList>
 
@@ -599,108 +558,6 @@ export default function AdminPricingSettings() {
               </div>
             </TabsContent>
 
-            <TabsContent value="referrals" className="space-y-6">
-              <Card className="border border-border-button dark:bg-bg-card/30">
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <Gift className="text-accent-primary size-5" />
-                    Referral Program Configuration
-                  </CardTitle>
-                  <CardDescription>
-                    Configure the reward values granted to referrers when new
-                    users sign up via their referral links.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between border-b pb-4 border-border-button">
-                    <div>
-                      <Label
-                        htmlFor="referral-enabled"
-                        className="text-base font-medium"
-                      >
-                        Enable Referral Program
-                      </Label>
-                      <p className="text-xs text-text-secondary">
-                        Toggle to globally enable or disable referral rewards
-                        and links across the platform.
-                      </p>
-                    </div>
-                    <Switch
-                      id="referral-enabled"
-                      checked={referralValues.enabled}
-                      onCheckedChange={(checked) =>
-                        setReferralValues({
-                          ...referralValues,
-                          enabled: checked,
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="referral-storage">
-                        Bonus Storage per Referral (GB)
-                      </Label>
-                      <Input
-                        id="referral-storage"
-                        type="number"
-                        step="0.1"
-                        className="bg-bg-input border-border-button h-10"
-                        value={referralValues.storageGb}
-                        onChange={(e) =>
-                          setReferralValues({
-                            ...referralValues,
-                            storageGb: e.target.value,
-                          })
-                        }
-                      />
-                      <p className="text-xs text-text-secondary">
-                        Extra storage space in gigabytes awarded to the
-                        referrer.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="referral-agents">
-                        Bonus Agents/Apps per Referral
-                      </Label>
-                      <Input
-                        id="referral-agents"
-                        type="number"
-                        className="bg-bg-input border-border-button h-10"
-                        value={referralValues.agentsLimit}
-                        onChange={(e) =>
-                          setReferralValues({
-                            ...referralValues,
-                            agentsLimit: e.target.value,
-                          })
-                        }
-                      />
-                      <p className="text-xs text-text-secondary">
-                        Extra chat dialogues/agent canvas limit awarded to the
-                        referrer.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end pt-4">
-                <Button
-                  className="flex items-center gap-2 h-10 px-6"
-                  disabled={saveVariableMutation.isPending}
-                  onClick={handleSaveReferral}
-                >
-                  {saveVariableMutation.isPending ? (
-                    <LucideLoader2 className="animate-spin size-4" />
-                  ) : (
-                    <Save className="size-4" />
-                  )}
-                  Save Referral Settings
-                </Button>
-              </div>
-            </TabsContent>
           </Tabs>
         </CardContent>
       </ScrollArea>

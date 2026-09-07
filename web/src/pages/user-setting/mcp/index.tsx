@@ -33,13 +33,14 @@ export default function McpServer() {
     useListMcpServer();
   const { editVisible, showEditModal, hideEditModal, handleOk, id, loading } =
     useEditMcp();
+  const mcpServers = data?.mcp_servers ?? [];
   const {
     selectedList,
     handleSelectChange,
     handleDelete,
     handleExportMcp,
     handleSelectAll,
-  } = useBulkOperateMCP(data.mcp_servers);
+  } = useBulkOperateMCP(mcpServers);
   const { t } = useTranslation();
   const {
     importVisible,
@@ -103,7 +104,7 @@ export default function McpServer() {
       }
     >
       <div className="h-full p-5 overflow-x-hidden overflow-y-auto">
-        {data.mcp_servers?.length ? (
+        {mcpServers.length ? (
           <>
             {isSelectionMode && (
               <section className="pb-5 flex items-center">
@@ -143,7 +144,7 @@ export default function McpServer() {
               </section>
             )}
             <CardContainer>
-              {data.mcp_servers.map((item) => (
+              {mcpServers.map((item) => (
                 <McpCard
                   key={item.id}
                   data={item}

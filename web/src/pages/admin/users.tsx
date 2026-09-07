@@ -245,14 +245,6 @@ function AdminUserManagement() {
       columnHelper.accessor('nickname', {
         header: t('admin.nickname'),
       }),
-      columnHelper.accessor('referrals_count', {
-        header: t('admin.referrals'),
-        cell: ({ cell }) => cell.getValue() || 0,
-      }),
-      columnHelper.accessor('referred_by_email', {
-        header: t('admin.referredBy'),
-        cell: ({ cell }) => cell.getValue() || '-',
-      }),
 
       ...(IS_ENTERPRISE
         ? [

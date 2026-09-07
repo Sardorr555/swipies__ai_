@@ -126,10 +126,6 @@ const pricingTranslations = {
         cta: 'Purchase Key',
       },
     },
-    referralTitle: 'Want to expand your limits for free?',
-    referralSubtitle:
-      'Invite friends to Swipies and get +1 GB storage and +5 agents/apps for each referral!',
-    referralButton: 'Get Referral Link',
     activePlanBadge: 'Your Active Plan',
     activePlanExpiry: 'Expires on {{date}}',
     activePlanLifetime: 'Lifetime access',
@@ -143,34 +139,33 @@ const pricingTranslations = {
     sixMonths: '6 месяцев',
     oneYear: '12 месяцев',
     mo: '/мес',
-    billedTotal: 'Всего: {{total}} за {{months}} мес.',
-    customPricing: 'Индивидуальная цена',
-    popularBadge: 'Самый популярный',
+    billedTotal: 'Всего: {{total}} / {{months}} мес.',
+    customPricing: 'Индивидуальный расчет',
+    popularBadge: 'Популярный',
     secureFooter:
-      'Все платежи защищены и обрабатываются через платежный шлюз Atmos. Вы можете изменить или отменить подписку в любое время.',
+      'Все платежи безопасно обрабатываются через платежный шлюз Atmos. Вы можете изменить или отменить подписку в любое время.',
     checkoutTitle: 'Оплата через Atmos',
     checkoutSubtitle: 'Uzcard, Humo, Visa или Mastercard',
     checkoutPlan: 'Тариф',
-    checkoutTotal: 'Итого к оплате',
+    checkoutTotal: 'К оплате',
     cardNumber: 'Номер карты',
     expiryDate: 'Срок действия',
     cvc: 'CVC',
-    cardholderName: 'Имя держателя карты',
+    cardholderName: 'Имя на карте',
     processing: 'Обработка...',
-    payNow: 'Оплатить сейчас',
+    payNow: 'Оплатить',
     otpTitle: 'Подтверждение платежа',
-    otpSubtitle:
-      'SMS с 6-значным кодом подтверждения отправлено на ваш телефон',
+    otpSubtitle: 'SMS с 6-значным кодом подтверждения отправлено на ваш телефон',
     verifying: 'Проверка...',
     confirmOtp: 'Подтвердить код',
-    cancelUseAnother: 'Отмена и другая карта',
+    cancelUseAnother: 'Отмена и выбор другой карты',
     paymentSuccessful: 'Оплата прошла успешно!',
-    successSubtitle: 'Ваша транзакция была безопасно обработана.',
+    successSubtitle: 'Ваша транзакция успешно обработана.',
     subActivated: 'Подписка активирована',
     subDelayed:
-      'Платеж успешно завершен, но произошла задержка активации. Пожалуйста, свяжитесь с поддержкой.',
-    continueToSwipies: 'Продолжить в Swipies',
-    protectedByAtmos: 'Защищено Atmos Secure',
+      'Оплата завершена успешно, но активация задерживается. Пожалуйста, свяжитесь с поддержкой.',
+    continueToSwipies: 'Продолжить работу в Swipies',
+    protectedByAtmos: 'Защищено Atmos',
     plans: {
       plus: {
         name: 'Plus',
@@ -178,8 +173,8 @@ const pricingTranslations = {
         features: [
           '50 приложений (чаты и агенты)',
           '5 участников команды',
-          '5 ГБ хранилища данных',
-          '5 000 кредитов в месяц',
+          '5 ГБ хранилища датасетов',
+          '5,000 кредитов в месяц',
         ],
         cta: 'Выбрать Plus',
       },
@@ -189,42 +184,38 @@ const pricingTranslations = {
         features: [
           'Безлимитные приложения',
           '15 участников команды',
-          '15 ГБ хранилища данных',
-          '10 000 кредитов в месяц',
+          '15 ГБ хранилища датасетов',
+          '10,000 кредитов в месяц',
         ],
         cta: 'Выбрать Pro',
       },
       enterprise: {
         name: 'Enterprise',
-        description: 'Для организаций с особыми потребностями',
+        description: 'Для масштабных корпоративных задач',
         features: [
           'Безлимитные приложения и базы знаний',
-          'Безлимитное хранилище и участники',
+          'Безлимитное хранилище и команда',
           'Выделенный сервер / On-Premise',
-          'Максимальная безопасность и SLA',
+          'Максимальный SLA и безопасность',
           'Персональный менеджер',
           'Кастомные интеграции',
         ],
         cta: 'Связаться с нами',
       },
       license: {
-        name: 'Self-Hosted License',
-        description: 'Запуск Swipies AI на вашей собственной инфраструктуре',
+        name: 'Self-Hosted Лицензия',
+        description: 'Запуск Swipies AI на собственной инфраструктуре',
         features: [
-          'Локальное развертывание (Docker/k8s)',
-          'Активация по лицензионному ключу',
-          'Нет ограничений на загрузку и команду',
-          'Ускорение графического процессора и векторной базы данных',
-          'Работа в закрытом контуре / Офлайн-режим',
+          'Развертывание Self-Hosted (Docker/k8s)',
+          'Активация лицензионным ключом',
+          'Без лимитов на загрузку и команду',
+          'GPU и векторные ускорения БД',
+          'Поддержка работы без интернета (Air-gapped)',
           'Регулярные обновления безопасности и функций',
         ],
         cta: 'Купить ключ',
       },
     },
-    referralTitle: 'Хотите бесплатно расширить свои лимиты?',
-    referralSubtitle:
-      'Приглашайте друзей в Swipies и получайте +1 ГБ диска и +5 агентов/приложений за каждого!',
-    referralButton: 'Получить реферальную ссылку',
     activePlanBadge: 'Ваш активный тариф',
     activePlanExpiry: 'Истекает {{date}}',
     activePlanLifetime: 'Бессрочный доступ',
@@ -316,10 +307,6 @@ const pricingTranslations = {
         cta: 'Kalitni sotib olish',
       },
     },
-    referralTitle: 'Limitlaringizni bepul kengaytirmoqchimisiz?',
-    referralSubtitle:
-      'Do‘stlaringizni Swipies-ga taklif qiling va har bir referal uchun +1 GB xotira va +5 ta agent/ilova oling!',
-    referralButton: 'Referal havolasini olish',
     activePlanBadge: 'Sizning faol tarifingiz',
     activePlanExpiry: 'Amal qilish muddati: {{date}}',
     activePlanLifetime: 'Muddatsiz kirish',
@@ -409,10 +396,6 @@ const pricingTranslations = {
         cta: '购买密钥',
       },
     },
-    referralTitle: '想要免费扩展您的额度吗？',
-    referralSubtitle:
-      '邀请好友加入 Swipies，每成功邀请一位即可获得 +1 GB 存储空间和 +5 个 Agent/应用！',
-    referralButton: '获取推荐链接',
     activePlanBadge: '您的当前订阅',
     activePlanExpiry: '有效期至 {{date}}',
     activePlanLifetime: '终身访问权限',
@@ -1100,35 +1083,7 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Referral Program Banner */}
-        <div className="mt-12 max-w-4xl mx-auto border border-border bg-bg-component rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden transition-all hover:border-[#478AF5]/40 hover:shadow-2xl">
-          <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none translate-x-4 -translate-y-4">
-            <Gift size={160} className="text-[#478AF5]" />
-          </div>
-          <div className="flex items-center gap-4 relative z-10">
-            <div className="p-4 bg-[#478AF5]/10 rounded-2xl text-[#478AF5] shrink-0">
-              <Gift size={32} className="animate-pulse" />
-            </div>
-            <div className="space-y-1 text-left">
-              <h4 className="text-base sm:text-lg font-bold text-text-primary">
-                {tPrice.referralTitle}
-              </h4>
-              <p className="text-xs sm:text-sm text-text-secondary max-w-lg">
-                {tPrice.referralSubtitle}
-              </p>
-            </div>
-          </div>
-          <Link
-            to={`${Routes.UserSetting}${Routes.Referrals}`}
-            className="relative z-10 shrink-0 w-full md:w-auto text-center"
-          >
-            <Button className="w-full md:w-auto bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md border-0 font-bold py-2.5 px-6 rounded-xl transition-all text-xs sm:text-sm">
-              {tPrice.referralButton}
-            </Button>
-          </Link>
-        </div>
-
-        <p className="text-center text-[11px] sm:text-xs text-text-secondary mt-6 pb-8">
+        <p className="text-center text-[11px] sm:text-xs text-text-secondary mt-12 pb-8">
           {tPrice.secureFooter}
         </p>
       </div>

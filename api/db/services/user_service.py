@@ -335,36 +335,15 @@ class UserTenantService(CommonService):
 class TenantLimitService:
     @classmethod
     def is_referral_enabled(cls) -> bool:
-        try:
-            from api.db.services.system_settings_service import SystemSettingsService
-            objs = SystemSettingsService.get_by_name("referral.enabled")
-            if objs:
-                return objs[0].value == "true"
-        except Exception:
-            pass
-        return True
+        return False
 
     @classmethod
     def get_referral_storage_gb(cls) -> float:
-        try:
-            from api.db.services.system_settings_service import SystemSettingsService
-            objs = SystemSettingsService.get_by_name("referral.storage_gb")
-            if objs:
-                return float(objs[0].value)
-        except Exception:
-            pass
-        return 1.0
+        return 0.0
 
     @classmethod
     def get_referral_agents_limit(cls) -> int:
-        try:
-            from api.db.services.system_settings_service import SystemSettingsService
-            objs = SystemSettingsService.get_by_name("referral.agents_limit")
-            if objs:
-                return int(objs[0].value)
-        except Exception:
-            pass
-        return 5
+        return 0
 
     @classmethod
     @DB.connection_context()
@@ -404,7 +383,7 @@ class TenantLimitService:
 
         total_apps = chat_count + agent_count
         if total_apps >= limit:
-            return False, f"You have reached the maximum limit of {limit} apps (including referral bonuses). Please upgrade to a higher plan to create more."
+            return False, f"You have reached the maximum limit of {limit} apps. Please upgrade to a higher plan to create more."
 
         return True, None
 
@@ -446,7 +425,7 @@ class TenantLimitService:
         ).scalar() or 0
 
         if current_bytes + new_file_size > limit_bytes:
-            return False, f"You have reached the maximum storage limit of {limit_gb} GB (including referral bonuses). Please upgrade to a higher plan or delete some files."
+            return False, f"You have reached the maximum storage limit of {limit_gb} GB. Please upgrade to a higher plan or delete some files."
 
         return True, None
 

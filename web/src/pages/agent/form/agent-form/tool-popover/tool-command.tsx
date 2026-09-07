@@ -152,7 +152,7 @@ export function MCPCommand({ onChange, value }: ToolCommandProps) {
       <CommandInput placeholder="Type a command or search..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-        {data.mcp_servers.map((item) => {
+        {(data?.mcp_servers ?? []).map((item) => {
           const isSelected = currentValue.includes(item.id);
 
           return (

@@ -18,8 +18,7 @@ export function useUpdateAgentNodeMCP() {
   const { updateNodeForm } = useGraphStore((state) => state);
   const node = useContext(AgentFormContext);
   const mcpList = useGetNodeMCP();
-  const { data } = useListMcpServer();
-  const mcpServers = data.mcp_servers;
+  const mcpServers = data?.mcp_servers ?? [];
 
   const findMcpTools = useCallback(
     (mcpId: string) => {

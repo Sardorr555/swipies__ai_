@@ -60,11 +60,6 @@ const AdminNavigationLayout = () => {
         icon: <Coins className="size-[1em]" />,
       },
       {
-        path: Routes.AdminReferrals,
-        name: 'Referral Activity',
-        icon: <Gift className="size-[1em]" />,
-      },
-      {
         path: Routes.AdminLicenses,
         name: 'Licenses',
         icon: <Key className="size-[1em]" />,

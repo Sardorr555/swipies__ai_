@@ -55,17 +55,19 @@ export const useListMcpServer = () => {
         page_size: pagination.pageSize,
         page: pagination.current,
       });
-      return data?.data;
+      return data?.data ?? { total: 0, mcp_servers: [] };
     },
   });
 
+  const safeData = data ?? { total: 0, mcp_servers: [] };
+
   return {
-    data,
+    data: safeData,
     loading,
     handleInputChange,
     setPagination,
     searchString,
-    pagination: { ...pagination, total: data?.total },
+    pagination: { ...pagination, total: safeData.total ?? 0 },
   };
 };
 
