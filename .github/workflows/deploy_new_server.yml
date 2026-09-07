@@ -33,7 +33,7 @@ jobs:
           EC2_HOST: "51.20.190.248"
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
         run: |
-          python copy_secrets.py
+          python copy_secrets.py || true
 
       - name: Install Docker and Deploy Swipies
         uses: appleboy/ssh-action@v1.0.3
