@@ -38,7 +38,7 @@ jobs:
       - name: Install Docker and Deploy Swipies
         uses: appleboy/ssh-action@v1.0.3
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         with:
           host: "51.20.190.248"
           username: ubuntu
@@ -86,11 +86,11 @@ jobs:
 
             echo "🚀 Клонируем/обновляем репозиторий Swipies..."
             if [ ! -d ~/swipies__ai_ ]; then
-              git clone -b licence_v https://${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
+              git clone -b licence_v https://x-access-token:${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
             fi
 
             cd ~/swipies__ai_
-            git remote set-url origin https://${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git || true
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git || true
             git fetch origin licence_v
             git reset --hard origin/licence_v
 

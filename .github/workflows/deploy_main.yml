@@ -38,7 +38,7 @@ jobs:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         with:
           host: "51.20.190.248"
           username: ubuntu
@@ -49,10 +49,10 @@ jobs:
             set -e
             if [ ! -d ~/swipies__ai_ ]; then
               echo "🚀 Директория ~/swipies__ai_ не найдена. Клонируем репозиторий..."
-              git clone -b licence_v https://${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
+              git clone -b licence_v https://x-access-token:${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git ~/swipies__ai_
             fi
             cd ~/swipies__ai_
-            git remote set-url origin https://${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git || true
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/Sardorr555/swipies__ai_.git || true
 
             echo "📥 Обновляем код..."
             git fetch origin licence_v
