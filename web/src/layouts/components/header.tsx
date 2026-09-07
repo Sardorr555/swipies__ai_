@@ -37,13 +37,15 @@ export function Header({
 }: React.HTMLAttributes<HTMLElement>) {
   const changeLanguage = useChangeLanguage();
 
-  const {
-    data: { language = 'en', avatar, nickname },
-  } = useFetchUserInfo();
+  const { data: userInfo } = useFetchUserInfo();
+  const { language = 'en', avatar, nickname } = userInfo || {};
 
   const { data: tenantData } = useListTenant();
   const { data: tenantInfo } = useFetchTenantInfo();
-  const currentPlan = (tenantInfo?.plan_type || 'free').toLowerCase();
+  const currentPlan = (
+    tenantInfo?.plan_type ||
+    (userInfo?.is_superuser ? 'pro' : 'free')
+  ).toLowerCase();
 
   const upgradeLabel = useMemo(() => {
     if (currentPlan.includes('plus')) return 'Plus Plan';

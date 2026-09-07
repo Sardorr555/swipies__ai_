@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { BRAND } from '@/constants/branding';
 import { useSystemConfig } from '@/hooks/use-system-request';
-import { useFetchUserInfo, useFetchTenantInfo } from '@/hooks/use-user-setting-request';
+import { useFetchUserInfo, useFetchTenantInfo, UserSettingApiAction } from '@/hooks/use-user-setting-request';
 import { Routes } from '@/routes';
 import {
   CheckCircle,
@@ -16,6 +16,7 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams, useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 // UZS Formatter
 const formatUZS = (amount: number) => {
@@ -464,11 +465,15 @@ export default function PricingPage() {
 
   const tPrice = pricingTranslations[lang];
 
+  const queryClient = useQueryClient();
   const { data: userInfo } = useFetchUserInfo();
   const userEmail = userInfo?.email || '';
 
   const { data: tenantInfo } = useFetchTenantInfo();
-  const currentPlan = (tenantInfo?.plan_type || 'free').toLowerCase();
+  const currentPlan = (
+    tenantInfo?.plan_type ||
+    (userInfo?.is_superuser ? 'pro' : 'free')
+  ).toLowerCase();
   const expiryDate = tenantInfo?.plan_expiry_date;
 
   const getExpiryText = (dateStr?: string) => {
@@ -498,7 +503,7 @@ export default function PricingPage() {
 
   // Determine if the user is from Uzbekistan
   const isUzbekistanUser = (() => {
-    const phone = userInfo?.phone || userInfo?.phone_number || '';
+    const phone = (userInfo as any)?.phone || (userInfo as any)?.phone_number || '';
     if (phone) {
       const cleanPhone = phone.replace(/[^\d+]/g, '');
       if (cleanPhone.startsWith('+998') || cleanPhone.startsWith('998')) {
@@ -715,7 +720,10 @@ export default function PricingPage() {
           window.location.href = txData.payload.redirect_uri;
           return;
         }
-        await triggerProvision();
+        setRagflowResult(txData.provision || { success: true });
+        queryClient.invalidateQueries({ queryKey: [UserSettingApiAction.TenantInfo] });
+        queryClient.invalidateQueries({ queryKey: [UserSettingApiAction.UserInfo] });
+        setStep('success');
       } else {
         // Uzcard / Humo
         const txData = await safeFetchJson('/api/pay/create', {
@@ -777,6 +785,8 @@ export default function PricingPage() {
       });
 
       setRagflowResult(applyRes.provision || { success: true });
+      queryClient.invalidateQueries({ queryKey: [UserSettingApiAction.TenantInfo] });
+      queryClient.invalidateQueries({ queryKey: [UserSettingApiAction.UserInfo] });
       setStep('success');
     } catch (err: any) {
       setError(err.message || 'Invalid code or system error.');

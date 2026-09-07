@@ -709,6 +709,10 @@ class AIPolicyManager:
         period = cls.get_current_period()
         date_str = cls.get_current_date_str()
         plan = cls.get_user_plan(tenant_id, user_id)
+        if not isinstance(plan, dict):
+            plan = {"id": "free", "name": "FREE"}
+        if not plan.get("name"):
+            plan["name"] = str(plan.get("id", "free")).upper()
 
         monthly_limit = plan.get("monthly_token_limit", 1000000)
         daily_limit = plan.get("daily_token_limit", 50000)
@@ -737,6 +741,7 @@ class AIPolicyManager:
         breakdown = list(breakdown_query)
 
         # Allowed models list
+        plan_id = plan.get("id", "free")
         policies = (
             SubscriptionAIPolicy.select(
                 SubscriptionAIPolicy.model_id,
@@ -744,7 +749,7 @@ class AIPolicyManager:
                 SubscriptionAIPolicy.is_default_llm,
                 SubscriptionAIPolicy.enabled,
             )
-            .where(SubscriptionAIPolicy.plan_id == plan["id"], SubscriptionAIPolicy.enabled == True)
+            .where(SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.enabled == True)
             .dicts()
         )
 
@@ -753,6 +758,7 @@ class AIPolicyManager:
             "period": period,
             "date": date_str,
             "monthly_used": monthly_used,
+            "total_used": monthly_used,
             "monthly_limit": monthly_limit,
             "daily_used": daily_used,
             "daily_limit": daily_limit,

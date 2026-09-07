@@ -968,7 +968,31 @@ async def tenant_info():
         tenants = TenantService.get_info_by(current_user.id)
         if not tenants:
             return get_data_error_result(message="Tenant not found!")
-        return get_json_result(data=tenants[0])
+        tenant = dict(tenants[0])
+
+        # Self-healing plan check:
+        # 1. Superusers enjoy Pro plan privileges
+        if getattr(current_user, "is_superuser", False):
+            if not tenant.get("plan_type") or tenant.get("plan_type") == "free":
+                tenant["plan_type"] = "pro"
+
+        # 2. Check if user has an active paid transaction in ledger that wasn't synced yet
+        if tenant.get("plan_type", "free") == "free" and getattr(current_user, "email", None):
+            try:
+                from api.db.services.payment_transaction_service import PaymentTransactionService
+                recent_paid = PaymentTransactionService.query(
+                    account_email=current_user.email.strip().lower(),
+                    status="PAID",
+                )
+                if recent_paid:
+                    latest = sorted(recent_paid, key=lambda x: x.create_time or 0, reverse=True)[0]
+                    if latest.plan_type and latest.plan_type != "free":
+                        tenant["plan_type"] = latest.plan_type
+                        TenantService.update_by_id(tenant["tenant_id"], {"plan_type": latest.plan_type})
+            except Exception as tx_check_err:
+                logging.warning(f"Error self-healing tenant plan from transactions: {tx_check_err}")
+
+        return get_json_result(data=tenant)
     except Exception as e:
         return server_error_response(e)
 

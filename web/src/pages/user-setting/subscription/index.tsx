@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Spotlight from '@/components/spotlight';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { useFetchTenantInfo } from '@/hooks/use-user-setting-request';
+import { useFetchTenantInfo, useFetchUserInfo } from '@/hooks/use-user-setting-request';
 import { formatDate } from '@/utils/date';
 import {
   ArrowUpRight,
@@ -234,6 +234,7 @@ const ALL_PLAN_CARDS = [
 const SubscriptionPage = () => {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
+  const { data: userInfo } = useFetchUserInfo();
   const { data: tenantInfo, loading } = useFetchTenantInfo();
   const [aiUsage, setAiUsage] = useState<UserAIUsageSummary | null>(null);
 
@@ -247,21 +248,54 @@ const SubscriptionPage = () => {
       .catch(() => {});
   }, []);
 
-  const lang = pricingTranslations[i18n.language] ? i18n.language : 'en';
-  const tLocal = pricingTranslations[lang];
+  const currentLang = i18n.language || 'en';
+  const lang = pricingTranslations[currentLang]
+    ? currentLang
+    : currentLang.startsWith('ru')
+      ? 'ru'
+      : currentLang.startsWith('uz')
+        ? 'uz'
+        : 'en';
+  const tLocal = pricingTranslations[lang] || pricingTranslations.en;
 
-  // Helper to extract plan type
-  const rawPlan = (tenantInfo?.plan_type || 'free').toLowerCase();
+  // Resolve plan type candidate tokens from all sources of truth
+  const planCandidates = [
+    tenantInfo?.plan_type,
+    typeof aiUsage?.plan === 'object' ? (aiUsage?.plan?.id || aiUsage?.plan?.name) : aiUsage?.plan,
+    userInfo?.is_superuser ? 'pro' : '',
+  ]
+    .filter(Boolean)
+    .map((p) => String(p).toLowerCase());
+
   let planKey = 'free';
-  if (rawPlan.includes('plus')) planKey = 'plus';
-  else if (rawPlan.includes('pro')) planKey = 'pro';
-  else if (rawPlan.includes('license')) planKey = 'license';
-  else if (rawPlan.includes('enterprise')) planKey = 'enterprise';
+  if (planCandidates.some((p) => p.includes('enterprise'))) {
+    planKey = 'enterprise';
+  } else if (planCandidates.some((p) => p.includes('license'))) {
+    planKey = 'license';
+  } else if (planCandidates.some((p) => p.includes('pro'))) {
+    planKey = 'pro';
+  } else if (planCandidates.some((p) => p.includes('plus'))) {
+    planKey = 'plus';
+  }
 
-  const planInfo = tLocal.planDetails[planKey];
+  const planInfo =
+    tLocal?.planDetails?.[planKey] ||
+    pricingTranslations.en?.planDetails?.[planKey] || {
+      name: `${planKey.toUpperCase()} Plan`,
+      description: '',
+    };
+
+  const aiPlanName =
+    typeof aiUsage?.plan === 'object' && aiUsage?.plan?.name
+      ? aiUsage.plan.name
+      : typeof aiUsage?.plan === 'string'
+        ? (aiUsage.plan as string).toUpperCase()
+        : planInfo?.name || 'Plus Plan';
 
   // Map resource limits dynamically based on plan
   const getResourceLimits = () => {
+    const unlim = tLocal?.unlimited || 'Unlimited';
+    const selfUnlim = tLocal?.selfHostedUnlimited || 'Self-hosted (Unlimited)';
     switch (planKey) {
       case 'plus':
         return {
@@ -273,23 +307,23 @@ const SubscriptionPage = () => {
       case 'pro':
         return {
           storage: '15 GB',
-          apps: tLocal.unlimited,
+          apps: unlim,
           team: '15',
           credits: '10,000',
         };
       case 'license':
         return {
-          storage: tLocal.selfHostedUnlimited,
-          apps: tLocal.unlimited,
-          team: tLocal.unlimited,
-          credits: tLocal.unlimited,
+          storage: selfUnlim,
+          apps: unlim,
+          team: unlim,
+          credits: unlim,
         };
       case 'enterprise':
         return {
-          storage: tLocal.unlimited,
-          apps: tLocal.unlimited,
-          team: tLocal.unlimited,
-          credits: tLocal.unlimited,
+          storage: unlim,
+          apps: unlim,
+          team: unlim,
+          credits: unlim,
         };
       default:
         return {
@@ -317,10 +351,10 @@ const SubscriptionPage = () => {
         <header className="flex flex-col gap-1">
           <h2 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
             <CreditCard className="text-accent-primary" size={24} />
-            {tLocal.title}
+            {tLocal?.title || 'Plan & Billing'}
           </h2>
           <p className="text-text-secondary text-sm">
-            {tLocal.subtitle}
+            {tLocal?.subtitle || 'Manage your subscription and view usage limits.'}
           </p>
         </header>
       }
@@ -343,14 +377,14 @@ const SubscriptionPage = () => {
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/20 inline-flex items-center gap-1.5">
-                    <CheckCircle size={14} /> {tLocal.activePlan}
+                    <CheckCircle size={14} /> {tLocal?.activePlan || 'Active Plan'}
                   </span>
                   <h3 className="text-3xl font-extrabold text-text-primary mt-3 flex items-center gap-2">
-                    {planInfo.name}
+                    {planInfo?.name || planKey.toUpperCase()}
                   </h3>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-text-secondary font-medium">{tLocal.creditBalance}</span>
+                  <span className="text-xs text-text-secondary font-medium">{tLocal?.creditBalance || 'Credits'}</span>
                   <div className="text-3xl font-extrabold text-accent-primary mt-0.5">
                     {tenantInfo?.credit !== undefined ? tenantInfo.credit.toLocaleString() : '0'}
                   </div>
@@ -358,18 +392,18 @@ const SubscriptionPage = () => {
               </CardHeader>
               <CardContent className="space-y-4 pt-0">
                 <p className="text-text-secondary text-sm max-w-xl">
-                  {planInfo.description}
+                  {planInfo?.description || ''}
                 </p>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-border-default">
                   <div className="flex items-center gap-2 text-sm text-text-secondary">
                     <Calendar size={16} className="text-accent-primary" />
                     <span>
-                      {tLocal.expiryDate}:{' '}
+                      {tLocal?.expiryDate || 'Expiry'}:{' '}
                       <span className="font-semibold text-text-primary">
                         {tenantInfo?.plan_expiry_date
                           ? formatDate(tenantInfo.plan_expiry_date)
-                          : tLocal.lifetimeAccess}
+                          : tLocal?.lifetimeAccess || 'Lifetime Access'}
                       </span>
                     </span>
                   </div>
@@ -378,7 +412,7 @@ const SubscriptionPage = () => {
                     onClick={() => handleUpgradeRedirect()}
                     className="bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center gap-2 px-5 py-2.5 font-bold transition-all duration-200 shadow-md shadow-accent-primary/20"
                   >
-                    {tLocal.upgradeButton}
+                    {tLocal?.upgradeButton || 'Change Plan / Upgrade'}
                     <ArrowUpRight size={16} />
                   </Button>
                 </div>
@@ -392,16 +426,16 @@ const SubscriptionPage = () => {
                   <div>
                     <h4 className="text-lg font-bold text-text-primary flex items-center gap-2">
                       <Bot className="text-accent-primary" size={20} />
-                      AI Monthly Token Consumption ({aiUsage.period})
+                      AI Monthly Token Consumption ({aiUsage?.period || ''})
                     </h4>
                     <p className="text-xs text-text-secondary">
-                      Monthly token quota governed by {aiUsage.plan.name} policy. Resets monthly.
+                      Monthly token quota governed by {aiPlanName} policy. Resets monthly.
                     </p>
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-semibold text-text-secondary">Tokens Used</span>
                     <div className="text-xl font-extrabold text-accent-primary">
-                      {aiUsage.total_used.toLocaleString()} / {aiUsage.monthly_limit.toLocaleString()}
+                      {((aiUsage?.total_used ?? aiUsage?.monthly_used ?? 0)).toLocaleString()} / {((aiUsage?.monthly_limit ?? 0)).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -410,24 +444,24 @@ const SubscriptionPage = () => {
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-xs font-medium">
                     <span className="text-text-secondary">Quota Progress</span>
-                    <span className={aiUsage.percentage >= 90 ? 'text-rose-500 font-bold' : 'text-accent-primary font-bold'}>
-                      {aiUsage.percentage}% Used
+                    <span className={(aiUsage?.percentage ?? 0) >= 90 ? 'text-rose-500 font-bold' : 'text-accent-primary font-bold'}>
+                      {aiUsage?.percentage ?? 0}% Used
                     </span>
                   </div>
                   <div className="w-full h-3 bg-bg-card rounded-full overflow-hidden border border-border-default/60">
                     <div
                       className={`h-full transition-all duration-500 rounded-full ${
-                        aiUsage.percentage >= 90
+                        (aiUsage?.percentage ?? 0) >= 90
                           ? 'bg-gradient-to-r from-amber-500 to-rose-500'
                           : 'bg-gradient-to-r from-emerald-500 to-accent-primary'
                       }`}
-                      style={{ width: `${Math.min(aiUsage.percentage, 100)}%` }}
+                      style={{ width: `${Math.min(aiUsage?.percentage ?? 0, 100)}%` }}
                     />
                   </div>
                 </div>
 
                 {/* Model Breakdown */}
-                {aiUsage.breakdown && aiUsage.breakdown.length > 0 && (
+                {Array.isArray(aiUsage?.breakdown) && aiUsage.breakdown.length > 0 && (
                   <div className="pt-2">
                     <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
                       Usage Breakdown by Model
@@ -436,11 +470,11 @@ const SubscriptionPage = () => {
                       {aiUsage.breakdown.map((item, idx) => (
                         <div key={idx} className="p-2.5 rounded-xl border border-border-default/60 bg-bg-card/40 flex items-center justify-between text-xs">
                           <div>
-                            <div className="font-semibold text-text-primary">{item.model_id}</div>
-                            <div className="text-[10px] text-text-secondary">{item.model_type}</div>
+                            <div className="font-semibold text-text-primary">{item?.model_id || 'Unknown'}</div>
+                            <div className="text-[10px] text-text-secondary">{item?.model_type || 'Model'}</div>
                           </div>
                           <span className="font-mono font-bold text-accent-primary">
-                            {item.tokens_used.toLocaleString()}
+                            {(item?.tokens_used ?? 0).toLocaleString()}
                           </span>
                         </div>
                       ))}
@@ -453,7 +487,7 @@ const SubscriptionPage = () => {
             {/* Plan Features / Resource Limits Title */}
             <div className="space-y-4">
               <h4 className="text-lg font-bold tracking-tight text-text-primary">
-                {tLocal.featuresInclude}
+                {tLocal?.featuresInclude || 'What is included in your current plan:'}
               </h4>
 
               {/* Resource Limit cards grid */}
@@ -463,10 +497,10 @@ const SubscriptionPage = () => {
                   <CardContent className="p-5 flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                        {tLocal.resources.storage}
+                        {tLocal?.resources?.storage || 'Dataset Storage'}
                       </p>
                       <p className="text-2xl font-extrabold text-text-primary tracking-tight">
-                        {limits.storage}
+                        {limits?.storage || '50 MB'}
                       </p>
                     </div>
                     <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
@@ -480,10 +514,10 @@ const SubscriptionPage = () => {
                   <CardContent className="p-5 flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                        {tLocal.resources.apps}
+                        {tLocal?.resources?.apps || 'Agents & Apps'}
                       </p>
                       <p className="text-2xl font-extrabold text-text-primary tracking-tight">
-                        {limits.apps}
+                        {limits?.apps || '3'}
                       </p>
                     </div>
                     <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
@@ -497,10 +531,10 @@ const SubscriptionPage = () => {
                   <CardContent className="p-5 flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                        {tLocal.resources.team}
+                        {tLocal?.resources?.team || 'Team Members'}
                       </p>
                       <p className="text-2xl font-extrabold text-text-primary tracking-tight">
-                        {limits.team}
+                        {limits?.team || '1'}
                       </p>
                     </div>
                     <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
@@ -514,10 +548,10 @@ const SubscriptionPage = () => {
                   <CardContent className="p-5 flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                        {tLocal.resources.credits}
+                        {tLocal?.resources?.credits || 'Monthly Credits'}
                       </p>
                       <p className="text-2xl font-extrabold text-text-primary tracking-tight">
-                        {limits.credits}
+                        {limits?.credits || '100'}
                       </p>
                     </div>
                     <div className="p-3 bg-accent-primary/10 rounded-xl text-accent-primary">
@@ -536,7 +570,7 @@ const SubscriptionPage = () => {
                 <div>
                   <h4 className="text-xl font-bold tracking-tight text-text-primary flex items-center gap-2">
                     <Sparkles className="text-accent-primary" size={22} />
-                    {tLocal.allPlansTitle}
+                    {tLocal?.allPlansTitle || 'All Subscription Plans'}
                   </h4>
                   <p className="text-xs text-text-secondary mt-1">
                     Compare features across all Swipies AI subscription tiers.
@@ -585,7 +619,7 @@ const SubscriptionPage = () => {
                         {isCurrent ? (
                           <div className="w-full bg-emerald-500/20 text-emerald-400 font-bold py-2 rounded-xl text-xs text-center border border-emerald-500/30 flex items-center justify-center gap-1.5">
                             <CheckCircle size={14} />
-                            {tLocal.currentPlanBadge}
+                            {tLocal?.currentPlanBadge || 'Current Plan'}
                           </div>
                         ) : (
                           <Button
@@ -602,7 +636,7 @@ const SubscriptionPage = () => {
                                 <Key size={14} /> License Keys
                               </span>
                             ) : (
-                              tLocal.selectPlan
+                              tLocal?.selectPlan || 'Select Plan'
                             )}
                           </Button>
                         )}
@@ -617,7 +651,7 @@ const SubscriptionPage = () => {
             <div className="p-4 rounded-xl border border-accent-primary/20 bg-accent-primary/5 flex items-start gap-3 mt-6">
               <HelpCircle className="text-accent-primary shrink-0 mt-0.5" size={18} />
               <p className="text-xs text-text-secondary leading-relaxed">
-                {tLocal.pricingRedirectTip}
+                {tLocal?.pricingRedirectTip || 'To change or upgrade your plan, visit our Pricing page.'}
               </p>
             </div>
           </>
