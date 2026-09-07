@@ -30,7 +30,7 @@ jobs:
 
       - name: Replicate Secrets to Swipies_docs
         env:
-          EC2_HOST: "100.31.87.176"
+          EC2_HOST: "51.20.190.248"
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
         run: |
           python copy_secrets.py
@@ -38,7 +38,7 @@ jobs:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: "100.31.87.176"
+          host: "51.20.190.248"
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
           command_timeout: 45m
