@@ -67,6 +67,7 @@ jobs:
             RAGFLOW_BASE_URL=https://app.swipies.app
             RAGFLOW_ADMIN_EMAIL=your-admin@swipies.app
             RAGFLOW_ADMIN_PASSWORD=your-admin-password
+            RAGFLOW_API_KEY=swipies_system_secret_key_2026
             RAGFLOW_PUBLIC_KEY_PATH=./ragflow_public.pem
             ENVEOF
             sed -i 's/^[ \t]*//' .env

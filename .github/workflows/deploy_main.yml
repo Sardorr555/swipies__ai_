@@ -67,19 +67,23 @@ jobs:
 
             echo "📥 Updating main repository..."
             sudo chown -R ubuntu:ubuntu ~/swipies__ai_ 2>/dev/null || true
-            sudo find ~/swipies__ai_ -name "*.lock" -type f -delete 2>/dev/null || true
+            sudo find ~/swipies__ai_/.git -name "*.lock" -type f -delete 2>/dev/null || true
             git fetch origin swipies_26
             git reset --hard origin/swipies_26
+            git checkout -- uv.lock 2>/dev/null || true
 
             echo "📥 Syncing submodules..."
-            sudo find ~/swipies__ai_ -name "*.lock" -type f -delete 2>/dev/null || true
+            sudo find ~/swipies__ai_/.git -name "*.lock" -type f -delete 2>/dev/null || true
             git submodule sync --recursive
             git submodule update --init --recursive --force
 
             cd ~/swipies__ai_/"atmos payment system"
-            sudo find . -name "*.lock" -type f -delete 2>/dev/null || true
+            sudo find .git -name "*.lock" -type f -delete 2>/dev/null || true
             git checkout main || true
             git pull origin main || true
+
+            cd ~/swipies__ai_
+            git checkout -- uv.lock 2>/dev/null || true
 
             echo "💳 Ensuring Atmos Payment System is armed and running immediately..."
             bash ~/swipies__ai_/docker/ensure_payment_service.sh || true
