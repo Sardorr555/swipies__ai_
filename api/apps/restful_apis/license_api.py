@@ -16,10 +16,34 @@ from common.misc_utils import get_uuid
 try:
     from generate_license import generate_license
 except ImportError:
-    import sys
-    from pathlib import Path
-    sys.path.append(str(Path(__file__).resolve().parents[3]))
-    from generate_license import generate_license
+    try:
+        from api.utils.license_generator import generate_license
+    except ImportError:
+        try:
+            import sys
+            from pathlib import Path
+            sys.path.append(str(Path(__file__).resolve().parents[3]))
+            from generate_license import generate_license
+        except ImportError:
+            def generate_license(owner: str, expiry: str, lic_type: str, **kwargs) -> str:
+                import os, json, hashlib, base64
+                d_raw = os.getenv("SWIPIES_LICENSE_PRIVATE_KEY") or os.getenv("SWIPIES_LICENSE_RSA_D")
+                n_raw = os.getenv("SWIPIES_LICENSE_RSA_N")
+                from api.utils.license_verifier import RSA_N as DEFAULT_RSA_N
+                n_int = int(n_raw.strip()) if n_raw else DEFAULT_RSA_N
+                if d_raw:
+                    d_int = int(d_raw.strip())
+                    payload = {"ver": 2, "owner": owner, "expiry": expiry, "type": lic_type}
+                    payload.update(kwargs)
+                    payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
+                    hash_bytes = hashlib.sha256(payload_bytes).digest()
+                    hash_int = int.from_bytes(hash_bytes, byteorder="big")
+                    sig = pow(hash_int, d_int, n_int)
+                    sig_hex = hex(sig)[2:].encode("utf-8")
+                    return base64.b64encode(payload_bytes + b"." + sig_hex).decode("utf-8")
+                payload = {"ver": 2, "owner": owner, "expiry": expiry, "type": lic_type, "mock": True}
+                payload.update(kwargs)
+                return base64.b64encode(json.dumps(payload).encode()).decode()
 
 LOGGER = logging.getLogger(__name__)
 

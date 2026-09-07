@@ -525,10 +525,13 @@ async def system_provision():
         try:
             from generate_license import generate_license
         except ImportError:
-            import sys
-            from pathlib import Path
-            sys.path.append(str(Path(__file__).resolve().parents[3]))
-            from generate_license import generate_license
+            try:
+                from api.utils.license_generator import generate_license
+            except ImportError:
+                import sys
+                from pathlib import Path
+                sys.path.append(str(Path(__file__).resolve().parents[3]))
+                from generate_license import generate_license
         from api.db.services.license_key_service import LicenseKeyService
         import uuid
 
