@@ -565,14 +565,18 @@ export default function CheckoutPage() {
         setStep('success');
       }
     } catch (err: any) {
-      // Auto-recovery attempt: if card was debited, verify with backend recover endpoint
+      // Auto-recovery attempt: if card was debited, verify with backend recover endpoint silently
       if (planQuery === 'license' && transactionId) {
         try {
-          const recRes = await recoverLicensePay(transactionId);
-          if (recRes?.data?.code === 0 && recRes.data.data?.license_key) {
+          const recRes = await safeFetchJson('/v1/license/pay/recover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transaction_id: transactionId }),
+          });
+          if (recRes?.code === 0 && recRes.data?.license_key) {
             setSuccessResult({
               success: true,
-              licenseKey: recRes.data.data.license_key,
+              licenseKey: recRes.data.license_key,
             });
             setStep('success');
             return;
@@ -605,6 +609,8 @@ export default function CheckoutPage() {
       let errorMsg = err?.response?.data?.message || err?.message || 'Неверный SMS-код подтверждения. Пожалуйста, попробуйте снова.';
       if (errorMsg.includes('102') || errorMsg.toLowerCase().includes('verification failed')) {
         errorMsg = 'Неверный или просроченный SMS-код подтверждения (код 102). Пожалуйста, проверьте код из SMS или запросите новый.';
+      } else if (errorMsg.toLowerCase().includes('duplicate entry') || errorMsg.toLowerCase().includes('дубликат')) {
+        errorMsg = 'Ключ для этой оплаты уже создан. Проверьте раздел Лицензии в настройках профиля.';
       }
       setError(errorMsg);
     } finally {

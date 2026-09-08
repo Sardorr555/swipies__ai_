@@ -294,8 +294,82 @@ atmos_client = AtmosClient()
 
 @manager.route("/license", methods=["GET"])  # noqa: F821
 @login_required
-def list_licenses():
+async def list_licenses():
     """List license keys purchased by the current user."""
+    try:
+        user_lics = LicenseKeyService.get_by_user(current_user.id)
+        for lic in user_lics:
+            if not lic.get("is_paid") or lic.get("status") == "pending":
+                p_id = lic.get("payment_id")
+                if not p_id:
+                    continue
+                str_p = str(p_id).strip()
+                # 1. Check ledger
+                txs = PaymentTransactionService.query(transaction_id=str_p)
+                was_paid = any(t.status == "paid" for t in txs)
+
+                # 2. Check Atmos directly if not marked paid in ledger
+                if not was_paid:
+                    try:
+                        status_res = await atmos_client.check_status(str_p)
+                        st_store = status_res.get("store_transaction") or {}
+                        st_res = status_res.get("result") or {}
+                        code_val = st_res.get("code")
+                        hint_val = status_res.get("hint")
+                        st_stat = str(status_res.get("status") or st_res.get("status") or "").upper()
+
+                        if (
+                            st_store.get("confirmed") is True or
+                            st_store.get("status_code") in ("0", 0) or
+                            st_store.get("success_trans_id") is not None or
+                            st_stat in ("PAID", "SUCCESS", "CONFIRMED") or
+                            (code_val in ("OK", 1, "1", 0, "0") and hint_val not in (102, "102"))
+                        ):
+                            was_paid = True
+                            try:
+                                PaymentTransactionService.mark_paid(
+                                    transaction_id=str_p,
+                                    paid_amount_uzs=int(lic.get("amount", 300000)),
+                                    gateway_response=status_res
+                                )
+                            except Exception:
+                                pass
+                    except Exception as check_e:
+                        LOGGER.warning(f"Error checking pending license status with Atmos: {check_e}")
+
+                if was_paid:
+                    dur = lic.get("duration_months", 12)
+                    exp_date = datetime.now() + timedelta(days=30 * dur)
+                    exp_str = exp_date.strftime("%Y-%m-%d")
+                    l_type = "yearly" if dur >= 12 else "6_months"
+
+                    key = None
+                    for _ in range(5):
+                        cand = generate_license(
+                            owner=current_user.email,
+                            expiry=exp_str,
+                            lic_type=l_type,
+                            nonce=uuid.uuid4().hex[:12]
+                        )
+                        if not LicenseKeyService.query(license_key=cand):
+                            key = cand
+                            break
+                    if not key:
+                        key = cand
+
+                    try:
+                        LicenseKeyService.update_by_id(lic["id"], {
+                            "is_paid": True,
+                            "status": "active",
+                            "expiry_date": exp_date,
+                            "license_key": key
+                        })
+                        LOGGER.info(f"Auto-healed and activated pending license {lic['id']} for user {current_user.id}")
+                    except Exception as up_err:
+                        LOGGER.error(f"Failed to auto-heal license {lic['id']}: {up_err}")
+    except Exception as e:
+        LOGGER.warning(f"Failed auto-check for pending licenses: {e}")
+
     licenses = LicenseKeyService.get_by_user(current_user.id)
     return get_json_result(data=licenses)
 
@@ -487,17 +561,46 @@ async def apply_license_pay():
             # Payment successful! Generate actual RSA license key
             expiry_date = datetime.now() + timedelta(days=30 * lic_record.duration_months)
             expiry_str = expiry_date.strftime("%Y-%m-%d")
-            
             lic_type = "yearly" if lic_record.duration_months >= 12 else "6_months"
-            key = generate_license(owner=current_user.email, expiry=expiry_str, lic_type=lic_type)
 
-            # Update database record
-            LicenseKeyService.update_by_id(lic_record.id, {
-                "is_paid": True,
-                "status": "active",
-                "expiry_date": expiry_date,
-                "license_key": key
-            })
+            # Check if this license record already has a valid key
+            key = lic_record.license_key
+            if not key or not lic_record.is_paid:
+                for _ in range(5):
+                    candidate_key = generate_license(
+                        owner=current_user.email,
+                        expiry=expiry_str,
+                        lic_type=lic_type,
+                        nonce=uuid.uuid4().hex[:12]
+                    )
+                    if not LicenseKeyService.query(license_key=candidate_key):
+                        key = candidate_key
+                        break
+                if not key:
+                    key = candidate_key
+
+                # Update database record safely
+                try:
+                    LicenseKeyService.update_by_id(lic_record.id, {
+                        "is_paid": True,
+                        "status": "active",
+                        "expiry_date": expiry_date,
+                        "license_key": key
+                    })
+                except Exception as update_err:
+                    LOGGER.warning(f"Failed to update license key: {update_err}, retrying with fresh key...")
+                    key = generate_license(
+                        owner=current_user.email,
+                        expiry=expiry_str,
+                        lic_type=lic_type,
+                        nonce=uuid.uuid4().hex[:16]
+                    )
+                    LicenseKeyService.update_by_id(lic_record.id, {
+                        "is_paid": True,
+                        "status": "active",
+                        "expiry_date": expiry_date,
+                        "license_key": key
+                    })
 
             # Mark paid in PaymentTransactionService
             try:
@@ -545,6 +648,8 @@ async def apply_license_pay():
         err_msg = str(e)
         if "102" in err_msg or "verification failed" in err_msg.lower():
             err_msg = "Неверный или просроченный SMS-код подтверждения (код 102). Пожалуйста, введите верный код из SMS или запросите новый."
+        elif "duplicate entry" in err_msg.lower():
+            err_msg = "Ошибка сохранения ключа (дубликат записи). Пожалуйста, попробуйте снова."
         try:
             PaymentTransactionService.mark_failed(
                 transaction_id=str_tx,
@@ -580,26 +685,66 @@ async def recover_license_pay():
         # Check status with Atmos gateway
         res = await atmos_client.check_status(str_tx)
         store_trans = res.get("store_transaction") or {}
-        st_status = str(res.get("status") or res.get("result", {}).get("status") or "").upper()
+        st_res = res.get("result") or {}
+        code_val = st_res.get("code")
+        hint_val = res.get("hint")
+        st_status = str(res.get("status") or st_res.get("status") or "").upper()
 
         is_paid = (
             store_trans.get("confirmed") is True or
+            store_trans.get("status_code") in ("0", 0) or
             store_trans.get("success_trans_id") is not None or
-            st_status in ("PAID", "SUCCESS", "CONFIRMED")
+            st_status in ("PAID", "SUCCESS", "CONFIRMED") or
+            (code_val in ("OK", 1, "1", 0, "0") and hint_val not in (102, "102"))
         )
+
+        # Also check PaymentTransactionService ledger
+        if not is_paid:
+            txs = PaymentTransactionService.query(transaction_id=str_tx)
+            if any(t.status == "paid" for t in txs):
+                is_paid = True
 
         if is_paid:
             expiry_date = datetime.now() + timedelta(days=30 * lic_record.duration_months)
             expiry_str = expiry_date.strftime("%Y-%m-%d")
             lic_type = "yearly" if lic_record.duration_months >= 12 else "6_months"
-            key = generate_license(owner=current_user.email, expiry=expiry_str, lic_type=lic_type)
 
-            LicenseKeyService.update_by_id(lic_record.id, {
-                "is_paid": True,
-                "status": "active",
-                "expiry_date": expiry_date,
-                "license_key": key
-            })
+            key = lic_record.license_key
+            if not key or not lic_record.is_paid:
+                for _ in range(5):
+                    candidate_key = generate_license(
+                        owner=current_user.email,
+                        expiry=expiry_str,
+                        lic_type=lic_type,
+                        nonce=uuid.uuid4().hex[:12]
+                    )
+                    if not LicenseKeyService.query(license_key=candidate_key):
+                        key = candidate_key
+                        break
+                if not key:
+                    key = candidate_key
+
+                try:
+                    LicenseKeyService.update_by_id(lic_record.id, {
+                        "is_paid": True,
+                        "status": "active",
+                        "expiry_date": expiry_date,
+                        "license_key": key
+                    })
+                except Exception as update_err:
+                    LOGGER.warning(f"Failed to update license key in recover: {update_err}, retrying with fresh key...")
+                    key = generate_license(
+                        owner=current_user.email,
+                        expiry=expiry_str,
+                        lic_type=lic_type,
+                        nonce=uuid.uuid4().hex[:16]
+                    )
+                    LicenseKeyService.update_by_id(lic_record.id, {
+                        "is_paid": True,
+                        "status": "active",
+                        "expiry_date": expiry_date,
+                        "license_key": key
+                    })
 
             try:
                 PaymentTransactionService.mark_paid(
