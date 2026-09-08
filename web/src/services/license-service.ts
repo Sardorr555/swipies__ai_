@@ -12,6 +12,7 @@ const {
   adminLicenseAction,
   adminLicensePricing,
   licensePricing,
+  licenseRecoverPay,
 } = api;
 
 export const listLicenses = () => request.get(licenseList);
@@ -40,6 +41,13 @@ export const applyLicensePay = (transactionId: string, otp: string, cardData?: R
       transaction_id: transactionId,
       otp,
       ...(cardData || {}),
+    },
+  });
+
+export const recoverLicensePay = (transactionId: string) =>
+  request.post(licenseRecoverPay, {
+    data: {
+      transaction_id: transactionId,
     },
   });
 

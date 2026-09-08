@@ -7,7 +7,8 @@ import {
   getUserLicensePricing,
   createLicensePay,
   preApplyLicensePay,
-  applyLicensePay 
+  applyLicensePay,
+  recoverLicensePay
 } from '@/services/license-service';
 import { getAuthorization } from '@/utils/authorization-util';
 import { Routes } from '@/routes';
@@ -212,6 +213,7 @@ export default function CheckoutPage() {
   // Route query parameters
   const planQuery = (searchParams.get('plan') || 'plus').toLowerCase() as 'plus' | 'pro' | 'license';
   const periodQuery = Number(searchParams.get('period') || '1');
+  const defaultPeriod = planQuery === 'license' && periodQuery === 1 ? 6 : periodQuery;
 
   // Translation helpers
   const currentLang = i18n.language || 'en';
@@ -234,7 +236,7 @@ export default function CheckoutPage() {
   const [pricingLoading, setPricingLoading] = useState(false);
 
   // States
-  const [selectedPeriod, setSelectedPeriod] = useState(periodQuery);
+  const [selectedPeriod, setSelectedPeriod] = useState(defaultPeriod);
   const [licenseName, setLicenseName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -296,10 +298,10 @@ export default function CheckoutPage() {
   // Calculate pricing values
   const getPlanBasePrice = () => {
     if (planQuery === 'license') {
-      if (!licensePricing) return 0;
-      if (selectedPeriod === 6) return Number(licensePricing.price_6_months || 2470000);
-      if (selectedPeriod === 12) return Number(licensePricing.price_12_months || 4500000);
-      return selectedPeriod * Number(licensePricing.price_per_month_custom || 450000);
+      const p6 = Number(licensePricing?.price_6_months || 300000);
+      const p12 = Number(licensePricing?.price_12_months || 500000);
+      const pCust = Number(licensePricing?.price_per_month_custom || 50000);
+      return selectedPeriod === 6 ? p6 : selectedPeriod === 12 ? p12 : selectedPeriod * pCust;
     }
 
     const pricing = config?.pricing || {};
@@ -559,7 +561,44 @@ export default function CheckoutPage() {
         setStep('success');
       }
     } catch (err: any) {
-      setError(err.message || 'Invalid verification code. Please try again.');
+      // Auto-recovery attempt: if card was debited, verify with backend recover endpoint
+      if (planQuery === 'license' && transactionId) {
+        try {
+          const recRes = await recoverLicensePay(transactionId);
+          if (recRes?.data?.code === 0 && recRes.data.data?.license_key) {
+            setSuccessResult({
+              success: true,
+              licenseKey: recRes.data.data.license_key,
+            });
+            setStep('success');
+            return;
+          }
+        } catch (recErr) {
+          console.warn('Auto-recover license check failed:', recErr);
+        }
+      } else if (transactionId) {
+        try {
+          const recRes = await safeFetchJson('/api/pay/recover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: userEmail,
+              transaction_id: transactionId,
+              plan: planQuery,
+              months: selectedPeriod,
+            }),
+          });
+          if (recRes?.success) {
+            setSuccessResult(recRes.provision || { success: true });
+            setStep('success');
+            return;
+          }
+        } catch (recErr) {
+          console.warn('Auto-recover subscription check failed:', recErr);
+        }
+      }
+
+      setError(err?.response?.data?.message || err?.message || 'Invalid verification code. Please try again.');
     } finally {
       setPayingLoading(false);
     }
@@ -577,7 +616,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 overflow-y-auto w-full">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 overflow-y-auto w-full pb-16">
       {/* Background Mesh Gradients */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-900/10 blur-[120px]" />
