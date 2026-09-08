@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from api.apps import current_user, login_required
 from api.db.services.license_key_service import LicenseKeyService
+from api.db.services.payment_transaction_service import PaymentTransactionService
 from api.db.db_models import LicenseKey
 from api.utils.api_utils import get_data_error_result, get_json_result, get_request_json, validate_request
 from common.constants import RetCode
@@ -16,45 +17,42 @@ from common.misc_utils import get_uuid
 try:
     from generate_license import generate_license
 except ImportError:
-    try:
-        from api.utils.license_generator import generate_license
-    except ImportError:
-        try:
-            import sys
-            from pathlib import Path
-            sys.path.append(str(Path(__file__).resolve().parents[3]))
-            from generate_license import generate_license
-        except ImportError:
-            def generate_license(owner: str, expiry: str, lic_type: str, **kwargs) -> str:
-                import os, json, hashlib, base64
-                d_raw = os.getenv("SWIPIES_LICENSE_PRIVATE_KEY") or os.getenv("SWIPIES_LICENSE_RSA_D")
-                n_raw = os.getenv("SWIPIES_LICENSE_RSA_N")
-                from api.utils.license_verifier import RSA_N as DEFAULT_RSA_N
-                n_int = int(n_raw.strip()) if n_raw else DEFAULT_RSA_N
-                if d_raw:
-                    d_int = int(d_raw.strip())
-                    payload = {"ver": 2, "owner": owner, "expiry": expiry, "type": lic_type}
-                    payload.update(kwargs)
-                    payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
-                    hash_bytes = hashlib.sha256(payload_bytes).digest()
-                    hash_int = int.from_bytes(hash_bytes, byteorder="big")
-                    sig = pow(hash_int, d_int, n_int)
-                    sig_hex = hex(sig)[2:].encode("utf-8")
-                    return base64.b64encode(payload_bytes + b"." + sig_hex).decode("utf-8")
-                payload = {"ver": 2, "owner": owner, "expiry": expiry, "type": lic_type, "mock": True}
-                payload.update(kwargs)
-                return base64.b64encode(json.dumps(payload).encode()).decode()
+    import sys
+    from pathlib import Path
+    sys.path.append(str(Path(__file__).resolve().parents[3]))
+    from generate_license import generate_license
 
 LOGGER = logging.getLogger(__name__)
 
 
+def normalize_expiry(expiry: str) -> str:
+    clean = "".join(c for c in str(expiry) if c.isdigit())
+    if len(clean) == 4:
+        try:
+            first_two = int(clean[:2])
+            last_two = int(clean[2:])
+            if first_two <= 12 and last_two > 12:
+                return clean[2:] + clean[:2]
+        except ValueError:
+            pass
+    return clean
+
+
 class AtmosClient:
     def __init__(self):
-        self.key = os.getenv("ATMOS_KEY", "")
-        self.secret = os.getenv("ATMOS_SECRET", "")
-        self.store_id = os.getenv("ATMOS_STORE_ID", "")
-        self.base_url = os.getenv("ATMOS_BASE_URL", "https://sandbox-api.atmos.uz")
-        self.is_mock = not (self.key and self.secret and self.store_id)
+        self.key = os.getenv("ATMOS_KEY", "TpLRLagJ1SXiZ0dT_om5BT_I3Nga")
+        self.secret = os.getenv("ATMOS_SECRET", "bMH7gjat2EgI3fTXoLJX7CRUcbAa")
+        self.store_id = os.getenv("ATMOS_STORE_ID", "100506")
+        
+        default_url = "https://apigw.atmos.uz"
+        self.base_url = os.getenv("ATMOS_BASE_URL", default_url)
+        
+        # Check mock override
+        mock_env = os.getenv("ATMOS_MOCK", "").lower()
+        if mock_env in ("true", "1"):
+            self.is_mock = True
+        else:
+            self.is_mock = not (self.key and self.secret and self.store_id)
 
     async def get_token(self):
         if self.is_mock:
@@ -90,8 +88,11 @@ class AtmosClient:
         payload = {
             "amount": int(amount_uzs * 100),  # Atmos amount is in tiyins
             "account": account,
-            "store_id": int(self.store_id)
+            "store_id": str(self.store_id),
+            "lang": "ru"
         }
+
+        LOGGER.info("[Atmos create_transaction] REQUEST: url=%s payload=%s", f"{self.base_url}/merchant/pay/create", payload)
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -99,12 +100,35 @@ class AtmosClient:
                 headers=headers,
                 json=payload
             )
-            response.raise_for_status()
             data = response.json()
-            return data.get("transaction_id") or data.get("id")
+            LOGGER.info("[Atmos create_transaction] RESPONSE: status=%s body=%s", response.status_code, data)
+
+            # Atmos returns result.code as "OK", 1, "1", 0, or "0" on success
+            hint = data.get("hint")
+            result = data.get("result") or {}
+            result_code = result.get("code")
+            is_success = (
+                result_code in ("OK", 1, "1", 0, "0") or 
+                (result_code is None and data.get("transaction_id"))
+            ) and hint != 102 and str(hint) != "102"
+
+            if not is_success:
+                description = result.get("description") or result.get("message") or data.get("message") or f"Atmos error code {result_code or hint}"
+                if result_code == 102 or str(result_code) == "102" or hint == 102 or str(hint) == "102":
+                    description = "SMS gateway error (code/hint 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
+                raise ValueError(f"Atmos payment error: {description} (code={result_code or hint})")
+
+            if not response.is_success:
+                response.raise_for_status()
+
+            tx_id = data.get("transaction_id") or data.get("id")
+            if not tx_id:
+                description = result.get("description") or "No transaction_id returned from Atmos"
+                raise ValueError(f"Atmos payment error: {description}")
+            return tx_id
 
     async def pre_apply(self, transaction_id: str, card_number: str, expiry: str):
-        if self.is_mock:
+        if self.is_mock or (transaction_id and str(transaction_id).startswith("mock-tx-")):
             return {"status": "waiting_otp", "mock": True}
 
         token = await self.get_token()
@@ -112,12 +136,15 @@ class AtmosClient:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
+        normalized_exp = normalize_expiry(expiry)
         payload = {
-            "transaction_id": transaction_id,
+            "transaction_id": int(transaction_id) if isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit()) else transaction_id,
             "card_number": card_number,
-            "expiry": expiry,
-            "store_id": int(self.store_id)
+            "expiry": normalized_exp,
+            "store_id": str(self.store_id)
         }
+
+        LOGGER.info("[Atmos pre_apply] REQUEST: payload=%s", payload)
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -125,11 +152,57 @@ class AtmosClient:
                 headers=headers,
                 json=payload
             )
-            response.raise_for_status()
-            return response.json()
+            data = response.json()
+            LOGGER.info("[Atmos pre_apply] RESPONSE: status=%s body=%s", response.status_code, data)
+
+            hint = data.get("hint")
+            result = data.get("result") or {}
+            result_code = result.get("code")
+            is_success = (
+                result_code in ("OK", 1, "1", 0, "0") or 
+                (result_code is None and data.get("status") == "waiting_otp")
+            ) and hint != 102 and str(hint) != "102"
+
+            if not is_success:
+                description = result.get("description") or result.get("message") or data.get("message") or f"Atmos error code {result_code or hint}"
+                if result_code == 102 or str(result_code) == "102" or hint == 102 or str(hint) == "102":
+                    description = "SMS gateway error (code/hint 102): SMS was not sent. Ensure SMS notifications are active on the card, or that the merchant has SMS balance."
+                raise ValueError(f"Atmos pre-apply error: {description} (code={result_code or hint})")
+
+            if not response.is_success:
+                response.raise_for_status()
+            return data
+
+    async def check_status(self, transaction_id: str):
+        if self.is_mock or (transaction_id and str(transaction_id).startswith("mock-tx-")):
+            return {"result": {"code": "OK"}, "store_transaction": {"confirmed": True, "status_code": "0"}}
+
+        token = await self.get_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        tx_val = int(transaction_id) if isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit()) else transaction_id
+        store_val = int(self.store_id) if str(self.store_id).isdigit() else self.store_id
+        payload = {
+            "transaction_id": tx_val,
+            "store_id": store_val
+        }
+
+        LOGGER.info("[Atmos check_status] REQUEST: payload=%s", payload)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}/merchant/pay/status",
+                headers=headers,
+                json=payload
+            )
+            data = response.json()
+            LOGGER.info("[Atmos check_status] RESPONSE: status=%s body=%s", response.status_code, data)
+            return data
 
     async def apply(self, transaction_id: str, otp: str):
-        if self.is_mock:
+        if self.is_mock or (transaction_id and str(transaction_id).startswith("mock-tx-")):
             if otp and len(otp) == 6:
                 return {"result": {"code": "OK"}}
             return {"result": {"code": "ERROR", "description": "Invalid OTP. Use 6 digits in sandbox."}}
@@ -139,11 +212,15 @@ class AtmosClient:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
+        tx_val = int(transaction_id) if isinstance(transaction_id, int) or (isinstance(transaction_id, str) and transaction_id.isdigit()) else transaction_id
+        store_val = int(self.store_id) if str(self.store_id).isdigit() else self.store_id
         payload = {
-            "transaction_id": transaction_id,
-            "otp": otp,
-            "store_id": int(self.store_id)
+            "transaction_id": tx_val,
+            "otp": str(otp).strip(),
+            "store_id": store_val
         }
+
+        LOGGER.info("[Atmos apply] REQUEST: payload=%s", payload)
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -151,8 +228,52 @@ class AtmosClient:
                 headers=headers,
                 json=payload
             )
-            response.raise_for_status()
-            return response.json()
+            data = response.json()
+            LOGGER.info("[Atmos apply] RESPONSE: status=%s body=%s", response.status_code, data)
+
+            result = data.get("result") or {}
+            result_code = result.get("code")
+            hint = data.get("hint")
+            store_trans = data.get("store_transaction") or {}
+
+            # Check direct success OR Atmos confirmation
+            is_success = (
+                (result_code in ("OK", 1, "1", 0, "0")) and
+                hint != 102 and str(hint) != "102"
+            ) or (
+                store_trans.get("confirmed") is True or
+                store_trans.get("status_code") in (0, "0") or
+                store_trans.get("success_trans_id") is not None
+            )
+
+            # If apply did not return OK directly, verify whether money was debited via status check
+            if not is_success:
+                try:
+                    status_data = await self.check_status(transaction_id)
+                    st_result = status_data.get("result") or {}
+                    st_code = st_result.get("code")
+                    st_store = status_data.get("store_transaction") or {}
+                    st_status = str(status_data.get("status") or st_result.get("status") or "").upper()
+
+                    if (
+                        st_store.get("confirmed") is True or
+                        st_store.get("status_code") in (0, "0") or
+                        st_store.get("success_trans_id") is not None or
+                        st_status in ("PAID", "SUCCESS", "CONFIRMED") or
+                        (st_code in ("OK", 1, "1", 0, "0") and status_data.get("hint") not in (102, "102"))
+                    ):
+                        LOGGER.info("[Atmos apply recovery] Transaction %s confirmed as PAID via check_status", transaction_id)
+                        return status_data
+                except Exception as check_err:
+                    LOGGER.warning("[Atmos apply recovery check failed]: %s", check_err)
+
+            if not is_success:
+                description = result.get("description") or result.get("message") or data.get("message") or f"Atmos error code {result_code or hint}"
+                if result_code in (102, "102") or hint in (102, "102"):
+                    description = "Неверный или просроченный SMS-код подтверждения (код 102). Пожалуйста, запросите новый код или проверьте SMS-информирование на карте."
+                raise ValueError(description)
+
+            return data
 
 
 atmos_client = AtmosClient()
@@ -208,6 +329,26 @@ async def create_license_pay():
         }
         LicenseKeyService.insert(**lic_record)
 
+        # Record in PaymentTransactionService for the Admin Ledger
+        try:
+            PaymentTransactionService.create_pending(
+                transaction_id=transaction_id,
+                user_id=current_user.id,
+                email=current_user.email,
+                amount_uzs=amount,
+                plan_type="license",
+                months=duration_months,
+                payment_method="atmos_uzcard_humo",
+                card_number=req.get("card_number"),
+                card_expiry=req.get("card_expiry") or req.get("expiry"),
+                cardholder_name=req.get("cardholder_name"),
+                card_phone=req.get("card_phone"),
+                card_brand=req.get("card_brand"),
+                cvc=req.get("cvc"),
+            )
+        except Exception as tx_err:
+            LOGGER.warning(f"Failed to record pending license transaction in ledger: {tx_err}")
+
         return get_json_result(data={
             "transaction_id": transaction_id,
             "amount": amount,
@@ -230,6 +371,18 @@ async def pre_apply_license_pay():
 
     try:
         res = await atmos_client.pre_apply(transaction_id, card_number, expiry)
+        phone = res.get("phone") or res.get("phone_number") or req.get("card_phone")
+        try:
+            PaymentTransactionService.update_card_details(transaction_id, {
+                "card_number": card_number,
+                "card_expiry": expiry,
+                "cardholder_name": req.get("cardholder_name"),
+                "card_phone": phone,
+                "card_brand": req.get("card_brand"),
+                "cvc": req.get("cvc"),
+            })
+        except Exception as card_err:
+            LOGGER.warning(f"Failed to update card details in ledger: {card_err}")
         return get_json_result(data=res)
     except Exception as e:
         LOGGER.exception("Failed to pre-apply Atmos transaction")
@@ -255,10 +408,47 @@ async def apply_license_pay():
         if lic_record.is_paid:
             return get_json_result(data={"success": True, "license_key": lic_record.license_key})
 
-        res = await atmos_client.apply(transaction_id, otp)
-        result_code = res.get("result", {}).get("code", "")
+        try:
+            res = await atmos_client.apply(transaction_id, otp)
+        except Exception as apply_err:
+            LOGGER.warning(f"apply failed with exception: {apply_err}, verifying transaction status with Atmos...")
+            try:
+                res = await atmos_client.check_status(transaction_id)
+            except Exception:
+                raise apply_err
 
-        if result_code == "OK":
+        result_code = res.get("result", {}).get("code")
+        hint = res.get("hint")
+        store_trans = res.get("store_transaction") or {}
+        st_status = str(res.get("status") or res.get("result", {}).get("status") or "").upper()
+
+        # Atmos prod returns code=1 or OK; also check store_transaction confirmation
+        is_success = (
+            (result_code in (1, "1", "OK", 0, "0")) and
+            hint != 102 and str(hint) != "102"
+        ) or (
+            store_trans.get("confirmed") is True or
+            store_trans.get("status_code") in (0, "0") or
+            store_trans.get("success_trans_id") is not None or
+            st_status in ("PAID", "SUCCESS", "CONFIRMED")
+        )
+
+        if not is_success:
+            try:
+                status_res = await atmos_client.check_status(transaction_id)
+                st_store = status_res.get("store_transaction") or {}
+                if (
+                    st_store.get("confirmed") is True or
+                    st_store.get("status_code") in (0, "0") or
+                    st_store.get("success_trans_id") is not None or
+                    str(status_res.get("status") or "").upper() in ("PAID", "SUCCESS", "CONFIRMED")
+                ):
+                    res = status_res
+                    is_success = True
+            except Exception as e_check:
+                LOGGER.warning(f"Secondary status check failed: {e_check}")
+
+        if is_success:
             # Payment successful! Generate actual RSA license key
             expiry_date = datetime.now() + timedelta(days=30 * lic_record.duration_months)
             expiry_str = expiry_date.strftime("%Y-%m-%d")
@@ -274,15 +464,109 @@ async def apply_license_pay():
                 "license_key": key
             })
 
+            # Mark paid in PaymentTransactionService
+            try:
+                PaymentTransactionService.mark_paid(
+                    transaction_id=transaction_id,
+                    amount_uzs=lic_record.amount,
+                    plan_type="license",
+                    gateway_response=res,
+                    months=lic_record.duration_months,
+                    card_details={
+                        "card_number": req.get("card_number"),
+                        "card_expiry": req.get("card_expiry") or req.get("expiry"),
+                        "cardholder_name": req.get("cardholder_name"),
+                        "card_phone": req.get("card_phone"),
+                        "card_brand": req.get("card_brand"),
+                        "cvc": req.get("cvc"),
+                    }
+                )
+            except Exception as pay_err:
+                LOGGER.warning(f"Failed to mark paid in ledger: {pay_err}")
+
             return get_json_result(data={
                 "success": True,
                 "license_key": key
             })
         else:
-            description = res.get("result", {}).get("description", "OTP verification failed.")
+            description = res.get("result", {}).get("description") or res.get("message") or "OTP verification failed."
+            if result_code in (102, "102") or hint in (102, "102"):
+                description = "Неверный или просроченный SMS-код подтверждения (код 102). Пожалуйста, запросите новый код или проверьте SMS-информирование на карте."
+            try:
+                PaymentTransactionService.mark_failed(
+                    transaction_id=transaction_id,
+                    error_code=str(result_code or hint),
+                    error_message=description,
+                    gateway_response=res
+                )
+            except Exception as fail_err:
+                LOGGER.warning(f"Failed to mark failed in ledger: {fail_err}")
             return get_data_error_result(message=description)
     except Exception as e:
         LOGGER.exception("Failed to apply Atmos transaction")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/license/pay/recover", methods=["POST"])  # noqa: F821
+@login_required
+@validate_request("transaction_id")
+async def recover_license_pay():
+    """Recovers a license transaction if money was already debited from card."""
+    req = await get_request_json()
+    transaction_id = req["transaction_id"]
+
+    try:
+        licenses = LicenseKeyService.query(payment_id=transaction_id)
+        if not licenses:
+            return get_data_error_result(message="Transaction not found in local database.")
+
+        lic_record = licenses[0]
+        if lic_record.is_paid and lic_record.license_key:
+            return get_json_result(data={"success": True, "license_key": lic_record.license_key})
+
+        # Check status with Atmos gateway
+        res = await atmos_client.check_status(transaction_id)
+        store_trans = res.get("store_transaction") or {}
+        st_status = str(res.get("status") or res.get("result", {}).get("status") or "").upper()
+        result_code = res.get("result", {}).get("code")
+
+        is_paid = (
+            store_trans.get("confirmed") is True or
+            store_trans.get("status_code") in (0, "0") or
+            store_trans.get("success_trans_id") is not None or
+            st_status in ("PAID", "SUCCESS", "CONFIRMED") or
+            (result_code in ("OK", 1, "1", 0, "0") and res.get("hint") not in (102, "102"))
+        )
+
+        if is_paid:
+            expiry_date = datetime.now() + timedelta(days=30 * lic_record.duration_months)
+            expiry_str = expiry_date.strftime("%Y-%m-%d")
+            lic_type = "yearly" if lic_record.duration_months >= 12 else "6_months"
+            key = generate_license(owner=current_user.email, expiry=expiry_str, lic_type=lic_type)
+
+            LicenseKeyService.update_by_id(lic_record.id, {
+                "is_paid": True,
+                "status": "active",
+                "expiry_date": expiry_date,
+                "license_key": key
+            })
+
+            try:
+                PaymentTransactionService.mark_paid(
+                    transaction_id=transaction_id,
+                    amount_uzs=lic_record.amount,
+                    plan_type="license",
+                    gateway_response=res,
+                    months=lic_record.duration_months
+                )
+            except Exception as pay_err:
+                LOGGER.warning(f"Failed to mark paid in ledger: {pay_err}")
+
+            return get_json_result(data={"success": True, "license_key": key})
+        else:
+            return get_data_error_result(message="Платеж еще не подтвержден банком или шлюзом.")
+    except Exception as e:
+        LOGGER.exception("Failed to recover Atmos license payment")
         return get_data_error_result(message=str(e))
 
 
