@@ -218,55 +218,112 @@ const LicensePurchasePage = () => {
       <div className="h-full overflow-x-hidden overflow-y-auto pb-16 pr-1 mt-5 space-y-8 w-full max-w-6xl mx-auto px-1 sm:px-4">
         
         {/* TOP KPI SUMMARY CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-border-default bg-bg-card/40 p-4.5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Активные лицензии</span>
-              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+          {/* Card 1: Активные лицензии */}
+          <div className="group relative rounded-2xl border border-border-default/80 bg-bg-card/40 p-4 sm:p-5 backdrop-blur-md transition-all duration-300 hover:border-emerald-500/40 hover:shadow-[0_4px_24px_-4px_rgba(16,185,129,0.15)] flex flex-col justify-between min-h-[152px] overflow-hidden">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-500/10 blur-xl transition-all group-hover:bg-emerald-500/20" />
+            
+            <div className="flex items-center justify-between gap-2 relative z-10">
+              <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
+                Активные лицензии
+              </span>
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
                 <ShieldCheck size={18} />
               </div>
             </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-text-primary">{activeLicensesCount}</span>
-              <span className="text-xs text-text-secondary">
-                {activeLicensesCount === 1 ? 'ключ активен' : 'ключей активно'}
-              </span>
+
+            <div className="space-y-1 relative z-10">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-2xl sm:text-3xl font-black text-text-primary tracking-tight">
+                  {activeLicensesCount}
+                </span>
+                <span className="inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  {activeLicensesCount === 1 ? '1 ключ активен' : activeLicensesCount > 1 ? `${activeLicensesCount} ключа активно` : '0 ключей'}
+                </span>
+              </div>
+              <p className="text-xs text-text-secondary leading-snug">
+                Локальный защищенный кластер
+              </p>
             </div>
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
-              <span className="size-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-              Готовы к развертыванию на узлах
+
+            <div className="pt-2.5 border-t border-border-default/50 flex items-center gap-2 text-xs text-emerald-400 font-medium relative z-10">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="truncate" title="Готовы к развертыванию на узлах">
+                Готовы к развертыванию на узлах
+              </span>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border-default bg-bg-card/40 p-4.5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Тип редакции</span>
-              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
+          {/* Card 2: Тип редакции */}
+          <div className="group relative rounded-2xl border border-border-default/80 bg-bg-card/40 p-4 sm:p-5 backdrop-blur-md transition-all duration-300 hover:border-indigo-500/40 hover:shadow-[0_4px_24px_-4px_rgba(99,102,241,0.15)] flex flex-col justify-between min-h-[152px] overflow-hidden">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-indigo-500/10 blur-xl transition-all group-hover:bg-indigo-500/20" />
+            
+            <div className="flex items-center justify-between gap-2 relative z-10">
+              <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
+                Тип редакции
+              </span>
+              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
                 <Server size={18} />
               </div>
             </div>
-            <div className="mt-3">
-              <span className="text-xl font-bold text-text-primary">Self-Hosted Enterprise</span>
-              <p className="text-xs text-text-secondary mt-0.5">Локальная изоляция данных</p>
+
+            <div className="space-y-1 relative z-10">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-lg sm:text-xl font-extrabold text-text-primary tracking-tight">
+                  Self-Hosted
+                </span>
+                <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 uppercase tracking-wide">
+                  Enterprise
+                </span>
+              </div>
+              <p className="text-xs text-text-secondary leading-snug">
+                Локальная изоляция данных
+              </p>
             </div>
-            <div className="mt-2 text-[11px] text-indigo-400 font-medium">
-              Безлимитные документы и LLM
+
+            <div className="pt-2.5 border-t border-border-default/50 flex items-center gap-2 text-xs text-indigo-400 font-medium relative z-10">
+              <span className="size-1.5 rounded-full bg-indigo-400 shrink-0" />
+              <span className="truncate" title="Безлимитные документы и LLM">
+                Безлимитные документы и LLM
+              </span>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border-default bg-bg-card/40 p-4.5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Безопасность</span>
-              <div className="p-2 rounded-xl bg-violet-500/10 text-violet-400">
+          {/* Card 3: Безопасность */}
+          <div className="group relative rounded-2xl border border-border-default/80 bg-bg-card/40 p-4 sm:p-5 backdrop-blur-md transition-all duration-300 hover:border-violet-500/40 hover:shadow-[0_4px_24px_-4px_rgba(139,92,246,0.15)] flex flex-col justify-between min-h-[152px] overflow-hidden sm:col-span-2 lg:col-span-1">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-violet-500/10 blur-xl transition-all group-hover:bg-violet-500/20" />
+            
+            <div className="flex items-center justify-between gap-2 relative z-10">
+              <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
+                Безопасность
+              </span>
+              <div className="p-2 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
                 <Sparkles size={18} />
               </div>
             </div>
-            <div className="mt-3">
-              <span className="text-xl font-bold text-text-primary">RSA-2048 Signature</span>
-              <p className="text-xs text-text-secondary mt-0.5">Абсолютно автономная работа</p>
+
+            <div className="space-y-1 relative z-10">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-lg sm:text-xl font-extrabold text-text-primary tracking-tight">
+                  RSA-2048
+                </span>
+                <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-400 border border-violet-500/30 uppercase tracking-wide">
+                  Signature
+                </span>
+              </div>
+              <p className="text-xs text-text-secondary leading-snug">
+                Абсолютно автономная работа
+              </p>
             </div>
-            <div className="mt-2 text-[11px] text-violet-400 font-medium">
-              Без привязки к внешним серверам
+
+            <div className="pt-2.5 border-t border-border-default/50 flex items-center gap-2 text-xs text-violet-400 font-medium relative z-10">
+              <span className="size-1.5 rounded-full bg-violet-400 shrink-0" />
+              <span className="truncate" title="Без привязки к внешним серверам">
+                Без привязки к внешним серверам
+              </span>
             </div>
           </div>
         </div>
@@ -682,11 +739,11 @@ const LicensePurchasePage = () => {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/20">
+                <div className="flex items-center justify-between gap-2 pr-24 sm:pr-28">
+                  <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/20">
                     Годовая / 12 Месяцев
                   </span>
-                  <span className="text-xs text-emerald-400 font-semibold pr-24">Лучшая цена</span>
+                  <span className="text-xs text-emerald-400 font-semibold shrink-0 hidden sm:inline">Лучшая цена</span>
                 </div>
 
                 <div>
