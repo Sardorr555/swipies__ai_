@@ -21,6 +21,7 @@ import {
   CreditCard,
   Loader2,
   Lock,
+  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -974,6 +975,25 @@ export default function CheckoutPage() {
                         </>
                       )}
                     </Button>
+
+                    {/* Atmos Security & Privacy Guarantee */}
+                    <div className="pt-2 text-center space-y-1 text-[11px] text-slate-400">
+                      <div className="flex items-center justify-center gap-1.5 text-slate-300 font-medium">
+                        <ShieldCheck size={14} className="text-emerald-400 shrink-0" />
+                        <span>Безопасная оплата через шлюз Atmos (atmos.uz) • PCI DSS Level 1</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-snug">
+                        Нажимая кнопку, вы принимаете{' '}
+                        <a
+                          href="/privacy-policy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-400 hover:underline"
+                        >
+                          Условия оплаты и Политику конфиденциальности
+                        </a>
+                      </p>
+                    </div>
                   </form>
                 )}
 

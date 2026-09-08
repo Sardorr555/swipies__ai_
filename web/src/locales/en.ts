@@ -3381,6 +3381,15 @@ Important structured information may include: names, dates, locations, events, k
       back: 'Back',
       title: 'Privacy Policy',
       effectiveDate: 'Effective date',
+      quickNav: 'Quick Jump:',
+      quickNavData: 'Data Collection',
+      quickNavSecurity: 'Security',
+      quickNavAtmos: 'Atmos Payments',
+      quickNavRefund: 'Refund Policy',
+      quickNavContacts: 'Contact Us',
+      scrollToTop: 'Back to Top',
+      trustBoxTitle: 'Atmos Payment Gateway (atmos.uz) • PCI DSS Level 1 Standard',
+      trustBoxDesc: 'All online transactions are protected with 256-bit TLS/SSL encryption. Card credentials are processed inside the Atmos secure perimeter and are never stored on Swipies servers.',
       section1Title: '1. Introduction',
       section1Text:
         'Welcome to Swipies ("we", "our", "us"). We value your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, store, and protect your information when you use the Swipies platform and its services.',
@@ -3424,12 +3433,32 @@ Important structured information may include: names, dates, locations, events, k
       section7Title: '7. Cookies and Tracking',
       section7Text:
         'We use cookies and similar technologies to maintain session state, remember your preferences, and improve our services. You can manage cookie preferences through your browser settings. Disabling cookies may affect the functionality of certain features.',
-      section8Title: '8. Changes to This Policy',
+      section8Title: '8. Online Payment Terms & Security (Atmos Gateway)',
       section8Text:
-        'We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date. We encourage you to review this policy periodically. Continued use of our services after changes constitutes your acceptance of the updated policy.',
-      section9Title: '9. Contact Us',
+        'All electronic payments on the Swipies AI platform are processed by the certified payment service provider LLC "ATMOS PAYMENT SERVICES" (Atmos payment service, website: atmos.uz) in strict compliance with the laws of the Republic of Uzbekistan and international payment industry standards.',
+      section8Item1:
+        'Accepted Payment Methods: We accept Uzcard and HUMO national cards, as well as Visa and MasterCard international bank cards issued by banks in Uzbekistan and global financial institutions.',
+      section8Item2:
+        'Security Standards & PCI DSS Level 1: Payment data is transmitted over secure channels utilizing TLS 1.2/1.3 cryptographic encryption (SSL 256-bit). The Atmos payment gateway is certified to the highest PCI DSS Level 1 security standard. Swipies does not collect, store, or process confidential card credentials (full PAN, expiry dates, or CVC/CVV security codes). Card details are handled solely within the certified payment processing perimeter.',
+      section8Item3:
+        'Two-Factor Authentication (3-D Secure & OTP): Every transaction requires explicit verification via a one-time SMS password (OTP) sent to the cardholder\'s registered phone number or through 3-D Secure authentication (Verified by Visa, Mastercard Identity Check). Unauthorized transactions without cardholder verification are strictly prohibited.',
+      section8Item4:
+        'Settlement Currency & Pricing: All transactions are settled in the national currency of the Republic of Uzbekistan — UZS (Uzbek Soums). Prices displayed at checkout are final with zero hidden fees. For cards denominated in other currencies, conversion is performed by the issuing bank at its prevailing exchange rates.',
+      section9Title: '9. Digital Service Delivery & Refund Policy',
       section9Text:
-        'If you have any questions or concerns regarding this Privacy Policy or your personal data, please contact us at: {{email}}',
+        'All subscription tiers, AI token allocations, and Self-Hosted Enterprise license keys provided by Swipies AI are digital software products delivered electronically (Digital Software Goods).',
+      section9Item1:
+        'Instant Digital Fulfillment: Plan activations, token credits, and cryptographic license generation occur automatically in real time within seconds of transaction confirmation by the Atmos gateway. Licenses are instantly accessible in the user dashboard.',
+      section9Item2:
+        'Cancellation & Refund Terms: If an order fails due to a verified technical malfunction, duplicate debit, or service delivery disruption on our part, the user is entitled to a full or proportional refund. To initiate a refund request, please contact support@swipies.app or legal@swipies.app with your transaction details.',
+      section9Item3:
+        'Refunds to Original Payment Method: In compliance with acquiring bank regulations and Atmos processing rules, funds are returned exclusively to the original bank card from which the payment originated. Credit posting timelines range from 3 to 14 business days depending on the card issuer.',
+      section10Title: '10. Changes to This Policy',
+      section10Text:
+        'We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date. We encourage you to review this policy periodically. Continued use of our services after changes constitutes your acceptance of the updated policy.',
+      section11Title: '11. Contact Us & Legal Inquiries',
+      section11Text:
+        'If you have questions or concerns regarding this Privacy Policy, data protection, or payment processing via Atmos, please contact us at: legal@swipies.app or support@swipies.app',
     },
   },
 };

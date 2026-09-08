@@ -1,8 +1,28 @@
 .privacy-policy-page {
+  height: 100vh;
   min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
   background: var(--background);
   color: var(--text-primary, #e0e0e0);
   padding: 0;
+  position: relative;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.6);
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.4);
+    border-radius: 4px;
+    &:hover {
+      background: rgba(99, 102, 241, 0.8);
+    }
+  }
 
   .privacy-policy-container {
     max-width: 860px;
