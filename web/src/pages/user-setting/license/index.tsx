@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import message from '@/components/ui/message';
@@ -13,17 +14,17 @@ import {
   Trash2, 
   Plus, 
   Loader2, 
-  CheckCircle2,
-  Download,
-  Eye,
-  EyeOff,
-  Terminal,
-  Sparkles,
-  Server,
-  RefreshCw,
-  Calendar,
-  ChevronDown,
-  ChevronUp
+  CheckCircle2, 
+  Download, 
+  Eye, 
+  EyeOff, 
+  Terminal, 
+  Sparkles, 
+  Server, 
+  RefreshCw, 
+  Calendar, 
+  ChevronDown, 
+  ChevronUp 
 } from 'lucide-react';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import { 
@@ -56,6 +57,7 @@ const fmtUZS = (n: number) =>
   new Intl.NumberFormat('uz-UZ').format(n) + ' UZS';
 
 const LicensePurchasePage = () => {
+  const { t } = useTranslation('translation', { keyPrefix: 'license' });
   const navigate = useNavigate();
   const [selectedMonths, setSelectedMonths] = useState<6 | 12>(12);
   const [pricing, setPricing] = useState<PricingConfig>({
@@ -107,7 +109,7 @@ const LicensePurchasePage = () => {
     if (!key) return;
     navigator.clipboard.writeText(key);
     setCopiedId(id);
-    message.success('Лицензионный ключ скопирован!');
+    message.success(t('keyCopied', { defaultValue: 'Лицензионный ключ скопирован!' }));
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -116,7 +118,7 @@ const LicensePurchasePage = () => {
     const snippet = `RAGFLOW_LICENSE_KEY="${key}"`;
     navigator.clipboard.writeText(snippet);
     setCopiedDockerId(id);
-    message.success('Переменная для docker/.env скопирована!');
+    message.success(t('envCopied', { defaultValue: 'Переменная для docker/.env скопирована!' }));
     setTimeout(() => setCopiedDockerId(null), 2000);
   };
 
@@ -132,7 +134,7 @@ const LicensePurchasePage = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    message.success('Лицензионный файл .key скачан!');
+    message.success(t('keyDownloaded', { defaultValue: 'Лицензионный файл .key скачан!' }));
   };
 
   const toggleRevealKey = (id: string) => {
@@ -149,30 +151,30 @@ const LicensePurchasePage = () => {
     try {
       const res: any = await renameLicense(licenseId, editingName.trim());
       if (res?.data?.code === 0) {
-        message.success('Имя лицензии обновлено');
+        message.success(t('renameSuccess', { defaultValue: 'Имя лицензии обновлено' }));
         setEditingId(null);
         fetchUserLicenses();
       }
     } catch {
-      message.error('Не удалось обновить имя лицензии');
+      message.error(t('renameError', { defaultValue: 'Не удалось обновить имя лицензии' }));
     }
   };
 
   const handleRevoke = async (licenseId: string) => {
-    if (!window.confirm('Вы уверены, что хотите отозвать данный лицензионный ключ?')) return;
+    if (!window.confirm(t('revokeConfirm', { defaultValue: 'Вы уверены, что хотите отозвать данный лицензионный ключ?' }))) return;
     try {
       const res: any = await revokeLicense(licenseId);
       if (res?.data?.code === 0) {
-        message.success('Лицензионный ключ отозван');
+        message.success(t('revokeSuccess', { defaultValue: 'Лицензионный ключ отозван' }));
         fetchUserLicenses();
       }
     } catch {
-      message.error('Не удалось отозвать лицензию');
+      message.error(t('revokeError', { defaultValue: 'Не удалось отозвать лицензию' }));
     }
   };
 
   const getExpirationInfo = (expiryDate?: string, durationMonths: number = 12) => {
-    if (!expiryDate) return { daysLeft: null, percent: 100, isExpired: false, formattedDate: 'Бессрочно' };
+    if (!expiryDate) return { daysLeft: null, percent: 100, isExpired: false, formattedDate: t('permanent', { defaultValue: 'Бессрочно' }) };
     const end = new Date(expiryDate).getTime();
     const now = Date.now();
     const diffDays = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
@@ -196,7 +198,7 @@ const LicensePurchasePage = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-extrabold tracking-tight text-text-primary flex items-center gap-2.5">
               <Key className="text-accent-primary" size={24} />
-              Лицензионные ключи (Self-Hosted)
+              {t('title', { defaultValue: 'Лицензионные ключи (Self-Hosted)' })}
             </h2>
             <Button
               variant="outline"
@@ -206,11 +208,11 @@ const LicensePurchasePage = () => {
               className="gap-1.5 text-xs text-text-secondary border-border-default hover:text-text-primary"
             >
               <RefreshCw size={13} className={loadingLicenses ? 'animate-spin' : ''} />
-              Обновить
+              {t('refresh', { defaultValue: 'Обновить' })}
             </Button>
           </div>
           <p className="text-text-secondary text-sm">
-            Управляйте лицензионными ключами Swipies AI для развертывания на собственных серверах и дата-центрах.
+            {t('description', { defaultValue: 'Управляйте лицензионными ключами Swipies AI для развертывания на собственных серверах и дата-центрах.' })}
           </p>
         </header>
       }
@@ -225,7 +227,7 @@ const LicensePurchasePage = () => {
             
             <div className="flex items-center justify-between gap-2 relative z-10">
               <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
-                Активные лицензии
+                {t('activeLicensesTitle', { defaultValue: 'Активные лицензии' })}
               </span>
               <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
                 <ShieldCheck size={18} />
@@ -238,11 +240,15 @@ const LicensePurchasePage = () => {
                   {activeLicensesCount}
                 </span>
                 <span className="inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  {activeLicensesCount === 1 ? '1 ключ активен' : activeLicensesCount > 1 ? `${activeLicensesCount} ключа активно` : '0 ключей'}
+                  {activeLicensesCount === 1 
+                    ? t('oneKeyActive', { defaultValue: '1 ключ активен' }) 
+                    : activeLicensesCount > 1 
+                      ? t('keysActive', { count: activeLicensesCount, defaultValue: `${activeLicensesCount} ключа(ей) активно` }) 
+                      : t('zeroKeys', { defaultValue: '0 ключей' })}
                 </span>
               </div>
               <p className="text-xs text-text-secondary leading-snug">
-                Локальный защищенный кластер
+                {t('localClusterDesc', { defaultValue: 'Локальный защищенный кластер' })}
               </p>
             </div>
 
@@ -251,8 +257,8 @@ const LicensePurchasePage = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span className="truncate" title="Готовы к развертыванию на узлах">
-                Готовы к развертыванию на узлах
+              <span className="truncate" title={t('readyToDeploy', { defaultValue: 'Готовы к развертыванию на узлах' })}>
+                {t('readyToDeploy', { defaultValue: 'Готовы к развертыванию на узлах' })}
               </span>
             </div>
           </div>
@@ -263,7 +269,7 @@ const LicensePurchasePage = () => {
             
             <div className="flex items-center justify-between gap-2 relative z-10">
               <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
-                Тип редакции
+                {t('editionTypeTitle', { defaultValue: 'Тип редакции' })}
               </span>
               <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
                 <Server size={18} />
@@ -273,21 +279,21 @@ const LicensePurchasePage = () => {
             <div className="space-y-1 relative z-10">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-lg sm:text-xl font-extrabold text-text-primary tracking-tight">
-                  Self-Hosted
+                  {t('selfHosted', { defaultValue: 'Self-Hosted' })}
                 </span>
                 <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 uppercase tracking-wide">
-                  Enterprise
+                  {t('enterprise', { defaultValue: 'Enterprise' })}
                 </span>
               </div>
               <p className="text-xs text-text-secondary leading-snug">
-                Локальная изоляция данных
+                {t('dataIsolationDesc', { defaultValue: 'Локальная изоляция данных' })}
               </p>
             </div>
 
             <div className="pt-2.5 border-t border-border-default/50 flex items-center gap-2 text-xs text-indigo-400 font-medium relative z-10">
               <span className="size-1.5 rounded-full bg-indigo-400 shrink-0" />
-              <span className="truncate" title="Безлимитные документы и LLM">
-                Безлимитные документы и LLM
+              <span className="truncate" title={t('unlimitedDocsLlm', { defaultValue: 'Безлимитные документы и LLM' })}>
+                {t('unlimitedDocsLlm', { defaultValue: 'Безлимитные документы и LLM' })}
               </span>
             </div>
           </div>
@@ -298,7 +304,7 @@ const LicensePurchasePage = () => {
             
             <div className="flex items-center justify-between gap-2 relative z-10">
               <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
-                Безопасность
+                {t('securityTitle', { defaultValue: 'Безопасность' })}
               </span>
               <div className="p-2 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
                 <Sparkles size={18} />
@@ -308,21 +314,21 @@ const LicensePurchasePage = () => {
             <div className="space-y-1 relative z-10">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-lg sm:text-xl font-extrabold text-text-primary tracking-tight">
-                  RSA-2048
+                  {t('rsa2048', { defaultValue: 'RSA-2048' })}
                 </span>
                 <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-400 border border-violet-500/30 uppercase tracking-wide">
-                  Signature
+                  {t('signature', { defaultValue: 'Signature' })}
                 </span>
               </div>
               <p className="text-xs text-text-secondary leading-snug">
-                Абсолютно автономная работа
+                {t('offlineWorkDesc', { defaultValue: 'Абсолютно автономная работа' })}
               </p>
             </div>
 
             <div className="pt-2.5 border-t border-border-default/50 flex items-center gap-2 text-xs text-violet-400 font-medium relative z-10">
               <span className="size-1.5 rounded-full bg-violet-400 shrink-0" />
-              <span className="truncate" title="Без привязки к внешним серверам">
-                Без привязки к внешним серверам
+              <span className="truncate" title={t('noExternalDeps', { defaultValue: 'Без привязки к внешним серверам' })}>
+                {t('noExternalDeps', { defaultValue: 'Без привязки к внешним серверам' })}
               </span>
             </div>
           </div>
@@ -333,17 +339,17 @@ const LicensePurchasePage = () => {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
               <ShieldCheck className="text-emerald-400" size={20} />
-              Купленные лицензионные ключи
+              {t('purchasedTitle', { defaultValue: 'Купленные лицензионные ключи' })}
             </h3>
             <span className="text-xs text-text-secondary font-medium bg-bg-card/50 px-2.5 py-1 rounded-full border border-border-default">
-              Всего ключей: <strong className="text-text-primary">{licenses.length}</strong>
+              {t('totalKeys', { defaultValue: 'Всего ключей:' })} <strong className="text-text-primary">{licenses.length}</strong>
             </span>
           </div>
 
           {loadingLicenses ? (
             <div className="flex flex-col items-center justify-center py-12 rounded-2xl border border-border-default bg-bg-card/20 text-text-secondary gap-3 text-sm">
               <Loader2 className="animate-spin text-accent-primary" size={24} />
-              <span>Загрузка лицензионных ключей...</span>
+              <span>{t('loading', { defaultValue: 'Загрузка лицензионных ключей...' })}</span>
             </div>
           ) : licenses.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-border-default bg-bg-card/10 text-center p-8 space-y-4">
@@ -351,16 +357,16 @@ const LicensePurchasePage = () => {
                 <Key size={32} />
               </div>
               <div className="space-y-1.5 max-w-md">
-                <p className="text-base font-bold text-text-primary">У вас пока нет лицензионных ключей</p>
+                <p className="text-base font-bold text-text-primary">{t('noKeysTitle', { defaultValue: 'У вас пока нет лицензионных ключей' })}</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Выберите период подписки ниже, чтобы мгновенно получить криптографический ключ для автономного сервера Swipies AI.
+                  {t('noKeysDesc', { defaultValue: 'Выберите период подписки ниже, чтобы мгновенно получить криптографический ключ для автономного сервера Swipies AI.' })}
                 </p>
               </div>
               <Button
                 onClick={() => setSelectedMonths(12)}
                 className="bg-accent-primary hover:bg-accent-primary/90 text-white rounded-xl text-xs font-semibold gap-1.5"
               >
-                <Plus size={14} /> Выбрать тариф ниже
+                <Plus size={14} /> {t('choosePlanBelow', { defaultValue: 'Выбрать тариф ниже' })}
               </Button>
             </div>
           ) : (
@@ -386,7 +392,7 @@ const LicensePurchasePage = () => {
                               value={editingName}
                               onChange={(e) => setEditingName(e.target.value)}
                               className="h-8 text-sm bg-bg-base border-accent-primary max-w-[240px]"
-                              placeholder="Имя сервера/лицензии"
+                              placeholder={t('renamePlaceholder', { defaultValue: 'Имя сервера/лицензии' })}
                               autoFocus
                             />
                             <Button
@@ -394,7 +400,7 @@ const LicensePurchasePage = () => {
                               className="h-8 text-xs bg-accent-primary hover:bg-accent-primary/90 text-white"
                               onClick={() => handleSaveRename(lic.id)}
                             >
-                              Сохранить
+                              {t('save', { defaultValue: 'Сохранить' })}
                             </Button>
                             <Button
                               size="sm"
@@ -402,18 +408,18 @@ const LicensePurchasePage = () => {
                               className="h-8 text-xs text-text-secondary"
                               onClick={() => setEditingId(null)}
                             >
-                              Отмена
+                              {t('cancel', { defaultValue: 'Отмена' })}
                             </Button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-base text-text-primary">
-                              {lic.name || 'Swipies Self-Hosted Key'}
+                              {lic.name || t('defaultKeyName', { defaultValue: 'Swipies Self-Hosted Key' })}
                             </span>
                             <button
                               onClick={() => handleStartRename(lic)}
                               className="text-text-secondary hover:text-accent-primary transition-colors p-1"
-                              title="Переименовать"
+                              title={t('rename', { defaultValue: 'Переименовать' })}
                             >
                               <Edit2 size={13} />
                             </button>
@@ -424,12 +430,12 @@ const LicensePurchasePage = () => {
                       {/* Status & Actions */}
                       <div className="flex items-center gap-2.5">
                         <span className="text-xs bg-bg-base text-text-secondary px-2.5 py-1 rounded-full border border-border-default font-medium">
-                          {lic.duration_months} мес.
+                          {t('months', { count: lic.duration_months, defaultValue: `${lic.duration_months} мес.` })}
                         </span>
 
                         {lic.status === 'active' || lic.is_paid ? (
                           <span className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-500/15 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">
-                            <CheckCircle2 size={13} /> Активен
+                            <CheckCircle2 size={13} /> {t('active', { defaultValue: 'Активен' })}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1.5 text-xs font-semibold bg-amber-500/15 text-amber-400 px-3 py-1 rounded-full border border-amber-500/20">
@@ -439,8 +445,8 @@ const LicensePurchasePage = () => {
                         
                         <button
                           onClick={() => handleRevoke(lic.id)}
-                          className="text-rose-400/80 hover:text-rose-400 hover:bg-rose-500/10 transition-colors p-1.5 rounded-lg ml-1"
-                          title="Отозвать лицензию"
+                          className="text-rose-400/80 hover:text-rose-400 hover:bg-rose-500/10 transition-colors p-1.5 rounded-lg ml-1 cursor-pointer"
+                          title={t('revoke', { defaultValue: 'Отозвать лицензию' })}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -452,20 +458,20 @@ const LicensePurchasePage = () => {
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-bold tracking-wider uppercase text-text-secondary flex items-center gap-1.5">
                           <Terminal size={12} className="text-accent-primary" />
-                          RSA Лицензионный ключ
+                          {t('rsaKey', { defaultValue: 'RSA Лицензионный ключ' })}
                         </label>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => toggleRevealKey(lic.id)}
-                            className="text-[11px] text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1 px-2 py-0.5 rounded hover:bg-bg-card"
+                            className="text-[11px] text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1 px-2 py-0.5 rounded hover:bg-bg-card cursor-pointer"
                           >
                             {isRevealed ? (
                               <>
-                                <EyeOff size={12} /> Скрыть
+                                <EyeOff size={12} /> {t('hide', { defaultValue: 'Скрыть' })}
                               </>
                             ) : (
                               <>
-                                <Eye size={12} /> Показать полный ключ
+                                <Eye size={12} /> {t('showFullKey', { defaultValue: 'Показать полный ключ' })}
                               </>
                             )}
                           </button>
@@ -476,12 +482,12 @@ const LicensePurchasePage = () => {
                         <div className="flex-1 overflow-hidden select-all text-slate-300">
                           {isRevealed ? (
                             <p className="break-all whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto">
-                              {lic.license_key || 'Генерация ключа...'}
+                              {lic.license_key || t('generatingKey', { defaultValue: 'Генерация ключа...' })}
                             </p>
                           ) : (
                             <div className="flex items-center gap-2">
                               <span className="truncate">
-                                {lic.license_key ? `${lic.license_key.slice(0, 32)}••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••` : 'Ожидание генерации...'}
+                                {lic.license_key ? `${lic.license_key.slice(0, 32)}••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••` : t('waitingGeneration', { defaultValue: 'Ожидание генерации...' })}
                               </span>
                             </div>
                           )}
@@ -498,12 +504,12 @@ const LicensePurchasePage = () => {
                               {copiedId === lic.id ? (
                                 <>
                                   <Check size={13} className="text-emerald-400" />
-                                  <span className="text-emerald-400">Скопировано</span>
+                                  <span className="text-emerald-400">{t('copied', { defaultValue: 'Скопировано' })}</span>
                                 </>
                               ) : (
                                 <>
                                   <Copy size={13} />
-                                  <span>Копировать</span>
+                                  <span>{t('copy', { defaultValue: 'Копировать' })}</span>
                                 </>
                               )}
                             </Button>
@@ -513,7 +519,7 @@ const LicensePurchasePage = () => {
                               variant="secondary"
                               onClick={() => handleDownloadKey(lic.license_key, lic.name)}
                               className="h-8 px-3 text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 gap-1.5"
-                              title="Скачать файл ключа"
+                              title={t('downloadKey', { defaultValue: 'Скачать файл ключа' })}
                             >
                               <Download size={13} />
                               <span>.key</span>
@@ -527,22 +533,22 @@ const LicensePurchasePage = () => {
                     {lic.license_key && (
                       <div className="bg-bg-base/40 rounded-xl border border-border-default/50 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
                         <div className="flex items-center gap-2 text-text-secondary truncate">
-                          <span className="text-slate-400 font-medium">Для .env:</span>
+                          <span className="text-slate-400 font-medium">{t('forEnv', { defaultValue: 'Для .env:' })}</span>
                           <code className="font-mono text-[11px] text-slate-300 truncate max-w-sm sm:max-w-md">
                             RAGFLOW_LICENSE_KEY="{lic.license_key.slice(0, 24)}..."
                           </code>
                         </div>
                         <button
                           onClick={() => handleCopyDockerSnippet(lic.license_key, lic.id)}
-                          className="text-[11px] text-accent-primary hover:underline flex items-center gap-1 shrink-0 font-medium"
+                          className="text-[11px] text-accent-primary hover:underline flex items-center gap-1 shrink-0 font-medium cursor-pointer"
                         >
                           {copiedDockerId === lic.id ? (
                             <>
-                              <Check size={12} className="text-emerald-400" /> Скопировано в буфер
+                              <Check size={12} className="text-emerald-400" /> {t('copiedToClipboard', { defaultValue: 'Скопировано в буфер' })}
                             </>
                           ) : (
                             <>
-                              <Copy size={12} /> Скопировать строку для .env
+                              <Copy size={12} /> {t('copyEnvSnippet', { defaultValue: 'Скопировать строку для .env' })}
                             </>
                           )}
                         </button>
@@ -555,14 +561,14 @@ const LicensePurchasePage = () => {
                         <div className="flex items-center gap-4">
                           <span className="flex items-center gap-1.5">
                             <Calendar size={13} className="text-accent-primary" />
-                            Истекает:{' '}
+                            {t('expires', { defaultValue: 'Истекает:' })}{' '}
                             <strong className="text-text-primary ml-1">
                               {expInfo.formattedDate}
                             </strong>
                           </span>
                           {expInfo.daysLeft !== null && (
                             <span className={expInfo.isExpired ? 'text-rose-400' : 'text-emerald-400'}>
-                              ({expInfo.isExpired ? 'Срок действия истек' : `Осталось ${expInfo.daysLeft} дн.`})
+                              ({expInfo.isExpired ? t('expired', { defaultValue: 'Срок действия истек' }) : t('daysLeft', { count: expInfo.daysLeft, defaultValue: `Осталось ${expInfo.daysLeft} дн.` })})
                             </span>
                           )}
                         </div>
@@ -595,15 +601,15 @@ const LicensePurchasePage = () => {
         <div className="rounded-2xl border border-border-default bg-bg-card/25 backdrop-blur-md overflow-hidden">
           <button
             onClick={() => setShowGuide(!showGuide)}
-            className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-bg-card/40 transition-colors"
+            className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-bg-card/40 transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
                 <Terminal size={18} />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-text-primary">Инструкция по активации на вашем сервере</h4>
-                <p className="text-xs text-text-secondary">Как применить ключ в Docker Compose за 1 минуту</p>
+                <h4 className="text-sm font-bold text-text-primary">{t('guideTitle', { defaultValue: 'Инструкция по активации на вашем сервере' })}</h4>
+                <p className="text-xs text-text-secondary">{t('guideSubtitle', { defaultValue: 'Как применить ключ в Docker Compose за 1 минуту' })}</p>
               </div>
             </div>
             <div className="text-text-secondary">
@@ -614,24 +620,24 @@ const LicensePurchasePage = () => {
           {showGuide && (
             <div className="p-5 pt-0 border-t border-border-default/50 space-y-4 text-xs text-text-secondary leading-relaxed">
               <div className="space-y-2 mt-4">
-                <p className="font-semibold text-text-primary">1. Добавьте ключ в конфигурацию Docker:</p>
+                <p className="font-semibold text-text-primary">{t('step1Title', { defaultValue: '1. Добавьте ключ в конфигурацию Docker:' })}</p>
                 <div className="bg-slate-950 p-3 rounded-xl font-mono text-[11px] text-slate-300 border border-slate-800">
-                  # В файле docker/.env вашего репозитория добавьте:<br />
-                  <span className="text-indigo-400">RAGFLOW_LICENSE_KEY</span>="&lt;ВАШ_СКОПИРОВАННЫЙ_КЛЮЧ&gt;"
+                  {t('step1Comment', { defaultValue: '# В файле docker/.env вашего репозитория добавьте:' })}<br />
+                  <span className="text-indigo-400">RAGFLOW_LICENSE_KEY</span>="{t('yourKeyPlaceholder', { defaultValue: '<ВАШ_СКОПИРОВАННЫЙ_КЛЮЧ>' })}"
                 </div>
               </div>
 
               <div className="space-y-2">
-                <p className="font-semibold text-text-primary">2. Перезапустите контейнеры приложения:</p>
+                <p className="font-semibold text-text-primary">{t('step2Title', { defaultValue: '2. Перезапустите контейнеры приложения:' })}</p>
                 <div className="bg-slate-950 p-3 rounded-xl font-mono text-[11px] text-slate-300 border border-slate-800 flex items-center justify-between">
                   <span>docker compose down && docker compose up -d</span>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText('docker compose down && docker compose up -d');
-                      message.success('Команда скопирована');
+                      message.success(t('commandCopied', { defaultValue: 'Команда скопирована' }));
                     }}
-                    className="text-indigo-400 hover:text-indigo-300 p-1"
-                    title="Скопировать команду"
+                    className="text-indigo-400 hover:text-indigo-300 p-1 cursor-pointer"
+                    title={t('copyCommand', { defaultValue: 'Скопировать команду' })}
                   >
                     <Copy size={13} />
                   </button>
@@ -639,7 +645,7 @@ const LicensePurchasePage = () => {
               </div>
 
               <p className="text-[11px] text-slate-400 pt-1">
-                Ключ проверяется офлайн встроенной криптографической библиотекой. Подключение сервера к интернету для валидации лицензии не требуется.
+                {t('guideNote', { defaultValue: 'Ключ проверяется офлайн встроенной криптографической библиотекой. Подключение сервера к интернету для валидации лицензии не требуется.' })}
               </p>
             </div>
           )}
@@ -650,10 +656,10 @@ const LicensePurchasePage = () => {
           <div className="space-y-1">
             <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
               <Sparkles className="text-accent-primary" size={20} />
-              Приобрести новый лицензионный ключ
+              {t('purchaseTitle', { defaultValue: 'Приобрести новый лицензионный ключ' })}
             </h3>
             <p className="text-xs text-text-secondary">
-              Выберите подходящий период действия. Лицензионный ключ генерируется мгновенно после подтверждения оплаты картой.
+              {t('purchaseSubtitle', { defaultValue: 'Выберите подходящий период действия. Лицензионный ключ генерируется мгновенно после подтверждения оплаты картой.' })}
             </p>
           </div>
 
@@ -670,16 +676,16 @@ const LicensePurchasePage = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-extrabold uppercase tracking-wider text-indigo-400 bg-indigo-500/15 px-3 py-1 rounded-full border border-indigo-500/20">
-                    Пилот / 6 Месяцев
+                    {t('tier6Title', { defaultValue: 'Пилот / 6 Месяцев' })}
                   </span>
-                  <span className="text-xs text-text-secondary font-medium">1 сервер</span>
+                  <span className="text-xs text-text-secondary font-medium">{t('oneServer', { defaultValue: '1 сервер' })}</span>
                 </div>
 
                 <div>
                   <div className="text-3xl font-black text-text-primary">
                     {fmtUZS(pricing.price_6_months)}
                   </div>
-                  <p className="text-xs text-text-secondary mt-1">Единоразовая оплата на полгода</p>
+                  <p className="text-xs text-text-secondary mt-1">{t('oneTime6Mo', { defaultValue: 'Единоразовая оплата на полгода' })}</p>
                 </div>
 
                 <hr className="border-border-default/50" />
@@ -687,19 +693,19 @@ const LicensePurchasePage = () => {
                 <ul className="space-y-2.5 text-xs text-text-secondary">
                   <li className="flex items-center gap-2 text-slate-300">
                     <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                    Безлимитное количество документов и баз знаний
+                    {t('tier6Feat1', { defaultValue: 'Безлимитное количество документов и баз знаний' })}
                   </li>
                   <li className="flex items-center gap-2 text-slate-300">
                     <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                    Полная автономная работа без интернета (Air-gap)
+                    {t('tier6Feat2', { defaultValue: 'Полная автономная работа без интернета (Air-gap)' })}
                   </li>
                   <li className="flex items-center gap-2 text-slate-300">
                     <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                    Развертывание в локальном Docker окружении
+                    {t('tier6Feat3', { defaultValue: 'Развертывание в локальном Docker окружении' })}
                   </li>
                   <li className="flex items-center gap-2 text-slate-300">
                     <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                    Поддержка через тикеты и документацию
+                    {t('tier6Feat4', { defaultValue: 'Поддержка через тикеты и документацию' })}
                   </li>
                 </ul>
               </div>
@@ -711,13 +717,13 @@ const LicensePurchasePage = () => {
                     handleProceedToCheckout(6);
                   }}
                   variant={selectedMonths === 6 ? 'default' : 'outline'}
-                  className={`w-full py-5 rounded-xl font-bold text-sm gap-2 transition-all ${
+                  className={`w-full py-5 rounded-xl font-bold text-sm gap-2 transition-all cursor-pointer ${
                     selectedMonths === 6
                       ? 'bg-accent-primary hover:bg-accent-primary/90 text-white shadow-lg shadow-accent-primary/20'
                       : 'border-border-default hover:bg-accent-primary hover:text-white'
                   }`}
                 >
-                  Купить на 6 месяцев <ArrowRight size={15} />
+                  {t('buy6Months', { defaultValue: 'Купить на 6 месяцев' })} <ArrowRight size={15} />
                 </Button>
               </div>
             </div>
@@ -734,16 +740,16 @@ const LicensePurchasePage = () => {
               {/* Best Value Ribbon */}
               <div className="absolute top-0 right-0">
                 <div className="bg-gradient-to-l from-emerald-500 to-teal-500 text-slate-950 font-extrabold text-[10px] uppercase tracking-wider py-1 px-4 rounded-bl-xl shadow-md flex items-center gap-1">
-                  <Sparkles size={11} /> 2 Месяца бесплатно
+                  <Sparkles size={11} /> {t('ribbon2MonthsFree', { defaultValue: '2 Месяца бесплатно' })}
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-2 pr-24 sm:pr-28">
                   <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/20">
-                    Годовая / 12 Месяцев
+                    {t('tier12Title', { defaultValue: 'Годовая / 12 Месяцев' })}
                   </span>
-                  <span className="text-xs text-emerald-400 font-semibold shrink-0 hidden sm:inline">Лучшая цена</span>
+                  <span className="text-xs text-emerald-400 font-semibold shrink-0 hidden sm:inline">{t('bestPrice', { defaultValue: 'Лучшая цена' })}</span>
                 </div>
 
                 <div>
@@ -751,7 +757,7 @@ const LicensePurchasePage = () => {
                     {fmtUZS(pricing.price_12_months)}
                   </div>
                   <p className="text-xs text-text-secondary mt-1">
-                    Экономия 100,000 UZS по сравнению с полугодовой
+                    {t('savings100k', { defaultValue: 'Экономия 100,000 UZS по сравнению с полугодовой' })}
                   </p>
                 </div>
 
@@ -760,19 +766,19 @@ const LicensePurchasePage = () => {
                 <ul className="space-y-2.5 text-xs text-text-secondary">
                   <li className="flex items-center gap-2 text-slate-200 font-medium">
                     <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                    Все преимущества тарифа на 6 месяцев
+                    {t('tier12Feat1', { defaultValue: 'Все преимущества тарифа на 6 месяцев' })}
                   </li>
                   <li className="flex items-center gap-2 text-slate-200 font-medium">
                     <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                    Приоритетная линия технической поддержки
+                    {t('tier12Feat2', { defaultValue: 'Приоритетная линия технической поддержки' })}
                   </li>
                   <li className="flex items-center gap-2 text-slate-200 font-medium">
                     <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                    Гарантия совместимости будущих обновлений
+                    {t('tier12Feat3', { defaultValue: 'Гарантия совместимости будущих обновлений' })}
                   </li>
                   <li className="flex items-center gap-2 text-slate-200 font-medium">
                     <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                    Поддержка промышленных кластеров Kubernetes
+                    {t('tier12Feat4', { defaultValue: 'Поддержка промышленных кластеров Kubernetes' })}
                   </li>
                 </ul>
               </div>
@@ -783,9 +789,9 @@ const LicensePurchasePage = () => {
                     e.stopPropagation();
                     handleProceedToCheckout(12);
                   }}
-                  className="w-full py-5 rounded-xl font-bold text-sm bg-accent-primary hover:bg-accent-primary/90 text-white gap-2 shadow-lg shadow-accent-primary/25"
+                  className="w-full py-5 rounded-xl font-bold text-sm bg-accent-primary hover:bg-accent-primary/90 text-white gap-2 shadow-lg shadow-accent-primary/25 cursor-pointer"
                 >
-                  Купить на 12 месяцев (Выгодно) <ArrowRight size={15} />
+                  {t('buy12Months', { defaultValue: 'Купить на 12 месяцев (Выгодно)' })} <ArrowRight size={15} />
                 </Button>
               </div>
             </div>
