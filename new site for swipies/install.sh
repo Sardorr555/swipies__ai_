@@ -72,8 +72,9 @@ sudo docker rm -f $(sudo docker ps -a -q --filter name=swipies-) 2>/dev/null || 
 sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb swipies-opensearch01 swipies-deepdoc 2>/dev/null || true
 
 # 8. Build images and start stack
-echo "🐳 Building Swipies AI containers..."
-sudo docker compose build
+echo "🐳 Preparing Swipies AI containers..."
+sudo docker compose pull es01 mysql minio redis ragflow-cpu || true
+sudo docker compose build frontend
 
 echo "🚀 Launching Swipies AI stack..."
 sudo docker compose up -d --remove-orphans

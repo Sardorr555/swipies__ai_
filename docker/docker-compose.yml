@@ -26,10 +26,10 @@ services:
         condition: service_healthy
     profiles:
       - cpu
-    image: ${RAGFLOW_IMAGE}
-    build:
-      context: ..
-      dockerfile: Dockerfile
+    image: ${RAGFLOW_IMAGE:-infiniflow/ragflow:v0.26.3}
+    # build:
+    #   context: ..
+    #   dockerfile: Dockerfile
     # Example configuration to set up an MCP server:
     # command:
     #   - --enable-mcpserver
@@ -69,6 +69,7 @@ services:
       - ../api:/ragflow/api
       - ../admin:/ragflow/admin
       - ../common:/ragflow/common
+      - ../generate_license.py:/ragflow/generate_license.py
     env_file: .env
     networks:
       ragflow:
@@ -88,10 +89,10 @@ services:
         condition: service_healthy
     profiles:
       - gpu
-    image: ${RAGFLOW_IMAGE}
-    build:
-      context: ..
-      dockerfile: Dockerfile
+    image: ${RAGFLOW_IMAGE:-infiniflow/ragflow:v0.26.3}
+    # build:
+    #   context: ..
+    #   dockerfile: Dockerfile
     # Example configuration to set up an MCP server:
     # command:
     #   - --enable-mcpserver
