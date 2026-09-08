@@ -570,12 +570,6 @@ async def system_provision():
 @manager.route("/system/license", methods=["GET"])  # noqa: F821
 @login_required
 async def get_license():
-    if not current_user.is_superuser:
-        return get_json_result(
-            data=False,
-            message="No authorization.",
-            code=RetCode.AUTHENTICATION_ERROR,
-        )
     from api.utils.license_verifier import check_license
     is_valid, msg, payload = check_license()
     
