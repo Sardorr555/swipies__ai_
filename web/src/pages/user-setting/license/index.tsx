@@ -13,7 +13,17 @@ import {
   Trash2, 
   Plus, 
   Loader2, 
-  CheckCircle2 
+  CheckCircle2,
+  Download,
+  Eye,
+  EyeOff,
+  Terminal,
+  Sparkles,
+  Server,
+  RefreshCw,
+  Calendar,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import { 
@@ -38,6 +48,7 @@ interface LicenseItem {
   expiry_date?: string;
   status: 'active' | 'pending' | 'revoked' | 'expired';
   is_paid: boolean;
+  payment_id?: string;
   create_time?: string | number;
 }
 
@@ -55,6 +66,9 @@ const LicensePurchasePage = () => {
   const [licenses, setLicenses] = useState<LicenseItem[]>([]);
   const [loadingLicenses, setLoadingLicenses] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedDockerId, setCopiedDockerId] = useState<string | null>(null);
+  const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
+  const [showGuide, setShowGuide] = useState(false);
 
   // Rename state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -85,16 +99,44 @@ const LicensePurchasePage = () => {
     fetchUserLicenses();
   }, []);
 
-  const handleProceedToCheckout = () => {
-    navigate(`/checkout?plan=license&period=${selectedMonths}`);
+  const handleProceedToCheckout = (period: 6 | 12) => {
+    navigate(`/checkout?plan=license&period=${period}`);
   };
 
   const handleCopyKey = (key: string, id: string) => {
     if (!key) return;
     navigator.clipboard.writeText(key);
     setCopiedId(id);
-    message.success('License key copied to clipboard!');
+    message.success('Лицензионный ключ скопирован!');
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleCopyDockerSnippet = (key: string, id: string) => {
+    if (!key) return;
+    const snippet = `RAGFLOW_LICENSE_KEY="${key}"`;
+    navigator.clipboard.writeText(snippet);
+    setCopiedDockerId(id);
+    message.success('Переменная для docker/.env скопирована!');
+    setTimeout(() => setCopiedDockerId(null), 2000);
+  };
+
+  const handleDownloadKey = (key: string, name: string) => {
+    if (!key) return;
+    const blob = new Blob([key], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const cleanName = (name || 'key').toLowerCase().replace(/[^a-z0-9]/gi, '_');
+    link.download = `swipies_license_${cleanName}.key`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    message.success('Лицензионный файл .key скачан!');
+  };
+
+  const toggleRevealKey = (id: string) => {
+    setRevealedKeys((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleStartRename = (license: LicenseItem) => {
@@ -107,245 +149,590 @@ const LicensePurchasePage = () => {
     try {
       const res: any = await renameLicense(licenseId, editingName.trim());
       if (res?.data?.code === 0) {
-        message.success('License name updated!');
+        message.success('Имя лицензии обновлено');
         setEditingId(null);
         fetchUserLicenses();
       }
     } catch {
-      message.error('Failed to rename license');
+      message.error('Не удалось обновить имя лицензии');
     }
   };
 
   const handleRevoke = async (licenseId: string) => {
-    if (!window.confirm('Are you sure you want to revoke this license key?')) return;
+    if (!window.confirm('Вы уверены, что хотите отозвать данный лицензионный ключ?')) return;
     try {
       const res: any = await revokeLicense(licenseId);
       if (res?.data?.code === 0) {
-        message.success('License key revoked');
+        message.success('Лицензионный ключ отозван');
         fetchUserLicenses();
       }
     } catch {
-      message.error('Failed to revoke license');
+      message.error('Не удалось отозвать лицензию');
     }
   };
+
+  const getExpirationInfo = (expiryDate?: string, durationMonths: number = 12) => {
+    if (!expiryDate) return { daysLeft: null, percent: 100, isExpired: false, formattedDate: 'Бессрочно' };
+    const end = new Date(expiryDate).getTime();
+    const now = Date.now();
+    const diffDays = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    const totalDays = durationMonths * 30;
+    const percent = Math.max(0, Math.min(100, Math.round((diffDays / totalDays) * 100)));
+    const formattedDate = String(expiryDate).split('T')[0];
+    return {
+      daysLeft: diffDays,
+      percent,
+      isExpired: diffDays <= 0,
+      formattedDate,
+    };
+  };
+
+  const activeLicensesCount = licenses.filter((l) => l.is_paid || l.status === 'active').length;
 
   return (
     <ProfileSettingWrapperCard
       header={
         <header className="flex flex-col gap-1 w-full">
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
-            <Key className="text-accent-primary" size={24} />
-            License Keys & Purchases
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-extrabold tracking-tight text-text-primary flex items-center gap-2.5">
+              <Key className="text-accent-primary" size={24} />
+              Лицензионные ключи (Self-Hosted)
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchUserLicenses}
+              disabled={loadingLicenses}
+              className="gap-1.5 text-xs text-text-secondary border-border-default hover:text-text-primary"
+            >
+              <RefreshCw size={13} className={loadingLicenses ? 'animate-spin' : ''} />
+              Обновить
+            </Button>
+          </div>
           <p className="text-text-secondary text-sm">
-            Manage your purchased self-hosted Swipies AI license keys or buy new keys.
+            Управляйте лицензионными ключами Swipies AI для развертывания на собственных серверах и дата-центрах.
           </p>
         </header>
       }
     >
-      <div className="h-full overflow-x-hidden overflow-y-auto pb-12 pr-1 mt-6 space-y-10 px-5 max-w-5xl">
+      <div className="h-full overflow-x-hidden overflow-y-auto pb-16 pr-1 mt-5 space-y-8 w-full max-w-6xl mx-auto px-1 sm:px-4">
         
+        {/* TOP KPI SUMMARY CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-border-default bg-bg-card/40 p-4.5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Активные лицензии</span>
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+                <ShieldCheck size={18} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold text-text-primary">{activeLicensesCount}</span>
+              <span className="text-xs text-text-secondary">
+                {activeLicensesCount === 1 ? 'ключ активен' : 'ключей активно'}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+              <span className="size-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
+              Готовы к развертыванию на узлах
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border-default bg-bg-card/40 p-4.5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Тип редакции</span>
+              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
+                <Server size={18} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-xl font-bold text-text-primary">Self-Hosted Enterprise</span>
+              <p className="text-xs text-text-secondary mt-0.5">Локальная изоляция данных</p>
+            </div>
+            <div className="mt-2 text-[11px] text-indigo-400 font-medium">
+              Безлимитные документы и LLM
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border-default bg-bg-card/40 p-4.5 backdrop-blur-md relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Безопасность</span>
+              <div className="p-2 rounded-xl bg-violet-500/10 text-violet-400">
+                <Sparkles size={18} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-xl font-bold text-text-primary">RSA-2048 Signature</span>
+              <p className="text-xs text-text-secondary mt-0.5">Абсолютно автономная работа</p>
+            </div>
+            <div className="mt-2 text-[11px] text-violet-400 font-medium">
+              Без привязки к внешним серверам
+            </div>
+          </div>
+        </div>
+
         {/* SECTION 1: MY PURCHASED LICENSES */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
-              <ShieldCheck className="text-emerald-500" size={20} />
-              My Purchased License Keys
+              <ShieldCheck className="text-emerald-400" size={20} />
+              Купленные лицензионные ключи
             </h3>
-            <span className="text-xs text-text-secondary font-medium">
-              {licenses.length} {licenses.length === 1 ? 'Key' : 'Keys'} active
+            <span className="text-xs text-text-secondary font-medium bg-bg-card/50 px-2.5 py-1 rounded-full border border-border-default">
+              Всего ключей: <strong className="text-text-primary">{licenses.length}</strong>
             </span>
           </div>
 
           {loadingLicenses ? (
-            <div className="flex items-center justify-center py-10 rounded-2xl border border-border-default bg-bg-card/10 text-text-secondary gap-2 text-sm">
-              <Loader2 className="animate-spin text-accent-primary" size={18} />
-              Loading your license keys...
+            <div className="flex flex-col items-center justify-center py-12 rounded-2xl border border-border-default bg-bg-card/20 text-text-secondary gap-3 text-sm">
+              <Loader2 className="animate-spin text-accent-primary" size={24} />
+              <span>Загрузка лицензионных ключей...</span>
             </div>
           ) : licenses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 rounded-2xl border border-dashed border-border-default bg-bg-card/10 text-center p-6 space-y-3">
-              <div className="p-3 bg-accent-primary/10 rounded-full text-accent-primary">
-                <Key size={28} />
+            <div className="flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-border-default bg-bg-card/10 text-center p-8 space-y-4">
+              <div className="p-4 bg-accent-primary/10 rounded-2xl text-accent-primary">
+                <Key size={32} />
               </div>
-              <div className="space-y-1">
-                <p className="text-base font-semibold text-text-primary">No license keys purchased yet</p>
-                <p className="text-xs text-text-secondary max-w-sm">
-                  Select a duration below to purchase your first self-hosted license key for Swipies AI.
+              <div className="space-y-1.5 max-w-md">
+                <p className="text-base font-bold text-text-primary">У вас пока нет лицензионных ключей</p>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  Выберите период подписки ниже, чтобы мгновенно получить криптографический ключ для автономного сервера Swipies AI.
                 </p>
               </div>
+              <Button
+                onClick={() => setSelectedMonths(12)}
+                className="bg-accent-primary hover:bg-accent-primary/90 text-white rounded-xl text-xs font-semibold gap-1.5"
+              >
+                <Plus size={14} /> Выбрать тариф ниже
+              </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {licenses.map((lic) => (
-                <div
-                  key={lic.id}
-                  className="rounded-2xl border border-border-default bg-bg-card/30 p-5 backdrop-blur-md space-y-4 transition-all hover:border-accent-primary/40 shadow-sm"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default/50 pb-3">
-                    <div className="flex items-center gap-2">
-                      {editingId === lic.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={editingName}
-                            onChange={(e) => setEditingName(e.target.value)}
-                            className="h-8 text-sm bg-bg-base border-accent-primary max-w-[200px]"
-                            placeholder="License Name"
-                          />
-                          <Button
-                            size="sm"
-                            className="h-8 text-xs bg-accent-primary text-white"
-                            onClick={() => handleSaveRename(lic.id)}
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 text-xs"
-                            onClick={() => setEditingId(null)}
-                          >
-                            Cancel
-                          </Button>
+            <div className="grid grid-cols-1 gap-5">
+              {licenses.map((lic) => {
+                const isRevealed = !!revealedKeys[lic.id];
+                const expInfo = getExpirationInfo(lic.expiry_date, lic.duration_months);
+
+                return (
+                  <div
+                    key={lic.id}
+                    className="rounded-2xl border border-border-default bg-bg-card/40 p-5 sm:p-6 backdrop-blur-md space-y-5 transition-all hover:border-accent-primary/50 shadow-sm relative overflow-hidden"
+                  >
+                    {/* Top Bar: Title, Inline Edit, Status Badges, Revoke */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default/60 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-accent-primary/10 text-accent-primary">
+                          <Server size={20} />
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-base text-text-primary">
-                            {lic.name || 'Swipies Self-Hosted License'}
+                        {editingId === lic.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              className="h-8 text-sm bg-bg-base border-accent-primary max-w-[240px]"
+                              placeholder="Имя сервера/лицензии"
+                              autoFocus
+                            />
+                            <Button
+                              size="sm"
+                              className="h-8 text-xs bg-accent-primary hover:bg-accent-primary/90 text-white"
+                              onClick={() => handleSaveRename(lic.id)}
+                            >
+                              Сохранить
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-xs text-text-secondary"
+                              onClick={() => setEditingId(null)}
+                            >
+                              Отмена
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-base text-text-primary">
+                              {lic.name || 'Swipies Self-Hosted Key'}
+                            </span>
+                            <button
+                              onClick={() => handleStartRename(lic)}
+                              className="text-text-secondary hover:text-accent-primary transition-colors p-1"
+                              title="Переименовать"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Status & Actions */}
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xs bg-bg-base text-text-secondary px-2.5 py-1 rounded-full border border-border-default font-medium">
+                          {lic.duration_months} мес.
+                        </span>
+
+                        {lic.status === 'active' || lic.is_paid ? (
+                          <span className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-500/15 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">
+                            <CheckCircle2 size={13} /> Активен
                           </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-xs font-semibold bg-amber-500/15 text-amber-400 px-3 py-1 rounded-full border border-amber-500/20">
+                            <Clock size={13} /> {lic.status}
+                          </span>
+                        )}
+                        
+                        <button
+                          onClick={() => handleRevoke(lic.id)}
+                          className="text-rose-400/80 hover:text-rose-400 hover:bg-rose-500/10 transition-colors p-1.5 rounded-lg ml-1"
+                          title="Отозвать лицензию"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Middle: License Key Box with Actions */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold tracking-wider uppercase text-text-secondary flex items-center gap-1.5">
+                          <Terminal size={12} className="text-accent-primary" />
+                          RSA Лицензионный ключ
+                        </label>
+                        <div className="flex items-center gap-1">
                           <button
-                            onClick={() => handleStartRename(lic)}
-                            className="text-text-secondary hover:text-accent-primary transition-colors p-1"
-                            title="Rename"
+                            onClick={() => toggleRevealKey(lic.id)}
+                            className="text-[11px] text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1 px-2 py-0.5 rounded hover:bg-bg-card"
                           >
-                            <Edit2 size={14} />
+                            {isRevealed ? (
+                              <>
+                                <EyeOff size={12} /> Скрыть
+                              </>
+                            ) : (
+                              <>
+                                <Eye size={12} /> Показать полный ключ
+                              </>
+                            )}
                           </button>
                         </div>
-                      )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-slate-950/70 border border-border-default rounded-xl p-3 font-mono text-xs text-indigo-300">
+                        <div className="flex-1 overflow-hidden select-all text-slate-300">
+                          {isRevealed ? (
+                            <p className="break-all whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto">
+                              {lic.license_key || 'Генерация ключа...'}
+                            </p>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="truncate">
+                                {lic.license_key ? `${lic.license_key.slice(0, 32)}••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••` : 'Ожидание генерации...'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {lic.license_key && (
+                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center pt-2 sm:pt-0 border-t sm:border-t-0 border-border-default/50 w-full sm:w-auto justify-end">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleCopyKey(lic.license_key, lic.id)}
+                              className="h-8 px-3 text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 gap-1.5"
+                            >
+                              {copiedId === lic.id ? (
+                                <>
+                                  <Check size={13} className="text-emerald-400" />
+                                  <span className="text-emerald-400">Скопировано</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy size={13} />
+                                  <span>Копировать</span>
+                                </>
+                              )}
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleDownloadKey(lic.license_key, lic.name)}
+                              className="h-8 px-3 text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 gap-1.5"
+                              title="Скачать файл ключа"
+                            >
+                              <Download size={13} />
+                              <span>.key</span>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Status Badge */}
-                    <div className="flex items-center gap-2">
-                      {lic.status === 'active' || lic.is_paid ? (
-                        <span className="flex items-center gap-1 text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                          <CheckCircle2 size={12} /> Active
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-[11px] font-semibold bg-amber-500/15 text-amber-400 px-2.5 py-1 rounded-full border border-amber-500/20">
-                          <Clock size={12} /> {lic.status}
-                        </span>
-                      )}
-                      
-                      <button
-                        onClick={() => handleRevoke(lic.id)}
-                        className="text-rose-400 hover:text-rose-300 transition-colors p-1 ml-2"
-                        title="Revoke License"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Key Display */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold tracking-wider uppercase text-text-secondary">
-                      License Key
-                    </label>
-                    <div className="flex items-center gap-2 bg-bg-base/80 border border-border-default rounded-xl p-3 font-mono text-xs text-accent-primary break-all">
-                      <span className="flex-1 truncate">{lic.license_key || 'Processing generation...'}</span>
-                      {lic.license_key && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleCopyKey(lic.license_key, lic.id)}
-                          className="h-7 px-2.5 text-xs text-text-primary hover:bg-accent-primary/20 gap-1.5 shrink-0"
+                    {/* Quick Docker Activation Snippet */}
+                    {lic.license_key && (
+                      <div className="bg-bg-base/40 rounded-xl border border-border-default/50 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2 text-text-secondary truncate">
+                          <span className="text-slate-400 font-medium">Для .env:</span>
+                          <code className="font-mono text-[11px] text-slate-300 truncate max-w-sm sm:max-w-md">
+                            RAGFLOW_LICENSE_KEY="{lic.license_key.slice(0, 24)}..."
+                          </code>
+                        </div>
+                        <button
+                          onClick={() => handleCopyDockerSnippet(lic.license_key, lic.id)}
+                          className="text-[11px] text-accent-primary hover:underline flex items-center gap-1 shrink-0 font-medium"
                         >
-                          {copiedId === lic.id ? (
+                          {copiedDockerId === lic.id ? (
                             <>
-                              <Check size={14} className="text-emerald-400" /> Copied
+                              <Check size={12} className="text-emerald-400" /> Скопировано в буфер
                             </>
                           ) : (
                             <>
-                              <Copy size={14} /> Copy Key
+                              <Copy size={12} /> Скопировать строку для .env
                             </>
                           )}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                        </button>
+                      </div>
+                    )}
 
-                  {/* License Info footer */}
-                  <div className="flex flex-wrap items-center justify-between text-xs text-text-secondary pt-1 gap-2">
-                    <div className="flex items-center gap-4">
-                      <span>Duration: <strong className="text-text-primary">{lic.duration_months} months</strong></span>
-                      {lic.expiry_date && (
-                        <span>Expires: <strong className="text-text-primary">{String(lic.expiry_date).split('T')[0]}</strong></span>
+                    {/* Footer Info: Expiry progress & Details */}
+                    <div className="pt-2 border-t border-border-default/50 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between text-xs text-text-secondary gap-2">
+                        <div className="flex items-center gap-4">
+                          <span className="flex items-center gap-1.5">
+                            <Calendar size={13} className="text-accent-primary" />
+                            Истекает:{' '}
+                            <strong className="text-text-primary ml-1">
+                              {expInfo.formattedDate}
+                            </strong>
+                          </span>
+                          {expInfo.daysLeft !== null && (
+                            <span className={expInfo.isExpired ? 'text-rose-400' : 'text-emerald-400'}>
+                              ({expInfo.isExpired ? 'Срок действия истек' : `Осталось ${expInfo.daysLeft} дн.`})
+                            </span>
+                          )}
+                        </div>
+
+                        {lic.payment_id && (
+                          <span className="text-[11px] text-text-secondary font-mono">
+                            TxID: {String(lic.payment_id).slice(-10)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Expiration bar */}
+                      {expInfo.daysLeft !== null && !expInfo.isExpired && (
+                        <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                          <div
+                            className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${expInfo.percent}%` }}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        <hr className="border-border-default/60" />
+        {/* SECTION 2: HOW TO ACTIVATE GUIDE ACCORDION */}
+        <div className="rounded-2xl border border-border-default bg-bg-card/25 backdrop-blur-md overflow-hidden">
+          <button
+            onClick={() => setShowGuide(!showGuide)}
+            className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-bg-card/40 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
+                <Terminal size={18} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-text-primary">Инструкция по активации на вашем сервере</h4>
+                <p className="text-xs text-text-secondary">Как применить ключ в Docker Compose за 1 минуту</p>
+              </div>
+            </div>
+            <div className="text-text-secondary">
+              {showGuide ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </div>
+          </button>
 
-        {/* SECTION 2: PURCHASE NEW LICENSE KEY */}
-        <div className="space-y-5 max-w-lg">
+          {showGuide && (
+            <div className="p-5 pt-0 border-t border-border-default/50 space-y-4 text-xs text-text-secondary leading-relaxed">
+              <div className="space-y-2 mt-4">
+                <p className="font-semibold text-text-primary">1. Добавьте ключ в конфигурацию Docker:</p>
+                <div className="bg-slate-950 p-3 rounded-xl font-mono text-[11px] text-slate-300 border border-slate-800">
+                  # В файле docker/.env вашего репозитория добавьте:<br />
+                  <span className="text-indigo-400">RAGFLOW_LICENSE_KEY</span>="&lt;ВАШ_СКОПИРОВАННЫЙ_КЛЮЧ&gt;"
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold text-text-primary">2. Перезапустите контейнеры приложения:</p>
+                <div className="bg-slate-950 p-3 rounded-xl font-mono text-[11px] text-slate-300 border border-slate-800 flex items-center justify-between">
+                  <span>docker compose down && docker compose up -d</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText('docker compose down && docker compose up -d');
+                      message.success('Команда скопирована');
+                    }}
+                    className="text-indigo-400 hover:text-indigo-300 p-1"
+                    title="Скопировать команду"
+                  >
+                    <Copy size={13} />
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400 pt-1">
+                Ключ проверяется офлайн встроенной криптографической библиотекой. Подключение сервера к интернету для валидации лицензии не требуется.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* SECTION 3: PURCHASE NEW LICENSE KEY (BALANCED 2-COLUMN GRID) */}
+        <div className="space-y-5 pt-2">
           <div className="space-y-1">
             <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
-              <Plus className="text-accent-primary" size={20} />
-              Buy a New License Key
+              <Sparkles className="text-accent-primary" size={20} />
+              Приобрести новый лицензионный ключ
             </h3>
             <p className="text-xs text-text-secondary">
-              Select the desired license duration. Your new license key will be generated instantly upon payment confirmation.
+              Выберите подходящий период действия. Лицензионный ключ генерируется мгновенно после подтверждения оплаты картой.
             </p>
           </div>
 
-          {/* Plan cards */}
-          <div className="grid grid-cols-2 gap-4">
-            {([6, 12] as const).map((m) => {
-              const p = m === 12 ? pricing.price_12_months : pricing.price_6_months;
-              const selected = selectedMonths === m;
-              return (
-                <button
-                  key={m}
-                  onClick={() => setSelectedMonths(m)}
-                  className={`rounded-2xl border p-5 text-left transition-all space-y-2 relative overflow-hidden ${
-                    selected
-                      ? 'border-accent-primary bg-accent-primary/10 ring-1 ring-accent-primary/50 shadow-lg shadow-accent-primary/5'
-                      : 'border-border-default bg-bg-card/20 hover:border-accent-primary/40'
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+            {/* 6 Months Tier */}
+            <div 
+              onClick={() => setSelectedMonths(6)}
+              className={`rounded-2xl border p-6 flex flex-col justify-between transition-all cursor-pointer relative overflow-hidden ${
+                selectedMonths === 6
+                  ? 'border-accent-primary bg-accent-primary/10 ring-1 ring-accent-primary/50 shadow-xl shadow-accent-primary/5'
+                  : 'border-border-default bg-bg-card/30 hover:border-accent-primary/40 hover:bg-bg-card/50'
+              }`}
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-extrabold uppercase tracking-wider text-indigo-400 bg-indigo-500/15 px-3 py-1 rounded-full border border-indigo-500/20">
+                    Пилот / 6 Месяцев
+                  </span>
+                  <span className="text-xs text-text-secondary font-medium">1 сервер</span>
+                </div>
+
+                <div>
+                  <div className="text-3xl font-black text-text-primary">
+                    {fmtUZS(pricing.price_6_months)}
+                  </div>
+                  <p className="text-xs text-text-secondary mt-1">Единоразовая оплата на полгода</p>
+                </div>
+
+                <hr className="border-border-default/50" />
+
+                <ul className="space-y-2.5 text-xs text-text-secondary">
+                  <li className="flex items-center gap-2 text-slate-300">
+                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    Безлимитное количество документов и баз знаний
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-300">
+                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    Полная автономная работа без интернета (Air-gap)
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-300">
+                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    Развертывание в локальном Docker окружении
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-300">
+                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    Поддержка через тикеты и документацию
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-6">
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleProceedToCheckout(6);
+                  }}
+                  variant={selectedMonths === 6 ? 'default' : 'outline'}
+                  className={`w-full py-5 rounded-xl font-bold text-sm gap-2 transition-all ${
+                    selectedMonths === 6
+                      ? 'bg-accent-primary hover:bg-accent-primary/90 text-white shadow-lg shadow-accent-primary/20'
+                      : 'border-border-default hover:bg-accent-primary hover:text-white'
                   }`}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="text-sm font-bold text-text-primary">{m} Months</div>
-                    {m === 12 && (
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                        Best Value
-                      </span>
-                    )}
+                  Купить на 6 месяцев <ArrowRight size={15} />
+                </Button>
+              </div>
+            </div>
+
+            {/* 12 Months Tier (Featured / Best Value) */}
+            <div 
+              onClick={() => setSelectedMonths(12)}
+              className={`rounded-2xl border p-6 flex flex-col justify-between transition-all cursor-pointer relative overflow-hidden ${
+                selectedMonths === 12
+                  ? 'border-accent-primary bg-accent-primary/10 ring-2 ring-accent-primary/60 shadow-xl shadow-accent-primary/10'
+                  : 'border-border-default bg-bg-card/30 hover:border-accent-primary/40 hover:bg-bg-card/50'
+              }`}
+            >
+              {/* Best Value Ribbon */}
+              <div className="absolute top-0 right-0">
+                <div className="bg-gradient-to-l from-emerald-500 to-teal-500 text-slate-950 font-extrabold text-[10px] uppercase tracking-wider py-1 px-4 rounded-bl-xl shadow-md flex items-center gap-1">
+                  <Sparkles size={11} /> 2 Месяца бесплатно
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/20">
+                    Годовая / 12 Месяцев
+                  </span>
+                  <span className="text-xs text-emerald-400 font-semibold pr-24">Лучшая цена</span>
+                </div>
+
+                <div>
+                  <div className="text-3xl font-black text-text-primary">
+                    {fmtUZS(pricing.price_12_months)}
                   </div>
-                  <div className="text-xl font-extrabold text-accent-primary">{fmtUZS(p)}</div>
-                  <div className="text-[11px] text-text-secondary">Self-hosted Deployment</div>
-                </button>
-              );
-            })}
-          </div>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Экономия 100,000 UZS по сравнению с полугодовой
+                  </p>
+                </div>
 
-          {/* Total Summary */}
-          <div className="flex items-center justify-between rounded-xl border border-border-default bg-bg-card/30 px-5 py-4">
-            <span className="text-sm font-semibold text-text-secondary">Total Price</span>
-            <span className="text-lg font-extrabold text-text-primary">
-              {fmtUZS(selectedMonths === 12 ? pricing.price_12_months : pricing.price_6_months)}
-            </span>
-          </div>
+                <hr className="border-border-default/50" />
 
-          <Button
-            className="bg-accent-primary hover:bg-accent-primary/90 text-white w-full py-6 text-base font-bold rounded-xl gap-2 shadow-lg shadow-accent-primary/20"
-            onClick={handleProceedToCheckout}
-          >
-            Proceed to Secure Checkout <ArrowRight size={18} />
-          </Button>
+                <ul className="space-y-2.5 text-xs text-text-secondary">
+                  <li className="flex items-center gap-2 text-slate-200 font-medium">
+                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    Все преимущества тарифа на 6 месяцев
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-200 font-medium">
+                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    Приоритетная линия технической поддержки
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-200 font-medium">
+                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    Гарантия совместимости будущих обновлений
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-200 font-medium">
+                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    Поддержка промышленных кластеров Kubernetes
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-6">
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleProceedToCheckout(12);
+                  }}
+                  className="w-full py-5 rounded-xl font-bold text-sm bg-accent-primary hover:bg-accent-primary/90 text-white gap-2 shadow-lg shadow-accent-primary/25"
+                >
+                  Купить на 12 месяцев (Выгодно) <ArrowRight size={15} />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>

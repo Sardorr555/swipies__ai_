@@ -42,11 +42,20 @@ class PaymentTransactionService(CommonService):
         m = max(1, int(months or 1))
 
         if p == "license":
-            if m == 6:
-                return 2470000
-            if m >= 12:
-                return 4500000
-            return m * 450000
+            try:
+                from api.db.services.license_key_service import LicenseKeyService
+                pricing = LicenseKeyService.get_license_pricing()
+                if m == 6:
+                    return int(pricing.get("price_6_months", 300000))
+                if m >= 12:
+                    return int(pricing.get("price_12_months", 500000))
+                return int(m * pricing.get("price_per_month_custom", 50000))
+            except Exception:
+                if m == 6:
+                    return 300000
+                if m >= 12:
+                    return 500000
+                return m * 50000
 
         if p == "free":
             return 0

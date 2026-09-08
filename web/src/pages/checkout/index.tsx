@@ -345,8 +345,12 @@ export default function CheckoutPage() {
     cleanCardNumber.startsWith('5440');
   
   const isVisaOrMastercard =
-    !isUzbekistanUser ||
-    (cleanCardNumber.length > 0 && !isLocalCard && (cleanCardNumber.startsWith('4') || cleanCardNumber.startsWith('5')));
+    !isLocalCard &&
+    (cleanCardNumber.startsWith('4') ||
+     (cleanCardNumber.startsWith('5') && !cleanCardNumber.startsWith('5614') && !cleanCardNumber.startsWith('5440')) ||
+     cleanCardNumber.startsWith('2') ||
+     cleanCardNumber.startsWith('3') ||
+     cleanCardNumber.startsWith('6'));
 
   const getCardBrand = () => {
     if (cleanCardNumber.startsWith('8600')) return 'UZCARD';
@@ -530,9 +534,9 @@ export default function CheckoutPage() {
     try {
       if (planQuery === 'license') {
         // Use Flask backend API
-        const confirmRes = await applyLicensePay(transactionId || '', otp, cardPayload);
+        const confirmRes = await applyLicensePay(transactionId || '', otp.trim(), cardPayload);
         if (confirmRes?.data?.code !== 0) {
-          throw new Error(confirmRes?.data?.message || 'Payment verification failed');
+          throw new Error(confirmRes?.data?.message || 'Неверный или просроченный SMS-код подтверждения');
         }
         const confirmData = confirmRes.data.data;
         // In Flask backend, when payment is successful it returns { success: true, license_key: key }
@@ -548,7 +552,7 @@ export default function CheckoutPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             transaction_id: transactionId,
-            otp,
+            otp: otp.trim(),
             email: userEmail,
             plan: planQuery,
             months: selectedPeriod,
@@ -598,7 +602,11 @@ export default function CheckoutPage() {
         }
       }
 
-      setError(err?.response?.data?.message || err?.message || 'Invalid verification code. Please try again.');
+      let errorMsg = err?.response?.data?.message || err?.message || 'Неверный SMS-код подтверждения. Пожалуйста, попробуйте снова.';
+      if (errorMsg.includes('102') || errorMsg.toLowerCase().includes('verification failed')) {
+        errorMsg = 'Неверный или просроченный SMS-код подтверждения (код 102). Пожалуйста, проверьте код из SMS или запросите новый.';
+      }
+      setError(errorMsg);
     } finally {
       setPayingLoading(false);
     }
@@ -849,57 +857,98 @@ export default function CheckoutPage() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.expiryDate}</label>
-                          <Input
-                            placeholder="MM/YY"
-                            value={expiry}
-                            onChange={(e) => handleExpiryChange(e.target.value)}
-                            maxLength={5}
-                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono text-center h-9 text-sm"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-slate-400 uppercase">
-                            {tLocal.cvc} {!isVisaOrMastercard && <span className="text-slate-600 font-normal lowercase">(opt)</span>}
-                          </label>
-                          <Input
-                            type="password"
-                            placeholder="•••"
-                            value={cvc}
-                            onChange={(e) => setCvc(e.target.value.replace(/[^0-9]/g, ''))}
-                            maxLength={4}
-                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 text-center h-9 text-sm"
-                            required={isVisaOrMastercard}
-                          />
-                        </div>
-                      </div>
+                      {isVisaOrMastercard ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.expiryDate}</label>
+                              <Input
+                                placeholder="MM/YY"
+                                value={expiry}
+                                onChange={(e) => handleExpiryChange(e.target.value)}
+                                maxLength={5}
+                                className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono text-center h-9 text-sm"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-slate-400 uppercase">
+                                {tLocal.cvc}
+                              </label>
+                              <Input
+                                type="password"
+                                placeholder="•••"
+                                value={cvc}
+                                onChange={(e) => setCvc(e.target.value.replace(/[^0-9]/g, ''))}
+                                maxLength={4}
+                                className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 text-center h-9 text-sm"
+                                required
+                              />
+                            </div>
+                          </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-slate-400 uppercase">
-                            {isVisaOrMastercard ? tLocal.cardholderName : tLocal.cardholderOptional}
-                          </label>
-                          <Input
-                            placeholder="JOHN DOE"
-                            value={cardName}
-                            onChange={(e) => setCardName(e.target.value.toUpperCase())}
-                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 h-9 text-sm"
-                            required={isVisaOrMastercard}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.phone}</label>
-                          <Input
-                            placeholder={tLocal.phonePlaceholder}
-                            value={cardPhone}
-                            onChange={(e) => setCardPhone(e.target.value)}
-                            className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono h-9 text-sm"
-                          />
-                        </div>
-                      </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-slate-400 uppercase">
+                                {tLocal.cardholderName}
+                              </label>
+                              <Input
+                                placeholder="JOHN DOE"
+                                value={cardName}
+                                onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                                className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 h-9 text-sm"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.phone}</label>
+                              <Input
+                                placeholder={tLocal.phonePlaceholder}
+                                value={cardPhone}
+                                onChange={(e) => setCardPhone(e.target.value)}
+                                className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono h-9 text-sm"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.expiryDate}</label>
+                              <Input
+                                placeholder="MM/YY"
+                                value={expiry}
+                                onChange={(e) => handleExpiryChange(e.target.value)}
+                                maxLength={5}
+                                className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono text-center h-9 text-sm"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-slate-400 uppercase">{tLocal.phone}</label>
+                              <Input
+                                placeholder={tLocal.phonePlaceholder}
+                                value={cardPhone}
+                                onChange={(e) => setCardPhone(e.target.value)}
+                                className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 font-mono h-9 text-sm"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-xs font-semibold text-slate-400 uppercase">
+                              {tLocal.cardholderOptional}
+                            </label>
+                            <Input
+                              placeholder="JOHN DOE"
+                              value={cardName}
+                              onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                              className="bg-slate-950/40 border-slate-800/80 text-white placeholder:text-slate-700 h-9 text-sm"
+                            />
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <Button
