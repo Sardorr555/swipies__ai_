@@ -1240,7 +1240,7 @@ export default {
       api: 'API',
       referral: 'Реферальная программа',
       subscription: 'Подписка',
-      license: 'Лицензия и Оплата',
+      license: 'Лицензия (Self-Hosted)',
       username: 'Имя',
       usernameMessage: 'Пожалуйста, введите ваше имя!',
       photo: 'Ваше фото',

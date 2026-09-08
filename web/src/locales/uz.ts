@@ -751,7 +751,7 @@ export default {
       api: 'API',
       referral: 'Referal dasturi',
       subscription: 'Obuna',
-      license: "Litsenziya va To'lov",
+      license: 'Litsenziya (Self-Hosted)',
       username: 'Ism',
       usernameMessage: 'Foydalanuvchi nomini kiriting!',
       photo: 'Sizning rasmingiz',
