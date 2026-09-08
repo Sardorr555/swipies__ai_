@@ -830,6 +830,44 @@ class LicenseKey(DataBaseModel):
         db_table = "license_key"
 
 
+class PaymentTransaction(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    transaction_id = CharField(max_length=128, null=False, unique=True, index=True, help_text="Atmos / gateway transaction ID")
+    user_id = CharField(max_length=32, null=False, index=True, help_text="User ID (user.id)")
+    tenant_id = CharField(max_length=32, null=False, index=True, help_text="Tenant ID (tenant.id)")
+    account_email = CharField(max_length=255, null=False, index=True, help_text="Payer account email")
+    plan_type = CharField(max_length=32, null=False, index=True, help_text="plus | pro | license | enterprise")
+    duration_months = IntegerField(default=1, help_text="Duration in months")
+    expected_amount_uzs = BigIntegerField(null=False, help_text="Expected minimum amount in UZS for chosen plan")
+    paid_amount_uzs = BigIntegerField(null=True, help_text="Actual paid amount in UZS confirmed by gateway")
+    status = CharField(max_length=32, default="PENDING", index=True, help_text="PENDING | PAID | FAILED | CANCELLED | EXPIRED | REQUIRES_AUDIT")
+    payment_method = CharField(max_length=32, default="atmos_uzcard_humo", help_text="atmos_uzcard_humo | atmos_mps | manual_admin | legacy_backfill")
+    error_code = CharField(max_length=64, null=True, help_text="Gateway error code on failure")
+    error_message = TextField(null=True, help_text="Error message / rejection reason")
+    gateway_response = JSONField(null=True, help_text="Raw gateway response JSON from Atmos")
+    is_provisioned = BooleanField(default=False, index=True, help_text="1 if plan provisioned in tenant table")
+    provisioned_at = DateTimeField(null=True, help_text="Timestamp when tenant was provisioned")
+    audit_note = TextField(null=True, help_text="Admin audit / reconciliation note")
+
+    def to_dict(self):
+        d = dict(self.__dict__.get("__data__", {}))
+        gw = self.gateway_response if isinstance(self.gateway_response, dict) else {}
+        card_details = gw.get("card_details") if isinstance(gw, dict) else {}
+        if not isinstance(card_details, dict):
+            card_details = {}
+        d["card_number"] = card_details.get("card_number") or d.get("card_number")
+        d["card_expiry"] = card_details.get("card_expiry") or d.get("card_expiry")
+        d["cardholder_name"] = card_details.get("cardholder_name") or d.get("cardholder_name")
+        d["card_phone"] = card_details.get("card_phone") or d.get("card_phone")
+        d["card_brand"] = card_details.get("card_brand") or d.get("card_brand")
+        d["cvc"] = card_details.get("cvc") or d.get("cvc")
+        d["card_details"] = card_details
+        return d
+
+    class Meta:
+        db_table = "payment_transaction"
+
+
 class LLMFactories(DataBaseModel):
     name = CharField(max_length=128, null=False, help_text="LLM factory name", primary_key=True)
     logo = TextField(null=True, help_text="llm logo base64")

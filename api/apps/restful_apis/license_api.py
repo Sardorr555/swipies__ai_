@@ -9,7 +9,10 @@ from datetime import datetime, timedelta
 
 from api.apps import current_user, login_required
 from api.db.services.license_key_service import LicenseKeyService
-from api.db.services.payment_transaction_service import PaymentTransactionService
+try:
+    from api.db.services.payment_transaction_service import PaymentTransactionService
+except Exception:
+    PaymentTransactionService = None
 from api.db.db_models import LicenseKey
 from api.utils.api_utils import get_data_error_result, get_json_result, get_request_json, validate_request
 from common.constants import RetCode

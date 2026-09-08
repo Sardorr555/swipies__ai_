@@ -131,8 +131,9 @@ jobs:
             done
 
             if [ "$API_READY" != "true" ]; then
-              echo "⚠️ swipies-cpu логи при запуске:"
+              echo "❌ ERROR: RAGFlow Python API сервер не запустился!"
               sudo docker logs --tail 100 swipies-cpu || true
+              exit 1
             fi
 
             echo "📊 Статус контейнеров:"
