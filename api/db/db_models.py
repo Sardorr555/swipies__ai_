@@ -852,6 +852,12 @@ class PaymentTransaction(DataBaseModel):
     is_provisioned = BooleanField(default=False, index=True, help_text="1 if plan provisioned in tenant table")
     provisioned_at = DateTimeField(null=True, help_text="Timestamp when tenant was provisioned")
     audit_note = TextField(null=True, help_text="Admin audit / reconciliation note")
+    session_id = CharField(max_length=64, null=True, index=True, help_text="Track 3 client session attribution token")
+    utm_source = CharField(max_length=64, null=True, index=True, help_text="Marketing source")
+    utm_medium = CharField(max_length=64, null=True, index=True, help_text="Marketing medium")
+    utm_campaign = CharField(max_length=128, null=True, index=True, help_text="Marketing campaign")
+    utm_content = CharField(max_length=128, null=True, help_text="Marketing content")
+    utm_term = CharField(max_length=128, null=True, help_text="Marketing search term")
 
     class Meta:
         db_table = "payment_transaction"

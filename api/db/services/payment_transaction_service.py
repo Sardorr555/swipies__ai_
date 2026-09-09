@@ -86,6 +86,12 @@ class PaymentTransactionService(CommonService):
         duration_months: int = 1,
         expected_amount_uzs: int = None,
         payment_method: str = "atmos_uzcard_humo",
+        session_id: str = None,
+        utm_source: str = None,
+        utm_medium: str = None,
+        utm_campaign: str = None,
+        utm_content: str = None,
+        utm_term: str = None,
     ):
         """Idempotently create or retrieve an initiated PENDING transaction record.
 
@@ -116,6 +122,12 @@ class PaymentTransactionService(CommonService):
             "payment_method": str(payment_method or "atmos_uzcard_humo"),
             "is_provisioned": False,
             "provisioned_at": None,
+            "session_id": session_id,
+            "utm_source": utm_source,
+            "utm_medium": utm_medium,
+            "utm_campaign": utm_campaign,
+            "utm_content": utm_content,
+            "utm_term": utm_term,
             "create_time": current_timestamp(),
             "create_date": datetime_format(datetime.now()),
             "update_time": current_timestamp(),

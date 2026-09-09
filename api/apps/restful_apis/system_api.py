@@ -17,6 +17,7 @@
 import json
 import logging
 import os
+import re
 import base64
 import httpx
 from datetime import datetime, timedelta
@@ -569,10 +570,10 @@ async def system_provision():
 
 
 def check_system_api_auth() -> bool:
-    """Verifies that the request provides Authorization: Bearer <RAGFLOW_API_KEY>."""
+    """Verifies that the request provides Authorization: Bearer <RAGFLOW_API_KEY> or <RAGFLOW_SECRET_KEY>."""
     auth_header = request.headers.get("Authorization", "").strip()
     token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else auth_header
-    expected_key = os.getenv("RAGFLOW_API_KEY", "").strip()
+    expected_key = (os.getenv("RAGFLOW_API_KEY") or os.getenv("RAGFLOW_SECRET_KEY", "")).strip()
     if not expected_key or token != expected_key:
         return False
     return True
@@ -682,6 +683,16 @@ async def system_payment_init():
     months = max(1, int(req.get("months", 1)))
     payment_method = str(req.get("payment_method", "atmos_uzcard_humo")).strip()
 
+    # Track 3: Route-level attribution metadata sanitization (OUTSIDE DB transactions)
+    raw_session_id = req.get("session_id")
+    raw_utm = req.get("utm") or {}
+    clean_session_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(raw_session_id))[:64] if raw_session_id else None
+    clean_utm_source = re.sub(r'[^a-zA-Z0-9_\-\.]', '', str(raw_utm.get('utm_source', '')))[:64] or None
+    clean_utm_medium = re.sub(r'[^a-zA-Z0-9_\-\.]', '', str(raw_utm.get('utm_medium', '')))[:64] or None
+    clean_utm_campaign = re.sub(r'[^a-zA-Z0-9_\-\.]', '', str(raw_utm.get('utm_campaign', '')))[:128] or None
+    clean_utm_content = re.sub(r'[^a-zA-Z0-9_\-\.]', '', str(raw_utm.get('utm_content', '')))[:128] or None
+    clean_utm_term = re.sub(r'[^a-zA-Z0-9_\-\.]', '', str(raw_utm.get('utm_term', '')))[:128] or None
+
     if not transaction_id or not email:
         return get_data_error_result(message="transaction_id and email are required")
 
@@ -702,6 +713,12 @@ async def system_payment_init():
         duration_months=months,
         expected_amount_uzs=expected_amount,
         payment_method=payment_method,
+        session_id=clean_session_id,
+        utm_source=clean_utm_source,
+        utm_medium=clean_utm_medium,
+        utm_campaign=clean_utm_campaign,
+        utm_content=clean_utm_content,
+        utm_term=clean_utm_term,
     )
 
     return get_json_result(data={"success": True, "created": is_created, "transaction": tx.to_dict()})
