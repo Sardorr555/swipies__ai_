@@ -22,9 +22,7 @@ import {
   Sparkles, 
   Server, 
   RefreshCw, 
-  Calendar, 
-  ChevronDown, 
-  ChevronUp 
+  Calendar 
 } from 'lucide-react';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import { 
@@ -68,9 +66,7 @@ const LicensePurchasePage = () => {
   const [licenses, setLicenses] = useState<LicenseItem[]>([]);
   const [loadingLicenses, setLoadingLicenses] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [copiedDockerId, setCopiedDockerId] = useState<string | null>(null);
   const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
-  const [showGuide, setShowGuide] = useState(false);
 
   // Rename state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -113,14 +109,6 @@ const LicensePurchasePage = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleCopyDockerSnippet = (key: string, id: string) => {
-    if (!key) return;
-    const snippet = `RAGFLOW_LICENSE_KEY="${key}"`;
-    navigator.clipboard.writeText(snippet);
-    setCopiedDockerId(id);
-    message.success(t('envCopied', { defaultValue: 'Переменная для docker/.env скопирована!' }));
-    setTimeout(() => setCopiedDockerId(null), 2000);
-  };
 
   const handleDownloadKey = (key: string, name: string) => {
     if (!key) return;
@@ -529,31 +517,6 @@ const LicensePurchasePage = () => {
                       </div>
                     </div>
 
-                    {/* Quick Docker Activation Snippet */}
-                    {lic.license_key && (
-                      <div className="bg-bg-base/40 rounded-xl border border-border-default/50 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2 text-text-secondary truncate">
-                          <span className="text-slate-400 font-medium">{t('forEnv', { defaultValue: 'Для .env:' })}</span>
-                          <code className="font-mono text-[11px] text-slate-300 truncate max-w-sm sm:max-w-md">
-                            RAGFLOW_LICENSE_KEY="{lic.license_key.slice(0, 24)}..."
-                          </code>
-                        </div>
-                        <button
-                          onClick={() => handleCopyDockerSnippet(lic.license_key, lic.id)}
-                          className="text-[11px] text-accent-primary hover:underline flex items-center gap-1 shrink-0 font-medium cursor-pointer"
-                        >
-                          {copiedDockerId === lic.id ? (
-                            <>
-                              <Check size={12} className="text-emerald-400" /> {t('copiedToClipboard', { defaultValue: 'Скопировано в буфер' })}
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={12} /> {t('copyEnvSnippet', { defaultValue: 'Скопировать строку для .env' })}
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
 
                     {/* Footer Info: Expiry progress & Details */}
                     <div className="pt-2 border-t border-border-default/50 space-y-2">
@@ -597,61 +560,7 @@ const LicensePurchasePage = () => {
           )}
         </div>
 
-        {/* SECTION 2: HOW TO ACTIVATE GUIDE ACCORDION */}
-        <div className="rounded-2xl border border-border-default bg-bg-card/25 backdrop-blur-md overflow-hidden">
-          <button
-            onClick={() => setShowGuide(!showGuide)}
-            className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-bg-card/40 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
-                <Terminal size={18} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-text-primary">{t('guideTitle', { defaultValue: 'Инструкция по активации на вашем сервере' })}</h4>
-                <p className="text-xs text-text-secondary">{t('guideSubtitle', { defaultValue: 'Как применить ключ в Docker Compose за 1 минуту' })}</p>
-              </div>
-            </div>
-            <div className="text-text-secondary">
-              {showGuide ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-            </div>
-          </button>
-
-          {showGuide && (
-            <div className="p-5 pt-0 border-t border-border-default/50 space-y-4 text-xs text-text-secondary leading-relaxed">
-              <div className="space-y-2 mt-4">
-                <p className="font-semibold text-text-primary">{t('step1Title', { defaultValue: '1. Добавьте ключ в конфигурацию Docker:' })}</p>
-                <div className="bg-slate-950 p-3 rounded-xl font-mono text-[11px] text-slate-300 border border-slate-800">
-                  {t('step1Comment', { defaultValue: '# В файле docker/.env вашего репозитория добавьте:' })}<br />
-                  <span className="text-indigo-400">RAGFLOW_LICENSE_KEY</span>="{t('yourKeyPlaceholder', { defaultValue: '<ВАШ_СКОПИРОВАННЫЙ_КЛЮЧ>' })}"
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="font-semibold text-text-primary">{t('step2Title', { defaultValue: '2. Перезапустите контейнеры приложения:' })}</p>
-                <div className="bg-slate-950 p-3 rounded-xl font-mono text-[11px] text-slate-300 border border-slate-800 flex items-center justify-between">
-                  <span>docker compose down && docker compose up -d</span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText('docker compose down && docker compose up -d');
-                      message.success(t('commandCopied', { defaultValue: 'Команда скопирована' }));
-                    }}
-                    className="text-indigo-400 hover:text-indigo-300 p-1 cursor-pointer"
-                    title={t('copyCommand', { defaultValue: 'Скопировать команду' })}
-                  >
-                    <Copy size={13} />
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-slate-400 pt-1">
-                {t('guideNote', { defaultValue: 'Ключ проверяется офлайн встроенной криптографической библиотекой. Подключение сервера к интернету для валидации лицензии не требуется.' })}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* SECTION 3: PURCHASE NEW LICENSE KEY (BALANCED 2-COLUMN GRID) */}
+        {/* SECTION 2: PURCHASE NEW LICENSE KEY (BALANCED 2-COLUMN GRID) */}
         <div className="space-y-5 pt-2">
           <div className="space-y-1">
             <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
