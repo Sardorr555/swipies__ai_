@@ -121,12 +121,30 @@ async def login():
     user = UserService.query_user(email, password)
 
     if user and hasattr(user, "is_active") and user.is_active == "0":
-        logging.warning("Login failed: unactivated or disabled account for user_id=%s", user.id)
-        return get_json_result(
-            data={"email": email, "requires_activation": True},
-            code=RetCode.FORBIDDEN,
-            message="Your account is not activated yet. Please enter the 6-digit code sent to your email.",
-        )
+        email_verification_enabled = os.environ.get("EMAIL_VERIFICATION_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
+        if not email_verification_enabled:
+            UserService.update_by_id(user.id, {"is_active": "1", "status": "1"})
+            user.is_active = "1"
+            user.status = "1"
+            user.save()
+            user.access_token = get_uuid()
+            login_user(user)
+            user.last_login_time = get_format_time()
+            user.update_time = current_timestamp()
+            user.update_date = datetime_format(datetime.now())
+            user.save()
+            return await construct_response(
+                data=user.to_safe_dict(for_self=True),
+                auth=user.get_id(),
+                message=f"Welcome {user.nickname}!",
+            )
+        else:
+            logging.warning("Login failed: unactivated or disabled account for user_id=%s", user.id)
+            return get_json_result(
+                data={"email": email, "requires_activation": True},
+                code=RetCode.FORBIDDEN,
+                message="Your account is not activated yet. Please enter the 6-digit code sent to your email.",
+            )
     elif user:
         user.access_token = get_uuid()
         login_user(user)
@@ -752,6 +770,8 @@ async def user_add():
             code=RetCode.OPERATING_ERROR,
         )
 
+    email_verification_enabled = os.environ.get("EMAIL_VERIFICATION_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
+
     user_dict = {
         "access_token": get_uuid(),
         "email": email_address,
@@ -761,8 +781,8 @@ async def user_add():
         "login_channel": "password",
         "last_login_time": get_format_time(),
         "is_superuser": False,
-        "is_active": "0",
-        "status": "0",
+        "is_active": "1" if not email_verification_enabled else "0",
+        "status": "1" if not email_verification_enabled else "0",
         "referred_by_id": resolved_referrer_id
     }
 
@@ -774,6 +794,14 @@ async def user_add():
         if len(users) > 1:
             raise Exception(f"Same email: {email_address} exists!")
         user = users[0]
+
+        if not email_verification_enabled:
+            login_user(user)
+            return await construct_response(
+                data=user.to_safe_dict(for_self=True),
+                auth=user.get_id(),
+                message=f"{nickname}, welcome aboard!",
+            )
 
         # Generate 6-digit numeric activation code
         code = "".join(secrets.choice(string.digits) for _ in range(6))

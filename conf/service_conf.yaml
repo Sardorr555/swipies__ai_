@@ -155,7 +155,7 @@ smtp:
   mail_use_ssl: true
   mail_use_tls: false
   mail_username: "resend"
-  mail_password: "re_ehsSs9YJ_7nu25RSCSRP3tNCJRJSS5h7y"
+  mail_password: ""
   mail_default_sender:
     - "Swipies AI"
     - "noreply@swipies.app"
