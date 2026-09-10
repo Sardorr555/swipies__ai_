@@ -234,15 +234,16 @@ async def send_email_html(to_email: str, subject: str, template_key: str, **cont
         msg["Subject"] = Header(subject, "utf-8")
 
         # Base SMTP settings from settings module & env vars
-        server = os.environ.get("SMTP_SERVER", settings.MAIL_SERVER)
+        server = os.environ.get("SMTP_SERVER", getattr(settings, "MAIL_SERVER", ""))
         port_env = os.environ.get("SMTP_PORT", "")
-        port = int(port_env) if port_env.isdigit() else (settings.MAIL_PORT or 587)
-        username = os.environ.get("SMTP_USERNAME", settings.MAIL_USERNAME)
-        password = os.environ.get("SMTP_PASSWORD", settings.MAIL_PASSWORD)
-        use_ssl = getattr(settings, "MAIL_USE_SSL", False)
-        use_tls = getattr(settings, "MAIL_USE_TLS", True)
+        port = int(port_env) if port_env.isdigit() else (getattr(settings, "MAIL_PORT", 587) or 587)
+        username = os.environ.get("SMTP_USERNAME", getattr(settings, "MAIL_USERNAME", ""))
+        password = os.environ.get("SMTP_PASSWORD", getattr(settings, "MAIL_PASSWORD", ""))
+        use_ssl = os.environ.get("SMTP_USE_SSL", "").lower() in ("1", "true", "yes") if os.environ.get("SMTP_USE_SSL") else getattr(settings, "MAIL_USE_SSL", False)
+        use_tls = os.environ.get("SMTP_USE_TLS", "").lower() in ("1", "true", "yes") if os.environ.get("SMTP_USE_TLS") else getattr(settings, "MAIL_USE_TLS", True)
         sender_env = os.environ.get("SMTP_SENDER", "")
-        sender = ("Swipies AI", sender_env) if sender_env else getattr(settings, "MAIL_DEFAULT_SENDER", ())
+        sender_name_env = os.environ.get("SMTP_SENDER_NAME", "Swipies AI")
+        sender = (sender_name_env, sender_env) if sender_env else getattr(settings, "MAIL_DEFAULT_SENDER", ("Swipies AI", "noreply@swipies.app"))
 
         # Try override from SystemSettings DB table if available
         try:
@@ -268,13 +269,16 @@ async def send_email_html(to_email: str, subject: str, template_key: str, **cont
 
         code_info = context.get("code")
         if code_info:
-            logging.info("=== [ACTIVATION CODE FOR %s]: %s ===", to_email, code_info)
+            logging.info("=== [ACTIVATION OTP CODE FOR %s]: %s ===", to_email, code_info)
 
-        # Resend API Key fallback
-        resend_key = os.environ.get("RESEND_API_KEY", "re_ehsSs9YJ_7nu25RSCSRP3tNCJRJSS5h7y")
-        active_key = password if (password and str(password).startswith("re_")) else resend_key
+        sender_name = sender[0] if isinstance(sender, (tuple, list)) and len(sender) > 0 else "Swipies AI"
+        sender_addr = sender[1] if isinstance(sender, (tuple, list)) and len(sender) > 1 else (username or "noreply@swipies.app")
 
-        # High-performance Resend HTTP API Dispatcher (Always executes if Resend Key is available)
+        # Resend API Key: prioritize environment variable RESEND_API_KEY, or password if starting with re_
+        resend_key = os.environ.get("RESEND_API_KEY", "").strip()
+        active_key = resend_key or (str(password).strip() if (password and str(password).strip().startswith("re_")) else "")
+
+        # High-performance Resend HTTP API Dispatcher (Executes if valid Resend Key is available)
         if active_key:
             resend_api_url = "https://api.resend.com/emails"
             headers = {
@@ -282,7 +286,7 @@ async def send_email_html(to_email: str, subject: str, template_key: str, **cont
                 "Content-Type": "application/json",
             }
             payload = {
-                "from": "Swipies AI <noreply@swipies.app>",
+                "from": f"{sender_name} <{sender_addr if '@' in sender_addr else 'noreply@swipies.app'}>",
                 "to": [to_email],
                 "subject": subject,
                 "html": body,
@@ -294,9 +298,11 @@ async def send_email_html(to_email: str, subject: str, template_key: str, **cont
                 if resp.status_code in (200, 201):
                     logging.info("Email successfully dispatched to %s via Resend API", to_email)
                     return True
+                elif resp.status_code in (400, 401, 403) and "invalid" in resp.text.lower():
+                    logging.error("Resend API Key is invalid: %s. Falling back to SMTP...", resp.text)
                 else:
                     logging.warning("Resend API primary sender notice: %s. Trying onboarding fallback...", resp.text)
-                    payload["from"] = "Swipies AI <onboarding@resend.dev>"
+                    payload["from"] = f"{sender_name} <onboarding@resend.dev>"
                     resp_fb = requests.post(resend_api_url, json=payload, headers=headers, timeout=10)
                     logging.info("Resend API fallback response [%s]: %s", resp_fb.status_code, resp_fb.text)
                     if resp_fb.status_code in (200, 201):
@@ -306,6 +312,11 @@ async def send_email_html(to_email: str, subject: str, template_key: str, **cont
                         logging.error("Resend API fallback notice: %s", resp_fb.text)
             except Exception as resend_err:
                 logging.error("Resend API request exception: %s", resend_err)
+
+        # If SMTP server is not set or empty, skip SMTP attempt
+        if not server:
+            logging.warning("No SMTP server configured. Email to %s could not be sent.", to_email)
+            return False
 
         msg["From"] = f"{sender_name} <{sender_addr}>"
         msg["To"] = to_email
