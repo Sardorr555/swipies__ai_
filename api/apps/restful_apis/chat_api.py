@@ -410,9 +410,23 @@ async def create():
             #     return get_data_error_result(message=err)
 
         req.setdefault("kb_ids", [])
-        req.setdefault("llm_id", tenant.llm_id)
-        if req["llm_id"] is None:
+        if not req.get("llm_id"):
             req["llm_id"] = tenant.llm_id
+        if not req.get("llm_id"):
+            try:
+                from api.db.services.global_instance_service import GlobalInstanceService
+                g_stats = GlobalInstanceService.get_instance_stats()
+                req["llm_id"] = g_stats.get("default_chat_model") or g_stats.get("default_free_model_id") or settings.CHAT_MDL
+            except Exception:
+                req["llm_id"] = getattr(settings, "CHAT_MDL", "")
+        if req.get("llm_id"):
+            try:
+                from api.apps.services.models_api_service import parse_and_resolve_model_components
+                m, inst, p = parse_and_resolve_model_components(req["llm_id"], "chat")
+                if m and p:
+                    req["llm_id"] = f"{m}@{inst or 'default'}@{p}"
+            except Exception:
+                pass
         req.setdefault("llm_setting", {})
         req.setdefault("description", "A helpful Assistant")
         req.setdefault("top_n", 6)
