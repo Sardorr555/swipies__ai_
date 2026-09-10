@@ -401,10 +401,29 @@ class AIPolicyManager:
 
     @classmethod
     @DB.connection_context()
+    def get_user_daily_tokens_used(cls, user_id: str, date_str: str = None) -> int:
+        if not date_str:
+            date_str = cls.get_current_date_str()
+        res = (
+            TokenUsageLog.select(fn.SUM(TokenUsageLog.total_tokens))
+            .where(TokenUsageLog.user_id == user_id, TokenUsageLog.date_str == date_str)
+            .scalar()
+        )
+        return int(res or 0)
+
+    @classmethod
+    @DB.connection_context()
     def get_tenant_daily_requests_used(cls, tenant_id: str, date_str: str = None) -> int:
         if not date_str:
             date_str = cls.get_current_date_str()
         return TokenUsageLog.select().where(TokenUsageLog.tenant_id == tenant_id, TokenUsageLog.date_str == date_str).count()
+
+    @classmethod
+    @DB.connection_context()
+    def get_user_daily_requests_used(cls, user_id: str, date_str: str = None) -> int:
+        if not date_str:
+            date_str = cls.get_current_date_str()
+        return TokenUsageLog.select().where(TokenUsageLog.user_id == user_id, TokenUsageLog.date_str == date_str).count()
 
     @classmethod
     @DB.connection_context()
@@ -681,21 +700,33 @@ class AIPolicyManager:
             if user_limit_obj and user_limit_obj.monthly_token_limit > 0:
                 monthly_token_limit = user_limit_obj.monthly_token_limit
                 is_user_override = True
+                ul_extra = user_limit_obj.extra if isinstance(user_limit_obj.extra, dict) else (json.loads(user_limit_obj.extra) if user_limit_obj.extra else {})
+                if ul_extra.get("daily_token_limit"):
+                    daily_token_limit = int(ul_extra["daily_token_limit"])
+                elif monthly_token_limit > plan.get("monthly_token_limit", 1000000):
+                    # Proportional daily limit scaling if admin increased monthly limit
+                    scale = monthly_token_limit / max(1, plan.get("monthly_token_limit", 1000000))
+                    daily_token_limit = int(daily_token_limit * scale)
 
             # 1. Total monthly token quota check
             monthly_used = cls.get_user_total_tokens_used(target_user_id) if (is_user_override and target_user_id) else cls.get_tenant_total_tokens_used(tenant_id)
             if monthly_token_limit > 0 and monthly_used >= monthly_token_limit:
-                msg = f"Monthly AI token limit reached ({monthly_used:,} / {monthly_token_limit:,}). Upgrade to PLUS or PRO to continue using AI."
+                if plan_id == "plus":
+                    msg = f"Monthly AI token limit reached ({monthly_used:,} / {monthly_token_limit:,}). Upgrade to PRO to continue using AI."
+                elif plan_id in ["pro", "enterprise"]:
+                    msg = f"Monthly AI token limit reached ({monthly_used:,} / {monthly_token_limit:,}). Contact administrator for Enterprise quota."
+                else:
+                    msg = f"Monthly AI token limit reached ({monthly_used:,} / {monthly_token_limit:,}). Upgrade to PLUS or PRO to continue using AI."
                 return False, msg, 429, "QUOTA_EXCEEDED"
 
             # 2. Daily token quota check
-            daily_used = cls.get_tenant_daily_tokens_used(tenant_id)
+            daily_used = cls.get_user_daily_tokens_used(target_user_id) if (is_user_override and target_user_id) else cls.get_tenant_daily_tokens_used(tenant_id)
             if daily_token_limit > 0 and daily_used >= daily_token_limit:
                 msg = f"Daily AI token limit reached ({daily_used:,} / {daily_token_limit:,}). Upgrade your plan to increase limits."
                 return False, msg, 429, "QUOTA_EXCEEDED"
 
             # 3. Daily request quota check
-            daily_req_count = cls.get_tenant_daily_requests_used(tenant_id)
+            daily_req_count = cls.get_user_daily_requests_used(target_user_id) if (is_user_override and target_user_id) else cls.get_tenant_daily_requests_used(tenant_id)
             if daily_request_limit > 0 and daily_req_count >= daily_request_limit:
                 msg = f"Daily AI request limit reached ({daily_req_count:,} / {daily_request_limit:,})."
                 return False, msg, 429, "QUOTA_EXCEEDED"
@@ -840,13 +871,27 @@ class AIPolicyManager:
         monthly_limit = plan.get("monthly_token_limit", 1000000)
         daily_limit = plan.get("daily_token_limit", 50000)
 
+        is_user_override = False
         if user_id:
             user_limits = UserTokenLimitService.query(user_id=user_id, enabled=True)
             if user_limits and user_limits[0].monthly_token_limit > 0:
                 monthly_limit = user_limits[0].monthly_token_limit
+                is_user_override = True
+                ul_extra = user_limits[0].extra if isinstance(user_limits[0].extra, dict) else (json.loads(user_limits[0].extra) if user_limits[0].extra else {})
+                if ul_extra.get("daily_token_limit"):
+                    daily_limit = int(ul_extra["daily_token_limit"])
+                elif monthly_limit > plan.get("monthly_token_limit", 1000000):
+                    scale = monthly_limit / max(1, plan.get("monthly_token_limit", 1000000))
+                    daily_limit = int(daily_limit * scale)
 
-        monthly_used = cls.get_tenant_total_tokens_used(tenant_id, period)
-        daily_used = cls.get_tenant_daily_tokens_used(tenant_id, date_str)
+        monthly_used = cls.get_user_total_tokens_used(user_id, period) if (is_user_override and user_id) else cls.get_tenant_total_tokens_used(tenant_id, period)
+        if not monthly_used and user_id:
+            monthly_used = cls.get_user_total_tokens_used(user_id, period)
+
+        daily_used = cls.get_user_daily_tokens_used(user_id, date_str) if (is_user_override and user_id) else cls.get_tenant_daily_tokens_used(tenant_id, date_str)
+        if not daily_used and user_id:
+            daily_used = cls.get_user_daily_tokens_used(user_id, date_str)
+
         percentage = round((monthly_used / monthly_limit) * 100, 1) if monthly_limit > 0 else 0
 
         # Model breakdown for current billing period

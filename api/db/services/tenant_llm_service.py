@@ -282,7 +282,7 @@ class TenantLLMService(CommonService):
 
         # Model name has no @: auto-detect factory from FACTORY_LLM_INFOS
         try:
-            for factory in settings.FACTORY_LLM_INFOS:
+            for factory in (settings.FACTORY_LLM_INFOS or []):
                 for llm in factory.get("llm", []):
                     if llm.get("llm_name") == model_name:
                         return model_name, factory.get("name")
@@ -696,6 +696,18 @@ class LLM4Tenant:
         self.user_id = kwargs.pop("user_id", None)
         self.llm_name = model_config["llm_name"]
         self.model_config = model_config
+
+        if tenant_id and tenant_id != "system":
+            from api.db.services.ai_policy_service import AIPolicyManager
+            allowed, policy_msg, status_code = AIPolicyManager.check_model_access(
+                tenant_id=tenant_id,
+                model_name=self.llm_name,
+                model_type=model_config.get("model_type"),
+                user_id=self.user_id,
+            )
+            if not allowed:
+                raise LookupError(f"[{status_code}] {policy_msg}")
+
         self.mdl = TenantLLMService.model_instance(model_config, lang=lang, **kwargs)
         assert self.mdl, "Can't find model for {}/{}/{}".format(tenant_id, model_config["model_type"], model_config["llm_name"])
         try:
