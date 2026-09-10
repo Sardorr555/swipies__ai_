@@ -700,8 +700,13 @@ class AIPolicyManager:
             if user_limit_obj and user_limit_obj.monthly_token_limit > 0:
                 monthly_token_limit = user_limit_obj.monthly_token_limit
                 is_user_override = True
-                ul_extra = user_limit_obj.extra if isinstance(user_limit_obj.extra, dict) else (json.loads(user_limit_obj.extra) if user_limit_obj.extra else {})
-                if ul_extra.get("daily_token_limit"):
+                ul_extra = getattr(user_limit_obj, "extra", {}) or {}
+                if isinstance(ul_extra, str):
+                    try:
+                        ul_extra = json.loads(ul_extra)
+                    except Exception:
+                        ul_extra = {}
+                if isinstance(ul_extra, dict) and ul_extra.get("daily_token_limit"):
                     daily_token_limit = int(ul_extra["daily_token_limit"])
                 elif monthly_token_limit > plan.get("monthly_token_limit", 1000000):
                     # Proportional daily limit scaling if admin increased monthly limit
@@ -877,8 +882,13 @@ class AIPolicyManager:
             if user_limits and user_limits[0].monthly_token_limit > 0:
                 monthly_limit = user_limits[0].monthly_token_limit
                 is_user_override = True
-                ul_extra = user_limits[0].extra if isinstance(user_limits[0].extra, dict) else (json.loads(user_limits[0].extra) if user_limits[0].extra else {})
-                if ul_extra.get("daily_token_limit"):
+                ul_extra = getattr(user_limits[0], "extra", {}) or {}
+                if isinstance(ul_extra, str):
+                    try:
+                        ul_extra = json.loads(ul_extra)
+                    except Exception:
+                        ul_extra = {}
+                if isinstance(ul_extra, dict) and ul_extra.get("daily_token_limit"):
                     daily_limit = int(ul_extra["daily_token_limit"])
                 elif monthly_limit > plan.get("monthly_token_limit", 1000000):
                     scale = monthly_limit / max(1, plan.get("monthly_token_limit", 1000000))
