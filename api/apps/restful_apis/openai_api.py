@@ -282,6 +282,16 @@ async def openai_chat_completions(chat_id):
             return get_error_data_result(message=f"Cannot use specified model {requested_model}.")
     merge_generation_config(dia, extract_generation_config(req))
 
+    from api.db.services.ai_policy_service import AIPolicyManager
+    allowed, policy_msg, status_code, err_code = AIPolicyManager.check_model_access_extended(
+        tenant_id=dia.tenant_id or current_user.id,
+        model_name=requested_model or dia.llm_id,
+        model_type=LLMType.CHAT,
+        user_id=current_user.id,
+    )
+    if not allowed:
+        return get_error_data_result(message=policy_msg, code=status_code)
+
     metadata_condition = extra_body.get("metadata_condition") or {}
     if metadata_condition and not isinstance(metadata_condition, dict):
         return get_error_data_result(message="metadata_condition must be an object.")

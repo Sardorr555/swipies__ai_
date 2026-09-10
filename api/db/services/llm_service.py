@@ -62,24 +62,47 @@ class LLMBundle(LLM4Tenant):
         if hasattr(self.mdl, "last_usage"):
             self.mdl.last_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-    def _report_usage(self, total_tokens: int) -> dict:
+    def _report_usage(self, total_tokens: int, ans: str = "") -> dict:
         """Record a chat call's usage to the active agent run and return the
-        prompt/completion/total split for Langfuse.
-
-        ``total_tokens`` is the authoritative total from the call. The prompt/completion
-        split is taken from the provider response (``mdl.last_usage``) only when it is
-        consistent with ``total_tokens`` (i.e. produced by this same call); otherwise the
-        split is reported as 0 while the total still aggregates correctly.
+        prompt/completion/total split for Langfuse. Also centrally logs tokens
+        to AIPolicyManager for quota and subscription tracking.
         """
         split = getattr(self.mdl, "last_usage", None) or {}
         prompt = int(split.get("prompt_tokens", 0) or 0)
         completion = int(split.get("completion_tokens", 0) or 0)
         if not total_tokens:
             total_tokens = int(split.get("total_tokens", 0) or 0)
-        if (prompt + completion) != total_tokens:
-            # Stale or inconsistent split — keep the total, drop the unreliable split.
-            prompt, completion = 0, 0
+        if not total_tokens and ans:
+            completion = num_tokens_from_string(ans)
+            total_tokens = prompt + completion
+
+        if (prompt + completion) != total_tokens and total_tokens:
+            if not completion and ans:
+                completion = num_tokens_from_string(ans)
+                prompt = max(0, total_tokens - completion)
+            else:
+                prompt = 0
+                completion = total_tokens
+
         record_run_token_usage(prompt, completion, total_tokens)
+
+        # Central token usage logging for subscription quotas and limits
+        if total_tokens > 0 and self.tenant_id and self.tenant_id != "system":
+            try:
+                from api.db.services.ai_policy_service import AIPolicyManager
+                AIPolicyManager.record_token_usage(
+                    tenant_id=self.tenant_id,
+                    user_id=getattr(self, "user_id", None) or self.tenant_id,
+                    model_id=self.llm_name,
+                    model_type=self.model_config.get("model_type", "chat"),
+                    input_tokens=prompt,
+                    output_tokens=completion,
+                    total_tokens=total_tokens,
+                    provider_id=self.model_config.get("llm_factory"),
+                )
+            except Exception as e:
+                logging.debug("LLMBundle._report_usage AIPolicyManager logging warning: %s", e)
+
         return {"input": prompt, "output": completion, "total": total_tokens}
 
     def close(self):
@@ -142,6 +165,22 @@ class LLMBundle(LLM4Tenant):
         else:
             logging.info("LLMBundle.encode used_tokens: %d", used_tokens)
 
+        if used_tokens > 0 and self.tenant_id and self.tenant_id != "system":
+            try:
+                from api.db.services.ai_policy_service import AIPolicyManager
+                AIPolicyManager.record_token_usage(
+                    tenant_id=self.tenant_id,
+                    user_id=getattr(self, "user_id", None) or self.tenant_id,
+                    model_id=self.model_config.get("llm_name", "embedding"),
+                    model_type="embedding",
+                    input_tokens=used_tokens,
+                    output_tokens=0,
+                    total_tokens=used_tokens,
+                    provider_id=self.model_config.get("llm_factory"),
+                )
+            except Exception as e:
+                logging.debug("LLMBundle.encode AIPolicyManager logging warning: %s", e)
+
         if self.langfuse:
             generation.update(usage_details={"total_tokens": used_tokens})
             generation.end()
@@ -169,6 +208,22 @@ class LLMBundle(LLM4Tenant):
         else:
             logging.info("LLMBundle.encode_queries used_tokens: %d", used_tokens)
 
+        if used_tokens > 0 and self.tenant_id and self.tenant_id != "system":
+            try:
+                from api.db.services.ai_policy_service import AIPolicyManager
+                AIPolicyManager.record_token_usage(
+                    tenant_id=self.tenant_id,
+                    user_id=getattr(self, "user_id", None) or self.tenant_id,
+                    model_id=self.model_config.get("llm_name", "embedding"),
+                    model_type="embedding",
+                    input_tokens=used_tokens,
+                    output_tokens=0,
+                    total_tokens=used_tokens,
+                    provider_id=self.model_config.get("llm_factory"),
+                )
+            except Exception as e:
+                logging.debug("LLMBundle.encode_queries AIPolicyManager logging warning: %s", e)
+
         if self.langfuse:
             generation.update(usage_details={"total_tokens": used_tokens})
             generation.end()
@@ -183,6 +238,22 @@ class LLMBundle(LLM4Tenant):
 
         sim, used_tokens = self.mdl.similarity(query, texts)
         logging.info("LLMBundle.similarity used_tokens: %d", used_tokens)
+
+        if used_tokens > 0 and self.tenant_id and self.tenant_id != "system":
+            try:
+                from api.db.services.ai_policy_service import AIPolicyManager
+                AIPolicyManager.record_token_usage(
+                    tenant_id=self.tenant_id,
+                    user_id=getattr(self, "user_id", None) or self.tenant_id,
+                    model_id=self.model_config.get("llm_name", "rerank"),
+                    model_type="rerank",
+                    input_tokens=used_tokens,
+                    output_tokens=0,
+                    total_tokens=used_tokens,
+                    provider_id=self.model_config.get("llm_factory"),
+                )
+            except Exception as e:
+                logging.debug("LLMBundle.similarity AIPolicyManager logging warning: %s", e)
 
         if self.langfuse:
             generation.update(usage_details={"total_tokens": used_tokens})
@@ -444,7 +515,7 @@ class LLMBundle(LLM4Tenant):
         if used_tokens:
             logging.info("LLMBundle.async_chat used_tokens: %d", used_tokens)
 
-        usage_details = self._report_usage(used_tokens)
+        usage_details = self._report_usage(used_tokens, ans=txt)
 
         if generation:
             generation.update(output={"output": txt}, usage_details=usage_details)
@@ -496,7 +567,7 @@ class LLMBundle(LLM4Tenant):
                 raise
             if total_tokens:
                 logging.info("LLMBundle.async_chat_streamly used_tokens: %d", total_tokens)
-            usage_details = self._report_usage(total_tokens)
+            usage_details = self._report_usage(total_tokens, ans=ans)
             if generation:
                 generation.update(output={"output": ans}, usage_details=usage_details)
                 generation.end()
@@ -543,7 +614,7 @@ class LLMBundle(LLM4Tenant):
                 raise
             if total_tokens:
                 logging.info("LLMBundle.async_chat_streamly_delta used_tokens: %d", total_tokens)
-            usage_details = self._report_usage(total_tokens)
+            usage_details = self._report_usage(total_tokens, ans=ans)
             if generation:
                 generation.update(output={"output": ans}, usage_details=usage_details)
                 generation.end()

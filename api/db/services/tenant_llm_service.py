@@ -282,7 +282,7 @@ class TenantLLMService(CommonService):
 
         # Model name has no @: auto-detect factory from FACTORY_LLM_INFOS
         try:
-            for factory in settings.FACTORY_LLM_INFOS:
+            for factory in (settings.FACTORY_LLM_INFOS or []):
                 for llm in factory.get("llm", []):
                     if llm.get("llm_name") == model_name:
                         return model_name, factory.get("name")
@@ -692,9 +692,22 @@ class LLM4Tenant:
     def __init__(self, tenant_id: str, model_config: dict, lang="Chinese", **kwargs):
         self.trace_context = kwargs.pop("trace_context", None) or {}
         self.langfuse_session_id = kwargs.pop("langfuse_session_id", None)
+        self.user_id = kwargs.pop("user_id", None) or (model_config.get("user_id") if isinstance(model_config, dict) else None)
         self.tenant_id = tenant_id
         self.llm_name = model_config["llm_name"]
         self.model_config = model_config
+
+        if tenant_id and tenant_id != "system":
+            from api.db.services.ai_policy_service import AIPolicyManager
+            allowed, policy_msg, status_code = AIPolicyManager.check_model_access(
+                tenant_id=tenant_id,
+                model_name=self.llm_name,
+                model_type=model_config.get("model_type"),
+                user_id=self.user_id,
+            )
+            if not allowed:
+                raise LookupError(f"[{status_code}] {policy_msg}")
+
         self.mdl = TenantLLMService.model_instance(model_config, lang=lang, **kwargs)
         assert self.mdl, "Can't find model for {}/{}/{}".format(tenant_id, model_config["model_type"], model_config["llm_name"])
         self.max_length = model_config.get("max_tokens") or 8192

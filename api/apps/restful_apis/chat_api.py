@@ -1253,6 +1253,21 @@ async def session_completion(chat_id_in_arg=""):
             dia.llm_id = tenant_info.llm_id
             merge_generation_config(dia, chat_model_config)
 
+        from api.db.services.ai_policy_service import AIPolicyManager
+        target_model = dia.llm_id or chat_model_id
+        allowed, policy_msg, status_code, err_code = AIPolicyManager.check_model_access_extended(
+            tenant_id=dia.tenant_id,
+            model_name=target_model,
+            model_type=LLMType.CHAT,
+            user_id=current_user.id if current_user and hasattr(current_user, "id") else None,
+        )
+        if not allowed:
+            return get_json_result(
+                data=False,
+                message=policy_msg,
+                code=429 if status_code == 429 else RetCode.AUTHENTICATION_ERROR,
+            )
+
         legacy = _get_bool_request_flag(
             req,
             "legacy",
@@ -1322,7 +1337,8 @@ async def session_completion(chat_id_in_arg=""):
                     await thread_pool_exec(ConversationService.update_by_id, conv.id, conv.to_dict())
             except Exception as ex:
                 logging.exception(ex)
-                yield "data:" + json.dumps({"code": 500, "message": str(ex), "data": {"answer": "**ERROR**: " + str(ex), "reference": []}}, ensure_ascii=False) + "\n\n"
+                err_code = 429 if ("limit reached" in str(ex).lower() or "429" in str(ex) or "quota" in str(ex).lower()) else 500
+                yield "data:" + json.dumps({"code": err_code, "message": str(ex), "data": {"answer": "**ERROR**: " + str(ex), "reference": []}}, ensure_ascii=False) + "\n\n"
             yield "data:" + json.dumps({"code": 0, "message": "", "data": True}, ensure_ascii=False) + "\n\n"
 
         if stream_mode:
