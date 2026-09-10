@@ -78,37 +78,99 @@ def _factory_model_types(llm: dict) -> list[str]:
     return [model_type] if model_type else []
 
 
+def parse_and_resolve_model_components(model_id: str, model_type: str = "chat") -> tuple[str, str, str]:
+    """
+    Given any format of model ID:
+      - 'deepseek-chat@default@DeepSeek' (3-part composite)
+      - 'deepseek-chat@DeepSeek' (2-part composite)
+      - 'deepseek/deepseek-chat' (provider/model_name)
+      - 'openai/text-embedding-3-small_embedding' (provider/model_name_type)
+      - 'deepseek-chat' (bare model name)
+    Resolves and returns: (pure_model_name, instance_name, provider_name)
+    """
+    if not model_id:
+        return "", "", ""
+
+    str_val = str(model_id).strip()
+    if not str_val:
+        return "", "", ""
+
+    # Case 1: has '@'
+    if "@" in str_val:
+        parts = str_val.split("@")
+        if len(parts) == 3:
+            return parts[0], parts[1] or "default", parts[2]
+        elif len(parts) == 2:
+            return parts[0], "default", parts[1]
+        elif len(parts) == 1:
+            str_val = parts[0]
+
+    # Case 2: has '/'
+    if "/" in str_val:
+        try:
+            from api.db.db_models import AIModel
+            aim = AIModel.get_or_none(AIModel.id == str_val)
+            if aim:
+                return aim.model_name, "default", aim.provider
+        except Exception:
+            pass
+
+        prov_part, model_part = str_val.split("/", 1)
+        for suffix in ["_embedding", "_chat", "_rerank", "_image2text", "_speech2text", "_tts"]:
+            if model_part.endswith(suffix):
+                model_part = model_part[:-len(suffix)]
+                break
+
+        provider_name = prov_part
+        for fac in (FACTORY_LLM_INFOS or []):
+            if fac.get("name", "").lower() == prov_part.lower():
+                provider_name = fac["name"]
+                break
+
+        return model_part, "default", provider_name
+
+    # Case 3: bare model name
+    try:
+        from api.db.db_models import AIModel
+        aim = AIModel.get_or_none(AIModel.model_name == str_val)
+        if aim:
+            return aim.model_name, "default", aim.provider
+        aim_id = AIModel.get_or_none(AIModel.id == str_val)
+        if aim_id:
+            return aim_id.model_name, "default", aim_id.provider
+    except Exception:
+        pass
+
+    for fac in (FACTORY_LLM_INFOS or []):
+        for llm in fac.get("llm", []):
+            if llm.get("llm_name", "").lower() == str_val.lower():
+                return llm.get("llm_name"), "default", fac["name"]
+
+    return str_val, "default", ""
+
+
 def _get_model_info(tenant_id: str, default_model: str, model_type: str):
     """
-    Parse a composite model string (modelName@instanceName@providerName or modelName@providerName)
-    and validate that the provider, instance, and model exist.
+    Parse any composite or provider/model string and validate that the provider,
+    instance, and model exist (either as a tenant custom model or a global platform model).
 
     Returns a dict with model info or None on error.
     """
     if not default_model:
         return None
 
-    parts = default_model.split("@")
-    if len(parts) == 3:
-        model_name, instance_name, provider_name = parts
-    elif len(parts) == 2:
-        model_name, provider_name = parts
-        instance_name = "default"
-    elif len(parts) == 1:
-        model_name = parts[0]
-        provider_name = ""
-        instance_name = "default"
-    else:
-        logging.warning(f"Invalid model string: {default_model}")
+    model_name, instance_name, provider_name = parse_and_resolve_model_components(default_model, model_type)
+    if not model_name:
         return None
+    instance_name = instance_name or "default"
 
     model_type = MODEL_TAG_TO_TYPE.get(model_type, model_type)
     # Special case: OCR with infiniflow@default@deepdoc is always enabled
-    if model_type == "ocr" and provider_name == "infiniflow" and instance_name == "default" and model_name == "deepdoc":
+    if model_type == "ocr" and (provider_name.lower() == "infiniflow" or not provider_name) and model_name == "deepdoc":
         return {
-            "model_provider": provider_name,
-            "model_instance": instance_name,
-            "model_name": model_name,
+            "model_provider": "infiniflow",
+            "model_instance": "default",
+            "model_name": "deepdoc",
             "model_type": model_type,
             "enable": True,
         }
@@ -129,74 +191,87 @@ def _get_model_info(tenant_id: str, default_model: str, model_type: str):
             "enable": True,
         }
 
-    # Check if the provider exists for the tenant
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
-    if not provider_obj:
-        try:
-            from api.db.services.ai_policy_service import AIModelService
-            global_models = AIModelService.query(enabled=True)
-            for gm in global_models:
-                if gm.provider == provider_name and gm.model_name == model_name:
+    # 1. Check Global Platform Models (AIModel & AIProvider)
+    try:
+        from api.db.services.ai_policy_service import AIModelService
+        from api.db.db_models import AIProvider
+        active_provs = {
+            p.provider_name.lower(): p.provider_name
+            for p in AIProvider.select().where(
+                AIProvider.is_global == True,
+                AIProvider.status.in_(["active", "verified"]),
+                AIProvider.api_key.is_null(False),
+                AIProvider.api_key != "",
+            )
+        }
+        global_models = AIModelService.query(enabled=True)
+        for gm in global_models:
+            gm_prov = gm.provider or ""
+            prov_match = (
+                not provider_name
+                or gm_prov.lower() == provider_name.lower()
+                or (provider_name.lower() in active_provs and gm_prov.lower() == provider_name.lower())
+            )
+            name_match = (
+                gm.model_name.lower() == model_name.lower()
+                or gm.id.lower() == default_model.lower()
+            )
+            if prov_match and name_match:
+                can_use = bool(gm.api_key and gm.api_key.strip()) or (gm_prov.lower() in active_provs)
+                if can_use:
                     return {
-                        "model_provider": provider_name,
-                        "model_instance": instance_name or "default",
-                        "model_name": model_name,
+                        "model_provider": gm_prov,
+                        "model_instance": instance_name,
+                        "model_name": gm.model_name,
                         "model_type": normalize_model_type(gm.model_type or model_type),
                         "enable": True,
                     }
-        except Exception:
-            pass
-        logging.warning(f"Provider '{provider_name}' not found for tenant '{tenant_id}'")
-        return None
+    except Exception as g_err:
+        logging.warning(f"_get_model_info global models check exception: {g_err}")
 
-    # Check if the instance exists
-    instance_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(provider_obj.id, instance_name)
-    if not instance_obj:
-        logging.warning(f"Instance '{instance_name}' not found for provider '{provider_name}'")
-        return None
+    # 2. Check if the provider exists for the tenant
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+    if provider_obj:
+        instance_obj = TenantModelInstanceService.get_by_provider_id_and_instance_name(provider_obj.id, instance_name)
+        if instance_obj:
+            model_entity = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(
+                provider_obj.id, instance_obj.id, model_type, model_name
+            )
+            enable = model_entity is None or model_entity.status == ActiveStatusEnum.ACTIVE.value
+            if enable:
+                return {
+                    "model_provider": provider_name,
+                    "model_instance": instance_name,
+                    "model_name": model_name,
+                    "model_type": model_type,
+                    "enable": True,
+                }
 
-    # Check if model is enabled (no TenantModel record or status != inactive means enabled)
-    model_entity = TenantModelService.get_by_provider_id_and_instance_id_and_model_type_and_model_name(
-        provider_obj.id, instance_obj.id, model_type, model_name
-    )
-    enable = model_entity is None or model_entity.status == ActiveStatusEnum.ACTIVE.value
+    # 3. Check FACTORY_LLM_INFOS
+    factory_info = [f for f in (FACTORY_LLM_INFOS or []) if f["name"].lower() == provider_name.lower()]
+    if factory_info:
+        llms = factory_info[0].get("llm", [])
+        target_llm = [llm for llm in llms if llm["llm_name"].lower() == model_name.lower()]
+        if target_llm:
+            return {
+                "model_provider": factory_info[0]["name"],
+                "model_instance": instance_name,
+                "model_name": target_llm[0]["llm_name"],
+                "model_type": model_type,
+                "enable": True,
+            }
 
-    if not enable:
-        return None
-
-    if model_entity:
+    # 4. Fallback: if provider_name and model_name exist
+    if provider_name and model_name:
         return {
-        "model_provider": provider_name,
-        "model_instance": instance_name,
-        "model_name": model_name,
-        "model_type": model_type,
-        "enable": enable,
-    }
+            "model_provider": provider_name,
+            "model_instance": instance_name,
+            "model_name": model_name,
+            "model_type": model_type,
+            "enable": True,
+        }
 
-    # Check if model is in the LLM factory info
-    factory_info = [f for f in (FACTORY_LLM_INFOS or []) if f["name"] == provider_name]
-    if not factory_info:
-        logging.warning(f"Provider '{provider_name}' not found in factory info")
-        return None
-
-    llms = factory_info[0].get("llm", [])
-    target_llm = [llm for llm in llms if llm["llm_name"] == model_name]
-    if not target_llm:
-        logging.warning(f"Model '{model_name}' not found for provider '{provider_name}'")
-        return None
-
-    # Check if the model_type matches
-    if model_type not in _factory_model_types(target_llm[0]):
-        logging.warning(f"Model '{model_name}' isn't a {model_type} model")
-        return None
-
-    return {
-        "model_provider": provider_name,
-        "model_instance": instance_name,
-        "model_name": model_name,
-        "model_type": model_type,
-        "enable": enable,
-    }
+    return None
 
 
 def _check_model_available(tenant_id: str, provider_name: str, instance_name: str, model_name: str, model_type: str):
@@ -274,10 +349,11 @@ def list_tenant_default_models(tenant_id: str):
     """
     List all default models for a tenant.
 
-    For each model type (chat, embedding, rerank, asr, vision, tts, ocr),
-    reads the composite model ID string from the Tenant record and resolves
-    it into provider/instance/name components. Auto-assigns global Admin models
-    if tenant default is unconfigured.
+    For each model type (chat, embedding, rerank, asr, vision, tts, ocr):
+    1. Reads the configured model string from the Tenant record.
+    2. If missing or invalid, falls back to the Global Instance defaults set by Admin.
+    3. Resolves and returns the canonical model info, and synchronizes the canonical
+       format back to the Tenant record so all user components (chat, datasets, setting) work seamlessly.
 
     :param tenant_id: tenant ID
     :return: (success, result_or_error_message)
@@ -286,29 +362,73 @@ def list_tenant_default_models(tenant_id: str):
     if not e:
         return False, "Tenant not found"
 
+    # Retrieve Admin Global Instance defaults
+    g_stats = {}
+    try:
+        from api.db.services.global_instance_service import GlobalInstanceService
+        g_stats = GlobalInstanceService.get_instance_stats() or {}
+    except Exception as ge:
+        logging.warning(f"list_tenant_default_models get_instance_stats error: {ge}")
+
+    # Priority mapping for Admin defaults per model capability
+    GLOBAL_TYPE_KEY_MAP = {
+        "chat": ["default_chat_model", "default_free_model_id"],
+        "embedding": ["default_embd_id"],
+        "rerank": ["default_rerank_id"],
+        "vision": ["default_image2text_model", "default_img2txt_id"],
+        "asr": ["default_asr_model", "default_asr_id"],
+        "tts": ["default_tts_model", "default_tts_id"],
+    }
+
     models = []
+    tenant_updates = {}
 
     for model_type, field_name in MODEL_TYPE_TO_FIELD.items():
         default_model = getattr(tenant, field_name, None)
-        if not default_model:
-            # Fallback to Admin-registered global models if default is unconfigured
+        model_info = None
+
+        # 1. Try resolving tenant's current field value
+        if default_model:
+            model_info = _get_model_info(tenant_id, default_model, model_type)
+
+        # 2. If tenant has no valid model, fallback to Admin Global Instance default
+        if not model_info:
+            cand_keys = GLOBAL_TYPE_KEY_MAP.get(model_type, [])
+            global_def = ""
+            for ck in cand_keys:
+                if g_stats.get(ck):
+                    global_def = g_stats.get(ck)
+                    break
+
+            if global_def:
+                model_info = _get_model_info(tenant_id, global_def, model_type)
+
+        # 3. Fallback to any active verified platform model of this type
+        if not model_info:
             try:
                 from api.db.services.ai_policy_service import AIModelService
                 global_models = AIModelService.query(enabled=True)
                 for gm in global_models:
                     if normalize_model_type(gm.model_type) == model_type:
-                        default_model = f"{gm.model_name}@default@{gm.provider}"
-                        TenantService.update_by_id(tenant_id, {field_name: default_model})
-                        break
+                        cand_str = f"{gm.model_name}@default@{gm.provider}"
+                        model_info = _get_model_info(tenant_id, cand_str, model_type)
+                        if model_info:
+                            break
             except Exception:
                 pass
 
-        if not default_model:
-            continue
-
-        model_info = _get_model_info(tenant_id, default_model, model_type)
         if model_info:
             models.append(model_info)
+            # Synchronize canonical format string back to tenant record
+            canonical_str = f"{model_info['model_name']}@{model_info['model_instance']}@{model_info['model_provider']}"
+            if default_model != canonical_str:
+                tenant_updates[field_name] = canonical_str
+
+    if tenant_updates:
+        try:
+            TenantService.update_by_id(tenant_id, tenant_updates)
+        except Exception as upd_err:
+            logging.warning(f"list_tenant_default_models sync tenant warning: {upd_err}")
 
     return True, {"models": models}
 
@@ -496,15 +616,27 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
                     "instance_name": "default",
                 })
 
-    # Include Admin-registered global AI models ONLY IF provider has connected API key or model has api_key
+    # Include Admin-registered global AI models where provider has connected API key or model has api_key
     try:
         from api.db.services.ai_policy_service import AIModelService
+        from api.db.db_models import AIProvider
+        active_provs = {
+            p.provider_name.lower(): p.provider_name
+            for p in AIProvider.select().where(
+                AIProvider.is_global == True,
+                AIProvider.status.in_(["active", "verified"]),
+                AIProvider.api_key.is_null(False),
+                AIProvider.api_key != "",
+            )
+        }
         global_models = AIModelService.query(enabled=True)
-        existing_model_keys = {(m["provider_name"], m["name"]) for m in added_models}
+        existing_model_keys = {(m["provider_name"].lower(), m["name"].lower()) for m in added_models}
         for gm in global_models:
-            if (gm.provider, gm.model_name) not in existing_model_keys:
-                # Check if provider has active key
-                if not (gm.api_key and gm.api_key.strip()) and gm.provider not in provider_instance_map:
+            gm_prov = gm.provider or ""
+            gm_prov_lower = gm_prov.lower()
+            if (gm_prov_lower, gm.model_name.lower()) not in existing_model_keys:
+                has_key = bool(gm.api_key and gm.api_key.strip()) or (gm_prov_lower in active_provs) or (gm_prov in provider_instance_map)
+                if not has_key:
                     continue
                 gm_type = normalize_model_type(gm.model_type)
                 if model_type_filter and normalize_model_type(model_type_filter) != gm_type:
@@ -513,10 +645,11 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str=None):
                     "model_type": [gm_type],
                     "name": gm.model_name,
                     "provider_id": "",
-                    "provider_name": gm.provider,
+                    "provider_name": gm_prov,
                     "instance_id": "",
                     "instance_name": "default"
                 })
+                existing_model_keys.add((gm_prov_lower, gm.model_name.lower()))
     except Exception as e:
         logging.warning(f"list_tenant_added_models global models fallback exception: {e}")
 

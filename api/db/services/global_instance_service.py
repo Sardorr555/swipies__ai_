@@ -139,40 +139,54 @@ class GlobalInstanceService(CommonService):
         try:
             from common import settings
             from api.db.db_models import Tenant
+            from api.apps.services.models_api_service import parse_and_resolve_model_components
+
+            def _to_canonical_str(val, mtype):
+                if not val:
+                    return ""
+                m, inst, p = parse_and_resolve_model_components(val, mtype)
+                return f"{m}@{inst or 'default'}@{p}" if (m and p) else val
+
             tenant_updates = {}
 
             chat_m = updates.get("default_free_model_id") or updates.get("default_chat_model")
             if chat_m:
-                tenant_updates["llm_id"] = chat_m
-                settings.CHAT_MDL = chat_m
+                canonical_chat = _to_canonical_str(chat_m, "chat")
+                tenant_updates["llm_id"] = canonical_chat
+                settings.CHAT_MDL = canonical_chat
 
             embd_m = updates.get("default_embd_id")
             if embd_m:
-                tenant_updates["embd_id"] = embd_m
-                settings.EMBEDDING_MDL = embd_m
+                canonical_embd = _to_canonical_str(embd_m, "embedding")
+                tenant_updates["embd_id"] = canonical_embd
+                settings.EMBEDDING_MDL = canonical_embd
 
             rerank_m = updates.get("default_rerank_id")
             if rerank_m:
-                tenant_updates["rerank_id"] = rerank_m
-                settings.RERANK_MDL = rerank_m
+                canonical_rerank = _to_canonical_str(rerank_m, "rerank")
+                tenant_updates["rerank_id"] = canonical_rerank
+                settings.RERANK_MDL = canonical_rerank
 
             img_m = extra_data.get("default_image2text_model")
             if img_m:
-                tenant_updates["img2txt_id"] = img_m
-                settings.IMAGE2TEXT_MDL = img_m
+                canonical_img = _to_canonical_str(img_m, "image2text")
+                tenant_updates["img2txt_id"] = canonical_img
+                settings.IMAGE2TEXT_MDL = canonical_img
 
             asr_m = extra_data.get("default_asr_model")
             if asr_m:
-                tenant_updates["asr_id"] = asr_m
-                settings.ASR_MDL = asr_m
+                canonical_asr = _to_canonical_str(asr_m, "speech2text")
+                tenant_updates["asr_id"] = canonical_asr
+                settings.ASR_MDL = canonical_asr
 
             tts_m = extra_data.get("default_tts_model")
             if tts_m:
-                tenant_updates["tts_id"] = tts_m
+                canonical_tts = _to_canonical_str(tts_m, "tts")
+                tenant_updates["tts_id"] = canonical_tts
 
             if tenant_updates:
                 Tenant.update(**tenant_updates).execute()
-                logger.info("Synchronized tenant default models: %s", tenant_updates)
+                logger.info("Synchronized tenant default models across all users: %s", tenant_updates)
         except Exception as sync_err:
             logger.warning("Tenant defaults synchronization warning: %s", sync_err)
         
@@ -197,12 +211,13 @@ class GlobalInstanceService(CommonService):
     def get_instance_stats(cls) -> dict:
         """
         Returns full statistics and default models for the Global RAGFlow Instance.
+        Normalizes model IDs so they map directly to Admin UI Select components.
         """
         inst = cls.get_global_instance()
         
         total_users = User.select().count()
         total_models = AIModel.select().where(AIModel.is_global == True, AIModel.enabled == True).count()
-        total_providers = AIProvider.select().where(AIProvider.is_global == True, AIProvider.status == "active").count()
+        total_providers = AIProvider.select().where(AIProvider.is_global == True, AIProvider.status.in_(["active", "verified"])).count()
         byok_connections = AIModel.select().where(AIModel.is_custom == True).count()
 
         extra_data = inst.extra or {}
@@ -211,6 +226,28 @@ class GlobalInstanceService(CommonService):
                 extra_data = json.loads(extra_data)
             except Exception:
                 extra_data = {}
+
+        def _to_admin_model_id(val: str) -> str:
+            if not val:
+                return ""
+            try:
+                # If already an exact AIModel id
+                if AIModel.select().where(AIModel.id == val).count():
+                    return val
+                # If composite format: model@instance@provider
+                from api.apps.services.models_api_service import parse_and_resolve_model_components
+                m, _, p = parse_and_resolve_model_components(val)
+                if m and p:
+                    aim = AIModel.get_or_none(AIModel.model_name == m, AIModel.provider == p)
+                    if aim:
+                        return aim.id
+                    # Case-insensitive check
+                    for cand in AIModel.select().where(AIModel.is_global == True):
+                        if cand.model_name.lower() == m.lower() and cand.provider.lower() == p.lower():
+                            return cand.id
+            except Exception:
+                pass
+            return val
         
         return {
             "instance_id": GLOBAL_INSTANCE_ID,
@@ -220,15 +257,15 @@ class GlobalInstanceService(CommonService):
             "total_models": total_models,
             "total_providers": total_providers,
             "byok_connections": byok_connections,
-            "default_chat_model": extra_data.get("default_chat_model") or inst.default_free_model_id,
-            "default_free_model_id": inst.default_free_model_id,
-            "default_plus_model_id": inst.default_plus_model_id,
-            "default_pro_model_id": inst.default_pro_model_id,
-            "default_embd_id": inst.default_embd_id,
-            "default_rerank_id": inst.default_rerank_id,
-            "default_image2text_model": extra_data.get("default_image2text_model", ""),
-            "default_asr_model": extra_data.get("default_asr_model", ""),
-            "default_tts_model": extra_data.get("default_tts_model", ""),
+            "default_chat_model": _to_admin_model_id(extra_data.get("default_chat_model") or inst.default_free_model_id),
+            "default_free_model_id": _to_admin_model_id(inst.default_free_model_id),
+            "default_plus_model_id": _to_admin_model_id(inst.default_plus_model_id),
+            "default_pro_model_id": _to_admin_model_id(inst.default_pro_model_id),
+            "default_embd_id": _to_admin_model_id(inst.default_embd_id),
+            "default_rerank_id": _to_admin_model_id(inst.default_rerank_id),
+            "default_image2text_model": _to_admin_model_id(extra_data.get("default_image2text_model", "")),
+            "default_asr_model": _to_admin_model_id(extra_data.get("default_asr_model", "")),
+            "default_tts_model": _to_admin_model_id(extra_data.get("default_tts_model", "")),
             "byok_enabled": inst.byok_enabled,
             "max_byok_models": inst.max_byok_models,
             "byok_token_limit": inst.byok_token_limit,

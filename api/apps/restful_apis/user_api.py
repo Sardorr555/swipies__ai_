@@ -611,21 +611,34 @@ def user_register(user_id, user):
 
     try:
         from api.db.services.global_instance_service import GlobalInstanceService
+        from api.apps.services.models_api_service import parse_and_resolve_model_components
+
+        def _to_canonical_str(val, mtype):
+            if not val:
+                return ""
+            m, inst, p = parse_and_resolve_model_components(val, mtype)
+            return f"{m}@{inst or 'default'}@{p}" if (m and p) else val
+
         g_stats = GlobalInstanceService.get_instance_stats()
-        if g_stats.get("default_chat_model"):
-            llm_id = g_stats.get("default_chat_model")
-        elif g_stats.get("default_free_model_id"):
-            llm_id = g_stats.get("default_free_model_id")
-        if g_stats.get("default_embd_id"):
-            embd_id = g_stats.get("default_embd_id")
-        if g_stats.get("default_rerank_id"):
-            rerank_id = g_stats.get("default_rerank_id")
-        if g_stats.get("default_image2text_model"):
-            img2txt_id = g_stats.get("default_image2text_model")
-        if g_stats.get("default_asr_model"):
-            asr_id = g_stats.get("default_asr_model")
-        if g_stats.get("default_tts_model"):
-            tts_id = g_stats.get("default_tts_model")
+        raw_chat = g_stats.get("default_chat_model") or g_stats.get("default_free_model_id") or settings.CHAT_MDL
+        raw_embd = g_stats.get("default_embd_id") or settings.EMBEDDING_MDL
+        raw_rerank = g_stats.get("default_rerank_id") or settings.RERANK_MDL
+        raw_img = g_stats.get("default_image2text_model") or settings.IMAGE2TEXT_MDL
+        raw_asr = g_stats.get("default_asr_model") or settings.ASR_MDL
+        raw_tts = g_stats.get("default_tts_model") or getattr(settings, "TTS_MDL", "")
+
+        if raw_chat:
+            llm_id = _to_canonical_str(raw_chat, "chat")
+        if raw_embd:
+            embd_id = _to_canonical_str(raw_embd, "embedding")
+        if raw_rerank:
+            rerank_id = _to_canonical_str(raw_rerank, "rerank")
+        if raw_img:
+            img2txt_id = _to_canonical_str(raw_img, "image2text")
+        if raw_asr:
+            asr_id = _to_canonical_str(raw_asr, "speech2text")
+        if raw_tts:
+            tts_id = _to_canonical_str(raw_tts, "tts")
     except Exception as e:
         logger.warning(f"user_register get_instance_stats fallback error: {e}")
 

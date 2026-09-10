@@ -417,7 +417,10 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
         # Check AIProvider directly
         aip = None
         if provider_name:
-            for cand in AIProvider.select().where(AIProvider.is_global == True, AIProvider.status == "active"):
+            for cand in AIProvider.select().where(
+                AIProvider.is_global == True,
+                (AIProvider.status.in_(["active", "verified"]) | (AIProvider.api_key.is_null(False) & (AIProvider.api_key != "")))
+            ):
                 if cand.provider_name.lower() == provider_name.lower():
                     aip = cand
                     break
