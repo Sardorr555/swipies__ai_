@@ -692,8 +692,8 @@ class LLM4Tenant:
     def __init__(self, tenant_id: str, model_config: dict, lang="Chinese", **kwargs):
         self.trace_context = kwargs.pop("trace_context", None) or {}
         self.langfuse_session_id = kwargs.pop("langfuse_session_id", None)
-        self.user_id = kwargs.pop("user_id", None) or (model_config.get("user_id") if isinstance(model_config, dict) else None)
         self.tenant_id = tenant_id
+        self.user_id = kwargs.pop("user_id", None) or (model_config.get("user_id") if isinstance(model_config, dict) else None)
         self.llm_name = model_config["llm_name"]
         self.model_config = model_config
 
@@ -710,6 +710,12 @@ class LLM4Tenant:
 
         self.mdl = TenantLLMService.model_instance(model_config, lang=lang, **kwargs)
         assert self.mdl, "Can't find model for {}/{}/{}".format(tenant_id, model_config["model_type"], model_config["llm_name"])
+        try:
+            self.mdl.tenant_id = tenant_id
+            if self.user_id:
+                self.mdl.user_id = self.user_id
+        except Exception:
+            pass
         self.max_length = model_config.get("max_tokens") or 8192
 
         self.is_tools = model_config.get("is_tools", False)
