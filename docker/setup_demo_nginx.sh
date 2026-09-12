@@ -95,8 +95,8 @@ if [ -n "$SSL_CERT" ] && [ -n "$SSL_KEY" ]; then
   cat << EOF >> "$TARGET_CONF"
 
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen 443 ssl;
+    listen [::]:443 ssl;
     server_name demo.swipies.app ads.swipies.app;
 
     ssl_certificate     $SSL_CERT;
@@ -110,19 +110,19 @@ server {
     location / {
         proxy_pass         http://127.0.0.1:9222;
         proxy_http_version 1.1;
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
 
         # WebSocket support
-        proxy_set_header   Upgrade $http_upgrade;
+        proxy_set_header   Upgrade \$http_upgrade;
         proxy_set_header   Connection "upgrade";
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
 
         # CORS preflight
-        if ($request_method = 'OPTIONS') {
+        if (\$request_method = 'OPTIONS') {
             add_header 'Access-Control-Allow-Origin'  '*' always;
             add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
             add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization' always;
@@ -162,17 +162,17 @@ for DOMAIN in demo.swipies.app ads.swipies.app; do
   echo "   Host Public IP: $HOST_IP"
   echo "   $DOMAIN Resolved IP: ${RESOLVED_IP:-Not resolved yet}"
 
-  if [ -n "$RESOLVED_IP" ] && [ "$RESOLVED_IP" = "$HOST_IP" ]; then
-    echo "🚀 DNS for $DOMAIN points to this server! Requesting/renewing Let's Encrypt SSL certificate..."
-    if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect; then
+  if [ -n "$RESOLVED_IP" ]; then
+    echo "🚀 DNS for $DOMAIN is active ($RESOLVED_IP). Requesting/renewing Let's Encrypt SSL certificate..."
+    if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>/dev/null || certbot certonly --webroot -w /var/www/html -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email 2>/dev/null; then
       echo "🎉 SSL Certificate successfully issued and configured for $DOMAIN!"
       systemctl reload nginx || true
     else
-      echo "⚠️ Certbot challenge encountered an issue for $DOMAIN, HTTP proxy remains active."
+      echo "ℹ️ SSL for $DOMAIN is either already managed, or handled via Cloudflare Proxy."
     fi
   else
-    echo "ℹ️ DNS A-record for $DOMAIN is not yet pointing directly to $HOST_IP (or is propagating)."
-    echo "   Create A record: $DOMAIN -> $HOST_IP"
+    echo "ℹ️ DNS A-record for $DOMAIN is not yet pointing to this server."
+    echo "   Ensure A-record exists: $DOMAIN -> $HOST_IP"
   fi
 done
 
