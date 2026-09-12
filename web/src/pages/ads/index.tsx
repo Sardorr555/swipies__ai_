@@ -51,7 +51,9 @@ import {
   KeyRound,
   Bell,
   BellRing,
+  Settings,
   Settings2,
+  Save,
   Send,
   Radio,
   Webhook,
@@ -176,13 +178,134 @@ import adService, {
   CrossPlatformNetworkStat,
   CrossPlatformAnalyticsResponse,
   OmniSyncJobItem,
+  AdvertiserSettingsData,
 } from '@/services/ad-service';
+import storage from '@/utils/authorization-util';
+import { changeLanguageAsync } from '@/locales/config';
+import { AD_TRANSLATIONS, AdLanguage } from './translations';
+export { AD_TRANSLATIONS, AdLanguage };
 
 export default function SwipiesAdsPage() {
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null);
   const [transactions, setTransactions] = useState<AdTransactionItem[]>([]);
   const [activeTab, setActiveTab] = useState('campaigns');
+
+  // Localization & Multi-Language State
+  const [currentLang, setCurrentLang] = useState<AdLanguage>(() => {
+    const saved =
+      (typeof window !== 'undefined' && localStorage.getItem('swipies_ads_lang')) ||
+      storage.getLanguage() ||
+      'ru';
+    if (saved.startsWith('uz')) return 'uz';
+    if (saved.startsWith('en')) return 'en';
+    return 'ru';
+  });
+
+  const t = (key: string): string => {
+    return AD_TRANSLATIONS[currentLang]?.[key] || AD_TRANSLATIONS['ru']?.[key] || key;
+  };
+
+  const handleLanguageChange = async (lang: AdLanguage) => {
+    setCurrentLang(lang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('swipies_ads_lang', lang);
+    }
+    setAdvSettings((prev) => ({ ...prev, language: lang }));
+    try {
+      await changeLanguageAsync(lang);
+    } catch (e) {
+      console.error('Failed to change language:', e);
+    }
+  };
+
+  // Unified Advertiser Settings State
+  const [advSettings, setAdvSettings] = useState<AdvertiserSettingsData>({
+    advertiser_id: '',
+    company_name: '',
+    contact_email: '',
+    website_url: '',
+    currency: 'USD',
+    pixel_id: '',
+    balance: 0,
+    status: 'active',
+    language: 'ru',
+    default_regions: ['UZ', 'RU', 'KZ'],
+    default_models: ['gpt-4o', 'claude-3-5-sonnet', 'deepseek-v3'],
+    daily_spend_ceiling: 500,
+    default_frequency_cap: 3,
+    auto_pause_low_ctr: true,
+    low_ctr_threshold: 0.5,
+    timezone: 'Asia/Tashkent',
+  });
+  const [loadingAdvSettings, setLoadingAdvSettings] = useState(false);
+  const [isSavingAdvSettings, setIsSavingAdvSettings] = useState(false);
+  const [copiedPixelSuccess, setCopiedPixelSuccess] = useState(false);
+
+  const fetchAdvSettings = async () => {
+    setLoadingAdvSettings(true);
+    try {
+      const res = await adService.getAdvertiserSettings();
+      if (res.data?.data) {
+        const d = res.data.data;
+        setAdvSettings(d);
+        if (d.language && ['ru', 'en', 'uz'].includes(d.language)) {
+          setCurrentLang(d.language as AdLanguage);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch advertiser settings', e);
+    } finally {
+      setLoadingAdvSettings(false);
+    }
+  };
+
+  const handleSaveAdvSettings = async () => {
+    setIsSavingAdvSettings(true);
+    try {
+      const res = await adService.updateAdvertiserSettings({
+        ...advSettings,
+        language: currentLang,
+      });
+      if (res.data?.code === 0) {
+        message.success(t('settingsSavedSuccess'));
+        if (res.data.data) {
+          setAdvSettings(res.data.data);
+        }
+      } else {
+        message.error(res.data?.message || t('settingsSaveError'));
+      }
+    } catch (e: any) {
+      message.error(e.message || t('settingsSaveError'));
+    } finally {
+      setIsSavingAdvSettings(false);
+    }
+  };
+
+  const handleCopyPixelId = () => {
+    if (advSettings.pixel_id) {
+      navigator.clipboard.writeText(advSettings.pixel_id);
+      setCopiedPixelSuccess(true);
+      message.success(t('copiedMsg'));
+      setTimeout(() => setCopiedPixelSuccess(false), 2000);
+    }
+  };
+
+  const toggleDefaultRegion = (code: string) => {
+    const current = advSettings.default_regions || [];
+    const updated = current.includes(code)
+      ? current.filter((r) => r !== code)
+      : [...current, code];
+    setAdvSettings({ ...advSettings, default_regions: updated.length ? updated : [code] });
+  };
+
+  const toggleDefaultModel = (model: string) => {
+    const current = advSettings.default_models || [];
+    const updated = current.includes(model)
+      ? current.filter((m) => m !== model)
+      : [...current, model];
+    setAdvSettings({ ...advSettings, default_models: updated.length ? updated : [model] });
+  };
 
   // Subscription & Saved Cards state
   const [subscription, setSubscription] = useState<UserSubscriptionData | null>(null);
@@ -1460,6 +1583,7 @@ export default function SwipiesAdsPage() {
     fetchProductFeeds();
     fetchAgencyData();
     fetchOmniChannelData();
+    fetchAdvSettings();
   }, []);
 
   const handleOpenCreateCampaign = () => {
@@ -2340,28 +2464,47 @@ export default function SwipiesAdsPage() {
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">Swipies Ads</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t('pageTitle')}</h1>
             <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-400">
-              <Sparkles className="mr-1 h-3 w-3" /> AI Intent Advertising
+              <Sparkles className="mr-1 h-3 w-3" /> {t('aiIntentBadge')}
             </Badge>
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
-            Reach high-intent users at the exact moment they ask questions. Contextually matched & zero hallucination.
+            {t('pageSubtitle')}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Language Switcher */}
+          <div className="flex items-center gap-1 rounded-lg border bg-card p-1 shadow-sm">
+            <Globe className="h-4 w-4 text-blue-500 ml-1 mr-0.5" />
+            {(['ru', 'en', 'uz'] as const).map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => handleLanguageChange(lang)}
+                className={`px-2 py-1 rounded text-xs font-semibold uppercase transition-all ${
+                  currentLang === lang
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+
           {/* Balance Widget */}
           <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2 shadow-sm">
             <Wallet className="h-5 w-5 text-emerald-500" />
             <div>
-              <div className="text-xs text-muted-foreground">Available Balance</div>
+              <div className="text-xs text-muted-foreground">{t('availableBalance')}</div>
               <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                 ${balance.toFixed(2)} {currency}
               </div>
             </div>
             <Button size="sm" variant="outline" onClick={() => setIsTopUpModalOpen(true)} className="ml-2">
-              <CreditCard className="mr-1 h-3.5 w-3.5" /> Top-Up
+              <CreditCard className="mr-1 h-3.5 w-3.5" /> {t('topUpBtn')}
             </Button>
           </div>
 
@@ -2370,7 +2513,7 @@ export default function SwipiesAdsPage() {
             onClick={handleOpenPixelModal}
             className="border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
           >
-            <Code2 className="mr-1.5 h-4 w-4" /> Пиксель конверсий
+            <Code2 className="mr-1.5 h-4 w-4" /> {t('pixelBtn')}
           </Button>
 
           {/* Notification Bell Button */}
@@ -2382,7 +2525,7 @@ export default function SwipiesAdsPage() {
               fetchNotifications();
             }}
             className="relative"
-            title="Уведомления и алерты"
+            title={t('notificationsTitle')}
           >
             {unreadNotifCount > 0 ? (
               <BellRing className="h-4 w-4 text-amber-500 animate-bounce" />
@@ -2396,21 +2539,22 @@ export default function SwipiesAdsPage() {
             )}
           </Button>
 
-          {/* Alert Settings Button */}
+          {/* Settings Button */}
           <Button
             variant="outline"
             size="icon"
             onClick={() => {
-              fetchNotificationSettings();
-              setIsNotifSettingsModalOpen(true);
+              setActiveTab('settings');
+              fetchAdvSettings();
             }}
-            title="Настройки каналов оповещений (Telegram, Webhooks, Email)"
+            title={t('settingsBtn')}
+            className={activeTab === 'settings' ? 'border-blue-500 text-blue-600 bg-blue-50/50 dark:bg-blue-950/30' : ''}
           >
-            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            <Settings className="h-4 w-4 text-muted-foreground" />
           </Button>
 
           <Button onClick={handleOpenCreateCampaign} className="bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="mr-1.5 h-4 w-4" /> New Campaign
+            <Plus className="mr-1.5 h-4 w-4" /> {t('newCampaignBtn')}
           </Button>
 
           <Button variant="ghost" size="icon" onClick={fetchDashboard} disabled={loading}>
@@ -2423,32 +2567,32 @@ export default function SwipiesAdsPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('activeCampaigns')}</CardTitle>
             <Megaphone className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {dashboard?.active_campaigns || 0}{' '}
-              <span className="text-xs font-normal text-muted-foreground">/ {dashboard?.total_campaigns || 0} total</span>
+              <span className="text-xs font-normal text-muted-foreground">/ {dashboard?.total_campaigns || 0} {t('totalSuffix')}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Live in AI query auction</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('liveInAuction')}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Impressions</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('totalImpressions')}</CardTitle>
             <Activity className="h-4 w-4 text-indigo-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{(dashboard?.total_impressions || 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">Times recommendations shown</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('timesShown')}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clicks & Engagement</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('clicksEngagement')}</CardTitle>
             <MousePointer className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
@@ -2456,95 +2600,100 @@ export default function SwipiesAdsPage() {
               {(dashboard?.total_clicks || 0).toLocaleString()}{' '}
               <span className="text-sm font-normal text-emerald-500">({dashboard?.ctr || 0}% CTR)</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Verified outbound visits</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('verifiedVisits')}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Spend</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('totalSpend')}</CardTitle>
             <DollarSign className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${(dashboard?.total_spent || 0).toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mt-1">All-time advertising investment</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('allTimeInvest')}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Main Tabs Section */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="campaigns" className="flex items-center gap-2">
-            <Layers className="h-4 w-4" /> Campaigns ({dashboard?.campaigns?.length || 0})
-          </TabsTrigger>
-          <TabsTrigger value="studio" className="flex items-center gap-2 relative">
-            <Sparkles className="h-4 w-4 text-purple-500" />
-            Креативная Студия & DPA ({productFeeds.length})
-          </TabsTrigger>
-          <TabsTrigger value="insights" className="flex items-center gap-2 relative">
-            <Lightbulb className="h-4 w-4 text-amber-500" />
-            AI Оптимизатор
-            {insightsData && insightsData.total_insights > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white animate-pulse">
-                {insightsData.total_insights}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="autopilot" className="flex items-center gap-2 relative">
-            <Zap className="h-4 w-4 text-amber-500" />
-            Auto-Pilot & Правила
-            {rulesList.filter((r) => r.is_active).length > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-cyan-500 text-white">
-                {rulesList.filter((r) => r.is_active).length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="attribution" className="flex items-center gap-2 relative">
-            <Route className="h-4 w-4 text-indigo-500" />
-            MTA & Воронка (Funnel)
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-blue-500" /> Аналитика & Графики
-          </TabsTrigger>
-          <TabsTrigger value="billing" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" /> Billing & Transactions
-          </TabsTrigger>
-          <TabsTrigger value="audiences" className="flex items-center gap-2">
-            <Fingerprint className="h-4 w-4 text-emerald-500" /> Аудитории & LTV ({audiences.length + lookalikes.length})
-          </TabsTrigger>
-          <TabsTrigger value="team" className="flex items-center gap-2">
-            <Users className="h-4 w-4" /> Команда ({teamMembers.length})
-          </TabsTrigger>
-          <TabsTrigger value="publisher" className="flex items-center gap-2">
-            <Bot className="h-4 w-4 text-cyan-500" /> Монетизация & SDK ({placements.length})
-          </TabsTrigger>
-          <TabsTrigger value="fraud" className="flex items-center gap-2 relative">
-            <ShieldAlert className="h-4 w-4 text-rose-500" />
-            Защита & Anti-Fraud
-            {fraudOverview && fraudOverview.total_blocked_clicks > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-500 text-white animate-pulse">
-                {fraudOverview.total_blocked_clicks}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="agency" className="flex items-center gap-2 relative">
-            <Building2 className="h-4 w-4 text-indigo-500" />
-            Агентский Хаб & Sub-Accounts ({agencyClients.length})
-          </TabsTrigger>
-          <TabsTrigger value="omnichannel" className="flex items-center gap-2 relative">
-            <Share2 className="h-4 w-4 text-blue-500" />
-            Кросс-платформенный Мост ({omniAccounts.length})
-            {omniAccounts.length > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
-                {omniAccounts.length} активных
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="guide" className="flex items-center gap-2">
-            <HelpCircle className="h-4 w-4" /> How Swipies Ads Work
-          </TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-1.5 scrollbar-thin">
+          <TabsList className="inline-flex h-11 items-center justify-start rounded-lg bg-muted/60 p-1 text-muted-foreground w-max gap-1">
+            <TabsTrigger value="campaigns" className="flex items-center gap-2">
+              <Layers className="h-4 w-4" /> {t('tabCampaigns')} ({dashboard?.campaigns?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="studio" className="flex items-center gap-2 relative">
+              <Sparkles className="h-4 w-4 text-purple-500" />
+              {t('tabStudio')} ({productFeeds.length})
+            </TabsTrigger>
+            <TabsTrigger value="insights" className="flex items-center gap-2 relative">
+              <Lightbulb className="h-4 w-4 text-amber-500" />
+              {t('tabInsights')}
+              {insightsData && insightsData.total_insights > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white animate-pulse">
+                  {insightsData.total_insights}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="autopilot" className="flex items-center gap-2 relative">
+              <Zap className="h-4 w-4 text-amber-500" />
+              {t('tabAutopilot')}
+              {rulesList.filter((r) => r.is_active).length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-cyan-500 text-white">
+                  {rulesList.filter((r) => r.is_active).length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="attribution" className="flex items-center gap-2 relative">
+              <Route className="h-4 w-4 text-indigo-500" />
+              {t('tabAttribution')}
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-blue-500" /> {t('tabAnalytics')}
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" /> {t('tabBilling')}
+            </TabsTrigger>
+            <TabsTrigger value="audiences" className="flex items-center gap-2">
+              <Fingerprint className="h-4 w-4 text-emerald-500" /> {t('tabAudiences')} ({audiences.length + lookalikes.length})
+            </TabsTrigger>
+            <TabsTrigger value="team" className="flex items-center gap-2">
+              <Users className="h-4 w-4" /> {t('tabTeam')} ({teamMembers.length})
+            </TabsTrigger>
+            <TabsTrigger value="publisher" className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-cyan-500" /> {t('tabPublisher')} ({placements.length})
+            </TabsTrigger>
+            <TabsTrigger value="fraud" className="flex items-center gap-2 relative">
+              <ShieldAlert className="h-4 w-4 text-rose-500" />
+              {t('tabFraud')}
+              {fraudOverview && fraudOverview.total_blocked_clicks > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-500 text-white animate-pulse">
+                  {fraudOverview.total_blocked_clicks}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="agency" className="flex items-center gap-2 relative">
+              <Building2 className="h-4 w-4 text-indigo-500" />
+              {t('tabAgency')} ({agencyClients.length})
+            </TabsTrigger>
+            <TabsTrigger value="omnichannel" className="flex items-center gap-2 relative">
+              <Share2 className="h-4 w-4 text-blue-500" />
+              {t('tabOmnichannel')} ({omniAccounts.length})
+              {omniAccounts.length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
+                  {omniAccounts.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="guide" className="flex items-center gap-2">
+              <HelpCircle className="h-4 w-4" /> {t('tabGuide')}
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-slate-500" /> {t('tabSettings')}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* 1. Campaigns Tab */}
         <TabsContent value="campaigns" className="space-y-4">
@@ -6384,6 +6533,455 @@ export default function SwipiesAdsPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* 15. Advertiser Settings Tab */}
+        <TabsContent value="settings" className="space-y-6">
+          {/* Header Card */}
+          <Card className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent border-blue-500/20">
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 mt-0.5">
+                  <Settings className="h-6 w-6" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-bold">{t('settingsHeaderTitle')}</CardTitle>
+                  <CardDescription className="text-sm mt-1">
+                    {t('settingsHeaderSubtitle')}
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                onClick={handleSaveAdvSettings}
+                disabled={isSavingAdvSettings}
+                className="bg-blue-600 hover:bg-blue-700 text-white shrink-0 shadow-sm"
+              >
+                <Save className={`mr-2 h-4 w-4 ${isSavingAdvSettings ? 'animate-spin' : ''}`} />
+                {isSavingAdvSettings ? t('savingChangesBtn') : t('saveChangesBtn')}
+              </Button>
+            </CardHeader>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Card 1: Advertiser Profile */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-blue-500" />
+                  <CardTitle className="text-base">{t('profileSectionTitle')}</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  {t('profileSectionDesc')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">{t('companyNameLabel')}</label>
+                  <Input
+                    placeholder="Swipies AI Corp"
+                    value={advSettings.company_name}
+                    onChange={(e) => setAdvSettings({ ...advSettings, company_name: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">{t('contactEmailLabel')}</label>
+                  <Input
+                    placeholder="advertiser@example.com"
+                    type="email"
+                    value={advSettings.contact_email}
+                    onChange={(e) => setAdvSettings({ ...advSettings, contact_email: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">{t('websiteUrlLabel')}</label>
+                  <Input
+                    placeholder="https://mybrand.com"
+                    value={advSettings.website_url}
+                    onChange={(e) => setAdvSettings({ ...advSettings, website_url: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">{t('billingCurrencyLabel')}</label>
+                    <Select
+                      value={advSettings.currency}
+                      onValueChange={(val) => setAdvSettings({ ...advSettings, currency: val })}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="USD" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD ($ - US Dollar)</SelectItem>
+                        <SelectItem value="UZS">UZS (So'm - O'zbekiston)</SelectItem>
+                        <SelectItem value="RUB">RUB (₽ - Российский рубль)</SelectItem>
+                        <SelectItem value="EUR">EUR (€ - Euro)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">{t('accountStatusLabel')}</label>
+                    <div className="h-9 flex items-center">
+                      <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs">
+                        <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> {t('accountActiveBadge')}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1 border-t">
+                  <label className="text-xs font-medium text-foreground">{t('pixelIdLabel')}</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      readOnly
+                      value={advSettings.pixel_id || 'px_swipies_live'}
+                      className="h-9 text-xs font-mono bg-muted/40"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCopyPixelId}
+                      className="h-9 shrink-0 gap-1 text-xs"
+                    >
+                      {copiedPixelSuccess ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                      {t('copyPixelBtn')}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 2: Default Targeting Preferences */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-purple-500" />
+                  <CardTitle className="text-base">{t('defaultsSectionTitle')}</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  {t('defaultsSectionDesc')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">{t('defaultLangLabel')}</label>
+                    <Select
+                      value={advSettings.language || currentLang}
+                      onValueChange={(val) => {
+                        handleLanguageChange(val as AdLanguage);
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Русский" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ru">Русский (RU)</SelectItem>
+                        <SelectItem value="en">English (EN)</SelectItem>
+                        <SelectItem value="uz">O'zbekcha (UZ)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">{t('timezoneLabel')}</label>
+                    <Select
+                      value={advSettings.timezone || 'Asia/Tashkent'}
+                      onValueChange={(val) => setAdvSettings({ ...advSettings, timezone: val })}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Asia/Tashkent" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Asia/Tashkent">Asia/Tashkent (UTC+5)</SelectItem>
+                        <SelectItem value="Europe/Moscow">Europe/Moscow (UTC+3)</SelectItem>
+                        <SelectItem value="UTC">UTC (UTC+0)</SelectItem>
+                        <SelectItem value="America/New_York">America/New_York (EST)</SelectItem>
+                        <SelectItem value="Asia/Almaty">Asia/Almaty (UTC+5)</SelectItem>
+                        <SelectItem value="Asia/Dubai">Asia/Dubai (UTC+4)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <label className="text-xs font-medium text-foreground block">
+                    {t('defaultRegionsLabel')}
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { code: 'UZ', label: '🇺🇿 Uzbekistan' },
+                      { code: 'RU', label: '🇷🇺 Russia' },
+                      { code: 'KZ', label: '🇰🇿 Kazakhstan' },
+                      { code: 'US', label: '🇺🇸 United States' },
+                      { code: 'EU', label: '🇪🇺 European Union' },
+                      { code: 'AE', label: '🇦🇪 UAE' },
+                      { code: 'TR', label: '🇹🇷 Turkey' },
+                    ].map((reg) => {
+                      const isSelected = (advSettings.default_regions || []).includes(reg.code);
+                      return (
+                        <button
+                          key={reg.code}
+                          type="button"
+                          onClick={() => toggleDefaultRegion(reg.code)}
+                          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted/70 hover:text-foreground'
+                          }`}
+                        >
+                          {reg.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t">
+                  <label className="text-xs font-medium text-foreground block">
+                    {t('defaultModelsLabel')}
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { id: 'gpt-4o', label: 'GPT-4o' },
+                      { id: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
+                      { id: 'deepseek-v3', label: 'DeepSeek V3' },
+                      { id: 'llama-3-70b', label: 'Llama 3 (70B)' },
+                      { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+                    ].map((mod) => {
+                      const isSelected = (advSettings.default_models || []).includes(mod.id);
+                      return (
+                        <button
+                          key={mod.id}
+                          type="button"
+                          onClick={() => toggleDefaultModel(mod.id)}
+                          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                              : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted/70 hover:text-foreground'
+                          }`}
+                        >
+                          {mod.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 3: Safety Caps & Spend Controls */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                  <CardTitle className="text-base">{t('safetySectionTitle')}</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  {t('safetySectionDesc')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-foreground">{t('dailySpendCeilingLabel')}</label>
+                    <span className="text-[11px] font-mono text-emerald-600 font-semibold">
+                      ${advSettings.daily_spend_ceiling} / day
+                    </span>
+                  </div>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="10"
+                    value={advSettings.daily_spend_ceiling}
+                    onChange={(e) =>
+                      setAdvSettings({ ...advSettings, daily_spend_ceiling: parseFloat(e.target.value) || 0 })
+                    }
+                    className="h-9 text-xs"
+                  />
+                  <p className="text-[11px] text-muted-foreground">{t('dailySpendCeilingDesc')}</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">{t('frequencyCapLabel')}</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={advSettings.default_frequency_cap}
+                    onChange={(e) =>
+                      setAdvSettings({ ...advSettings, default_frequency_cap: parseInt(e.target.value) || 1 })
+                    }
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="rounded-lg border p-3 bg-muted/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-semibold text-foreground">{t('autoPauseLowCtrLabel')}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {t('safetySectionDesc')}
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={advSettings.auto_pause_low_ctr}
+                      onChange={(e) =>
+                        setAdvSettings({ ...advSettings, auto_pause_low_ctr: e.target.checked })
+                      }
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {advSettings.auto_pause_low_ctr && (
+                    <div className="pt-2 border-t space-y-1.5">
+                      <label className="text-[11px] text-muted-foreground">{t('lowCtrThresholdLabel')}</label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0.05"
+                        max="10"
+                        value={advSettings.low_ctr_threshold}
+                        onChange={(e) =>
+                          setAdvSettings({ ...advSettings, low_ctr_threshold: parseFloat(e.target.value) || 0 })
+                        }
+                        className="h-8 text-xs font-mono"
+                      />
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 4: Notification Channels & Alerts */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <BellRing className="h-5 w-5 text-amber-500" />
+                  <CardTitle className="text-base">{t('notifSectionTitle')}</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  {t('notifSectionDesc')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Telegram Alert */}
+                <div className="rounded-lg border p-3 bg-muted/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold flex items-center gap-1.5">
+                      <Send className="h-3.5 w-3.5 text-sky-500" /> {t('telegramAlertsLabel')}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={notifSettings?.telegram_alerts_enabled || false}
+                      onChange={(e) =>
+                        setNotifSettings((prev) => prev ? { ...prev, telegram_alerts_enabled: e.target.checked } : null)
+                      }
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  <Input
+                    placeholder="123456789"
+                    value={notifSettings?.telegram_chat_id || ''}
+                    onChange={(e) =>
+                      setNotifSettings((prev) => prev ? { ...prev, telegram_chat_id: e.target.value } : null)
+                    }
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+
+                {/* Email Alert */}
+                <div className="rounded-lg border p-3 bg-muted/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-blue-500" /> {t('emailAlertsLabel')}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={notifSettings?.email_alerts_enabled || false}
+                      onChange={(e) =>
+                        setNotifSettings((prev) => prev ? { ...prev, email_alerts_enabled: e.target.checked } : null)
+                      }
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  <Input
+                    placeholder="alerts@company.com"
+                    value={notifSettings?.email_target || ''}
+                    onChange={(e) =>
+                      setNotifSettings((prev) => prev ? { ...prev, email_target: e.target.value } : null)
+                    }
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                {/* Webhook Alert */}
+                <div className="rounded-lg border p-3 bg-muted/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold flex items-center gap-1.5">
+                      <Webhook className="h-3.5 w-3.5 text-purple-500" /> {t('webhookAlertsLabel')}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={notifSettings?.webhook_url ? true : false}
+                      onChange={(e) => {
+                        if (!e.target.checked) {
+                          setNotifSettings((prev) => prev ? { ...prev, webhook_url: '' } : null);
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  <Input
+                    placeholder="https://api.mybrand.com/swipies-webhook"
+                    value={notifSettings?.webhook_url || ''}
+                    onChange={(e) =>
+                      setNotifSettings((prev) => prev ? { ...prev, webhook_url: e.target.value } : null)
+                    }
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+
+                {/* Test Alert Button */}
+                <div className="pt-2 flex items-center justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={testingNotifChannel !== null}
+                    onClick={() => handleSendTestNotification('all')}
+                    className="text-xs gap-1.5"
+                  >
+                    <Radio className={`h-3.5 w-3.5 ${testingNotifChannel ? 'animate-pulse text-amber-500' : ''}`} />
+                    {t('sendTestAlertBtn')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Bottom Action Card */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button
+              onClick={handleSaveAdvSettings}
+              disabled={isSavingAdvSettings}
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6"
+            >
+              <Save className={`mr-2 h-4 w-4 ${isSavingAdvSettings ? 'animate-spin' : ''}`} />
+              {isSavingAdvSettings ? t('savingChangesBtn') : t('saveChangesBtn')}
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
 

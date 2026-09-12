@@ -968,6 +968,143 @@ async def send_test_notification():
 
 
 # ==========================================
+# 2.9b Advertiser General Settings & Defaults
+# ==========================================
+
+@manager.route("/settings", methods=["GET"])
+@login_required
+async def get_advertiser_settings():
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserNotificationService
+
+        notif_settings = AdvertiserNotificationService.get_or_create_settings(advertiser_id=adv.id)
+        prefs = AdSettingsService.get_setting(f"adv_settings_{adv.id}", default_val={})
+        if not isinstance(prefs, dict):
+            prefs = {}
+
+        data = {
+            "advertiser_id": adv.id,
+            "company_name": adv.company_name or "",
+            "contact_email": adv.contact_email or getattr(current_user, "email", "") or "",
+            "website_url": adv.website_url or "",
+            "currency": adv.currency or "USD",
+            "pixel_id": adv.pixel_id or "",
+            "balance": float(adv.balance or 0.0),
+            "status": adv.status or "active",
+            "language": prefs.get("language", "ru"),
+            "default_regions": prefs.get("default_regions", ["UZ", "RU", "KZ"]),
+            "default_models": prefs.get("default_models", ["gpt-4o", "claude-3-5-sonnet", "deepseek-v3"]),
+            "daily_spend_ceiling": float(prefs.get("daily_spend_ceiling", 500.0)),
+            "default_frequency_cap": int(prefs.get("default_frequency_cap", 3)),
+            "auto_pause_low_ctr": bool(prefs.get("auto_pause_low_ctr", True)),
+            "low_ctr_threshold": float(prefs.get("low_ctr_threshold", 0.5)),
+            "timezone": prefs.get("timezone", "Asia/Tashkent"),
+            "notifications": notif_settings,
+        }
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error fetching advertiser settings: {e}")
+        return get_data_error_result(message=str(e))
+
+
+@manager.route("/settings", methods=["POST", "PUT"])
+@login_required
+async def update_advertiser_settings():
+    req = await get_request_json() or {}
+    try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        from api.db.services.ad_engine_service import AdvertiserNotificationService
+
+        # Update Advertiser table fields
+        changed = False
+        if "company_name" in req:
+            adv.company_name = str(req["company_name"]).strip()
+            changed = True
+        if "contact_email" in req:
+            adv.contact_email = str(req["contact_email"]).strip()
+            changed = True
+        if "website_url" in req:
+            adv.website_url = str(req["website_url"]).strip()
+            changed = True
+        if "currency" in req:
+            cur = str(req["currency"]).strip().upper()
+            if cur in ["USD", "UZS", "RUB", "EUR"]:
+                adv.currency = cur
+                changed = True
+        if changed:
+            adv.update_time = current_timestamp()
+            adv.save()
+
+        # Update custom advertiser preferences
+        existing_prefs = AdSettingsService.get_setting(f"adv_settings_{adv.id}", default_val={})
+        if not isinstance(existing_prefs, dict):
+            existing_prefs = {}
+
+        for k in ["language", "default_regions", "default_models", "timezone"]:
+            if k in req:
+                existing_prefs[k] = req[k]
+        if "daily_spend_ceiling" in req:
+            try:
+                existing_prefs["daily_spend_ceiling"] = float(req["daily_spend_ceiling"])
+            except (ValueError, TypeError):
+                pass
+        if "default_frequency_cap" in req:
+            try:
+                existing_prefs["default_frequency_cap"] = int(req["default_frequency_cap"])
+            except (ValueError, TypeError):
+                pass
+        if "auto_pause_low_ctr" in req:
+            existing_prefs["auto_pause_low_ctr"] = bool(req["auto_pause_low_ctr"])
+        if "low_ctr_threshold" in req:
+            try:
+                existing_prefs["low_ctr_threshold"] = float(req["low_ctr_threshold"])
+            except (ValueError, TypeError):
+                pass
+
+        AdSettingsService.set_setting(
+            f"adv_settings_{adv.id}",
+            existing_prefs,
+            description=f"Settings for advertiser {adv.id}",
+        )
+
+        # Update notification settings if provided
+        notif_data = req.get("notifications")
+        if notif_data and isinstance(notif_data, dict):
+            AdvertiserNotificationService.update_settings(advertiser_id=adv.id, payload=notif_data)
+
+        updated_notifs = AdvertiserNotificationService.get_or_create_settings(advertiser_id=adv.id)
+
+        data = {
+            "advertiser_id": adv.id,
+            "company_name": adv.company_name or "",
+            "contact_email": adv.contact_email or getattr(current_user, "email", "") or "",
+            "website_url": adv.website_url or "",
+            "currency": adv.currency or "USD",
+            "pixel_id": adv.pixel_id or "",
+            "balance": float(adv.balance or 0.0),
+            "status": adv.status or "active",
+            "language": existing_prefs.get("language", "ru"),
+            "default_regions": existing_prefs.get("default_regions", ["UZ", "RU", "KZ"]),
+            "default_models": existing_prefs.get("default_models", ["gpt-4o", "claude-3-5-sonnet", "deepseek-v3"]),
+            "daily_spend_ceiling": float(existing_prefs.get("daily_spend_ceiling", 500.0)),
+            "default_frequency_cap": int(existing_prefs.get("default_frequency_cap", 3)),
+            "auto_pause_low_ctr": bool(existing_prefs.get("auto_pause_low_ctr", True)),
+            "low_ctr_threshold": float(existing_prefs.get("low_ctr_threshold", 0.5)),
+            "timezone": existing_prefs.get("timezone", "Asia/Tashkent"),
+            "notifications": updated_notifs,
+        }
+        return get_json_result(data=data)
+    except Exception as e:
+        logger.exception(f"Error updating advertiser settings: {e}")
+        return get_data_error_result(message=str(e))
+
+
+# ==========================================
 # 2.10 Audience Retargeting & Segments
 # ==========================================
 

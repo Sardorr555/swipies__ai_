@@ -251,6 +251,12 @@ const adService = {
   sendTestNotification: (channel: string = 'all') =>
     request.post<ResponseData<NotificationItem>>('/ads/notifications/test', { data: { channel } }),
 
+  // Advertiser General Settings & Defaults
+  getAdvertiserSettings: () =>
+    request.get<ResponseData<AdvertiserSettingsData>>('/ads/settings'),
+  updateAdvertiserSettings: (data: Partial<AdvertiserSettingsData>) =>
+    request.post<ResponseData<AdvertiserSettingsData>>('/ads/settings', { data }),
+
   // Audience Retargeting & Segments
   getAudienceSegments: () =>
     request.get<ResponseData<AudienceSegmentItem[]>>('/ads/audiences'),
@@ -619,6 +625,26 @@ export interface NotificationSettingsData {
   notify_daily_budget_reached: boolean;
   notify_moderation_status: boolean;
   notify_conversion_milestone: boolean;
+}
+
+export interface AdvertiserSettingsData {
+  advertiser_id: string;
+  company_name: string;
+  contact_email: string;
+  website_url: string;
+  currency: string;
+  pixel_id: string;
+  balance: number;
+  status: string;
+  language: 'ru' | 'en' | 'uz';
+  default_regions: string[];
+  default_models: string[];
+  daily_spend_ceiling: number;
+  default_frequency_cap: number;
+  auto_pause_low_ctr: boolean;
+  low_ctr_threshold: number;
+  timezone: string;
+  notifications?: NotificationSettingsData;
 }
 
 export interface TeamMemberItem {

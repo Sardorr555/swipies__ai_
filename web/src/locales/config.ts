@@ -47,7 +47,8 @@ export const supportedLanguages = supportedLanguageCodes.map((code) => {
 });
 
 export const DEFAULT_LANGUAGE_CODE =
-  import.meta.env.VITE_DEFAULT_LANGUAGE_CODE || LanguageAbbreviation.En;
+  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_DEFAULT_LANGUAGE_CODE) ||
+  LanguageAbbreviation.En;
 
 const resources = {
   [LanguageAbbreviation.En]: translation_en,
