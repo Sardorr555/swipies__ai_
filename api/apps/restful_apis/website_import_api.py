@@ -55,25 +55,59 @@ async def preview_website_import():
 async def start_website_import():
     """
     Start a new website import job.
+    If kb_id/dataset_id is not provided, automatically creates a new dataset
+    based on the website and starts importing pages into it.
     """
     try:
         req = await request.get_json() or {}
-        kb_id = req.get("kb_id") or req.get("dataset_id")
-        if not kb_id:
-            return get_error_data_result(message="Missing required parameter: kb_id / dataset_id")
-
         url = req.get("url")
         urls = req.get("urls", [])
         if not url and not urls:
             return get_error_data_result(message="Missing required parameter: url or urls")
 
+        target_url = url or (urls[0] if urls else "")
         tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "system")
+
+        kb_id = req.get("kb_id") or req.get("dataset_id")
+        created_dataset_info = None
+
+        if not kb_id:
+            # Create a new dataset on-the-fly based on website!
+            dataset_name = req.get("dataset_name") or req.get("name")
+            if not dataset_name and target_url:
+                from urllib.parse import urlparse
+                dataset_name = urlparse(target_url).netloc or "Website Dataset"
+            elif not dataset_name:
+                dataset_name = "Website Dataset"
+
+            from api.apps.services import dataset_api_service
+            create_dict = {
+                "name": dataset_name,
+                "embedding_model": req.get("embedding_model"),
+                "parser_id": req.get("parser_id", "naive"),
+                "chunk_method": req.get("chunk_method", "naive"),
+            }
+            success, create_res = await dataset_api_service.create_dataset(tenant_id, create_dict)
+            if not success:
+                return get_error_data_result(message=f"Failed to create dataset for website: {create_res}")
+            
+            kb_id = create_res.get("id")
+            created_dataset_info = create_res
 
         pipeline = WebsiteImportPipeline(tenant_id=tenant_id, kb_id=kb_id, job_config=req)
         # Run pipeline in background task
         asyncio.create_task(pipeline.run())
 
-        return get_json_result(data={"job_id": pipeline.job_id, "status": "running"})
+        res_data = {
+            "job_id": pipeline.job_id,
+            "dataset_id": kb_id,
+            "status": "running"
+        }
+        if created_dataset_info:
+            res_data["dataset"] = created_dataset_info
+            res_data["dataset_name"] = created_dataset_info.get("name", "")
+
+        return get_json_result(data=res_data)
     except Exception as e:
         logger.exception(e)
         return get_error_data_result(message=f"Failed to start import job: {str(e)}")

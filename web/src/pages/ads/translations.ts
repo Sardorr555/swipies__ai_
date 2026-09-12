@@ -1,4 +1,9 @@
 export type AdLanguage = 'ru' | 'en' | 'uz';
+export const AdLanguage = {
+  RU: 'ru',
+  EN: 'en',
+  UZ: 'uz',
+} as const;
 
 export const AD_TRANSLATIONS: Record<AdLanguage, Record<string, string>> = {
   ru: {

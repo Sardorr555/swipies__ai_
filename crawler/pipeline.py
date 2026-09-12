@@ -1,6 +1,7 @@
 import asyncio
 import io
 import logging
+import re
 import uuid
 import aiohttp
 from crawler.crawler import AsyncWebCrawler
@@ -8,8 +9,11 @@ from crawler.progress import JobProgressTracker
 from crawler.metadata import MetadataBuilder
 from api.db.services.document_service import DocumentService
 from api.db.services.knowledgebase_service import KnowledgebaseService
-from api.db.db_models import Document, ParserType
-from common.constants import TaskStatus
+from api.db.db_models import Document
+from api.db import FileType
+from common.constants import TaskStatus, StatusEnum, ParserType
+from common.time_utils import get_format_time
+from api import settings
 
 logger = logging.getLogger(__name__)
 
@@ -49,34 +53,68 @@ class WebsiteImportPipeline:
             self.tracker.pages_processed = len(crawled_pages)
             self.tracker.log(f"Crawl completed. {len(crawled_pages)} pages fetched successfully.")
 
+            # Retrieve KB settings if available
+            kb = None
+            try:
+                ok, kb_data = KnowledgebaseService.get_by_id(self.kb_id)
+                if ok:
+                    kb = kb_data
+            except Exception as e:
+                logger.warning(f"Could not load KB {self.kb_id}: {e}")
+
+            parser_id = getattr(kb, "parser_id", None) or ParserType.NAIVE.value
+            pipeline_id = getattr(kb, "pipeline_id", None)
+            parser_config = getattr(kb, "parser_config", None) or {"pages": [[1, 1000000]]}
+
             # Process crawled pages and turn them into RAGFlow Documents
             for idx, page in enumerate(crawled_pages):
                 if self.tracker.status == "cancelled":
                     break
 
-                doc_name = f"{page['title'] or page['url']}.md"
-                md_content = page["markdown"]
+                raw_title = page.get("title") or page.get("url") or f"page_{idx+1}"
+                clean_title = re.sub(r'[\\/*?:"<>|]', "", raw_title).strip() or f"page_{idx+1}"
+                if not clean_title.lower().endswith(".md"):
+                    doc_name = f"{clean_title[:120]}.md"
+                else:
+                    doc_name = clean_title[:120]
+
+                md_content = page.get("markdown") or ""
                 if not md_content.strip():
                     continue
 
-                # Create RAGFlow Document entry
                 doc_id = str(uuid.uuid4().hex)
+                blob = md_content.encode("utf-8")
+                location = f"{doc_id}.md"
+
+                # Store file blob in object storage
+                if hasattr(settings, "STORAGE_IMPL") and settings.STORAGE_IMPL:
+                    try:
+                        settings.STORAGE_IMPL.put(self.kb_id, location, blob)
+                    except Exception as st_err:
+                        logger.warning(f"STORAGE_IMPL put error for {doc_id}: {st_err}")
+
+                # Create RAGFlow Document entry
                 doc = {
                     "id": doc_id,
                     "kb_id": self.kb_id,
-                    "parser_id": ParserType.NAIVE.value,
-                    "pipeline_id": None,
+                    "parser_id": parser_id,
+                    "pipeline_id": pipeline_id,
+                    "parser_config": parser_config,
+                    "source_type": "web",
                     "name": doc_name[:255],
-                    "type": "web",
-                    "location": page["url"],
-                    "size": len(md_content.encode('utf-8')),
-                    "status": TaskStatus.RUNNING.value,
+                    "type": FileType.DOC.value,
+                    "suffix": "md",
+                    "location": location,
+                    "size": len(blob),
+                    "status": StatusEnum.VALID.value,
+                    "run": TaskStatus.UNSTART.value,
                     "progress": 0.0,
                     "created_by": self.tenant_id,
-                    "process_begin_at": DocumentService.date_now(),
+                    "process_begin_at": get_format_time(),
                 }
                 
-                DocumentService.insert(**doc)
+                DocumentService.insert(doc)
+
                 self.tracker.chunks_created += 1
                 self.tracker.log(f"Created Document record for {doc_name}")
 
@@ -90,3 +128,4 @@ class WebsiteImportPipeline:
 
 def get_job_pipeline(job_id: str) -> WebsiteImportPipeline or None:
     return ACTIVE_JOBS.get(job_id)
+

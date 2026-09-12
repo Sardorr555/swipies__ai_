@@ -7,9 +7,15 @@ import { Button } from '@/components/ui/button';
 import { RAGFlowPagination } from '@/components/ui/ragflow-pagination';
 import { useFetchNextKnowledgeListByPage } from '@/hooks/use-knowledge-request';
 import { useQueryClient } from '@tanstack/react-query';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { pick } from 'lodash';
-import { Plus } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { ChevronDown, FileText, Globe, Plus } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { DatasetCard } from './dataset-card';
@@ -20,6 +26,7 @@ import { useSelectOwners } from './use-select-owners';
 
 export default function Datasets() {
   const { t } = useTranslation();
+  const [creationMode, setCreationMode] = useState<'standard' | 'website'>('standard');
   const {
     visible,
     hideModal,
@@ -85,10 +92,37 @@ export default function Datasets() {
               onChange={handleFilterSubmit}
               icon={'datasets'}
             >
-              <Button onClick={showModal}>
-                <Plus className="size-[1em]" />
-                {t('knowledgeList.createKnowledgeBase')}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="flex items-center gap-1.5">
+                    <Plus className="size-[1em]" />
+                    {t('knowledgeList.createKnowledgeBase')}
+                    <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-0.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setCreationMode('standard');
+                      showModal();
+                    }}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>{t('knowledgeList.standardDataset', 'Стандартный датасет')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setCreationMode('website');
+                      showModal();
+                    }}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Globe className="w-4 h-4 text-blue-500" />
+                    <span>{t('knowledgeList.fromWebsite', 'Спарсить сайт и создать')}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </ListFilterBar>
           </header>
 
@@ -120,7 +154,10 @@ export default function Datasets() {
                 className="w-[480px] p-14"
                 isSearch
                 type={EmptyCardType.Dataset}
-                onClick={() => showModal()}
+                onClick={() => {
+                  setCreationMode('standard');
+                  showModal();
+                }}
               />
             </div>
           )}
@@ -135,12 +172,16 @@ export default function Datasets() {
             size="large"
             className="w-[480px] p-14"
             type={EmptyCardType.Dataset}
-            onClick={() => showModal()}
+            onClick={() => {
+              setCreationMode('standard');
+              showModal();
+            }}
           />
         </article>
       )}
       {visible && (
         <DatasetCreatingDialog
+          initialMode={creationMode}
           hideModal={hideModal}
           onOk={onCreateOk}
           loading={creatingLoading}
