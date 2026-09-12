@@ -192,17 +192,32 @@ const routeConfigOptions = [
     layout: false,
   },
   {
+    path: Routes.Ads,
+    Component: () => import('@/pages/ads/standalone'),
+    layout: false,
+  },
+  {
     path: Routes.Root,
     layout: false,
     Component: () => import('@/layouts/root-layout'),
     loader: ({ request }: { request: Request }) => {
       const url = new URL(request.url);
       const auth = url.searchParams.get('auth');
+      const isAdsSubdomain = url.hostname.toLowerCase().startsWith('ads.');
+
       if (auth) {
         authorizationUtil.setAuthorization(auth);
         url.searchParams.delete('auth');
+        if (isAdsSubdomain) {
+          return redirect(`${Routes.Ads}${url.search}`);
+        }
         return redirect(`${url.pathname}${url.search}`);
       }
+
+      if (isAdsSubdomain) {
+        return redirect(`${Routes.Ads}${url.search}`);
+      }
+
       return null;
     },
     children: [
@@ -297,10 +312,6 @@ const routeConfigOptions = [
       {
         path: Routes.Skills,
         Component: () => import('@/pages/skills'),
-      },
-      {
-        path: Routes.Ads,
-        Component: () => import('@/pages/ads'),
       },
       {
         path: Routes.UserSetting,

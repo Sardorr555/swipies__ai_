@@ -48,11 +48,11 @@ fi
 
 # 3. Generate Nginx configuration
 cat << 'EOF' > "$TARGET_CONF"
-# Configuration for demo.swipies.app
+# Configuration for demo.swipies.app and ads.swipies.app
 server {
     listen 80;
     listen [::]:80;
-    server_name demo.swipies.app;
+    server_name demo.swipies.app ads.swipies.app;
 
     client_max_body_size 128M;
 
@@ -97,7 +97,7 @@ if [ -n "$SSL_CERT" ] && [ -n "$SSL_KEY" ]; then
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name demo.swipies.app;
+    server_name demo.swipies.app ads.swipies.app;
 
     ssl_certificate     $SSL_CERT;
     ssl_certificate_key $SSL_KEY;
@@ -154,31 +154,33 @@ else
 fi
 
 # 4. Attempt Certbot certificate generation if DNS resolves to this host
-echo "🌐 Checking DNS resolution for demo.swipies.app..."
+echo "🌐 Checking DNS resolution for demo.swipies.app and ads.swipies.app..."
 HOST_IP=$(curl -4 -s --connect-timeout 3 ifconfig.me || curl -4 -s --connect-timeout 3 icanhazip.com || echo "51.20.190.248")
-RESOLVED_IP=$(getent ahosts demo.swipies.app 2>/dev/null | awk '{print $1}' | head -n 1 || true)
 
-echo "   Host Public IP: $HOST_IP"
-echo "   DNS Resolved IP: ${RESOLVED_IP:-Not resolved yet}"
+for DOMAIN in demo.swipies.app ads.swipies.app; do
+  RESOLVED_IP=$(getent ahosts "$DOMAIN" 2>/dev/null | awk '{print $1}' | head -n 1 || true)
+  echo "   Host Public IP: $HOST_IP"
+  echo "   $DOMAIN Resolved IP: ${RESOLVED_IP:-Not resolved yet}"
 
-if [ -n "$RESOLVED_IP" ] && [ "$RESOLVED_IP" = "$HOST_IP" ]; then
-  echo "🚀 DNS points to this server! Requesting/renewing Let's Encrypt SSL certificate..."
-  if certbot --nginx -d demo.swipies.app --non-interactive --agree-tos --register-unsafely-without-email --redirect; then
-    echo "🎉 SSL Certificate successfully issued and configured for demo.swipies.app!"
-    systemctl reload nginx || true
+  if [ -n "$RESOLVED_IP" ] && [ "$RESOLVED_IP" = "$HOST_IP" ]; then
+    echo "🚀 DNS for $DOMAIN points to this server! Requesting/renewing Let's Encrypt SSL certificate..."
+    if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect; then
+      echo "🎉 SSL Certificate successfully issued and configured for $DOMAIN!"
+      systemctl reload nginx || true
+    else
+      echo "⚠️ Certbot challenge encountered an issue for $DOMAIN, HTTP proxy remains active."
+    fi
   else
-    echo "⚠️ Certbot challenge encountered an issue, HTTP proxy remains fully active."
+    echo "ℹ️ DNS A-record for $DOMAIN is not yet pointing directly to $HOST_IP (or is propagating)."
+    echo "   Create A record: $DOMAIN -> $HOST_IP"
   fi
-else
-  echo "ℹ️ DNS A-record for demo.swipies.app is not yet pointing directly to $HOST_IP (or is propagating)."
-  echo "   Once you create the A record (demo.swipies.app -> $HOST_IP), rerun this script or wait for auto-deploy:"
-  echo "   sudo bash docker/setup_demo_nginx.sh"
-fi
+done
 
 echo "=================================================="
-echo "🎉 demo.swipies.app configuration completed!"
+echo "🎉 Configuration completed for demo.swipies.app and ads.swipies.app!"
 echo "   Access: http://demo.swipies.app -> http://127.0.0.1:9222"
+echo "   Access: http://ads.swipies.app -> http://127.0.0.1:9222"
 if [ -n "$SSL_CERT" ]; then
-  echo "   Access (HTTPS): https://demo.swipies.app"
+  echo "   Access (HTTPS): https://demo.swipies.app and https://ads.swipies.app"
 fi
 echo "=================================================="

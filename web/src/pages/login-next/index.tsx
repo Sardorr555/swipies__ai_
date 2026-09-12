@@ -591,12 +591,35 @@ const Login = () => {
   const { config } = useSystemConfig();
   const registerEnabled = config?.registerEnabled !== 0;
 
+  const redirectUrl = searchParams.get('redirect');
+  const isAdsSubdomain =
+    typeof window !== 'undefined' &&
+    window.location.hostname.toLowerCase().startsWith('ads.');
+  const defaultDestination = isAdsSubdomain ? '/ads' : '/';
+
+  const handleRedirect = (target?: string | null) => {
+    const rawDest = target || redirectUrl || defaultDestination;
+    let dest = rawDest;
+    try {
+      dest = decodeURIComponent(rawDest);
+    } catch {}
+    if (
+      dest.startsWith('http://') ||
+      dest.startsWith('https://') ||
+      dest.startsWith('//')
+    ) {
+      window.location.href = dest;
+    } else {
+      navigate(dest, { replace: true });
+    }
+  };
+
   const { isLogin } = useAuth();
   useEffect(() => {
     if (isLogin) {
-      navigate('/');
+      handleRedirect();
     }
-  }, [isLogin, navigate]);
+  }, [isLogin]);
 
   const handleLoginWithChannel = async (channel: string) => {
     await loginWithChannel(channel);
@@ -720,7 +743,7 @@ const Login = () => {
           password: rsaPassWord,
         });
         if (res?.code === 0) {
-          navigate('/');
+          handleRedirect();
         } else if (res?.code === 403 && (res?.data?.requires_activation || res?.message?.includes('not activated'))) {
           setActivationEmail(`${params.email}`.trim());
         }
@@ -781,7 +804,7 @@ const Login = () => {
             <ActivationFormContent
               email={activationEmail}
               onSuccess={() => {
-                navigate('/');
+                handleRedirect();
               }}
               onCancel={() => setActivationEmail(null)}
             />

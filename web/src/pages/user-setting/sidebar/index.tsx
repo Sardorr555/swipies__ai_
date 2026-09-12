@@ -24,6 +24,7 @@ import {
   CreditCard,
   Key,
   Megaphone,
+  ExternalLink,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -140,10 +141,13 @@ export function SideBar() {
                   )}
                   onClick={handleMenuClick(key)}
                 >
-                  <span className="flex items-center gap-2.5 max-md:gap-0">
+                  <span className="flex items-center gap-2.5 max-md:gap-0 flex-1">
                     {icon}
                     <span className="hidden md:inline">{label}</span>
                   </span>
+                  {key === Routes.Ads && (
+                    <ExternalLink className="hidden md:block size-3.5 text-muted-foreground opacity-60 ml-auto" />
+                  )}
                 </Button>
               </li>
             );

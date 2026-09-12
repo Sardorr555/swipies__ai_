@@ -1,5 +1,6 @@
 import { useLogout } from '@/hooks/use-login-request';
 import { Routes } from '@/routes';
+import authorizationUtil from '@/utils/authorization-util';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
@@ -20,8 +21,17 @@ export const useHandleMenuClick = () => {
       if (key === Routes.Logout) {
         logout();
       } else if (key === Routes.Ads) {
-        setActive(key);
-        navigate(Routes.Ads);
+        const token = authorizationUtil.getAuthorization();
+        const authQuery = token ? `?auth=${encodeURIComponent(token)}` : '';
+        const hostname =
+          typeof window !== 'undefined'
+            ? window.location.hostname.toLowerCase()
+            : '';
+        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+        const targetUrl = isLocal
+          ? `/ads${authQuery}`
+          : `${window.location.protocol}//ads.swipies.app/${authQuery}`;
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
       } else {
         setActive(key);
         navigate(`${Routes.UserSetting}${key}`);
