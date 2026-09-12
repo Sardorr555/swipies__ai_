@@ -2945,6 +2945,18 @@ def migrate_db():
         DB.execute_sql("UPDATE user_tenant SET role = 'owner' WHERE tenant_id = user_id AND role = 'normal';")
     except Exception:
         pass
+    try:
+        DB.execute_sql("ALTER TABLE advertisers ADD COLUMN pixel_id VARCHAR(32) NULL;")
+    except Exception:
+        pass
+    try:
+        DB.execute_sql("ALTER TABLE advertisers ADD UNIQUE INDEX idx_advertisers_pixel_id (pixel_id);")
+    except Exception:
+        pass
+    try:
+        DB.execute_sql("ALTER TABLE advertisers ADD COLUMN website_url VARCHAR(1024) NULL;")
+    except Exception:
+        pass
     alter_db_column_type(migrator, "chat_channel", "status", IntegerField(default=1, index=True))
     alter_db_rename_column(migrator, "chat_channel", "dialog_id", "chat_id")
     # Drop both the explicit "idx_*" name from later migrations AND the

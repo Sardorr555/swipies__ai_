@@ -35,8 +35,9 @@ describe('Swipies Ads Localization & Settings Test Suite', () => {
       });
     });
 
-    it('validates all 15 tab trigger titles across ru, en, uz', () => {
+    it('validates navigation tab trigger titles across ru, en, uz', () => {
       const tabKeys = [
+        'tabOverview',
         'tabCampaigns',
         'tabStudio',
         'tabInsights',
@@ -60,6 +61,18 @@ describe('Swipies Ads Localization & Settings Test Suite', () => {
           expect(dict[k]).toBeDefined();
           expect(dict[k].length).toBeGreaterThan(1);
         });
+      });
+    });
+
+    it('verifies overview page translations across ru, en, uz', () => {
+      languages.forEach((lang) => {
+        const dict = AD_TRANSLATIONS[lang];
+        expect(dict.tabOverview.length).toBeGreaterThan(2);
+        expect(dict.overviewWelcome.length).toBeGreaterThan(5);
+        expect(dict.overviewDesc.length).toBeGreaterThan(10);
+        expect(dict.quickActionsTitle.length).toBeGreaterThan(3);
+        expect(dict.recentCampaignsTitle.length).toBeGreaterThan(3);
+        expect(dict.performanceTrendsTitle.length).toBeGreaterThan(5);
       });
     });
 

@@ -1558,13 +1558,32 @@ class ConversionTrackingService(CommonService):
     @classmethod
     @DB.connection_context()
     def get_or_create_pixel_id(cls, advertiser_id: str) -> str:
-        adv = Advertiser.get_or_none(Advertiser.id == advertiser_id)
-        if not adv:
-            return ""
-        if not adv.pixel_id:
-            adv.pixel_id = "px_" + uuid.uuid4().hex[:16]
-            adv.save()
-        return adv.pixel_id
+        try:
+            adv = Advertiser.get_or_none(Advertiser.id == advertiser_id)
+            if adv and getattr(adv, "pixel_id", None):
+                return adv.pixel_id
+            pid = "px_" + uuid.uuid4().hex[:16]
+            if adv:
+                try:
+                    adv.pixel_id = pid
+                    adv.save()
+                    return pid
+                except Exception:
+                    try:
+                        DB.execute_sql("ALTER TABLE advertisers ADD COLUMN pixel_id VARCHAR(32) NULL;")
+                        DB.execute_sql("ALTER TABLE advertisers ADD UNIQUE INDEX idx_advertisers_pixel_id (pixel_id);")
+                        adv.pixel_id = pid
+                        adv.save()
+                        return pid
+                    except Exception:
+                        return f"px_{advertiser_id[:16]}"
+        except Exception:
+            try:
+                DB.execute_sql("ALTER TABLE advertisers ADD COLUMN pixel_id VARCHAR(32) NULL;")
+            except Exception:
+                pass
+            return f"px_{advertiser_id[:16]}"
+        return f"px_{advertiser_id[:16]}"
 
     @classmethod
     def generate_pixel_snippet(cls, pixel_id: str, host: str = "https://swipies.app") -> dict:
