@@ -1,4 +1,4 @@
-import { AD_TRANSLATIONS, AdLanguage, translateAdText } from '../../pages/ads/translations';
+import { AD_TRANSLATIONS, AdLanguage, translateAdText, getActiveAdLanguage, setActiveAdLanguage } from '../../pages/ads/translations';
 import adService from '../../services/ad-service';
 
 describe('Swipies Ads Localization & Settings Test Suite', () => {
@@ -139,6 +139,31 @@ describe('Swipies Ads Localization & Settings Test Suite', () => {
       expect(translateAdText('Узнать больше', 'en')).toBe('Learn More');
       expect(translateAdText('Узнать больше', 'uz')).toBe('Batafsil bilish');
     });
+
+    it('verifies getActiveAdLanguage defaults to Russian and handles explicit preferences', () => {
+      localStorage.clear();
+      // Unset should default strictly to Russian ('ru')
+      expect(getActiveAdLanguage()).toBe('ru');
+
+      // Even if generic platform has 'en', Ads defaults to 'ru' unless explicitly set in swipies_ads_lang
+      localStorage.setItem('lng', 'en');
+      expect(getActiveAdLanguage()).toBe('ru');
+
+      // If user switches to Uzbek
+      setActiveAdLanguage('uz');
+      expect(getActiveAdLanguage()).toBe('uz');
+      expect(localStorage.getItem('swipies_ads_lang')).toBe('uz');
+
+      // If user switches to Russian
+      setActiveAdLanguage('ru');
+      expect(getActiveAdLanguage()).toBe('ru');
+
+      // If user switches to English
+      setActiveAdLanguage('en');
+      expect(getActiveAdLanguage()).toBe('en');
+
+      localStorage.clear();
+    });
   });
 
   describe('AdService Advertiser Settings Methods', () => {
@@ -151,3 +176,4 @@ describe('Swipies Ads Localization & Settings Test Suite', () => {
     });
   });
 });
+

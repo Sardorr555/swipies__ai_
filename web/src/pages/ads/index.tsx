@@ -182,36 +182,59 @@ import adService, {
 } from '@/services/ad-service';
 import storage from '@/utils/authorization-util';
 import { changeLanguageAsync } from '@/locales/config';
-import { AD_TRANSLATIONS, AdLanguage, translateAdText } from './translations';
-export { AD_TRANSLATIONS, AdLanguage, translateAdText };
+import { AD_TRANSLATIONS, AdLanguage, translateAdText, getActiveAdLanguage, setActiveAdLanguage } from './translations';
+export { AD_TRANSLATIONS, AdLanguage, translateAdText, getActiveAdLanguage, setActiveAdLanguage };
 
-export default function SwipiesAdsPage() {
+export interface SwipiesAdsPageProps {
+  currentLang?: AdLanguage;
+  onLanguageChange?: (lang: AdLanguage) => void;
+}
+
+export default function SwipiesAdsPage({
+  currentLang: propLang,
+  onLanguageChange: propOnLanguageChange,
+}: SwipiesAdsPageProps = {}) {
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null);
   const [transactions, setTransactions] = useState<AdTransactionItem[]>([]);
   const [activeTab, setActiveTab] = useState('campaigns');
 
-  // Localization & Multi-Language State
-  const [currentLang, setCurrentLang] = useState<AdLanguage>(() => {
-    const saved =
-      (typeof window !== 'undefined' && localStorage.getItem('swipies_ads_lang')) ||
-      storage.getLanguage() ||
-      'ru';
-    if (saved.startsWith('uz')) return 'uz';
-    if (saved.startsWith('en')) return 'en';
-    return 'ru';
-  });
+  // Localization & Multi-Language State (synchronized with prop or persistent storage)
+  const [internalLang, setInternalLang] = useState<AdLanguage>(getActiveAdLanguage);
+
+  const currentLang = propLang || internalLang;
+
+  useEffect(() => {
+    if (propLang && propLang !== internalLang) {
+      setInternalLang(propLang);
+    }
+  }, [propLang, internalLang]);
+
+  useEffect(() => {
+    const syncLang = () => {
+      const active = getActiveAdLanguage();
+      setInternalLang(active);
+    };
+    window.addEventListener('storage', syncLang);
+    window.addEventListener('languagechange', syncLang);
+    window.addEventListener('adlanguagechange', syncLang);
+    return () => {
+      window.removeEventListener('storage', syncLang);
+      window.removeEventListener('languagechange', syncLang);
+      window.removeEventListener('adlanguagechange', syncLang);
+    };
+  }, []);
 
   const t = (keyOrText: string, fallback?: string): string => {
     return translateAdText(keyOrText, currentLang, fallback);
   };
 
   const handleLanguageChange = async (lang: AdLanguage) => {
-    setCurrentLang(lang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('swipies_ads_lang', lang);
-      window.dispatchEvent(new Event('languagechange'));
+    setInternalLang(lang);
+    if (propOnLanguageChange) {
+      propOnLanguageChange(lang);
     }
+    setActiveAdLanguage(lang);
     setAdvSettings((prev) => ({ ...prev, language: lang }));
     try {
       await changeLanguageAsync(lang);
@@ -2460,31 +2483,31 @@ export default function SwipiesAdsPage() {
   const currency = dashboard?.currency || 'USD';
 
   return (
-    <div className="flex-1 space-y-6 p-8 pt-6">
+    <div className="flex-1 space-y-4 sm:space-y-6 p-3 sm:p-5 md:p-6 lg:p-8 pt-3 sm:pt-5 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">{t('pageTitle')}</h1>
-            <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-400">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 w-full">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('pageTitle')}</h1>
+            <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs shrink-0">
               <Sparkles className="mr-1 h-3 w-3" /> {t('aiIntentBadge')}
             </Badge>
           </div>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p className="text-muted-foreground mt-1 text-xs sm:text-sm max-w-2xl">
             {t('pageSubtitle')}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Language Switcher */}
-          <div className="flex items-center gap-1 rounded-lg border bg-card p-1 shadow-sm">
-            <Globe className="h-4 w-4 text-blue-500 ml-1 mr-0.5" />
+          <div className="flex items-center gap-0.5 sm:gap-1 rounded-lg border bg-card p-1 shadow-xs shrink-0">
+            <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 ml-1 mr-0.5 shrink-0" />
             {(['ru', 'en', 'uz'] as const).map((lang) => (
               <button
                 key={lang}
                 type="button"
                 onClick={() => handleLanguageChange(lang)}
-                className={`px-2 py-1 rounded text-xs font-semibold uppercase transition-all ${
+                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[11px] sm:text-xs font-semibold uppercase transition-all ${
                   currentLang === lang
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -2496,25 +2519,26 @@ export default function SwipiesAdsPage() {
           </div>
 
           {/* Balance Widget */}
-          <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2 shadow-sm">
-            <Wallet className="h-5 w-5 text-emerald-500" />
+          <div className="flex items-center gap-2 sm:gap-3 rounded-lg border bg-card px-3 py-1.5 sm:px-4 sm:py-2 shadow-xs shrink-0">
+            <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500 shrink-0" />
             <div>
-              <div className="text-xs text-muted-foreground">{t('availableBalance')}</div>
-              <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+              <div className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{t('availableBalance')}</div>
+              <div className="text-sm sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-tight">
                 ${balance.toFixed(2)} {currency}
               </div>
             </div>
-            <Button size="sm" variant="outline" onClick={() => setIsTopUpModalOpen(true)} className="ml-2">
-              <CreditCard className="mr-1 h-3.5 w-3.5" /> {t('topUpBtn')}
+            <Button size="sm" variant="outline" onClick={() => setIsTopUpModalOpen(true)} className="ml-1 sm:ml-2 h-7 sm:h-8 text-xs px-2 sm:px-3">
+              <CreditCard className="mr-1 h-3 w-3 sm:h-3.5 sm:w-3.5" /> {t('topUpBtn')}
             </Button>
           </div>
 
           <Button
             variant="outline"
+            size="sm"
             onClick={handleOpenPixelModal}
-            className="border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
+            className="h-8 sm:h-9 text-xs border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 shrink-0"
           >
-            <Code2 className="mr-1.5 h-4 w-4" /> {t('pixelBtn')}
+            <Code2 className="mr-1.5 h-3.5 w-3.5" /> {t('pixelBtn')}
           </Button>
 
           {/* Notification Bell Button */}
@@ -2525,13 +2549,13 @@ export default function SwipiesAdsPage() {
               setIsNotifModalOpen(true);
               fetchNotifications();
             }}
-            className="relative"
+            className="relative h-8 w-8 sm:h-9 sm:w-9 shrink-0"
             title={t('notificationsTitle')}
           >
             {unreadNotifCount > 0 ? (
-              <BellRing className="h-4 w-4 text-amber-500 animate-bounce" />
+              <BellRing className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500 animate-bounce" />
             ) : (
-              <Bell className="h-4 w-4" />
+              <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             )}
             {unreadNotifCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow">
@@ -2549,23 +2573,23 @@ export default function SwipiesAdsPage() {
               fetchAdvSettings();
             }}
             title={t('settingsBtn')}
-            className={activeTab === 'settings' ? 'border-blue-500 text-blue-600 bg-blue-50/50 dark:bg-blue-950/30' : ''}
+            className={`h-8 w-8 sm:h-9 sm:w-9 shrink-0 ${activeTab === 'settings' ? 'border-blue-500 text-blue-600 bg-blue-50/50 dark:bg-blue-950/30' : ''}`}
           >
-            <Settings className="h-4 w-4 text-muted-foreground" />
+            <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </Button>
 
-          <Button onClick={handleOpenCreateCampaign} className="bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="mr-1.5 h-4 w-4" /> {t('newCampaignBtn')}
+          <Button onClick={handleOpenCreateCampaign} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white shrink-0">
+            <Plus className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" /> {t('newCampaignBtn')}
           </Button>
 
-          <Button variant="ghost" size="icon" onClick={fetchDashboard} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <Button variant="ghost" size="icon" onClick={fetchDashboard} disabled={loading} className="h-8 w-8 sm:h-9 sm:w-9 shrink-0">
+            <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 w-full">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('activeCampaigns')}</CardTitle>

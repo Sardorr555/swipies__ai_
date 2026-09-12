@@ -939,6 +939,31 @@ export const AD_TRANSLATIONS: Record<AdLanguage, Record<string, string>> = {
 
 import { AD_PHRASES } from './phrases';
 
+export function getActiveAdLanguage(): AdLanguage {
+  if (typeof window === 'undefined') return 'ru';
+  // 1. Check explicit ads language preference first
+  const adsLang = localStorage.getItem('swipies_ads_lang');
+  if (adsLang === 'uz' || adsLang === 'ru' || adsLang === 'en') {
+    return adsLang;
+  }
+  // 2. Check general platform language if Russian or Uzbek
+  const generalLng = localStorage.getItem('lng');
+  if (generalLng) {
+    if (generalLng.startsWith('uz')) return 'uz';
+    if (generalLng.startsWith('ru')) return 'ru';
+  }
+  // 3. Default to Russian ('ru') for Swipies ecosystem
+  return 'ru';
+}
+
+export function setActiveAdLanguage(lang: AdLanguage): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('swipies_ads_lang', lang);
+  localStorage.setItem('lng', lang);
+  window.dispatchEvent(new Event('languagechange'));
+  window.dispatchEvent(new CustomEvent('adlanguagechange', { detail: lang }));
+}
+
 export function translateAdText(keyOrText: string, lang: AdLanguage, fallback?: string): string {
   if (!keyOrText) return keyOrText;
   const trimmed = keyOrText.trim();
@@ -963,3 +988,4 @@ export function translateAdText(keyOrText: string, lang: AdLanguage, fallback?: 
   if (lang === 'ru') return trimmed;
   return AD_TRANSLATIONS['en']?.[trimmed] || trimmed;
 }
+

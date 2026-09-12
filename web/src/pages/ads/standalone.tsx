@@ -1,41 +1,48 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ArrowLeft, Megaphone, ExternalLink, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Megaphone, ExternalLink, Sparkles, ShieldCheck, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ThemeSwitch from '@/components/theme-switch';
 import authorizationUtil from '@/utils/authorization-util';
-import { AD_TRANSLATIONS, AdLanguage } from './translations';
+import { AD_TRANSLATIONS, AdLanguage, getActiveAdLanguage, setActiveAdLanguage } from './translations';
 import SwipiesAdsPage from './index';
 
 export default function StandaloneAdsApp() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Language state synchronized with Ads dashboard
-  const [currentLang, setCurrentLang] = useState<AdLanguage>(() => {
-    const saved =
-      (typeof window !== 'undefined' && localStorage.getItem('swipies_ads_lang')) ||
-      authorizationUtil.getLanguage() ||
-      'ru';
-    if (saved.startsWith('uz')) return 'uz';
-    if (saved.startsWith('en')) return 'en';
-    return 'ru';
-  });
+  // Language state synchronized with Ads dashboard & global storage (defaults strictly to 'ru')
+  const [currentLang, setCurrentLang] = useState<AdLanguage>(getActiveAdLanguage);
+
+  const handleLanguageChange = (lang: AdLanguage) => {
+    setCurrentLang(lang);
+    setActiveAdLanguage(lang);
+  };
 
   useEffect(() => {
     const checkLang = () => {
-      const saved = localStorage.getItem('swipies_ads_lang') || 'ru';
-      if (saved.startsWith('uz')) setCurrentLang('uz');
-      else if (saved.startsWith('en')) setCurrentLang('en');
-      else setCurrentLang('ru');
+      const active = getActiveAdLanguage();
+      setCurrentLang(active);
     };
     window.addEventListener('storage', checkLang);
     window.addEventListener('languagechange', checkLang);
+    window.addEventListener('adlanguagechange', checkLang);
     return () => {
       window.removeEventListener('storage', checkLang);
       window.removeEventListener('languagechange', checkLang);
+      window.removeEventListener('adlanguagechange', checkLang);
     };
+  }, []);
+
+  // Ensure document and root allow native vertical scrolling inside the flex container
+  useEffect(() => {
+    const rootEl = document.getElementById('root');
+    if (rootEl) {
+      rootEl.style.height = '100dvh';
+      rootEl.style.maxHeight = '100dvh';
+      rootEl.style.overflow = 'hidden';
+    }
   }, []);
 
   const t = (key: string): string => {
@@ -92,32 +99,54 @@ export default function StandaloneAdsApp() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background flex flex-col antialiased">
+    <div className="h-screen h-[100dvh] max-h-screen max-h-[100dvh] w-full bg-background flex flex-col overflow-hidden antialiased">
       {/* Standalone Top Bar */}
-      <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b bg-card/95 px-4 md:px-6 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 font-bold tracking-tight text-foreground">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10 text-blue-500 border border-blue-500/20">
+      <header className="shrink-0 z-40 flex h-14 w-full items-center justify-between border-b bg-card/95 px-3 sm:px-4 md:px-6 backdrop-blur-md">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2 font-bold tracking-tight text-foreground min-w-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10 text-blue-500 border border-blue-500/20 shrink-0">
               <Megaphone className="h-4 w-4" />
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-semibold">Swipies Ads</span>
-                <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-400 text-[11px] py-0 px-1.5 hidden sm:inline-flex">
-                  <Sparkles className="mr-1 h-3 w-3" /> {t('standaloneBadge')}
-                </Badge>
-              </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-base font-bold tracking-tight truncate">Swipies Ads</span>
+              <Badge
+                variant="outline"
+                className="border-blue-500/30 bg-blue-500/10 text-blue-400 text-[11px] py-0.5 px-2 inline-flex items-center gap-1 font-medium shrink-0"
+              >
+                <Sparkles className="h-3 w-3 shrink-0" />
+                <span>{t('standaloneBadge')}</span>
+              </Badge>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 px-2.5 py-1 rounded-full border border-border/40">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Unified DB Badge */}
+          <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 px-2.5 py-1 rounded-full border border-border/40 shrink-0">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
             <span>{t('unifiedDbBadge')}</span>
           </div>
 
-          <div className="scale-90">
+          {/* Synchronized Header Language Switcher */}
+          <div className="flex items-center gap-0.5 rounded-md border bg-muted/40 p-0.5 shrink-0">
+            <Globe className="h-3.5 w-3.5 text-blue-500 ml-1 mr-0.5 shrink-0" />
+            {(['ru', 'en', 'uz'] as const).map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => handleLanguageChange(lang)}
+                className={`px-1.5 py-0.5 rounded text-[11px] font-semibold uppercase transition-all ${
+                  currentLang === lang
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                }`}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+
+          <div className="scale-90 shrink-0">
             <ThemeSwitch />
           </div>
 
@@ -125,22 +154,32 @@ export default function StandaloneAdsApp() {
             variant="outline"
             size="sm"
             asChild
-            className="text-xs h-8 border-border hover:bg-muted/70 transition-colors"
+            className="text-xs h-8 border-border hover:bg-muted/70 transition-colors shrink-0"
           >
             <a href={mainAppUrl} className="flex items-center gap-1.5">
               <ArrowLeft className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t('backToMainApp')}</span>
               <span className="sm:hidden">{t('backToMainAppShort')}</span>
-              <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
+              <ExternalLink className="h-3 w-3 opacity-60 ml-0.5 shrink-0" />
             </a>
           </Button>
         </div>
       </header>
 
-      {/* Main Ads Application Dashboard */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto overflow-y-auto">
-        <SwipiesAdsPage />
+      {/* Main Ads Application Dashboard with full vertical scrolling */}
+      <main
+        id="ads-main-scroll"
+        className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden overscroll-contain"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'thin',
+        }}
+      >
+        <div className="w-full max-w-[1920px] mx-auto min-h-full">
+          <SwipiesAdsPage currentLang={currentLang} onLanguageChange={handleLanguageChange} />
+        </div>
       </main>
     </div>
   );
 }
+
