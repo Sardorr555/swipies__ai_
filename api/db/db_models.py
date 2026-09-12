@@ -728,6 +728,7 @@ class User(DataBaseModel, AuthUser):
     is_superuser = BooleanField(null=True, help_text="is root", default=False, index=True)
     is_onboarded = BooleanField(null=True, help_text="is onboarding survey completed", default=False, index=True)
     onboarding_info = TextField(null=True, help_text="onboarding survey responses")
+    marketing_consent = BooleanField(null=True, help_text="consent to receive marketing newsletters and promotions", default=True, index=True)
 
     def __str__(self):
         return self.email
@@ -2976,6 +2977,7 @@ def migrate_db():
     alter_db_add_column(migrator, "tenant", "plan_expiry_date", DateTimeField(null=True, index=True))
     alter_db_add_column(migrator, "user", "phone", CharField(max_length=32, null=True, help_text="phone number", index=True))
     alter_db_add_column(migrator, "user", "referred_by_id", CharField(max_length=32, null=True, help_text="referred by user id", index=True))
+    alter_db_add_column(migrator, "user", "marketing_consent", BooleanField(null=True, help_text="consent to receive marketing newsletters and promotions", default=True, index=True))
 
     # Add missing license_key columns
     alter_db_add_column(migrator, "license_key", "id", CharField(max_length=32, primary_key=True))

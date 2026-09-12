@@ -307,6 +307,41 @@ function LoginFormContent({
                 />
               )}
 
+              {title === 'register' && (
+                <FormField
+                  control={form.control}
+                  name="marketingConsent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <div className="flex gap-2 items-start">
+                          <Checkbox
+                            data-testid="auth-marketing-consent"
+                            checked={field.value}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked);
+                            }}
+                            className="mt-0.5"
+                          />
+                          <FormLabel
+                            className={cn(
+                              'text-sm leading-snug cursor-pointer hover:text-text-primary',
+                              {
+                                'text-text-disabled': !field.value,
+                                'text-text-primary': field.value,
+                              },
+                            )}
+                          >
+                            {t('marketingConsentLabel')}
+                          </FormLabel>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               {title === 'login' && (
                 <FormField
                   control={form.control}
@@ -590,6 +625,7 @@ const Login = () => {
       phone: z.string().optional(),
       confirmPassword: z.string().optional(),
       acceptTerms: z.boolean().optional(),
+      marketingConsent: z.boolean().optional(),
     })
     .superRefine((data, ctx) => {
       if (title === 'register') {
@@ -669,6 +705,7 @@ const Login = () => {
       phone: '',
       confirmPassword: '',
       acceptTerms: false,
+      marketingConsent: true,
     },
     resolver: zodResolver(FormSchema),
   });
@@ -694,6 +731,7 @@ const Login = () => {
           password: rsaPassWord,
           phone: params.phone,
           referred_by_id: ref,
+          marketing_consent: params.marketingConsent ?? true,
         });
         if (res?.code === 0 && res?.data?.requires_activation) {
           setActivationEmail(params.email);

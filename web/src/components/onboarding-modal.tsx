@@ -23,6 +23,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface SurveyOption {
   id: string;
@@ -297,14 +298,54 @@ const STEPS: StepConfig[] = [
   },
 ];
 
-export function OnboardingModal() {
+interface OnboardingModalProps {
+  userInfo?: any;
+}
+
+export function OnboardingModal({ userInfo: propUserInfo }: OnboardingModalProps = {}) {
   const { i18n } = useTranslation();
-  const { data: userInfo } = useFetchUserInfo();
+  const { data: fetchedUserInfo } = useFetchUserInfo();
+  const userInfo = propUserInfo || fetchedUserInfo;
   const [open, setOpen] = useState(false);
   const [lang, setLang] = useState<'ru' | 'en'>('ru');
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+
+  const isGoogleUser = Boolean(
+    (userInfo?.login_channel?.toLowerCase() === 'google' ||
+      userInfo?.login_channel?.toLowerCase()?.includes('google')) &&
+      !userInfo?.phone,
+  );
+
+  const totalSteps = isGoogleUser ? STEPS.length + 1 : STEPS.length;
+  const isPhoneStep = isGoogleUser && currentStep === STEPS.length;
+
+  const cleanPhone = (phoneNumber || '').replace(/[^\d+]/g, '');
+  let country: { flag: string; name: string } | null = null;
+  if (cleanPhone.startsWith('+998') || cleanPhone.startsWith('998')) {
+    country = { flag: '🇺🇿', name: 'Uzbekistan' };
+  } else if (cleanPhone.startsWith('+7') || cleanPhone.startsWith('7')) {
+    country = { flag: '🇷🇺', name: 'Russia/Kazakhstan' };
+  } else if (cleanPhone.startsWith('+86') || cleanPhone.startsWith('86')) {
+    country = { flag: '🇨🇳', name: 'China' };
+  } else if (cleanPhone.startsWith('+996') || cleanPhone.startsWith('996')) {
+    country = { flag: '🇰🇬', name: 'Kyrgyzstan' };
+  } else if (cleanPhone.startsWith('+992') || cleanPhone.startsWith('992')) {
+    country = { flag: '🇹🇯', name: 'Tajikistan' };
+  } else if (cleanPhone.startsWith('+1') || cleanPhone.startsWith('1')) {
+    country = { flag: '🇺🇸', name: 'USA/Canada' };
+  } else if (cleanPhone.startsWith('+380') || cleanPhone.startsWith('380')) {
+    country = { flag: '🇺🇦', name: 'Ukraine' };
+  } else if (cleanPhone.startsWith('+375') || cleanPhone.startsWith('375')) {
+    country = { flag: '🇧🇾', name: 'Belarus' };
+  } else if (cleanPhone.startsWith('+44') || cleanPhone.startsWith('44')) {
+    country = { flag: '🇬🇧', name: 'United Kingdom' };
+  } else if (cleanPhone.startsWith('+')) {
+    country = { flag: '🌐', name: 'International' };
+  }
 
   useEffect(() => {
     if (i18n && i18n.language) {
@@ -330,18 +371,29 @@ export function OnboardingModal() {
 
   if (!open || !userInfo) return null;
 
-  const step = STEPS[currentStep];
-  const selectedOptionId = answers[step.key];
+  const step = !isPhoneStep ? STEPS[currentStep] : null;
+  const selectedOptionId = step ? answers[step.key] : null;
 
   const handleSelectOption = (optionId: string) => {
+    if (!step) return;
     setAnswers((prev) => ({ ...prev, [step.key]: optionId }));
   };
 
   const handleNext = async () => {
-    if (currentStep < STEPS.length - 1) {
+    if (currentStep < totalSteps - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      await finishSurvey();
+      if (isPhoneStep) {
+        if (!cleanPhone || cleanPhone.length < 7) {
+          setPhoneError(
+            lang === 'ru'
+              ? 'Пожалуйста, укажите корректный номер телефона.'
+              : 'Please enter a valid phone number.',
+          );
+          return;
+        }
+      }
+      await finishSurvey(false, phoneNumber);
     }
   };
 
@@ -351,10 +403,29 @@ export function OnboardingModal() {
     }
   };
 
-  const finishSurvey = async (skipped = false) => {
+  const handleSkip = () => {
+    if (isGoogleUser && currentStep < STEPS.length) {
+      setCurrentStep(STEPS.length);
+      return;
+    }
+    finishSurvey(true);
+  };
+
+  const finishSurvey = async (skipped = false, phoneVal?: string) => {
     setLoading(true);
     try {
-      const finalAnswers = skipped ? { skipped: true } : answers;
+      const finalAnswers = skipped ? { skipped: true } : { ...answers };
+      const phoneToSave = phoneVal || phoneNumber;
+      if (phoneToSave && phoneToSave.trim()) {
+        (finalAnswers as any).phone = phoneToSave.trim();
+        try {
+          await request.patch('/api/v1/users/me', {
+            data: { phone: phoneToSave.trim() },
+          });
+        } catch (e) {
+          console.warn('Failed to save phone to user profile', e);
+        }
+      }
       await request.post('/api/v1/users/me/onboarding', {
         data: finalAnswers,
       });
@@ -386,8 +457,8 @@ export function OnboardingModal() {
             </span>
             <span className="text-xs text-slate-400 font-medium">
               {lang === 'ru'
-                ? `Шаг ${currentStep + 1} из ${STEPS.length}`
-                : `Step ${currentStep + 1} of ${STEPS.length}`}
+                ? `Шаг ${currentStep + 1} из ${totalSteps}`
+                : `Step ${currentStep + 1} of ${totalSteps}`}
             </span>
           </div>
 
@@ -402,13 +473,15 @@ export function OnboardingModal() {
             </button>
 
             {/* Skip Button */}
-            <button
-              onClick={() => finishSurvey(true)}
-              className="text-xs text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-slate-800 cursor-pointer"
-            >
-              {lang === 'ru' ? 'Пропустить' : 'Skip for now'}{' '}
-              <X className="w-3.5 h-3.5" />
-            </button>
+            {!isPhoneStep && (
+              <button
+                onClick={handleSkip}
+                className="text-xs text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-slate-800 cursor-pointer"
+              >
+                {lang === 'ru' ? 'Пропустить' : 'Skip for now'}{' '}
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -416,57 +489,122 @@ export function OnboardingModal() {
         <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-teal-400 via-cyan-400 to-blue-500 transition-all duration-300 ease-out"
-            style={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
+            style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
           />
         </div>
 
-        {/* Question Title & Subtitle */}
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-            {step.title[lang]}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            {step.subtitle[lang]}
-          </p>
-        </div>
+        {isPhoneStep ? (
+          <>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                {lang === 'ru'
+                  ? 'Контактный номер телефона 📱'
+                  : 'Contact Phone Number 📱'}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                {lang === 'ru'
+                  ? 'Вы вошли через Google. Пожалуйста, укажите ваш номер телефона для связи и завершения настройки:'
+                  : 'You signed in via Google. Please provide your phone number for updates and setup completion:'}
+              </p>
+            </div>
 
-        {/* Options List */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
-          {step.options.map((opt) => {
-            const isSelected = selectedOptionId === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => handleSelectOption(opt.id)}
-                className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
-                  isSelected
-                    ? 'border-teal-400 bg-teal-500/10 shadow-[0_0_15px_rgba(45,212,191,0.15)] ring-1 ring-teal-400/50'
-                    : 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="mt-0.5 p-2 rounded-lg bg-slate-800/80 border border-slate-700/50 shrink-0">
-                  {opt.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-semibold text-sm text-slate-100 truncate">
-                      {opt.title[lang]}
+            <div className="flex flex-col gap-4 py-3">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-slate-200">
+                  {lang === 'ru' ? 'Номер телефона' : 'Phone Number'}{' '}
+                  <span className="text-rose-400">*</span>
+                  {country && (
+                    <span className="ml-2 text-xs text-slate-400 font-normal">
+                      ({country.flag} {country.name})
                     </span>
-                    {isSelected && (
-                      <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
-                    )}
-                  </div>
-                  {opt.description && (
-                    <p className="text-xs text-slate-400 leading-snug mt-0.5">
-                      {opt.description[lang]}
-                    </p>
                   )}
+                </label>
+                <div className="relative flex items-center">
+                  {country && (
+                    <span className="absolute left-3 text-lg select-none pointer-events-none">
+                      {country.flag}
+                    </span>
+                  )}
+                  <Input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      setPhoneNumber(e.target.value);
+                      setPhoneError('');
+                    }}
+                    placeholder={
+                      lang === 'ru' ? '+998 90 123 45 67' : '+1 (555) 000-0000'
+                    }
+                    className={`bg-slate-900/80 border-slate-700 text-white placeholder:text-slate-500 text-base h-12 rounded-xl focus:border-teal-400 ${
+                      country ? 'pl-10' : 'pl-4'
+                    }`}
+                    autoFocus
+                  />
                 </div>
-              </button>
-            );
-          })}
-        </div>
+                {phoneError && (
+                  <p className="text-xs text-rose-400 mt-1 font-medium">
+                    {phoneError}
+                  </p>
+                )}
+                <p className="text-xs text-slate-400 leading-relaxed mt-1">
+                  {lang === 'ru'
+                    ? 'Номер необходим для безопасности аккаунта, связи и оперативной техподдержки.'
+                    : 'This phone number will be used for account security, updates, and customer support.'}
+                </p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Question Title & Subtitle */}
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                {step?.title[lang]}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                {step?.subtitle[lang]}
+              </p>
+            </div>
+
+            {/* Options List */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
+              {step?.options.map((opt) => {
+                const isSelected = selectedOptionId === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => handleSelectOption(opt.id)}
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                      isSelected
+                        ? 'border-teal-400 bg-teal-500/10 shadow-[0_0_15px_rgba(45,212,191,0.15)] ring-1 ring-teal-400/50'
+                        : 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <div className="mt-0.5 p-2 rounded-lg bg-slate-800/80 border border-slate-700/50 shrink-0">
+                      {opt.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-sm text-slate-100 truncate">
+                          {opt.title[lang]}
+                        </span>
+                        {isSelected && (
+                          <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
+                        )}
+                      </div>
+                      {opt.description && (
+                        <p className="text-xs text-slate-400 leading-snug mt-0.5">
+                          {opt.description[lang]}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Bottom Actions */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
@@ -483,12 +621,17 @@ export function OnboardingModal() {
           <Button
             type="button"
             onClick={handleNext}
-            disabled={!selectedOptionId || loading}
+            disabled={
+              loading ||
+              (isPhoneStep
+                ? !cleanPhone || cleanPhone.length < 7
+                : !selectedOptionId)
+            }
             className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-semibold px-5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md disabled:opacity-40 cursor-pointer"
           >
             {loading ? (
               lang === 'ru' ? 'Сохранение...' : 'Saving...'
-            ) : currentStep === STEPS.length - 1 ? (
+            ) : currentStep === totalSteps - 1 ? (
               lang === 'ru' ? 'Завершить 🎉' : 'Complete Setup 🎉'
             ) : (
               <>

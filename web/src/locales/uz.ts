@@ -94,6 +94,7 @@ export default {
       termsRequired: 'Foydalanish shartlariga rozilik bildirishingiz kerak',
       termsLabel: 'Men roziman ',
       termsLink: 'Foydalanish shartlari',
+      marketingConsentLabel: 'Reklama xabarlari, yangiliklar va maxsus takliflarni olishga roziman',
       signInWith: '{{name}} orqali kirish',
       signUpWith: "{{name}} orqali ro'yxatdan o'tish",
       or: 'yoki',

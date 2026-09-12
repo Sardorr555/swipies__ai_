@@ -118,6 +118,7 @@ export default {
       termsRequired: 'You must agree to the Privacy Policy to register',
       termsLabel: 'I agree to the',
       termsLink: 'Privacy Policy',
+      marketingConsentLabel: 'I agree to receive promotional emails, marketing updates and special offers',
       signInWith: 'Sign in with {{name}}',
       signUpWith: 'Sign up with {{name}}',
       or: 'or',

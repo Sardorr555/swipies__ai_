@@ -104,6 +104,7 @@ export const useRegister = () => {
       nickname: string;
       phone?: string;
       referred_by_id?: string;
+      marketing_consent?: boolean;
     }) => {
       const { data = {} } = await userService.register(params);
       if (data.code === 0) {

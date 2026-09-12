@@ -326,6 +326,7 @@ async def oauth_callback(channel):
                         "login_channel": channel,
                         "last_login_time": get_format_time(),
                         "is_superuser": False,
+                        "marketing_consent": True,
                     },
                 )
 
@@ -541,6 +542,8 @@ async def save_onboarding_responses():
             "is_onboarded": True,
             "onboarding_info": json.dumps(req) if isinstance(req, dict) else str(req),
         }
+        if isinstance(req, dict) and req.get("phone"):
+            update_dict["phone"] = str(req.get("phone")).strip()
         UserService.update_by_id(current_user.id, update_dict)
         return get_json_result(data=True, message="Onboarding responses saved successfully.")
     except Exception as e:
@@ -796,7 +799,8 @@ async def user_add():
         "is_superuser": False,
         "is_active": "1" if not email_verification_enabled else "0",
         "status": "1" if not email_verification_enabled else "0",
-        "referred_by_id": resolved_referrer_id
+        "referred_by_id": resolved_referrer_id,
+        "marketing_consent": bool(req.get("marketing_consent", True)),
     }
 
     user_id = get_uuid()
