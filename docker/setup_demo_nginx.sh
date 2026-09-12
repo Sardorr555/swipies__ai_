@@ -86,7 +86,7 @@ server {
         proxy_set_header   X-Forwarded-Proto $scheme;
 
         proxy_set_header   Upgrade $http_upgrade;
-        proxy_set_header   Connection "upgrade";
+        proxy_set_header   Connection $http_connection;
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
 
@@ -122,7 +122,7 @@ server {
         proxy_set_header   X-Forwarded-Proto $scheme;
 
         proxy_set_header   Upgrade $http_upgrade;
-        proxy_set_header   Connection "upgrade";
+        proxy_set_header   Connection $http_connection;
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
 
@@ -167,7 +167,7 @@ server {
         proxy_set_header   X-Forwarded-Proto \$scheme;
 
         proxy_set_header   Upgrade \$http_upgrade;
-        proxy_set_header   Connection "upgrade";
+        proxy_set_header   Connection \$http_connection;
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
 
@@ -213,7 +213,7 @@ server {
         proxy_set_header   X-Forwarded-Proto \$scheme;
 
         proxy_set_header   Upgrade \$http_upgrade;
-        proxy_set_header   Connection "upgrade";
+        proxy_set_header   Connection \$http_connection;
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
 
