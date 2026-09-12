@@ -195,11 +195,27 @@ const routeConfigOptions = [
     path: Routes.Ads,
     Component: () => import('@/pages/ads/standalone'),
     layout: false,
+    loader: ({ request }: { request: Request }) => {
+      const url = new URL(request.url);
+      const isAdsSubdomain = url.hostname.toLowerCase().startsWith('ads.');
+      if (isAdsSubdomain) {
+        return redirect(`/${url.search}`);
+      }
+      return null;
+    },
   },
   {
     path: Routes.Root,
     layout: false,
-    Component: () => import('@/layouts/root-layout'),
+    Component: () => {
+      const isAdsSubdomain =
+        typeof window !== 'undefined' &&
+        window.location.hostname.toLowerCase().startsWith('ads.');
+      if (isAdsSubdomain) {
+        return import('@/pages/ads/standalone');
+      }
+      return import('@/layouts/root-layout');
+    },
     loader: ({ request }: { request: Request }) => {
       const url = new URL(request.url);
       const auth = url.searchParams.get('auth');
@@ -209,13 +225,9 @@ const routeConfigOptions = [
         authorizationUtil.setAuthorization(auth);
         url.searchParams.delete('auth');
         if (isAdsSubdomain) {
-          return redirect(`${Routes.Ads}${url.search}`);
+          return redirect(`/${url.search}`);
         }
         return redirect(`${url.pathname}${url.search}`);
-      }
-
-      if (isAdsSubdomain) {
-        return redirect(`${Routes.Ads}${url.search}`);
       }
 
       return null;
@@ -223,7 +235,15 @@ const routeConfigOptions = [
     children: [
       {
         path: Routes.Root,
-        Component: () => import('@/pages/home'),
+        Component: () => {
+          const isAdsSubdomain =
+            typeof window !== 'undefined' &&
+            window.location.hostname.toLowerCase().startsWith('ads.');
+          if (isAdsSubdomain) {
+            return Promise.resolve({ default: () => null });
+          }
+          return import('@/pages/home');
+        },
       },
     ],
   },

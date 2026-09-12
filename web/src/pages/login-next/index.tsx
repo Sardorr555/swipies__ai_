@@ -595,7 +595,7 @@ const Login = () => {
   const isAdsSubdomain =
     typeof window !== 'undefined' &&
     window.location.hostname.toLowerCase().startsWith('ads.');
-  const defaultDestination = isAdsSubdomain ? '/ads' : '/';
+  const defaultDestination = '/';
 
   const handleRedirect = (target?: string | null) => {
     const rawDest = target || redirectUrl || defaultDestination;

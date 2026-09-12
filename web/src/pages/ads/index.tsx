@@ -182,8 +182,8 @@ import adService, {
 } from '@/services/ad-service';
 import storage from '@/utils/authorization-util';
 import { changeLanguageAsync } from '@/locales/config';
-import { AD_TRANSLATIONS, AdLanguage } from './translations';
-export { AD_TRANSLATIONS, AdLanguage };
+import { AD_TRANSLATIONS, AdLanguage, translateAdText } from './translations';
+export { AD_TRANSLATIONS, AdLanguage, translateAdText };
 
 export default function SwipiesAdsPage() {
   const [loading, setLoading] = useState(true);
@@ -202,14 +202,15 @@ export default function SwipiesAdsPage() {
     return 'ru';
   });
 
-  const t = (key: string): string => {
-    return AD_TRANSLATIONS[currentLang]?.[key] || AD_TRANSLATIONS['ru']?.[key] || key;
+  const t = (keyOrText: string, fallback?: string): string => {
+    return translateAdText(keyOrText, currentLang, fallback);
   };
 
   const handleLanguageChange = async (lang: AdLanguage) => {
     setCurrentLang(lang);
     if (typeof window !== 'undefined') {
       localStorage.setItem('swipies_ads_lang', lang);
+      window.dispatchEvent(new Event('languagechange'));
     }
     setAdvSettings((prev) => ({ ...prev, language: lang }));
     try {
@@ -2700,9 +2701,9 @@ export default function SwipiesAdsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Your Advertising Campaigns</CardTitle>
+                <CardTitle>{t('campaignsCardTitle')}</CardTitle>
                 <CardDescription>
-                  Manage AI intent targeting, daily budgets, bids, and ad copy.
+                  {t('campaignsCardDesc')}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
@@ -2712,10 +2713,10 @@ export default function SwipiesAdsPage() {
                   className="text-xs flex items-center gap-1.5"
                   onClick={() => window.open('/v1/ads/export/campaigns', '_blank')}
                 >
-                  <Download className="h-3.5 w-3.5" /> Экспорт CSV
+                  <Download className="h-3.5 w-3.5" /> {t('exportCsvBtn')}
                 </Button>
                 <Button onClick={handleOpenCreateCampaign} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
-                  <Plus className="mr-1 h-3.5 w-3.5" /> New Campaign
+                  <Plus className="mr-1 h-3.5 w-3.5" /> {t('newCampaignBtn')}
                 </Button>
               </div>
             </CardHeader>
@@ -2725,12 +2726,12 @@ export default function SwipiesAdsPage() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 mb-3">
                     <Megaphone className="h-6 w-6" />
                   </div>
-                  <h3 className="text-lg font-semibold">No Campaigns Yet</h3>
+                  <h3 className="text-lg font-semibold">{t('noCampaignsYet')}</h3>
                   <p className="text-sm text-muted-foreground max-w-sm mt-1">
-                    Launch your first sponsored AI recommendation campaign and connect with users looking for your solutions.
+                    {t('noCampaignsDesc')}
                   </p>
                   <Button onClick={handleOpenCreateCampaign} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">
-                    <Plus className="mr-1.5 h-4 w-4" /> Create First Campaign
+                    <Plus className="mr-1.5 h-4 w-4" /> {t('createFirstCampaignBtn')}
                   </Button>
                 </div>
               ) : (
@@ -2738,13 +2739,13 @@ export default function SwipiesAdsPage() {
                   <table className="w-full text-left text-sm">
                     <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
                       <tr>
-                        <th className="py-3 px-4">Campaign / Product</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4">Model & Bid</th>
-                        <th className="py-3 px-4">Budget & Spend</th>
-                        <th className="py-3 px-4">Impressions</th>
-                        <th className="py-3 px-4">Clicks (CTR)</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
+                        <th className="py-3 px-4">{t('thCampaignProduct')}</th>
+                        <th className="py-3 px-4">{t('thStatus')}</th>
+                        <th className="py-3 px-4">{t('thModelBid')}</th>
+                        <th className="py-3 px-4">{t('thBudgetSpend')}</th>
+                        <th className="py-3 px-4">{t('thImpressions')}</th>
+                        <th className="py-3 px-4">{t('thClicksCtr')}</th>
+                        <th className="py-3 px-4 text-right">{t('thActions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -2773,7 +2774,7 @@ export default function SwipiesAdsPage() {
                             </div>
                             <div className="flex flex-wrap gap-1 mt-1.5">
                               {(!cmp.target_languages || cmp.target_languages.includes('all') || cmp.target_languages.length === 0) ? (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-medium">🌐 Все языки</span>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-medium">{t('badgeAllLanguages')}</span>
                               ) : (
                                 cmp.target_languages.map((l) => (
                                   <span key={l} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 font-bold uppercase">
@@ -2798,16 +2799,16 @@ export default function SwipiesAdsPage() {
                                     : 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400'
                                 }
                               >
-                                {cmp.status === 'active' ? 'Active' : 'Paused'}
+                                {cmp.status === 'active' ? t('statusActive') : t('statusPaused')}
                               </Badge>
                               {cmp.moderation_status === 'pending' && (
                                 <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-500 text-[10px]">
-                                  Moderation Pending
+                                  {t('statusPending')}
                                 </Badge>
                               )}
                               {cmp.moderation_status === 'rejected' && (
                                 <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-500 text-[10px]">
-                                  Rejected
+                                  {t('statusRejected')}
                                 </Badge>
                               )}
                             </div>
@@ -2837,27 +2838,27 @@ export default function SwipiesAdsPage() {
                               )}
                               {cmp.pacing_mode === 'peak_weighted' && (
                                 <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px] px-1 py-0 font-bold">
-                                  📈 Пик
+                                  📈 {t('peakBadge', 'Пик')}
                                 </Badge>
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground font-semibold">
                               {cmp.pricing_model === 'cpa' || cmp.bidding_strategy === 'target_cpa'
-                                ? `$${(cmp.target_cpa || 5.0).toFixed(2)} Target CPA`
-                                : `$${cmp.bid_amount.toFixed(2)} / ${cmp.pricing_model === 'cpc' ? 'click' : '1k imp'}`}
+                                ? `$${(cmp.target_cpa || 5.0).toFixed(2)} ${t('targetCpaLabel')}`
+                                : `$${cmp.bid_amount.toFixed(2)} / ${cmp.pricing_model === 'cpc' ? t('perClick') : t('per1kImp')}`}
                             </div>
                             {cmp.schedule_config?.enabled_days && cmp.schedule_config.enabled_days.length < 7 && (
                               <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 mt-0.5">
-                                <Clock className="h-2.5 w-2.5" /> Расписание ({cmp.schedule_config.active_hours_start || 0}:00-{cmp.schedule_config.active_hours_end || 23}:00)
+                                <Clock className="h-2.5 w-2.5" /> {t('scheduleLabel')} ({cmp.schedule_config.active_hours_start || 0}:00-{cmp.schedule_config.active_hours_end || 23}:00)
                               </div>
                             )}
                           </td>
                           <td className="py-3 px-4">
                             <div className="text-xs">
-                              <span className="font-bold">${cmp.spent_today.toFixed(2)}</span> / ${cmp.daily_budget.toFixed(2)} day
+                              <span className="font-bold">${cmp.spent_today.toFixed(2)}</span> / ${cmp.daily_budget.toFixed(2)} {t('dayUnit')}
                             </div>
                             <div className="text-[11px] text-muted-foreground">
-                              Total: ${cmp.total_spent.toFixed(2)} / ${cmp.total_budget.toFixed(2)}
+                              {t('totalBudgetLabel')} ${cmp.total_spent.toFixed(2)} / ${cmp.total_budget.toFixed(2)}
                             </div>
                           </td>
                           <td className="py-3 px-4 font-medium">{cmp.impressions.toLocaleString()}</td>
@@ -2866,7 +2867,7 @@ export default function SwipiesAdsPage() {
                             <div className="text-xs text-muted-foreground">{cmp.ctr}% CTR</div>
                             {((cmp.conversions_count && cmp.conversions_count > 0) || cmp.pricing_model === 'cpa') && (
                               <div className="text-[11px] font-medium text-purple-600 dark:text-purple-400 mt-0.5">
-                                🎯 {cmp.conversions_count || 0} conv ({cmp.conversion_rate || 0}% CVR)
+                                🎯 {cmp.conversions_count || 0} {t('conversionsBadge', 'conv')} ({cmp.conversion_rate || 0}% CVR)
                               </div>
                             )}
                           </td>
@@ -2876,7 +2877,7 @@ export default function SwipiesAdsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleToggleStatus(cmp)}
-                                title={cmp.status === 'active' ? 'Pause Campaign' : 'Activate Campaign'}
+                                title={cmp.status === 'active' ? t('pauseCampaignTooltip') : t('activateCampaignTooltip')}
                               >
                                 {cmp.status === 'active' ? (
                                   <Pause className="h-4 w-4 text-amber-500" />
@@ -2888,7 +2889,7 @@ export default function SwipiesAdsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleOpenDcoModal(cmp)}
-                                title="DCO: Динамическая оптимизация & Авто-вставки"
+                                title={t('dcoTooltip')}
                                 className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
                               >
                                 <Wand2 className="h-4 w-4" />
@@ -2897,7 +2898,7 @@ export default function SwipiesAdsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleOpenPacingModal(cmp)}
-                                title="Контроль скорости расхода бюджета (Budget Pacing)"
+                                title={t('pacingTooltip')}
                                 className="text-purple-600 hover:text-purple-700 dark:text-purple-400"
                               >
                                 <Timer className="h-4 w-4" />
@@ -2906,7 +2907,7 @@ export default function SwipiesAdsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleOpenBiddingConfig(cmp)}
-                                title="Авто-ставки & Расписание показов"
+                                title={t('biddingTooltip')}
                                 className="text-amber-600 hover:text-amber-700 dark:text-amber-400"
                               >
                                 <Zap className="h-4 w-4" />
@@ -2915,7 +2916,7 @@ export default function SwipiesAdsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleOpenVariants(cmp)}
-                                title="A/B Тестирование & Варианты"
+                                title={t('variantsTooltip')}
                                 className="text-purple-600 hover:text-purple-700 dark:text-purple-400"
                               >
                                 <FlaskConical className="h-4 w-4" />
@@ -2924,7 +2925,7 @@ export default function SwipiesAdsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleViewCampaignHealth(cmp.id)}
-                                title="Аудит разнообразия и качества креативов (Creative Health Score)"
+                                title={t('healthTooltip')}
                                 className="text-pink-600 hover:text-pink-700 dark:text-pink-400"
                               >
                                 <Sparkles className="h-4 w-4" />
@@ -2933,7 +2934,7 @@ export default function SwipiesAdsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleOpenAnalytics(cmp)}
-                                title="View Analytics"
+                                title={t('analyticsTooltip')}
                               >
                                 <BarChart3 className="h-4 w-4 text-blue-500" />
                               </Button>
@@ -2941,7 +2942,7 @@ export default function SwipiesAdsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleOpenEditCampaign(cmp)}
-                                title="Edit Campaign"
+                                title={t('editCampaignTooltip')}
                               >
                                 <Edit3 className="h-4 w-4" />
                               </Button>
@@ -2949,7 +2950,7 @@ export default function SwipiesAdsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleDeleteCampaign(cmp)}
-                                title="Archive Campaign"
+                                title={t('deleteCampaignTooltip')}
                               >
                                 <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>

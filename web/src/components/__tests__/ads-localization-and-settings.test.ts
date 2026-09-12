@@ -1,4 +1,4 @@
-import { AD_TRANSLATIONS, AdLanguage } from '../../pages/ads/translations';
+import { AD_TRANSLATIONS, AdLanguage, translateAdText } from '../../pages/ads/translations';
 import adService from '../../services/ad-service';
 
 describe('Swipies Ads Localization & Settings Test Suite', () => {
@@ -91,6 +91,53 @@ describe('Swipies Ads Localization & Settings Test Suite', () => {
       expect(uz.autoPauseLowCtrLabel).toContain('CTR');
       expect(uz.telegramAlertsLabel).toBe('Telegram xabarnomalari');
       expect(uz.saveChangesBtn).toBe('Sozlamalarni saqlash');
+    });
+
+    it('verifies campaigns table headers and card translations across ru, en, uz', () => {
+      expect(AD_TRANSLATIONS.ru.campaignsCardTitle).toBe('Ваши рекламные кампании');
+      expect(AD_TRANSLATIONS.en.campaignsCardTitle).toBe('Your Advertising Campaigns');
+      expect(AD_TRANSLATIONS.uz.campaignsCardTitle).toBe('Sizning reklama kampaniyalaringiz');
+
+      expect(AD_TRANSLATIONS.ru.thCampaignProduct).toBe('Кампания / Продукт');
+      expect(AD_TRANSLATIONS.en.thCampaignProduct).toBe('Campaign / Product');
+      expect(AD_TRANSLATIONS.uz.thCampaignProduct).toBe('Kampaniya / Mahsulot');
+
+      expect(AD_TRANSLATIONS.ru.thStatus).toBe('Статус');
+      expect(AD_TRANSLATIONS.en.thStatus).toBe('Status');
+      expect(AD_TRANSLATIONS.uz.thStatus).toBe('Holati');
+
+      expect(AD_TRANSLATIONS.ru.statusActive).toBe('Активна');
+      expect(AD_TRANSLATIONS.en.statusActive).toBe('Active');
+      expect(AD_TRANSLATIONS.uz.statusActive).toBe('Faol');
+    });
+
+    it('verifies standalone top bar texts across ru, en, uz', () => {
+      expect(AD_TRANSLATIONS.ru.standaloneBadge).toBe('Автономный сервис');
+      expect(AD_TRANSLATIONS.en.standaloneBadge).toBe('Standalone Service');
+      expect(AD_TRANSLATIONS.uz.standaloneBadge).toBe('Mustaqil xizmat');
+
+      expect(AD_TRANSLATIONS.ru.unifiedDbBadge).toContain('Единая база');
+      expect(AD_TRANSLATIONS.en.unifiedDbBadge).toContain('Unified database');
+      expect(AD_TRANSLATIONS.uz.unifiedDbBadge).toContain('Yagona');
+
+      expect(AD_TRANSLATIONS.ru.backToMainApp).toContain('Swipies AI');
+      expect(AD_TRANSLATIONS.en.backToMainApp).toBe('Back to Swipies AI');
+      expect(AD_TRANSLATIONS.uz.backToMainApp).toContain('Swipies AI');
+    });
+
+    it('verifies translateAdText translates keys and phrases correctly', () => {
+      // Key lookup
+      expect(translateAdText('tabCampaigns', 'ru')).toBe('Кампании');
+      expect(translateAdText('tabCampaigns', 'en')).toBe('Campaigns');
+      expect(translateAdText('tabCampaigns', 'uz')).toBe('Kampaniyalar');
+
+      // Phrase dictionary lookup
+      expect(translateAdText('Экспорт CSV', 'en')).toBe('Export CSV');
+      expect(translateAdText('Экспорт CSV', 'uz')).toBe('CSV eksport');
+      expect(translateAdText('Экспорт CSV', 'ru')).toBe('Экспорт CSV');
+
+      expect(translateAdText('Узнать больше', 'en')).toBe('Learn More');
+      expect(translateAdText('Узнать больше', 'uz')).toBe('Batafsil bilish');
     });
   });
 

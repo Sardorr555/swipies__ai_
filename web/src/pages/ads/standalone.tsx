@@ -1,15 +1,46 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ArrowLeft, Megaphone, ExternalLink, Sparkles, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ThemeSwitch from '@/components/theme-switch';
 import authorizationUtil from '@/utils/authorization-util';
+import { AD_TRANSLATIONS, AdLanguage } from './translations';
 import SwipiesAdsPage from './index';
 
 export default function StandaloneAdsApp() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  // Language state synchronized with Ads dashboard
+  const [currentLang, setCurrentLang] = useState<AdLanguage>(() => {
+    const saved =
+      (typeof window !== 'undefined' && localStorage.getItem('swipies_ads_lang')) ||
+      authorizationUtil.getLanguage() ||
+      'ru';
+    if (saved.startsWith('uz')) return 'uz';
+    if (saved.startsWith('en')) return 'en';
+    return 'ru';
+  });
+
+  useEffect(() => {
+    const checkLang = () => {
+      const saved = localStorage.getItem('swipies_ads_lang') || 'ru';
+      if (saved.startsWith('uz')) setCurrentLang('uz');
+      else if (saved.startsWith('en')) setCurrentLang('en');
+      else setCurrentLang('ru');
+    };
+    window.addEventListener('storage', checkLang);
+    window.addEventListener('languagechange', checkLang);
+    return () => {
+      window.removeEventListener('storage', checkLang);
+      window.removeEventListener('languagechange', checkLang);
+    };
+  }, []);
+
+  const t = (key: string): string => {
+    return AD_TRANSLATIONS[currentLang]?.[key] || AD_TRANSLATIONS['ru']?.[key] || key;
+  };
 
   // Check and persist auth token from URL query if transferred across subdomains
   useEffect(() => {
@@ -54,7 +85,7 @@ export default function StandaloneAdsApp() {
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Перенаправление на страницу входа...</p>
+          <p className="text-sm text-muted-foreground">{t('redirectingToLogin')}</p>
         </div>
       </div>
     );
@@ -73,7 +104,7 @@ export default function StandaloneAdsApp() {
               <div className="flex items-center gap-2">
                 <span className="text-base font-semibold">Swipies Ads</span>
                 <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-400 text-[11px] py-0 px-1.5 hidden sm:inline-flex">
-                  <Sparkles className="mr-1 h-3 w-3" /> Standalone Service
+                  <Sparkles className="mr-1 h-3 w-3" /> {t('standaloneBadge')}
                 </Badge>
               </div>
             </div>
@@ -83,7 +114,7 @@ export default function StandaloneAdsApp() {
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 px-2.5 py-1 rounded-full border border-border/40">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-            <span>Единая база данных и авторизация</span>
+            <span>{t('unifiedDbBadge')}</span>
           </div>
 
           <div className="scale-90">
@@ -98,8 +129,8 @@ export default function StandaloneAdsApp() {
           >
             <a href={mainAppUrl} className="flex items-center gap-1.5">
               <ArrowLeft className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Вернуться в Swipies AI</span>
-              <span className="sm:hidden">В Swipies AI</span>
+              <span className="hidden sm:inline">{t('backToMainApp')}</span>
+              <span className="sm:hidden">{t('backToMainAppShort')}</span>
               <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
             </a>
           </Button>
