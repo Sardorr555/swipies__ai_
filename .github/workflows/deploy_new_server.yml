@@ -113,6 +113,9 @@ jobs:
             echo "📊 Статус контейнеров:"
             sudo docker compose ps
 
+            echo "🌐 Настраиваем хост Nginx для demo.swipies.app..."
+            sudo bash ~/swipies__ai_/docker/setup_demo_nginx.sh || true
+
             echo "🔑 Предоставляем права superuser всем зарегистрированным пользователям..."
             sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "UPDATE user SET is_superuser = 1;" || true
             sudo docker exec -i swipies-mysql mysql -uroot -p0czavZsPcYfroExMAdb -D rag_flow -e "SELECT email, is_superuser FROM user;" || true

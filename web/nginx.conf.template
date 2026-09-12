@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name app.swipies.app api.swipies.app swipies.app www.swipies.app 51.20.190.248 _;
+    server_name app.swipies.app api.swipies.app swipies.app www.swipies.app demo.swipies.app 51.20.190.248 _;
 
     location / {
         root /usr/share/nginx/html;
