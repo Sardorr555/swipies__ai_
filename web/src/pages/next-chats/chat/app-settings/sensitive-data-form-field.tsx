@@ -47,6 +47,30 @@ interface SensitiveDataFormFieldProps {
   prefix?: string;
 }
 
+function parseCsvLine(text: string): string[] {
+  const result: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      result.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldProps) {
   const { t } = useTranslation();
   const form = useFormContext();
@@ -83,7 +107,19 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
   };
 
   const handleExport = () => {
-    const rules = form.getValues(rulesFieldName) || [];
+    const rawRules = form.getValues(rulesFieldName) || [];
+    const rules = rawRules
+      .filter(
+        (r: any) =>
+          (r.search && String(r.search).trim().length > 0) ||
+          (r.replace && String(r.replace).trim().length > 0),
+      )
+      .map((r: any) => ({
+        search: r.search || '',
+        replace: r.replace || '',
+        case_sensitive: Boolean(r.case_sensitive),
+        is_regex: Boolean(r.is_regex),
+      }));
     const dataStr =
       'data:text/json;charset=utf-8,' +
       encodeURIComponent(JSON.stringify(rules, null, 2));
@@ -131,7 +167,7 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
     const sampleCsv = `search,replace,case_sensitive,is_regex
 Иван Иванов,[CLIENT_NAME],false,false
 1234567890123456,[CARD_NUMBER],false,false
-\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b,[EMAIL_ADDRESS],false,true`;
+"\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b",[EMAIL_ADDRESS],false,true`;
 
     const dataStr =
       'data:text/csv;charset=utf-8,' + encodeURIComponent(sampleCsv);
@@ -160,20 +196,27 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
         if (file.name.endsWith('.json')) {
           const parsed = JSON.parse(content);
           if (Array.isArray(parsed)) {
-            importedRules = parsed.map((item, idx) => ({
-              id: item.id || `${Date.now()}_${idx}`,
-              search: item.search !== undefined && item.search !== null ? String(item.search) : '',
-              replace: item.replace !== undefined && item.replace !== null ? String(item.replace) : '',
-              case_sensitive: Boolean(item.case_sensitive),
-              is_regex: Boolean(item.is_regex),
-            }));
+            importedRules = parsed
+              .map((item, idx) => ({
+                id: item.id || `${Date.now()}_${idx}`,
+                search: item.search !== undefined && item.search !== null ? String(item.search).trim() : '',
+                replace: item.replace !== undefined && item.replace !== null ? String(item.replace).trim() : '',
+                case_sensitive: Boolean(item.case_sensitive),
+                is_regex: Boolean(item.is_regex),
+              }))
+              .filter((r) => r.search.length > 0 || r.replace.length > 0);
           }
         } else if (file.name.endsWith('.csv')) {
-          const lines = content.split(/\r?\n/);
+          const lines = content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+          const startIndex =
+            lines.length > 0 && lines[0].toLowerCase().startsWith('search,')
+              ? 1
+              : 0;
+
           importedRules = lines
-            .filter((line) => line.trim().length > 0)
+            .slice(startIndex)
             .map((line, idx) => {
-              const parts = line.split(',');
+              const parts = parseCsvLine(line);
               return {
                 id: `${Date.now()}_${idx}`,
                 search: parts[0] !== undefined && parts[0] !== null ? String(parts[0]).trim() : '',
@@ -181,7 +224,8 @@ export function SensitiveDataFormField({ prefix = '' }: SensitiveDataFormFieldPr
                 case_sensitive: parts[2]?.trim().toLowerCase() === 'true',
                 is_regex: parts[3]?.trim().toLowerCase() === 'true',
               };
-            });
+            })
+            .filter((r) => r.search.length > 0 || r.replace.length > 0);
         }
 
         if (importedRules.length > 0) {

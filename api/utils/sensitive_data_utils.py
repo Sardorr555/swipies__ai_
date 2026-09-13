@@ -149,16 +149,21 @@ class StreamingDeanonymizer:
             if not replace_val:
                 continue
             case_sensitive = _parse_bool(r.get("case_sensitive", False))
+            ends_with_word_char = bool(re.search(r"\w$", replace_val, re.UNICODE))
             self._prefix_targets.append({
                 "target": replace_val if case_sensitive else replace_val.lower(),
                 "case_sensitive": case_sensitive,
                 "length": len(replace_val),
+                "ends_with_word_char": ends_with_word_char,
             })
-            if len(replace_val) > max_len:
-                max_len = len(replace_val)
+            # If the placeholder ends with a word character (e.g. 'john'), we must buffer
+            # up to the full length of the placeholder until a non-word char or EOF arrives,
+            # preventing 'john' + 'ny' from turning into 'sardorny'.
+            needed_len = len(replace_val) if ends_with_word_char else len(replace_val) - 1
+            if needed_len > max_len:
+                max_len = needed_len
 
-        # We only need to buffer up to max_len - 1 characters for incomplete prefixes
-        self._max_prefix_len = max_len - 1 if max_len > 1 else 0
+        self._max_prefix_len = max_len
 
     def feed(self, chunk: str) -> str:
         """
@@ -172,15 +177,11 @@ class StreamingDeanonymizer:
 
         self.buffer += chunk
 
-        # 1. Apply full deanonymization on complete matches within buffer
-        self.buffer = deanonymize_text(self.buffer, self.rules)
-
         if not self._prefix_targets or self._max_prefix_len <= 0:
-            to_emit = self.buffer
+            to_emit = deanonymize_text(self.buffer, self.rules)
             self.buffer = ""
             return to_emit
 
-        # 2. Find longest suffix of self.buffer that is a tentative prefix of any active placeholder
         buf_len = len(self.buffer)
         check_limit = min(buf_len, self._max_prefix_len)
         longest_match_len = 0
@@ -190,21 +191,28 @@ class StreamingDeanonymizer:
             candidate_suffix_lower = candidate_suffix.lower()
 
             for target_info in self._prefix_targets:
-                if suffix_len < target_info["length"]:
-                    target_str = target_info["target"]
-                    test_suffix = candidate_suffix if target_info["case_sensitive"] else candidate_suffix_lower
-                    if target_str.startswith(test_suffix):
-                        longest_match_len = suffix_len
-                        break
+                target_str = target_info["target"]
+                test_suffix = candidate_suffix if target_info["case_sensitive"] else candidate_suffix_lower
+
+                # Suffix is a partial prefix of placeholder
+                if suffix_len < target_info["length"] and target_str.startswith(test_suffix):
+                    longest_match_len = suffix_len
+                    break
+                # Suffix is full placeholder that ends with word char (needs next token to confirm word boundary)
+                elif suffix_len == target_info["length"] and target_info["ends_with_word_char"] and test_suffix == target_str:
+                    longest_match_len = suffix_len
+                    break
+
             if longest_match_len > 0:
                 break
 
         if longest_match_len > 0:
-            to_emit = self.buffer[:-longest_match_len]
+            safe_part = self.buffer[:-longest_match_len]
             self.buffer = self.buffer[-longest_match_len:]
+            to_emit = deanonymize_text(safe_part, self.rules) if safe_part else ""
             return to_emit
         else:
-            to_emit = self.buffer
+            to_emit = deanonymize_text(self.buffer, self.rules)
             self.buffer = ""
             return to_emit
 

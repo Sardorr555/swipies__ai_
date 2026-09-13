@@ -623,6 +623,107 @@ class TestSensitiveDataReplacement(unittest.TestCase):
         self.assertIn("John Doe", conv.message[1]["content"])
         self.assertIn("4321", conv.message[1]["content"])
 
+    def test_12_word_substitution_boundary_and_lookahead(self):
+        """TEST-12: User scenario 'sardor' -> 'john'. Prevents 'johnny' corruption while replacing 'john' at word boundaries and stream end."""
+        rules = [
+            {"search": "sardor", "replace": "john", "case_sensitive": False, "is_regex": False}
+        ]
+        # 1. Anonymization: 'sardor' replaced, 'sardorbek' untouched
+        input_text = "Hello sardor and sardorbek, welcome!"
+        anon = anonymize_text(input_text, rules)
+        self.assertEqual(anon, "Hello john and sardorbek, welcome!")
+
+        # 2. Streaming Deanonymization: 'john' followed by 'ny' should NOT become 'sardorny'
+        d1 = StreamingDeanonymizer(rules)
+        out1 = d1.feed("Hello ") + d1.feed("john") + d1.feed("ny") + d1.flush()
+        self.assertEqual(out1, "Hello johnny")
+
+        # 3. Streaming Deanonymization: 'john' followed by punctuation/space should be replaced with 'sardor'
+        d2 = StreamingDeanonymizer(rules)
+        out2 = d2.feed("Hello ") + d2.feed("john") + d2.feed(", welcome!") + d2.flush()
+        self.assertEqual(out2, "Hello sardor, welcome!")
+
+        # 4. Streaming Deanonymization: 'john' at end of stream flushed as 'sardor'
+        d3 = StreamingDeanonymizer(rules)
+        out3 = d3.feed("Hello ") + d3.feed("john") + d3.flush()
+        self.assertEqual(out3, "Hello sardor")
+
+    def test_13_cyrillic_unicode_word_boundaries(self):
+        """TEST-13: Plaintext rules in Cyrillic properly respect word boundaries and case sensitivity."""
+        rules = [
+            {"search": "сардор", "replace": "john", "case_sensitive": False, "is_regex": False}
+        ]
+        text = "Привет сардор и сардорбек, САРДОР пришел!"
+        anon = anonymize_text(text, rules)
+        self.assertEqual(anon, "Привет john и сардорбек, john пришел!")
+
+        deanon = deanonymize_text(anon, rules)
+        self.assertEqual(deanon, "Привет сардор и сардорбек, сардор пришел!")
+
+    def test_14_attachments_and_system_prompt_anonymization(self):
+        """TEST-14: File attachments and system prompt containing sensitive data are anonymized in async_chat_solo."""
+        from api.db.services.dialog_service import async_chat_solo
+
+        mock_dialog = MagicMock()
+        mock_dialog.tenant_id = "tenant_test_789"
+        mock_dialog.llm_id = "test_model"
+        mock_dialog.llm_setting = {}
+        mock_dialog.kb_ids = []
+        mock_dialog.prompt_config = {
+            "system": "System instructions mentioning sardor.",
+            "sensitive_data_replacement": {
+                "enabled": True,
+                "rules": [
+                    {"search": "sardor", "replace": "john", "case_sensitive": False, "is_regex": False}
+                ]
+            }
+        }
+
+        # User message with attached text file content containing 'sardor'
+        messages = [
+            {
+                "role": "user",
+                "content": "Please review this document for sardor.",
+                "files": [
+                    {"name": "test.txt", "content": "Attached text content about sardor private data."}
+                ]
+            }
+        ]
+
+        captured_system = []
+        captured_messages = []
+
+        async def _run_attachment_test():
+            with patch("api.db.services.dialog_service.split_file_attachments", return_value=(["Attached text content about sardor private data."], [])), \
+                 patch("api.db.services.dialog_service.get_model_type_by_name", return_value=["chat"]), \
+                 patch("api.db.services.dialog_service.get_model_config_from_provider_instance", return_value={"model_type": "chat", "llm_factory": "openai"}), \
+                 patch("api.db.services.dialog_service.LLMBundle") as mock_bundle_cls:
+
+                mock_bundle = MagicMock()
+                mock_bundle.trace_context = {}
+
+                async def _mock_stream(sys_prompt, msgs, *args, **kwargs):
+                    captured_system.append(sys_prompt)
+                    captured_messages.extend(msgs)
+                    yield "Response for john verified."
+
+                mock_bundle.async_chat_streamly_delta = _mock_stream
+                mock_bundle_cls.return_value = mock_bundle
+
+                async for ans in async_chat_solo(mock_dialog, messages, stream=True):
+                    pass
+
+                # Assert that neither system prompt nor any user messages (including attachments) contain 'sardor'
+                self.assertTrue(len(captured_system) > 0)
+                self.assertNotIn("sardor", captured_system[0].lower())
+                self.assertIn("john", captured_system[0].lower())
+
+                last_user_content = captured_messages[-1]["content"]
+                self.assertNotIn("sardor", last_user_content.lower())
+                self.assertIn("john", last_user_content.lower())
+
+        asyncio.run(_run_attachment_test())
+
 
 if __name__ == "__main__":
     unittest.main()

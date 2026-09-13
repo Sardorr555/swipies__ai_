@@ -48,9 +48,9 @@ export function useChatSettingSchema() {
         rules: z
           .array(
             z.object({
-              id: z.string(),
-              search: z.string(),
-              replace: z.string(),
+              id: z.string().optional(),
+              search: z.string().optional(),
+              replace: z.string().optional(),
               case_sensitive: z.boolean().optional(),
               is_regex: z.boolean().optional(),
             }),

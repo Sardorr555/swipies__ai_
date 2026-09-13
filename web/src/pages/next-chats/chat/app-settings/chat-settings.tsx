@@ -99,6 +99,24 @@ export function ChatSettings({ hasSingleChatBox }: ChatSettingsProps) {
       };
     }
 
+    // Sanitize sensitive_data_replacement rules before sending to backend
+    if (nextValues?.prompt_config?.sensitive_data_replacement?.rules) {
+      nextValues.prompt_config.sensitive_data_replacement.rules =
+        nextValues.prompt_config.sensitive_data_replacement.rules
+          .filter(
+            (r: any) =>
+              (typeof r.search === 'string' && r.search.trim().length > 0) ||
+              (typeof r.replace === 'string' && r.replace.trim().length > 0),
+          )
+          .map((r: any) => ({
+            id: r.id || Date.now().toString(),
+            search: typeof r.search === 'string' ? r.search.trim() : '',
+            replace: typeof r.replace === 'string' ? r.replace.trim() : '',
+            case_sensitive: Boolean(r.case_sensitive),
+            is_regex: Boolean(r.is_regex),
+          }));
+    }
+
     updateChat({
       chatId: id!,
       params: {
@@ -133,11 +151,28 @@ export function ChatSettings({ hasSingleChatBox }: ChatSettingsProps) {
         ? { ...referenceMetadata, fields: undefined }
         : referenceMetadata;
 
+    const rawSensitiveData = data?.prompt_config?.sensitive_data_replacement;
+    const normalizedSensitiveData = rawSensitiveData
+      ? {
+          ...rawSensitiveData,
+          rules: Array.isArray(rawSensitiveData.rules)
+            ? rawSensitiveData.rules.map((r: any, idx: number) => ({
+                ...r,
+                id: r.id || `${Date.now()}_${idx}`,
+              }))
+            : [],
+        }
+      : {
+          enabled: false,
+          rules: [],
+        };
+
     const nextData = {
       ...data,
       prompt_config: {
         ...data.prompt_config,
         reference_metadata: normalizedReferenceMetadata,
+        sensitive_data_replacement: normalizedSensitiveData,
       },
       ...llmSettingEnabledValues,
     };

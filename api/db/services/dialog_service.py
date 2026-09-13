@@ -39,7 +39,7 @@ from api.utils.reference_metadata_utils import (
     enrich_chunks_with_document_metadata,
     resolve_reference_metadata_preferences,
 )
-from api.utils.sensitive_data_utils import anonymize_messages, deanonymize_text, StreamingDeanonymizer
+from api.utils.sensitive_data_utils import anonymize_text, anonymize_messages, deanonymize_text, StreamingDeanonymizer
 from api.db.joint_services.tenant_model_service import get_tenant_default_model_by_type, get_model_config_from_provider_instance, get_model_type_by_name
 from common.time_utils import current_timestamp, datetime_format
 from common.text_utils import normalize_arabic_digits
@@ -330,11 +330,18 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
         msg[-1]["content"] += attachments
     if model_config["model_type"] == "chat" and image_attachments:
         convert_last_user_msg_to_multimodal(msg, image_attachments, factory)
+    if sensitive_enabled and sensitive_rules:
+        msg = anonymize_messages(msg, sensitive_rules)
+
+    system_prompt = prompt_config.get("system", "")
+    if sensitive_enabled and sensitive_rules and system_prompt:
+        system_prompt = anonymize_text(system_prompt, sensitive_rules)
+
     if stream:
         if model_config["model_type"] == "chat":
-            stream_iter = chat_mdl.async_chat_streamly_delta(prompt_config.get("system", ""), msg, dialog.llm_setting)
+            stream_iter = chat_mdl.async_chat_streamly_delta(system_prompt, msg, dialog.llm_setting)
         else:
-            stream_iter = chat_mdl.async_chat_streamly_delta(prompt_config.get("system", ""), msg, dialog.llm_setting, images=image_files)
+            stream_iter = chat_mdl.async_chat_streamly_delta(system_prompt, msg, dialog.llm_setting, images=image_files)
         last_state = None
         try:
             async for kind, value, state in _stream_with_think_delta(stream_iter):
@@ -361,9 +368,9 @@ async def async_chat_solo(dialog, messages, stream=True, session_id=None):
             yield {"answer": full_answer, "reference": {}, "audio_binary": None, "prompt": "", "created_at": time.time(), "final": True}
     else:
         if model_config["model_type"] == "chat":
-            answer = await chat_mdl.async_chat(prompt_config.get("system", ""), msg, dialog.llm_setting)
+            answer = await chat_mdl.async_chat(system_prompt, msg, dialog.llm_setting)
         else:
-            answer = await chat_mdl.async_chat(prompt_config.get("system", ""), msg, dialog.llm_setting, images=image_files)
+            answer = await chat_mdl.async_chat(system_prompt, msg, dialog.llm_setting, images=image_files)
         if sensitive_enabled and sensitive_rules and answer:
             answer = deanonymize_text(answer, sensitive_rules)
         user_content = msg[-1].get("content", "[content not available]")
@@ -651,6 +658,8 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
         else:
             text_attachments, image_files = split_file_attachments(messages[-1]["files"], raw=True)
         attachments_ = "\n\n".join(text_attachments)
+        if sensitive_enabled and sensitive_rules and attachments_:
+            attachments_ = anonymize_text(attachments_, sensitive_rules)
 
     prompt_config = dialog.prompt_config
     include_reference_metadata, metadata_fields = _resolve_reference_metadata(prompt_config, request_payload=kwargs)
@@ -662,6 +671,8 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
         ans = await use_sql(questions[-1], field_map, dialog.tenant_id, chat_mdl, prompt_config.get("quote", True), dialog.kb_ids)
         # For aggregate queries (COUNT, SUM, etc.), chunks may be empty but answer is still valid
         if ans and (ans.get("reference", {}).get("chunks") or ans.get("answer")):
+            if sensitive_enabled and sensitive_rules and ans.get("answer"):
+                ans["answer"] = deanonymize_text(ans["answer"], sensitive_rules)
             if include_reference_metadata and ans.get("reference", {}).get("chunks"):
                 if len(dialog.kb_ids) != 1 and any(not c.get("kb_id") for c in ans["reference"]["chunks"]):
                     logging.warning(
@@ -823,6 +834,8 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     # placeholder, auto-append it so the LLM still sees the context.
     if knowledges and "{knowledge}" not in prompt_config.get("system", ""):
         system_content += kwargs["knowledge"]
+    if sensitive_enabled and sensitive_rules and system_content:
+        system_content = anonymize_text(system_content, sensitive_rules)
     msg = [{"role": "system", "content": system_content}]
     prompt4citation = ""
     if knowledges and (prompt_config.get("quote", True) and kwargs.get("quote", True)):
