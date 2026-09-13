@@ -9,6 +9,10 @@ on:
       - '.github/workflows/deploy_atmos_payment.yml'
   workflow_dispatch:
 
+concurrency:
+  group: ec2-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy-payment:
     runs-on: ubuntu-latest
@@ -20,9 +24,9 @@ jobs:
       - name: Deploy Atmos Payment System to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host: ${{ secrets.EC2_HOST || secrets.SSH_HOST }}
           username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
+          key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
           command_timeout: 15m
           script: |
             set -e
@@ -32,12 +36,17 @@ jobs:
 
             cd ~/swipies__ai_
 
+            echo "🧹 Cleaning git locks..."
+            sudo chown -R ubuntu:ubuntu ~/swipies__ai_ 2>/dev/null || true
+            sudo find ~/swipies__ai_ -name "*.lock" -type f -delete 2>/dev/null || true
+
             echo "📥 Fetching latest code..."
             git fetch origin swipies_26
             git reset --hard origin/swipies_26
 
             echo "📥 Updating Atmos Payment System Submodule..."
             cd ~/swipies__ai_/"atmos payment system"
+            sudo find . -name "*.lock" -type f -delete 2>/dev/null || true
             git checkout main || true
             git pull origin main || true
 
@@ -48,18 +57,20 @@ jobs:
 
             echo "📝 Writing production .env configuration..."
             cat > .env << 'ENVEOF'
-ATMOS_STORE_ID=100506
-ATMOS_KEY=TpLRLagJ1SXiZ0dT_om5BT_I3Nga
-ATMOS_SECRET=bMH7gjat2EgI3fTXoLJX7CRUcbAa
-ATMOS_BASE_URL=https://apigw.atmos.uz
-PORT=3001
-FRONTEND_URL=https://swipies.app
-ADMIN_PASSWORD=0czavZsPcYfroExMAdb
-RAGFLOW_BASE_URL=https://swipies.app
-RAGFLOW_ADMIN_EMAIL=your-admin@swipies.app
-RAGFLOW_ADMIN_PASSWORD=your-admin-password
-RAGFLOW_PUBLIC_KEY_PATH=./ragflow_public.pem
-ENVEOF
+            ATMOS_STORE_ID=100506
+            ATMOS_KEY=TpLRLagJ1SXiZ0dT_om5BT_I3Nga
+            ATMOS_SECRET=bMH7gjat2EgI3fTXoLJX7CRUcbAa
+            ATMOS_BASE_URL=https://apigw.atmos.uz
+            PORT=3001
+            FRONTEND_URL=https://app.swipies.app
+            ADMIN_PASSWORD=0czavZsPcYfroExMAdb
+            RAGFLOW_BASE_URL=https://app.swipies.app
+            RAGFLOW_ADMIN_EMAIL=your-admin@swipies.app
+            RAGFLOW_ADMIN_PASSWORD=your-admin-password
+            RAGFLOW_API_KEY=swipies_system_secret_key_2026
+            RAGFLOW_PUBLIC_KEY_PATH=./ragflow_public.pem
+            ENVEOF
+            sed -i 's/^[ \t]*//' .env
 
             echo "🛡️ Running Indestructible Payment Service Provisioner..."
             bash ~/swipies__ai_/docker/ensure_payment_service.sh

@@ -65,14 +65,19 @@ ATMOS_KEY=TpLRLagJ1SXiZ0dT_om5BT_I3Nga
 ATMOS_SECRET=bMH7gjat2EgI3fTXoLJX7CRUcbAa
 ATMOS_BASE_URL=https://apigw.atmos.uz
 PORT=3001
-FRONTEND_URL=https://swipies.app
+FRONTEND_URL=https://app.swipies.app
 ADMIN_PASSWORD=0czavZsPcYfroExMAdb
-RAGFLOW_BASE_URL=https://swipies.app
+RAGFLOW_BASE_URL=https://app.swipies.app
 RAGFLOW_ADMIN_EMAIL=your-admin@swipies.app
 RAGFLOW_ADMIN_PASSWORD=your-admin-password
 RAGFLOW_PUBLIC_KEY_PATH=./ragflow_public.pem
 ENVEOF
 fi
+
+# Ensure existing .env uses app.swipies.app instead of bare domain
+sed -i 's#RAGFLOW_BASE_URL=https://swipies.app#RAGFLOW_BASE_URL=https://app.swipies.app#g' .env 2>/dev/null || true
+sed -i 's#FRONTEND_URL=https://swipies.app#FRONTEND_URL=https://app.swipies.app#g' .env 2>/dev/null || true
+
 
 # 3. Kill hung processes holding port 3001
 echo -e "${BLUE}🔌 Freeing port 3001...${NC}"

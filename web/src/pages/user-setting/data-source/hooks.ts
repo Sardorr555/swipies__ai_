@@ -65,8 +65,6 @@ export const useListDataSource = () => {
         });
       }
     });
-
-    console.log('🚀 ~ useListDataSource ~ sourceList:', sourceList);
     return sourceList;
   }, [list]);
 

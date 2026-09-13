@@ -85,7 +85,7 @@ const menuItems = (t: TFunction) => {
     },
     {
       icon: <Key className="size-[1em]" />,
-      label: 'License Key',
+      label: t('setting.license', { defaultValue: 'License Key' }),
       key: Routes.License,
     },
   ];

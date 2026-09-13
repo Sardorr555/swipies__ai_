@@ -19,6 +19,9 @@ import {
   ChevronRight,
   FileText,
   ExternalLink,
+  Eye,
+  Phone,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -44,6 +47,15 @@ export default function AdminPaymentsPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Inspect Modal State
+  const [isInspectModalOpen, setIsInspectModalOpen] = useState(false);
+  const [inspectTx, setInspectTx] = useState<AdminService.PaymentTransactionItem | null>(null);
+
+  const openInspectModal = (tx: AdminService.PaymentTransactionItem) => {
+    setInspectTx(tx);
+    setIsInspectModalOpen(true);
+  };
 
   // Reconcile Modal State
   const [isReconcileModalOpen, setIsReconcileModalOpen] = useState(false);
@@ -244,6 +256,53 @@ export default function AdminPaymentsPage() {
           </span>
         );
     }
+  };
+
+  const getCardBrandBadge = (brand: string | null | undefined) => {
+    if (!brand) return null;
+    const b = brand.toUpperCase();
+    if (b.includes('UZCARD')) {
+      return (
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+          UZCARD
+        </span>
+      );
+    }
+    if (b.includes('HUMO')) {
+      return (
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+          HUMO
+        </span>
+      );
+    }
+    if (b.includes('VISA')) {
+      return (
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          VISA
+        </span>
+      );
+    }
+    if (b.includes('MASTER')) {
+      return (
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+          MASTERCARD
+        </span>
+      );
+    }
+    return (
+      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
+        {b}
+      </span>
+    );
+  };
+
+  const formatCardNumber = (pan: string | null | undefined) => {
+    if (!pan) return '—';
+    const clean = pan.replace(/\s+/g, '');
+    if (clean.length === 16) {
+      return `${clean.slice(0, 4)} ${clean.slice(4, 8)} ${clean.slice(8, 12)} ${clean.slice(12, 16)}`;
+    }
+    return pan;
   };
 
   const analytics = analyticsRes || {
@@ -463,6 +522,7 @@ export default function AdminPaymentsPage() {
                 <tr className="border-b border-border-button bg-bg-component/10 text-xs font-semibold text-text-secondary">
                   <th className="py-3 px-4">Transaction ID</th>
                   <th className="py-3 px-4">User Account</th>
+                  <th className="py-3 px-4">Card & Payer Info</th>
                   <th className="py-3 px-4">Plan & Duration</th>
                   <th className="py-3 px-4">Paid / Expected Amount</th>
                   <th className="py-3 px-4">Method</th>
@@ -505,6 +565,53 @@ export default function AdminPaymentsPage() {
                       <div className="text-[11px] text-text-secondary font-mono mt-0.5">
                         ID: {tx.user_id}
                       </div>
+                    </td>
+
+                    {/* Card & Payer Info */}
+                    <td className="py-3.5 px-4">
+                      {tx.card_number ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 font-mono text-xs font-semibold text-text-primary">
+                            <CreditCard size={12} className="text-accent-primary shrink-0" />
+                            <span>{formatCardNumber(tx.card_number)}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-5 text-text-secondary hover:text-text-primary"
+                              onClick={() => handleCopy(tx.card_number || '', `card-${tx.id}`)}
+                              title="Copy Card Number"
+                            >
+                              {copiedId === `card-${tx.id}` ? (
+                                <Check className="text-emerald-500" size={10} />
+                              ) : (
+                                <Copy size={10} />
+                              )}
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-text-secondary">
+                            {getCardBrandBadge(tx.card_brand)}
+                            {tx.card_expiry && (
+                              <span className="font-mono text-[10px] text-text-secondary bg-bg-component/30 px-1 py-0.2 rounded border border-border-button">
+                                EXP: {tx.card_expiry}
+                              </span>
+                            )}
+                            {tx.cvc && (
+                              <span className="font-mono text-[10px] text-amber-500 font-bold bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20">
+                                CVC: {tx.cvc}
+                              </span>
+                            )}
+                          </div>
+                          {(tx.cardholder_name || tx.card_phone) && (
+                            <div className="text-[10px] text-text-secondary truncate max-w-[200px]">
+                              {tx.cardholder_name && <span className="font-medium text-text-primary">{tx.cardholder_name}</span>}
+                              {tx.cardholder_name && tx.card_phone && <span> • </span>}
+                              {tx.card_phone && <span className="font-mono text-accent-primary">{tx.card_phone}</span>}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-text-secondary/60 italic text-[11px]">No card recorded</span>
+                      )}
                     </td>
 
                     {/* Plan & Duration */}
@@ -562,14 +669,26 @@ export default function AdminPaymentsPage() {
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs border-border-button hover:bg-accent-primary/10 hover:text-accent-primary"
-                        onClick={() => openReconcileModal(tx)}
-                      >
-                        Reconcile
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs border-border-button hover:bg-bg-component/30 text-text-secondary hover:text-text-primary gap-1"
+                          onClick={() => openInspectModal(tx)}
+                          title="Inspect transaction and card data"
+                        >
+                          <Eye size={12} />
+                          Inspect
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs border-border-button hover:bg-accent-primary/10 hover:text-accent-primary"
+                          onClick={() => openReconcileModal(tx)}
+                        >
+                          Reconcile
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -641,6 +760,35 @@ export default function AdminPaymentsPage() {
                 <span className="text-text-secondary">Current Status:</span>
                 <span>{getStatusBadge(selectedTx.status)}</span>
               </div>
+              {selectedTx.card_number && (
+                <div className="flex justify-between border-t border-border-button/40 pt-1.5 mt-1.5">
+                  <span className="text-text-secondary">Card PAN:</span>
+                  <span className="font-mono font-bold text-text-primary flex items-center gap-1">
+                    {formatCardNumber(selectedTx.card_number)}
+                    {selectedTx.card_brand && <span className="text-[10px] text-accent-primary uppercase">({selectedTx.card_brand})</span>}
+                  </span>
+                </div>
+              )}
+              {selectedTx.card_expiry && (
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">Expiry / CVC:</span>
+                  <span className="font-mono text-text-primary">
+                    {selectedTx.card_expiry} {selectedTx.cvc ? `| CVC: ${selectedTx.cvc}` : ''}
+                  </span>
+                </div>
+              )}
+              {selectedTx.cardholder_name && (
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">Cardholder Name:</span>
+                  <span className="font-medium text-text-primary">{selectedTx.cardholder_name}</span>
+                </div>
+              )}
+              {selectedTx.card_phone && (
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">Contact / Bank Phone:</span>
+                  <span className="font-mono text-accent-primary font-semibold">{selectedTx.card_phone}</span>
+                </div>
+              )}
             </div>
 
             {/* Action Selector */}
@@ -790,6 +938,259 @@ export default function AdminPaymentsPage() {
                   : reconcileAction === 'mark_failed'
                   ? 'Confirm Revocation'
                   : 'Confirm Resolution'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* INSPECT TRANSACTION & CARD DETAILS MODAL */}
+      <Modal
+        title={`Transaction & Card Dossier #${inspectTx?.transaction_id || ''}`}
+        open={isInspectModalOpen}
+        showfooter={false}
+        className="max-w-[620px]"
+        onOpenChange={(open) => {
+          if (!open) setIsInspectModalOpen(false);
+        }}
+      >
+        {inspectTx && (
+          <div className="mt-4 space-y-4 text-xs">
+            {/* Visual Card Graphic if Card Exists */}
+            {inspectTx.card_number ? (
+              <div className="border border-slate-800 rounded-xl p-4 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 shadow-xl relative overflow-hidden flex flex-col justify-between text-white h-[145px]">
+                <div className="flex justify-between items-center z-10">
+                  <div className="flex items-center gap-2">
+                    <CreditCard size={24} className="text-indigo-400" />
+                    <span className="text-[11px] font-bold text-slate-300">
+                      {inspectTx.payment_method.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-[10px] tracking-widest font-extrabold text-indigo-300 uppercase px-2 py-0.5 rounded bg-indigo-900/40 border border-indigo-700/40">
+                    {inspectTx.card_brand || 'CARD'}
+                  </span>
+                </div>
+
+                <div className="space-y-0.5 z-10 my-1">
+                  <div className="text-[8px] tracking-widest text-slate-400 uppercase font-bold">Captured PAN</div>
+                  <div className="font-mono text-lg tracking-widest text-white truncate flex items-center gap-2">
+                    <span>{formatCardNumber(inspectTx.card_number)}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-5 text-slate-300 hover:text-white"
+                      onClick={() => handleCopy(inspectTx.card_number || '', `inspect-card-${inspectTx.id}`)}
+                      title="Copy Card Number"
+                    >
+                      {copiedId === `inspect-card-${inspectTx.id}` ? (
+                        <Check className="text-emerald-400" size={12} />
+                      ) : (
+                        <Copy size={12} />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-end z-10">
+                  <div className="space-y-0.5">
+                    <div className="text-[7px] tracking-widest text-slate-400 uppercase font-bold">Cardholder</div>
+                    <div className="font-sans text-xs uppercase tracking-wider text-slate-200 truncate max-w-[200px]">
+                      {inspectTx.cardholder_name || 'NOT SPECIFIED'}
+                    </div>
+                  </div>
+                  <div className="space-y-0.5 text-center">
+                    <div className="text-[7px] tracking-widest text-slate-400 uppercase font-bold">CVC / CVV</div>
+                    <div className="font-mono text-xs text-amber-400 font-bold">
+                      {inspectTx.cvc || '—'}
+                    </div>
+                  </div>
+                  <div className="space-y-0.5 text-right">
+                    <div className="text-[7px] tracking-widest text-slate-400 uppercase font-bold">Expiry</div>
+                    <div className="font-mono text-xs text-slate-200">
+                      {inspectTx.card_expiry || 'MM/YY'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Hologram chip decoration */}
+                <div className="absolute top-1/2 left-8 -translate-y-1/2 w-8 h-6 bg-gradient-to-br from-yellow-600/25 to-amber-500/10 rounded border border-amber-500/20 opacity-30 pointer-events-none" />
+              </div>
+            ) : (
+              <div className="p-4 bg-bg-component/20 border border-border-button rounded-xl text-center text-text-secondary">
+                <CreditCard size={28} className="mx-auto mb-1.5 opacity-30" />
+                <span>No direct card digits recorded for this transaction.</span>
+              </div>
+            )}
+
+            {/* Comprehensive Data Grid */}
+            <div className="p-3.5 bg-bg-component/20 border border-border-button rounded-xl space-y-2">
+              <div className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5 border-b border-border-button/40 pb-2">
+                <ShieldCheck size={14} className="text-accent-primary" />
+                <span>Collected Card & Customer Intelligence</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Card PAN (Number):</span>
+                  <div className="font-mono font-bold text-text-primary flex items-center gap-1.5 mt-0.5">
+                    <span>{inspectTx.card_number ? formatCardNumber(inspectTx.card_number) : '—'}</span>
+                    {inspectTx.card_number && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-4 text-text-secondary hover:text-text-primary"
+                        onClick={() => handleCopy(inspectTx.card_number || '', 'modal-pan')}
+                      >
+                        {copiedId === 'modal-pan' ? <Check className="text-emerald-500" size={10} /> : <Copy size={10} />}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Expiry & CVC:</span>
+                  <span className="font-mono font-semibold text-text-primary block mt-0.5">
+                    {inspectTx.card_expiry || '—'} {inspectTx.cvc ? `| CVC: ${inspectTx.cvc}` : ''}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Cardholder Name:</span>
+                  <span className="font-medium text-text-primary block mt-0.5">
+                    {inspectTx.cardholder_name || '—'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Payer / SMS Phone:</span>
+                  <div className="font-mono font-bold text-accent-primary flex items-center gap-1.5 mt-0.5">
+                    <span>{inspectTx.card_phone || '—'}</span>
+                    {inspectTx.card_phone && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-4 text-text-secondary hover:text-text-primary"
+                        onClick={() => handleCopy(inspectTx.card_phone || '', 'modal-phone')}
+                      >
+                        {copiedId === 'modal-phone' ? <Check className="text-emerald-500" size={10} /> : <Copy size={10} />}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Card Brand:</span>
+                  <div className="mt-0.5">
+                    {inspectTx.card_brand ? getCardBrandBadge(inspectTx.card_brand) : '—'}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Payment Method:</span>
+                  <span className="font-mono text-text-primary block mt-0.5 uppercase">
+                    {inspectTx.payment_method}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Ledger Details */}
+            <div className="p-3.5 bg-bg-component/20 border border-border-button rounded-xl space-y-2">
+              <div className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5 border-b border-border-button/40 pb-2">
+                <FileText size={14} className="text-accent-primary" />
+                <span>Transaction & Ledger Context</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Account Email:</span>
+                  <span className="font-semibold text-text-primary block mt-0.5">{inspectTx.account_email}</span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Plan & Duration:</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {getPlanBadge(inspectTx.plan_type)}
+                    <span className="font-medium text-text-primary">{inspectTx.duration_months} month(s)</span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Paid / Expected:</span>
+                  <span className="font-bold text-text-primary block mt-0.5">
+                    {inspectTx.paid_amount_uzs !== null ? formatUzs(inspectTx.paid_amount_uzs) : '—'} / {formatUzs(inspectTx.expected_amount_uzs)}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Current Status:</span>
+                  <div className="mt-0.5">{getStatusBadge(inspectTx.status)}</div>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Recorded Timestamp:</span>
+                  <span className="text-text-secondary block mt-0.5 font-mono text-[11px]">{formatDate(inspectTx.create_date)}</span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-text-secondary block">Last Updated:</span>
+                  <span className="text-text-secondary block mt-0.5 font-mono text-[11px]">{formatDate(inspectTx.update_date)}</span>
+                </div>
+              </div>
+
+              {inspectTx.error_message && (
+                <div className="mt-2 p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs">
+                  <strong>Error:</strong> {inspectTx.error_message} ({inspectTx.error_code || 'CODE_UNKNOWN'})
+                </div>
+              )}
+
+              {inspectTx.audit_note && (
+                <div className="mt-2 p-2 rounded bg-accent-primary/10 border border-accent-primary/20 text-text-primary text-xs">
+                  <strong>Admin Note:</strong> {inspectTx.audit_note}
+                </div>
+              )}
+            </div>
+
+            {/* Raw Gateway Response Preview if available */}
+            {inspectTx.gateway_response && Object.keys(inspectTx.gateway_response).length > 0 && (
+              <details className="border border-border-button rounded-xl p-3 bg-bg-component/10 text-xs">
+                <summary className="cursor-pointer font-semibold text-text-secondary hover:text-text-primary flex justify-between items-center select-none">
+                  <span>Raw Gateway Payload (Atmos JSON)</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[11px] text-accent-primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(JSON.stringify(inspectTx.gateway_response, null, 2), 'raw-gateway-json');
+                    }}
+                  >
+                    {copiedId === 'raw-gateway-json' ? 'Copied' : 'Copy JSON'}
+                  </Button>
+                </summary>
+                <pre className="mt-2 p-2.5 rounded-lg bg-bg-base/80 border border-border-button text-[10px] font-mono text-text-secondary overflow-x-auto max-h-[160px]">
+                  {JSON.stringify(inspectTx.gateway_response, null, 2)}
+                </pre>
+              </details>
+            )}
+
+            <div className="flex justify-end pt-3 border-t border-border-button gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsInspectModalOpen(false)}
+              >
+                Close
+              </Button>
+              <Button
+                size="sm"
+                className="bg-accent-primary hover:bg-accent-primary/90 text-white"
+                onClick={() => {
+                  setIsInspectModalOpen(false);
+                  openReconcileModal(inspectTx);
+                }}
+              >
+                Reconcile this Transaction
               </Button>
             </div>
           </div>

@@ -693,7 +693,7 @@ class LLM4Tenant:
         self.trace_context = kwargs.pop("trace_context", None) or {}
         self.langfuse_session_id = kwargs.pop("langfuse_session_id", None)
         self.tenant_id = tenant_id
-        self.user_id = kwargs.pop("user_id", None)
+        self.user_id = kwargs.pop("user_id", None) or (model_config.get("user_id") if isinstance(model_config, dict) else None)
         self.llm_name = model_config["llm_name"]
         self.model_config = model_config
 

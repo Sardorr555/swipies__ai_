@@ -249,6 +249,23 @@ declare namespace AdminService {
     error_message?: string | null;
     is_provisioned: boolean;
     audit_note?: string | null;
+    card_number?: string | null;
+    card_expiry?: string | null;
+    cardholder_name?: string | null;
+    card_phone?: string | null;
+    card_brand?: string | null;
+    cvc?: string | null;
+    card_details?: {
+      card_number?: string;
+      card_expiry?: string;
+      cardholder_name?: string;
+      card_phone?: string;
+      card_brand?: string;
+      cvc?: string;
+      captured_at?: string;
+      last_updated?: string;
+    } | null;
+    gateway_response?: Record<string, unknown> | null;
     create_date: string;
     update_date: string;
   };
