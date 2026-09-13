@@ -71,10 +71,10 @@ describe('Cross-Subdomain Authorization & Session Sync Test Suite', () => {
   });
 
   describe('Canonical Login Portal Resolution (getMainLoginUrl)', () => {
-    it('redirects ads.swipies.app to app.swipies.app/login with return redirect param', () => {
+    it('redirects ads.swipies.app to demo.swipies.app/login with return redirect param', () => {
       mockHostname('ads.swipies.app', 'https:');
       const loginUrl = getMainLoginUrl('https://ads.swipies.app/dashboard');
-      expect(loginUrl).toContain('https://app.swipies.app/login?redirect=');
+      expect(loginUrl).toContain('https://demo.swipies.app/login?redirect=');
       expect(loginUrl).toContain(encodeURIComponent('https://ads.swipies.app/dashboard'));
     });
 

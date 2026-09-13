@@ -86,13 +86,13 @@ export function getMainLoginUrl(returnUrl?: string): string {
     return `/login${redirectParam}`;
   }
 
-  if (host.includes('demo.')) {
-    return `${window.location.protocol}//demo.swipies.app/login${redirectParam}`;
+  if (host.includes('app.swipies.app')) {
+    return `${window.location.protocol}//app.swipies.app/login${redirectParam}`;
   }
 
   if (host.endsWith('swipies.app')) {
-    // If on ads or other subdomains, send to main platform portal app.swipies.app
-    return `${window.location.protocol}//app.swipies.app/login${redirectParam}`;
+    // Primary platform portal is demo.swipies.app (for ads.swipies.app, demo.swipies.app, etc.)
+    return `${window.location.protocol}//demo.swipies.app/login${redirectParam}`;
   }
 
   return `${window.location.origin}/login${redirectParam}`;
