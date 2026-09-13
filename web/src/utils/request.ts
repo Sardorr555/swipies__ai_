@@ -59,6 +59,15 @@ const errorHandler = (error: {
   message: string;
 }): Response => {
   const { response } = error;
+  if (response?.status === 401) {
+    if (!isRedirecting) {
+      isRedirecting = true;
+      authorizationUtil.removeAll();
+      redirectToLogin();
+    }
+    return response ?? { data: { code: 401 } };
+  }
+
   if (error.message === FAILED_TO_FETCH) {
     notification.error({
       description: i18n.t('message.networkAnomalyDescription'),

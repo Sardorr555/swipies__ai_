@@ -1,5 +1,5 @@
 import message from '@/components/ui/message';
-import authorizationUtil from '@/utils/authorization-util';
+import authorizationUtil, { subscribeToAuthChanges } from '@/utils/authorization-util';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -44,10 +44,20 @@ export const useOAuthCallback = () => {
 
 export const useAuth = () => {
   const auth = useOAuthCallback();
-  const [isLogin, setIsLogin] = useState<Nullable<boolean>>(null);
+  const [isLogin, setIsLogin] = useState<Nullable<boolean>>(() => {
+    return !!authorizationUtil.getAuthorization() || !!auth;
+  });
 
   useEffect(() => {
     setIsLogin(!!authorizationUtil.getAuthorization() || !!auth);
+
+    const unsubscribe = subscribeToAuthChanges((loggedIn) => {
+      setIsLogin(loggedIn || !!auth);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [auth]);
 
   return { isLogin };

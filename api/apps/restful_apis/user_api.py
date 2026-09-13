@@ -382,7 +382,32 @@ async def log_out():
         return get_json_result(code=RetCode.SERVER_ERROR, data=False, message="Failed to update access token")
     logout_user()
     logging.info("Logout: user_id=%s, access_token invalidated", user_id)
-    return get_json_result(data=True)
+    resp = get_json_result(data=True)
+    # Expire auth cookies across swipies.app root domain and current host
+    cookie_domains = [".swipies.app", "swipies.app", None]
+    try:
+        if request and request.host:
+            h = request.host.split(":")[0]
+            if h and h not in cookie_domains:
+                cookie_domains.append(h)
+    except Exception:
+        pass
+
+    cookie_names = [
+        "swipies_auth_token",
+        "swipies_logged_in",
+        "swipies_token",
+        "ragflow_auth",
+        "Authorization",
+        "Token",
+    ]
+    for dom in cookie_domains:
+        for cname in cookie_names:
+            try:
+                resp.delete_cookie(cname, domain=dom, path="/")
+            except Exception:
+                pass
+    return resp
 
 
 @manager.route("/users/me", methods=["PATCH"])  # noqa: F821

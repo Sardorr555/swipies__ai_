@@ -31,6 +31,9 @@ export const AD_TRANSLATIONS: Record<AdLanguage, Record<string, string>> = {
     backToMainApp: 'Вернуться в Swipies AI',
     backToMainAppShort: 'В Swipies AI',
     redirectingToLogin: 'Перенаправление на страницу входа...',
+    logoutBtn: 'Выйти',
+    verifyingSession: 'Проверка авторизации...',
+    sessionExpired: 'Сессия завершена. Перенаправление на вход...',
 
     // Navigation & Primary Sections
     tabOverview: 'Обзор',
@@ -368,6 +371,9 @@ export const AD_TRANSLATIONS: Record<AdLanguage, Record<string, string>> = {
     backToMainApp: 'Back to Swipies AI',
     backToMainAppShort: 'Swipies AI',
     redirectingToLogin: 'Redirecting to login...',
+    logoutBtn: 'Log Out',
+    verifyingSession: 'Verifying session...',
+    sessionExpired: 'Session expired. Redirecting to login...',
 
     // Navigation & Primary Sections
     tabOverview: 'Overview',
@@ -705,6 +711,9 @@ export const AD_TRANSLATIONS: Record<AdLanguage, Record<string, string>> = {
     backToMainApp: 'Swipies AI-ga qaytish',
     backToMainAppShort: 'Swipies AI',
     redirectingToLogin: 'Kirish sahifasiga yo\'naltirilmoqda...',
+    logoutBtn: 'Chiqish',
+    verifyingSession: 'Sessiya tekshirilmoqda...',
+    sessionExpired: 'Sessiya tugadi. Kirish sahifasiga yo\'naltirilmoqda...',
 
     // Navigation & Primary Sections
     tabOverview: 'Umumiy ko\'rinish',

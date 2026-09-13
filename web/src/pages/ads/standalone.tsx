@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ArrowLeft, Megaphone, ExternalLink, Sparkles, ShieldCheck, Globe } from 'lucide-react';
+import { ArrowLeft, Megaphone, ExternalLink, Sparkles, ShieldCheck, Globe, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ThemeSwitch from '@/components/theme-switch';
-import authorizationUtil from '@/utils/authorization-util';
+import authorizationUtil, { subscribeToAuthChanges, redirectToLogin } from '@/utils/authorization-util';
+import userService from '@/services/user-service';
 import { AD_TRANSLATIONS, AdLanguage, getActiveAdLanguage, setActiveAdLanguage } from './translations';
 import SwipiesAdsPage from './index';
 
@@ -61,14 +62,70 @@ export default function StandaloneAdsApp() {
     }
   }, [searchParams]);
 
-  const isAuthenticated = Boolean(authorizationUtil.getAuthorization());
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(authorizationUtil.getAuthorization()));
+  const [isVerifying, setIsVerifying] = useState<boolean>(true);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      const currentUrl = encodeURIComponent(window.location.href);
-      navigate(`/login?redirect=${currentUrl}`, { replace: true });
+  const handleLogout = useCallback(async () => {
+    setIsAuthenticated(false);
+    try {
+      await userService.logout();
+    } catch {
+      // ignore
+    } finally {
+      authorizationUtil.removeAll();
+      redirectToLogin(window.location.href);
     }
-  }, [isAuthenticated, navigate]);
+  }, []);
+
+  // Proactively verify session against backend & listen for cross-subdomain logout events
+  useEffect(() => {
+    let isCancelled = false;
+
+    const verifySession = async () => {
+      const token = authorizationUtil.getAuthorization();
+      if (!token) {
+        setIsAuthenticated(false);
+        setIsVerifying(false);
+        redirectToLogin(window.location.href);
+        return;
+      }
+
+      try {
+        const res = await userService.userInfo();
+        if (isCancelled) return;
+        if (res?.data?.code !== 0 && res?.data?.code !== 200) {
+          console.warn('Backend rejected session for Ads portal:', res?.data);
+          handleLogout();
+          return;
+        }
+        setIsAuthenticated(true);
+      } catch (err: any) {
+        if (isCancelled) return;
+        console.warn('Ads portal session verification error:', err);
+        handleLogout();
+        return;
+      } finally {
+        if (!isCancelled) {
+          setIsVerifying(false);
+        }
+      }
+    };
+
+    verifySession();
+
+    // Subscribe to cross-subdomain auth events (cookie wiped, storage cleared, visibility changed)
+    const unsubscribe = subscribeToAuthChanges((loggedIn) => {
+      if (!loggedIn) {
+        setIsAuthenticated(false);
+        redirectToLogin(window.location.href);
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+      unsubscribe();
+    };
+  }, [handleLogout]);
 
   // Main application URL resolver (to switch back to main Swipies AI platform)
   const mainAppUrl = useMemo(() => {
@@ -87,12 +144,14 @@ export default function StandaloneAdsApp() {
     return `${window.location.protocol}//app.swipies.app/${authQuery}`;
   }, []);
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isVerifying) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">{t('redirectingToLogin')}</p>
+          <p className="text-sm text-muted-foreground font-medium">
+            {!isAuthenticated ? t('redirectingToLogin') : t('verifyingSession')}
+          </p>
         </div>
       </div>
     );
@@ -162,6 +221,17 @@ export default function StandaloneAdsApp() {
               <span className="sm:hidden">{t('backToMainAppShort')}</span>
               <ExternalLink className="h-3 w-3 opacity-60 ml-0.5 shrink-0" />
             </a>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="text-xs h-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0 flex items-center gap-1.5"
+            title={t('logoutBtn')}
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('logoutBtn')}</span>
           </Button>
         </div>
       </header>

@@ -112,6 +112,34 @@ async def construct_response(code=RetCode.SUCCESS, message="success", data=None,
     response = await make_response(jsonify(response_dict))
     if auth:
         response.headers["Authorization"] = auth
+        try:
+            from quart import request
+            host = request.host.split(":")[0].lower() if getattr(request, "host", None) else ""
+            domain = ".swipies.app" if "swipies.app" in host else None
+            is_secure = getattr(request, "scheme", "") == "https"
+            token_val = auth if str(auth).startswith("Bearer ") else f"Bearer {auth}"
+            response.set_cookie(
+                "swipies_auth_token",
+                token_val,
+                domain=domain,
+                path="/",
+                max_age=30 * 24 * 3600,
+                samesite="Lax",
+                secure=is_secure,
+                httponly=False,
+            )
+            response.set_cookie(
+                "swipies_logged_in",
+                "1",
+                domain=domain,
+                path="/",
+                max_age=30 * 24 * 3600,
+                samesite="Lax",
+                secure=is_secure,
+                httponly=False,
+            )
+        except Exception:
+            pass
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Method"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "*"
