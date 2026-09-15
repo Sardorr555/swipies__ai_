@@ -1430,4 +1430,27 @@ async def admin_reconcile_payment_transaction():
         return get_data_error_result(message=f"Reconciliation failed: {str(ex)}")
 
 
+@manager.route("/system/subscription/expire-due", methods=["POST", "GET"])  # noqa: F821
+async def system_subscription_expire_due():
+    """
+    Automated or manual endpoint to scan and expire all due subscriptions
+    whose plan_expiry_date has elapsed.
+    """
+    if not check_system_api_auth():
+        return get_json_result(
+            data=False,
+            message="Invalid or missing System API key.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
 
+    try:
+        from api.db.services.user_service import TenantService
+        count = TenantService.expire_due_subscriptions()
+        return get_json_result(data={
+            "success": True,
+            "expired_count": count,
+            "timestamp": datetime_format(datetime.now()),
+        })
+    except Exception as ex:
+        logging.exception(f"Error expiring due subscriptions: {ex}")
+        return get_data_error_result(message=f"Error expiring due subscriptions: {str(ex)}")

@@ -59,6 +59,10 @@ class TenantModelProviderService(CommonService):
                 return True
             tenant = Tenant.get_or_none(Tenant.id == tenant_id)
             if tenant:
+                from api.db.services.user_service import TenantService
+                if tenant.plan_type and tenant.plan_type.lower() != "free" and TenantService.is_subscription_expired(tenant.plan_expiry_date):
+                    TenantService.update_by_id(tenant.id, {"plan_type": "free", "plan_expiry_date": None, "credit": 512})
+                    return False
                 plan_type = (getattr(tenant, "plan_type", None) or "").lower()
                 if plan_type in ["pro", "enterprise"]:
                     return True

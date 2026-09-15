@@ -338,7 +338,13 @@ class AIPolicyManager:
             if tenant_id:
                 tenant = Tenant.get_or_none(Tenant.id == tenant_id)
                 if tenant and getattr(tenant, "plan_type", None):
-                    plan_type = tenant.plan_type.lower()
+                    from api.db.services.user_service import TenantService
+                    if tenant.plan_type.lower() != "free" and TenantService.is_subscription_expired(tenant.plan_expiry_date):
+                        TenantService.update_by_id(tenant.id, {"plan_type": "free", "plan_expiry_date": None, "credit": 512})
+                        cls.handle_subscription_downgrade(tenant.id, "free")
+                        plan_type = "free"
+                    else:
+                        plan_type = tenant.plan_type.lower()
         except Exception as e:
             logger.warning("Error fetching tenant plan: %s", e)
 

@@ -180,6 +180,70 @@ class TenantService(CommonService):
     model = Tenant
 
     @classmethod
+    def is_subscription_expired(cls, plan_expiry) -> bool:
+        """Check if a plan expiry timestamp is in the past."""
+        if not plan_expiry:
+            return False
+        now_dt = datetime.now()
+        if isinstance(plan_expiry, str):
+            try:
+                plan_expiry = datetime.fromisoformat(plan_expiry.replace("Z", "+00:00"))
+            except Exception:
+                try:
+                    plan_expiry = datetime.strptime(plan_expiry, "%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    return False
+        if getattr(plan_expiry, "tzinfo", None):
+            now_dt = datetime.now(plan_expiry.tzinfo)
+        return now_dt > plan_expiry
+
+    @classmethod
+    @DB.connection_context()
+    def expire_due_subscriptions(cls) -> int:
+        """Scans and downgrades all expired subscriptions across all tenants."""
+        now_dt = datetime.now()
+        expired_list = list(
+            cls.model.select().where(
+                (cls.model.plan_type != "free") &
+                (cls.model.plan_expiry_date.is_null(False)) &
+                (cls.model.plan_expiry_date < now_dt)
+            )
+        )
+        count = 0
+        for t in expired_list:
+            cls.update_by_id(
+                t.id,
+                {
+                    "plan_type": "free",
+                    "plan_expiry_date": None,
+                    "credit": 512,
+                }
+            )
+            try:
+                from api.db.services.user_service import UserTenantService
+                user_tenants = UserTenantService.query(user_id=t.id)
+                for ut in user_tenants:
+                    if ut.tenant_id and ut.tenant_id != t.id:
+                        cls.update_by_id(
+                            ut.tenant_id,
+                            {
+                                "plan_type": "free",
+                                "plan_expiry_date": None,
+                                "credit": 512,
+                            }
+                        )
+            except Exception:
+                pass
+            try:
+                from api.db.services.ai_policy_service import AIPolicyManager
+                AIPolicyManager.handle_subscription_downgrade(t.id, "free")
+            except Exception:
+                pass
+            count += 1
+            logging.info(f"[Subscription Expired] Tenant {t.id} plan expired on {t.plan_expiry_date} -> downgraded to free.")
+        return count
+
+    @classmethod
     @DB.connection_context()
     def get_info_by(cls, user_id):
         fields = [
@@ -197,9 +261,23 @@ class TenantService(CommonService):
             cls.model.plan_expiry_date,
             cls.model.credit,
             UserTenant.role]
-        return list(cls.model.select(*fields)
+        records = list(cls.model.select(*fields)
                     .join(UserTenant, on=((cls.model.id == UserTenant.tenant_id) & (UserTenant.user_id == user_id) & (UserTenant.status == StatusEnum.VALID.value) & (UserTenant.role == UserTenantRole.OWNER)))
                     .where(cls.model.status == StatusEnum.VALID.value).dicts())
+        if records:
+            t = records[0]
+            plan = (t.get("plan_type") or "free").lower()
+            if plan != "free" and cls.is_subscription_expired(t.get("plan_expiry_date")):
+                cls.update_by_id(t["tenant_id"], {"plan_type": "free", "plan_expiry_date": None, "credit": 512})
+                t["plan_type"] = "free"
+                t["plan_expiry_date"] = None
+                t["credit"] = 512
+                try:
+                    from api.db.services.ai_policy_service import AIPolicyManager
+                    AIPolicyManager.handle_subscription_downgrade(t["tenant_id"], "free")
+                except Exception:
+                    pass
+        return records
 
     @classmethod
     @DB.connection_context()
@@ -368,6 +446,10 @@ class TenantLimitService:
         if not ok:
             return True, None
 
+        if tenant.plan_type and tenant.plan_type != "free" and TenantService.is_subscription_expired(tenant.plan_expiry_date):
+            TenantService.update_by_id(tenant_id, {"plan_type": "free", "plan_expiry_date": None, "credit": 512})
+            tenant.plan_type = "free"
+
         plan = (tenant.plan_type or "free").lower()
         default_limits = {"free": 3, "plus": 50, "pro": 200, "enterprise": -1}
         limit = int(cls.get_setting_val(f"plan.{plan}.apps_limit", default_limits.get(plan, 3)))
@@ -404,6 +486,10 @@ class TenantLimitService:
         if not ok:
             return True, None
 
+        if tenant.plan_type and tenant.plan_type != "free" and TenantService.is_subscription_expired(tenant.plan_expiry_date):
+            TenantService.update_by_id(tenant_id, {"plan_type": "free", "plan_expiry_date": None, "credit": 512})
+            tenant.plan_type = "free"
+
         plan = (tenant.plan_type or "free").lower()
         default_limits = {"free": 5, "plus": 20, "pro": 50, "enterprise": -1}
         limit = int(cls.get_setting_val(f"plan.{plan}.datasets_limit", default_limits.get(plan, 5)))
@@ -429,6 +515,10 @@ class TenantLimitService:
         ok, tenant = TenantService.get_by_id(tenant_id)
         if not ok:
             return True, None
+
+        if tenant.plan_type and tenant.plan_type != "free" and TenantService.is_subscription_expired(tenant.plan_expiry_date):
+            TenantService.update_by_id(tenant_id, {"plan_type": "free", "plan_expiry_date": None, "credit": 512})
+            tenant.plan_type = "free"
 
         plan = (tenant.plan_type or "free").lower()
         default_limits = {"free": 0.5, "plus": 5.0, "pro": 15.0, "enterprise": -1}
@@ -463,6 +553,10 @@ class TenantLimitService:
         ok, tenant = TenantService.get_by_id(tenant_id)
         if not ok:
             return True, None
+
+        if tenant.plan_type and tenant.plan_type != "free" and TenantService.is_subscription_expired(tenant.plan_expiry_date):
+            TenantService.update_by_id(tenant_id, {"plan_type": "free", "plan_expiry_date": None, "credit": 512})
+            tenant.plan_type = "free"
 
         plan = (tenant.plan_type or "free").lower()
         default_limits = {"free": 1, "plus": 5, "pro": 15, "enterprise": -1}
