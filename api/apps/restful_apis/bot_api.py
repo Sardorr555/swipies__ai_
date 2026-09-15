@@ -46,12 +46,15 @@ from rag.prompts.template import load_prompt
 from rag.prompts.generator import cross_languages, keyword_extraction
 from common.constants import RetCode, LLMType, StatusEnum
 from common import settings
+from api.utils.pagination_utils import validate_rest_api_page_size
 from api.utils.reference_metadata_utils import (
     enrich_chunks_with_document_metadata,
     resolve_reference_metadata_preferences,
 )
 
 logger = logging.getLogger(__name__)
+
+UUID4_REGEX = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", re.I)
 
 
 def _get_sdk_authorization_token():
@@ -84,6 +87,10 @@ async def chatbot_completions(dialog_id, tenant_id=None):
     if "quote" not in req:
         req["quote"] = False
 
+    visitor_id = request.headers.get("X-Visitor-Id", "").strip() or req.get("user_id", "")
+    if visitor_id and UUID4_REGEX.match(visitor_id):
+        req["user_id"] = visitor_id
+
     def _validate_iframe_access():
         if req.get("session_id"):
             exists, conv = API4ConversationService.get_by_id(req.get("session_id"))
@@ -91,8 +98,8 @@ async def chatbot_completions(dialog_id, tenant_id=None):
                 raise AssertionError("Session not found!")
             if conv.dialog_id != dialog_id:
                 raise AssertionError("Session does not belong to this dialog")
-            if tenant_id and conv.user_id and conv.user_id != tenant_id:
-                raise AssertionError("Session does not belong to this tenant")
+            if conv.user_id and visitor_id and conv.user_id != visitor_id:
+                raise AssertionError("Session does not belong to this visitor")
 
     if req.get("stream", True):
         try:
@@ -161,6 +168,60 @@ async def chatbots_inputs(dialog_id, tenant_id=None):
             "llm_id": dialog.llm_id or "",
         }
     )
+
+
+@manager.route("/chatbots/<dialog_id>/sessions", methods=["GET"])  # noqa: F821
+@login_required(auth_types=AUTH_BETA)
+@add_tenant_id_to_kwargs
+async def chatbot_sessions(dialog_id, tenant_id=None):
+    exists, dialog = await thread_pool_exec(DialogService.get_by_id, dialog_id)
+    if (not exists
+            or getattr(dialog, "tenant_id", None) != tenant_id
+            or str(getattr(dialog, "status", "")) != StatusEnum.VALID.value):
+        logger.warning(
+            "Denied chatbot sessions access: reason=%s tenant_id=%s dialog_id=%s",
+            "no access to this chatbot",
+            tenant_id,
+            dialog_id,
+        )
+        return get_error_data_result(message="Authentication error: no access to this chatbot!")
+
+    visitor_id = request.headers.get("X-Visitor-Id", "").strip()
+    if not visitor_id or not UUID4_REGEX.match(visitor_id):
+        return get_error_data_result(
+            message="Valid 'X-Visitor-Id' header is required.",
+            code=RetCode.ARGUMENT_ERROR,
+        )
+
+    page_number = int(request.args.get("page", 1))
+    items_per_page = validate_rest_api_page_size(int(request.args.get("page_size", 20)))
+    orderby = request.args.get("orderby", "update_time")
+    desc = request.args.get("desc", "true").lower() != "false"
+
+    total, sessions = await thread_pool_exec(
+        API4ConversationService.get_list,
+        dialog_id,
+        tenant_id,
+        page_number,
+        items_per_page,
+        orderby,
+        desc,
+        user_id=visitor_id,
+        include_dsl=False,
+    )
+
+    formatted_sessions = []
+    for s in sessions:
+        formatted_sessions.append({
+            "id": s.get("id"),
+            "dialog_id": s.get("dialog_id"),
+            "name": s.get("name") or "New Chat",
+            "messages": s.get("message", []),
+            "create_time": s.get("create_time"),
+            "update_time": s.get("update_time"),
+        })
+
+    return get_json_result(data=formatted_sessions)
 
 
 @manager.route("/agentbots/<agent_id>/completions", methods=["POST"])  # noqa: F821

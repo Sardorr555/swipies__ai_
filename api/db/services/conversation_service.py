@@ -370,12 +370,16 @@ async def async_iframe_completion(dialog_id, question, session_id=None, stream=T
     if not conv.message:
         conv.message = []
     messages = conv.message
-    question = {
+    question_obj = {
         "role": "user",
         "content": question,
         "id": str(uuid4())
     }
-    messages.append(question)
+    messages.append(question_obj)
+    if not getattr(conv, "name", None) and question:
+        conv.name = str(question)[:64].strip()
+    if not getattr(conv, "user_id", None) and kwargs.get("user_id"):
+        conv.user_id = kwargs["user_id"]
 
     msg = []
     for m in messages:

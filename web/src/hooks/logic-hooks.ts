@@ -242,6 +242,7 @@ export const useSendMessageWithSse = () => {
       url: string,
       body: any,
       controller?: AbortController,
+      customHeaders?: Record<string, string>,
     ): Promise<{ response: Response; data: ResponseType } | undefined> => {
       initializeSseRef();
       try {
@@ -251,6 +252,7 @@ export const useSendMessageWithSse = () => {
           headers: {
             [Authorization]: getAuthorization(),
             'Content-Type': 'application/json',
+            ...(customHeaders || {}),
           },
           body: JSON.stringify(omit(body, 'chatBoxId')),
           signal: controller?.signal || sseRef.current?.signal,

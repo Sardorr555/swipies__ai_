@@ -8,6 +8,8 @@ import {
 } from '@/hooks/logic-hooks';
 import { useFetchExternalChatInfo } from '@/hooks/use-chat-request';
 import { Message } from '@/interfaces/database/chat';
+import { getAuthorization } from '@/utils/authorization-util';
+import { getOrCreateVisitorId } from '@/utils/visitor-identity';
 import { get } from 'lodash';
 import trim from 'lodash/trim';
 import { useCallback, useEffect, useState } from 'react';
@@ -47,12 +49,14 @@ export const useSendSharedMessage = () => {
     sharedId: conversationId,
     data: data,
   } = useGetSharedChatSearchParams();
+  const visitorId = getOrCreateVisitorId();
   const { handleInputChange, value, setValue } = useHandleMessageInputChange();
   const completionUrl = `/api/v1/${from === SharedFrom.Agent ? 'agentbots' : 'chatbots'}/${conversationId}/completions`;
   const { data: chatInfo } = useFetchExternalChatInfo();
   const { send, answer, done, stopOutputMessage } = useSendMessageWithSse();
   const {
     derivedMessages,
+    setDerivedMessages,
     removeLatestMessage,
     addNewestAnswer,
     addNewestQuestion,
@@ -62,6 +66,7 @@ export const useSendSharedMessage = () => {
     removeAllMessagesExceptFirst,
   } = useSelectDerivedMessages();
   const [hasError, setHasError] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   const sendMessage = useCallback(
     async (
@@ -70,15 +75,22 @@ export const useSendSharedMessage = () => {
       enableThinking?: boolean,
       enableInternet?: boolean,
     ) => {
-      const res = await send(completionUrl, {
-        conversation_id: id ?? conversationId,
-        quote: true,
-        question: message.content,
-        session_id: get(derivedMessages, '0.session_id'),
-        reasoning: enableThinking,
-        internet: enableInternet,
-        ...(chatInfo?.llm_id ? { model_name: chatInfo.llm_id } : {}),
-      });
+      const visitorHeaders = { 'X-Visitor-Id': visitorId };
+      const res = await send(
+        completionUrl,
+        {
+          conversation_id: id ?? conversationId,
+          quote: true,
+          question: message.content,
+          session_id: activeSessionId || get(derivedMessages, '0.session_id'),
+          reasoning: enableThinking,
+          internet: enableInternet,
+          user_id: visitorId,
+          ...(chatInfo?.llm_id ? { model_name: chatInfo.llm_id } : {}),
+        },
+        undefined,
+        visitorHeaders,
+      );
 
       if (isCompletionError(res)) {
         // cancel loading
@@ -90,10 +102,12 @@ export const useSendSharedMessage = () => {
       send,
       completionUrl,
       conversationId,
+      activeSessionId,
       derivedMessages,
       setValue,
       removeLatestMessage,
       chatInfo,
+      visitorId,
     ],
   );
 
@@ -109,13 +123,62 @@ export const useSendSharedMessage = () => {
   );
 
   const fetchSessionId = useCallback(async () => {
-    const payload = { question: '' };
-    const ret = await send(completionUrl, { ...payload, ...data });
+    const payload = { question: '', user_id: visitorId };
+    const visitorHeaders = { 'X-Visitor-Id': visitorId };
+    const ret = await send(
+      completionUrl,
+      { ...payload, ...data },
+      undefined,
+      visitorHeaders,
+    );
     if (isCompletionError(ret)) {
       message.error(ret?.data.message ?? 'Unknown error');
       setHasError(true);
     }
-  }, [send, completionUrl]);
+  }, [send, completionUrl, visitorId, data]);
+
+  const fetchVisitorSessions = useCallback(async () => {
+    if (from === SharedFrom.Agent || !conversationId) return [];
+    try {
+      const auth = getAuthorization();
+      const res = await fetch(`/api/v1/chatbots/${conversationId}/sessions`, {
+        method: 'GET',
+        headers: {
+          ...(auth ? { Authorization: auth } : {}),
+          'X-Visitor-Id': visitorId,
+        },
+      });
+      const json = await res.json();
+      if (json.code === 0 && Array.isArray(json.data)) {
+        return json.data;
+      }
+    } catch (err) {
+      console.error('Failed to load visitor sessions:', err);
+    }
+    return [];
+  }, [conversationId, from, visitorId]);
+
+  const selectSession = useCallback(
+    (session: any) => {
+      if (!session) return;
+      setActiveSessionId(session.id);
+      const rawMessages = session.messages || [];
+      const mapped = rawMessages.map((m: any, idx: number) => ({
+        ...m,
+        session_id: session.id,
+        conversationId: session.dialog_id,
+        id: m.id || `${session.id}-${idx}`,
+      }));
+      setDerivedMessages(mapped);
+    },
+    [setDerivedMessages],
+  );
+
+  const startNewChat = useCallback(async () => {
+    setActiveSessionId(null);
+    removeAllMessages();
+    await fetchSessionId();
+  }, [removeAllMessages, fetchSessionId]);
 
   useEffect(() => {
     fetchSessionId();
@@ -169,5 +232,11 @@ export const useSendSharedMessage = () => {
     messageContainerRef,
     removeAllMessages,
     removeAllMessagesExceptFirst,
+    visitorId,
+    currentSessionId: activeSessionId || get(derivedMessages, '0.session_id'),
+    fetchVisitorSessions,
+    selectSession,
+    startNewChat,
   };
 };
+
