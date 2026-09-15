@@ -11,7 +11,7 @@ Select a visual model for parsing your PDFs.
 
 ---
 
-RAGFlow isn't one-size-fits-all. It is built for flexibility and supports deeper customization to accommodate more complex use cases. From v0.17.0 onwards, RAGFlow decouples DeepDoc-specific data extraction tasks from chunking methods **for PDF files**. This separation enables you to autonomously select a visual model for OCR (Optical Character Recognition), TSR (Table Structure Recognition), and DLR (Document Layout Recognition) tasks that balances speed and performance to suit your specific use cases. If your PDFs contain only plain text, you can opt to skip these tasks by selecting the **Naive** option, to reduce the overall parsing time.
+Swipies isn't one-size-fits-all. It is built for flexibility and supports deeper customization to accommodate more complex use cases. From v0.17.0 onwards, Swipies decouples DeepDoc-specific data extraction tasks from chunking methods **for PDF files**. This separation enables you to autonomously select a visual model for OCR (Optical Character Recognition), TSR (Table Structure Recognition), and DLR (Document Layout Recognition) tasks that balances speed and performance to suit your specific use cases. If your PDFs contain only plain text, you can opt to skip these tasks by selecting the **Naive** option, to reduce the overall parsing time.
 
 ![data extraction](https://raw.githubusercontent.com/infiniflow/ragflow-docs/main/images/data_extraction.jpg)
 
@@ -39,15 +39,15 @@ RAGFlow isn't one-size-fits-all. It is built for flexibility and supports deeper
 - Naive: Skip OCR, TSR, and DLR tasks if _all_ your PDFs are plain text.
 - [MinerU](https://github.com/opendatalab/MinerU): (Experimental) An open-source tool that converts PDF into machine-readable formats.
 - [Docling](https://github.com/docling-project/docling): (Experimental) An open-source document processing tool for gen AI.
-- [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf): (Experimental) A deterministic, local-first PDF parser with structured JSON + Markdown output. Runs as a standalone service container so no Java runtime is needed on the RAGFlow host.
+- [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf): (Experimental) A deterministic, local-first PDF parser with structured JSON + Markdown output. Runs as a standalone service container so no Java runtime is needed on the Swipies host.
 - A third-party visual model from a specific model provider.
 
 :::danger IMPORTANT
-Starting from v0.22.0, RAGFlow includes MinerU (&ge; 2.6.3) as an optional PDF parser of multiple backends. Please note that RAGFlow acts only as a *remote client* for MinerU, calling the MinerU API to parse documents and reading the returned files. To use this feature:
+Starting from v0.22.0, Swipies includes MinerU (&ge; 2.6.3) as an optional PDF parser of multiple backends. Please note that Swipies acts only as a *remote client* for MinerU, calling the MinerU API to parse documents and reading the returned files. To use this feature:
 :::
 
 1. Prepare a reachable MinerU API service (FastAPI server).
-2. In the **.env** file or from the **Model providers** page in the UI, configure RAGFlow as a remote client to MinerU:
+2. In the **.env** file or from the **Model providers** page in the UI, configure Swipies as a remote client to MinerU:
    - `MINERU_APISERVER`: The MinerU API endpoint (e.g., `http://mineru-host:8886`).
    - `MINERU_BACKEND`: The MinerU backend:
       - `"pipeline"` (default)
@@ -70,7 +70,7 @@ To use an external Docling Serve instance (instead of local in-process Docling),
 
 - `DOCLING_SERVER_URL`: The Docling Serve API endpoint (for example, `http://docling-host:5001`).
 
-When `DOCLING_SERVER_URL` is set, RAGFlow sends PDF content to Docling Serve (`/v1/convert/source`, with fallback to `/v1alpha/convert/source`) and ingests the returned markdown/text. If the variable is not set, RAGFlow keeps using local Docling (`USE_DOCLING=true` + installed package) behavior.
+When `DOCLING_SERVER_URL` is set, Swipies sends PDF content to Docling Serve (`/v1/convert/source`, with fallback to `/v1alpha/convert/source`) and ingests the returned markdown/text. If the variable is not set, Swipies keeps using local Docling (`USE_DOCLING=true` + installed package) behavior.
 
 :::note
 All MinerU environment variables are optional. When set, these values are used to auto-provision a MinerU OCR model for the tenant on first use. To avoid auto-provisioning, skip the environment variable settings and only configure MinerU from the **Model providers** page in the UI.

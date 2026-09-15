@@ -12,11 +12,11 @@ Link your GitHub repo for pull request or issue synchronization.
 
 ---
 
-This document explains how to link your GitHub repository to RAGFlow to synchronize pull requests and issues.
+This document explains how to link your GitHub repository to Swipies to synchronize pull requests and issues.
 
 ## 1. GitHub configuration
 
-Before configuring RAGFlow, you must prepare your GitHub account and generate the necessary credentials.
+Before configuring Swipies, you must prepare your GitHub account and generate the necessary credentials.
 
 ### Step a: Public email configuration
 
@@ -35,24 +35,24 @@ To ensure smooth identity matching and permission synchronization between your o
     - **`workflow` (Optional):** Recommended if you intend to index GitHub Action logs or CI/CD metadata.
 4. **Copy the token:** Save this immediately; it will not be displayed again.
 
-## 2. RAGFlow connector setup
+## 2. Swipies connector setup
 
-Once your GitHub token is ready, register the external data source within your RAGFlow instance.
+Once your GitHub token is ready, register the external data source within your Swipies instance.
 
-1. **Access data sources:** Click on your profile icon in RAGFlow and select **Data source**.
+1. **Access data sources:** Click on your profile icon in Swipies and select **Data source**.
 2. **Add GitHub connector:** Click **+ Add** and select the **GitHub** icon.
 3. **Input configuration:**
-    - **Source name:** Name it based on the repository (e.g., `ragflow-repo`).
-    - **Repo owner:** The username or organization (e.g., `infiniflow`).
-    - **Repo name:** The repository identifier (e.g., `ragflow`).
+    - **Source name:** Name it based on the repository (e.g., `swipies-repo`).
+    - **Repo owner:** The username or organization (e.g., `swipies`).
+    - **Repo name:** The repository identifier (e.g., `swipies`).
     - **Access token:** Paste the PAT generated in section 1.
     - **Include Pull Request** Whether to include pull requests in the selected repo.
     - **Include Issues** Whether to include issues in the selected repo.
 4. Click **Save** to confirm your changes.  
-   *RAGFlow validates the connection immediately.*
+   *Swipies validates the connection immediately.*
 
 :::tip NOTE
-Currently deleted or modified files are not synchronized automatically. This feature is coming soon. Thanks to Gisselle-Gonzalez for requesting [this feature](https://github.com/infiniflow/ragflow/issues/13708).
+Currently deleted or modified files are not synchronized automatically. This feature is coming soon. Thanks to Gisselle-Gonzalez for requesting [this feature](https://github.com/Sardorr555/swipies__ai_/issues/13708).
 :::
 
 ## 3. Dataset binding & ingestion

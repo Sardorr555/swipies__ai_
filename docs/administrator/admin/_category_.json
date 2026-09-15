@@ -3,7 +3,7 @@
   "position": 3,
   "link": {
     "type": "generated-index",
-    "description": "RAGFlow administration service"
+    "description": "Swipies administration service"
   },
   "customProps": {
     "categoryIcon": "LucideUserCog"

@@ -7,4 +7,4 @@ sidebar_custom_props: {
 ---
 # Share models
 
-Sharing models is currently exclusive to RAGFlow Enterprise.
+Sharing models is currently exclusive to Swipies Enterprise.

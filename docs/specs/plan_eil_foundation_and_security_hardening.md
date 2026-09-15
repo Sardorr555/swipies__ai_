@@ -1,6 +1,6 @@
 # Technical Implementation Plan: Enterprise Intelligence Layer (EIL) — Foundation & Security Hardening (Phase 1)
 
-**Specification Reference:** [`docs/specs/spec_eil_foundation_and_security_hardening.md`](file:///D:/ragflow/swipies_25/ragflow/docs/specs/spec_eil_foundation_and_security_hardening.md)  
+**Specification Reference:** [`docs/specs/spec_eil_foundation_and_security_hardening.md`](file:///D:/swipies/swipies_25/swipies/docs/specs/spec_eil_foundation_and_security_hardening.md)  
 **Document Status:** Ready for Review  
 **Version:** 1.0.0  
 **Target Branch:** `test`  
@@ -82,8 +82,8 @@ graph TD
 
 - **Objective:** Re-create all 7 missing Peewee ORM models in `api/db/db_models.py` and register them in `init_database_tables()` so that table creation and service queries operate without runtime exceptions.
 - **Files Modified:**
-  - [`api/db/db_models.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/db_models.py)
-  - [`api/db/services/intelligence_service.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/services/intelligence_service.py)
+  - [`api/db/db_models.py`](file:///D:/swipies/swipies_25/swipies/api/db/db_models.py)
+  - [`api/db/services/intelligence_service.py`](file:///D:/swipies/swipies_25/swipies/api/db/services/intelligence_service.py)
 - **Step-by-Step Actions:**
   1. Add `KnowledgeEntity` class definition:
      ```python
@@ -203,7 +203,7 @@ graph TD
 
 - **Objective:** Eliminate IDOR and multi-tenant data leaks across all 11 endpoints. Enforce `is_superuser` validation on cross-tenant exports and queries.
 - **Files Modified:**
-  - [`api/apps/restful_apis/intelligence_api.py`](file:///D:/ragflow/swipies_25/ragflow/api/apps/restful_apis/intelligence_api.py)
+  - [`api/apps/restful_apis/intelligence_api.py`](file:///D:/swipies/swipies_25/swipies/api/apps/restful_apis/intelligence_api.py)
 - **Step-by-Step Actions:**
   1. Define `resolve_scoped_tenant_id` at the top of `intelligence_api.py`:
      ```python
@@ -256,8 +256,8 @@ graph TD
 
 - **Objective:** Guarantee that all sensitive terms ($A \to B$) configured for a dialog are sanitized before extractors run and before any write occurs to any EIL database table.
 - **Files Modified:**
-  - [`rag/intelligence/pipeline/worker.py`](file:///D:/ragflow/swipies_25/ragflow/rag/intelligence/pipeline/worker.py)
-  - [`rag/intelligence/security/anonymizer.py`](file:///D:/ragflow/swipies_25/ragflow/rag/intelligence/security/anonymizer.py)
+  - [`rag/intelligence/pipeline/worker.py`](file:///D:/swipies/swipies_25/swipies/rag/intelligence/pipeline/worker.py)
+  - [`rag/intelligence/security/anonymizer.py`](file:///D:/swipies/swipies_25/swipies/rag/intelligence/security/anonymizer.py)
 - **Step-by-Step Actions:**
   1. Import `anonymize_text` from `api.utils.sensitive_data_utils`.
   2. Update `EILBackgroundWorker.process_conversation_event`:
@@ -297,7 +297,7 @@ graph TD
 
 - **Objective:** Hook the EIL background worker into `dialog_service.py` non-blockingly upon completion of every conversation turn.
 - **Files Modified:**
-  - [`api/db/services/dialog_service.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/services/dialog_service.py)
+  - [`api/db/services/dialog_service.py`](file:///D:/swipies/swipies_25/swipies/api/db/services/dialog_service.py)
 - **Step-by-Step Actions:**
   1. Add helper `_dispatch_eil_event(dialog, conv_id, user_id, transcript)`:
      ```python
@@ -335,7 +335,7 @@ graph TD
 
 - **Objective:** Implement full automated test suite verifying all 6 acceptance criteria.
 - **Files Modified:**
-  - [`test/test_intelligence_layer.py`](file:///D:/ragflow/swipies_25/ragflow/test/test_intelligence_layer.py)
+  - [`test/test_intelligence_layer.py`](file:///D:/swipies/swipies_25/swipies/test/test_intelligence_layer.py)
 - **Test Matrix:**
   1. `test_zero_plaintext_sensitive_data_in_all_eil_tables`: Verifies 0 occurrences of Word A across all EIL tables.
   2. `test_idor_and_rbac_export_excel`: Verifies regular user receives HTTP 403 on `/export/excel`.

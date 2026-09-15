@@ -6,7 +6,7 @@ sidebar_custom_props: {
 }
 
 ---
-# RAGFlow MCP client examples
+# Swipies MCP client examples
 
 Python and curl MCP client examples.
 
@@ -14,7 +14,7 @@ Python and curl MCP client examples.
 
 ## Example MCP Python client
 
-We provide a *prototype* MCP client example for testing [here](https://github.com/infiniflow/ragflow/blob/main/mcp/client/client.py).
+We provide a *prototype* MCP client example for testing [here](https://github.com/Sardorr555/swipies__ai_/blob/main/mcp/client/client.py).
 
 :::info IMPORTANT
 If your MCP server is running in host mode, include your acquired API key in your client's `headers` when connecting asynchronously to it:
@@ -32,7 +32,7 @@ async with sse_client("http://localhost:9382/sse", headers={"Authorization": "YO
 ```
 :::
 
-## Use curl to interact with the RAGFlow MCP server
+## Use curl to interact with the Swipies MCP server
 
 When interacting with the MCP server via HTTP requests, follow this initialization sequence:
 
@@ -56,7 +56,7 @@ $ curl -N -H "api_key: YOUR_API_KEY" http://127.0.0.1:9382/sse
 ```
 
 :::tip NOTE
-See [here](../acquire_ragflow_api_key.md) for information about acquiring an API key.
+See [here](../acquire_swipies_api_key.md) for information about acquiring an API key.
 :::
 
 #### Transport
@@ -88,7 +88,7 @@ curl -X POST "http://127.0.0.1:9382/messages/?session_id=$session_id" \
       "protocolVersion": "1.0",
       "capabilities": {},
       "clientInfo": {
-        "name": "ragflow-mcp-client",
+        "name": "swipies-mcp-client",
         "version": "0.1"
       }
     }
@@ -101,7 +101,7 @@ _The server replies with an `initialize` response, including the supported proto
 
 ```bash
 event: message
-data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-03-26","capabilities":{"experimental":{"headers":{"host":"127.0.0.1:9382","user-agent":"curl/8.7.1","accept":"*/*","api_key":"ragflow-xxxxxxxxxxxx","accept-encoding":"gzip"}},"tools":{"listChanged":false}},"serverInfo":{"name":"docker-ragflow-cpu-1","version":"1.9.4"}}}
+data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-03-26","capabilities":{"experimental":{"headers":{"host":"127.0.0.1:9382","user-agent":"curl/8.7.1","accept":"*/*","api_key":"swipies-xxxxxxxxxxxx","accept-encoding":"gzip"}},"tools":{"listChanged":false}},"serverInfo":{"name":"docker-swipies-cpu-1","version":"1.9.4"}}}
 ```
 
 ### 3. Acknowledge readiness
@@ -139,7 +139,7 @@ curl -X POST "http://127.0.0.1:9382/messages/?session_id=$session_id" \
 
 ```bash
 event: message
-data: {"jsonrpc":"2.0","id":3,"result":{"tools":[{"name":"ragflow_retrieval","description":"Retrieve relevant chunks from the RAGFlow retrieve interface based on the question, using the specified dataset_ids and optionally document_ids. Below is the list of all available datasets, including their descriptions and IDs. If you're unsure which datasets are relevant to the question, simply pass all dataset IDs to the function.","inputSchema":{"type":"object","properties":{"dataset_ids":{"type":"array","items":{"type":"string"}},"document_ids":{"type":"array","items":{"type":"string"}},"question":{"type":"string"}},"required":["dataset_ids","question"]}}]}}
+data: {"jsonrpc":"2.0","id":3,"result":{"tools":[{"name":"swipies_retrieval","description":"Retrieve relevant chunks from the Swipies retrieve interface based on the question, using the specified dataset_ids and optionally document_ids. Below is the list of all available datasets, including their descriptions and IDs. If you're unsure which datasets are relevant to the question, simply pass all dataset IDs to the function.","inputSchema":{"type":"object","properties":{"dataset_ids":{"type":"array","items":{"type":"string"}},"document_ids":{"type":"array","items":{"type":"string"}},"question":{"type":"string"}},"required":["dataset_ids","question"]}}]}}
 
 ```
 
@@ -154,7 +154,7 @@ curl -X POST "http://127.0.0.1:9382/messages/?session_id=$session_id" \
     "id": 4,
     "method": "tools/call",
     "params": {
-      "name": "ragflow_retrieval",
+      "name": "swipies_retrieval",
       "arguments": {
         "question": "How to install neovim?",
         "dataset_ids": ["DATASET_ID_HERE"],
@@ -189,7 +189,7 @@ curl -X POST "http://127.0.0.1:9382/messages/?session_id=$session_id" \
       "protocolVersion": "1.0",
       "capabilities": {},
       "clientInfo": {
-        "name": "ragflow-mcp-client",
+        "name": "swipies-mcp-client",
         "version": "0.1"
       }
     }
@@ -231,7 +231,7 @@ curl -X POST "http://127.0.0.1:9382/messages/?session_id=$session_id" \
     "id": 4,
     "method": "tools/call",
     "params": {
-      "name": "ragflow_retrieval",
+      "name": "swipies_retrieval",
       "arguments": {
         "question": "How to install neovim?",
         "dataset_ids": ["DATASET_ID_HERE"],

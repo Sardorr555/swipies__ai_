@@ -12,7 +12,7 @@ Integrate Confluence as a data source.
 
 ---
 
-This guide outlines the integration of Confluence as a data source for RAGFlow.
+This guide outlines the integration of Confluence as a data source for Swipies.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ Before configuring the connector, obtain the following credentials from your Atl
 
 ### Define Confluence as an external data source
 
-Navigate to the **Connectors** or **External Data Source** section in the RAGFlow Admin Panel and select **Confluence**. Enter the following in the popup window:
+Navigate to the **Connectors** or **External Data Source** section in the Swipies Admin Panel and select **Confluence**. Enter the following in the popup window:
 
 - **Is Cloud** - A toggle indicating whether this is a Confluence Cloud instance.
   - `Yes` (default): Confluence Cloud.
@@ -35,18 +35,18 @@ Navigate to the **Connectors** or **External Data Source** section in the RAGFlo
 - **Confluence Username**: *Required*
   - For Confluence Cloud: The full email address you use to log into Confluence.
   - For Confluence Server/Data Center: Your login ID, often a shorthand name.
-- **Confluence Access Token**: *Required* The authentication key that allows RAGFlow to act on your behalf to read and index your wiki pages.
+- **Confluence Access Token**: *Required* The authentication key that allows Swipies to act on your behalf to read and index your wiki pages.
   - For Confluence Cloud: An Atlassian API Token, a secure string generated from your global Atlassian account. Create one from id.atlassian.com/manage-profile/security/api-tokens.
   - For Confluence Server/Data Center: Your Personal Access Token (PAT). You are required to log in to your company’s Confluence, click on your Profile Picture in the top right, select Settings, then, in the left-hand sidebar, look for Personal Access Tokens.
 - **Wiki Base URL**： The base URL of your confluence instance, e.g., https://your-domain.atlassian.net/wiki.
 - **Index Mode**
   - `Everything`: (Default) Indexes all pages the provided credentials have access to.
-  - `Space`： RAGFlow restricts indexing only to the Space Keys you explicitly list in the configuration.
+  - `Space`： Swipies restricts indexing only to the Space Keys you explicitly list in the configuration.
     - **Space Keys:** Specify keys (e.g., `ENG, HR`) separated by commas to restrict indexing. Leave blank to index all accessible spaces.
 
 Once configuration is complete, click **Confirm** to save your changes.
 
-*RAGFlow validates the connection immediately.*
+*Swipies validates the connection immediately.*
 
 ### Link to a dataset
 

@@ -7,13 +7,13 @@ sidebar_custom_props: {
 ---
 # Python API
 
-A complete reference for RAGFlow's Python APIs. Before proceeding, please ensure you [have your RAGFlow API key ready for authentication](https://ragflow.io/docs/dev/acquire_ragflow_api_key).
+A complete reference for Swipies's Python APIs. Before proceeding, please ensure you [have your Swipies API key ready for authentication](/docs/develop/acquire_swipies_api_key).
 
 :::tip NOTE
 Run the following command to download the Python SDK:
 
 ```bash
-pip install ragflow-sdk
+pip install swipies-sdk
 ```
 
 :::
@@ -74,7 +74,7 @@ from openai import OpenAI
 import json
 
 model = "glm-4-flash@ZHIPU-AI"
-client = OpenAI(api_key="ragflow-api-key", base_url="http://ragflow_address/api/v1/openai/<chat_id>/chat")
+client = OpenAI(api_key="swipies-api-key", base_url="http://swipies_address/api/v1/openai/<chat_id>/chat")
 
 stream = True
 reference = True
@@ -124,7 +124,7 @@ When `extra_body.reference_metadata.include` is `true`, each reference chunk may
 ### Create dataset
 
 ```python
-RAGFlow.create_dataset(
+Swipies.create_dataset(
     name: str,
     avatar: Optional[str] = None,
     description: Optional[str] = None,
@@ -215,9 +215,9 @@ The parser configuration of the dataset. A `ParserConfig` object's attributes va
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.create_dataset(name="kb_1")
 ```
 
@@ -226,7 +226,7 @@ dataset = rag_object.create_dataset(name="kb_1")
 ### Delete datasets
 
 ```python
-RAGFlow.delete_datasets(ids: list[str] | None = None, delete_all: bool = False)
+Swipies.delete_datasets(ids: list[str] | None = None, delete_all: bool = False)
 ```
 
 Deletes datasets by ID.
@@ -261,7 +261,7 @@ rag_object.delete_datasets(delete_all=True)
 ### List datasets
 
 ```python
-RAGFlow.list_datasets(
+Swipies.list_datasets(
     page: int = 1, 
     page_size: int = 30, 
     orderby: str = "create_time", 
@@ -374,7 +374,7 @@ A dictionary representing the attributes to update, with the following keys:
   - `"me"`: (Default) Only you can manage the dataset.
   - `"team"`: All team members can manage the dataset.
 - `"pagerank"`: (*Body parameter*), `int`  
-  refer to [Set page rank](https://ragflow.io/docs/dev/set_page_rank)
+  refer to [Set page rank](/docs/develop/set_page_rank)
   - Default: `0`
   - Minimum: `0`
   - Maximum: `100`
@@ -401,9 +401,9 @@ A dictionary representing the attributes to update, with the following keys:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(name="kb_name")
 dataset = dataset[0]
 dataset.update({"embedding_model":"BAAI/bge-zh-v1.5", "chunk_method":"manual"})
@@ -508,9 +508,9 @@ A dictionary representing the attributes to update, with the following keys:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(id='id')
 dataset = dataset[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
@@ -535,14 +535,14 @@ The downloaded document in bytes.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(id="id")
 dataset = dataset[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
 doc = doc[0]
-open("~/ragflow.txt", "wb+").write(doc.download())
+open("~/swipies.txt", "wb+").write(doc.download())
 print(doc)
 ```
 
@@ -656,12 +656,12 @@ A `Document` object contains the following attributes:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.create_dataset(name="kb_1")
 
-filename1 = "~/ragflow.txt"
+filename1 = "~/swipies.txt"
 blob = open(filename1 , "rb").read()
 dataset.upload_documents([{"name":filename1,"blob":blob}])
 for doc in dataset.list_documents(keywords="rag", page=0, page_size=12):
@@ -699,9 +699,9 @@ Whether to delete all documents in the current dataset when `ids` is omitted, or
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(name="kb_1")
 dataset = dataset[0]
 dataset.delete_documents(ids=["id_1","id_2"])
@@ -732,7 +732,7 @@ The IDs of the documents to parse.
 #### Examples
 
 ```python
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.create_dataset(name="dataset_name")
 documents = [
     {'display_name': 'test1.txt', 'blob': open('./test_data/test1.txt',"rb").read()},
@@ -785,7 +785,7 @@ A list of tuples with detailed parsing results:
 #### Example
 
 ```python
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.create_dataset(name="dataset_name")
 documents = dataset.list_documents(keywords="test")
 ids = [doc.id for doc in documents]
@@ -824,7 +824,7 @@ The IDs of the documents for which parsing should be stopped.
 #### Examples
 
 ```python
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.create_dataset(name="dataset_name")
 documents = [
     {'display_name': 'test1.txt', 'blob': open('./test_data/test1.txt',"rb").read()},
@@ -903,9 +903,9 @@ A `Chunk` object contains the following attributes:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 datasets = rag_object.list_datasets(id="123")
 dataset = datasets[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
@@ -959,9 +959,9 @@ The ID of the chunk to retrieve. Default: `None`
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets("123")
 dataset = dataset[0]
 docs = dataset.list_documents(keywords="test", page=1, page_size=12)
@@ -1000,9 +1000,9 @@ Whether to delete all chunks in the current document when `ids` is omitted, or s
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(id="123")
 dataset = dataset[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
@@ -1046,9 +1046,9 @@ A dictionary representing the attributes to update, with the following keys:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 dataset = rag_object.list_datasets(id="123")
 dataset = dataset[0]
 doc = dataset.list_documents(id="wdfxb5t547d")
@@ -1062,7 +1062,7 @@ chunk.update({"content":"sdfx..."})
 ### Retrieve chunks
 
 ```python
-RAGFlow.retrieve(question:str="", dataset_ids:list[str]=None, document_ids=list[str]=None, page:int=1, page_size:int=30, similarity_threshold:float=0.2, vector_similarity_weight:float=0.3, top_k:int=1024,rerank_id:str=None,keyword:bool=False,cross_languages:list[str]=None,metadata_condition: dict=None) -> list[Chunk]
+Swipies.retrieve(question:str="", dataset_ids:list[str]=None, document_ids=list[str]=None, page:int=1, page_size:int=30, similarity_threshold:float=0.2, vector_similarity_weight:float=0.3, top_k:int=1024,rerank_id:str=None,keyword:bool=False,cross_languages:list[str]=None,metadata_condition: dict=None) -> list[Chunk]
 ```
 
 Retrieves chunks from specified datasets.
@@ -1128,13 +1128,13 @@ filter condition for `meta_fields`.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
-dataset = rag_object.list_datasets(name="ragflow")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+dataset = rag_object.list_datasets(name="swipies")
 dataset = dataset[0]
-name = 'ragflow_test.txt'
-path = './test_data/ragflow_test.txt'
+name = 'swipies_test.txt'
+path = './test_data/swipies_test.txt'
 documents =[{"display_name":"test_retrieve_chunks.txt","blob":open(path, "rb").read()}]
 docs = dataset.upload_documents(documents)
 doc = docs[0]
@@ -1152,7 +1152,7 @@ for c in rag_object.retrieve(dataset_ids=[dataset.id],document_ids=[doc.id]):
 ### Create chat assistant
 
 ```python
-RAGFlow.create_chat(
+Swipies.create_chat(
     name: str,
     icon: str = "",
     dataset_ids: list[str] | None = None,
@@ -1211,9 +1211,9 @@ Instructions and behavioral settings for the LLM. Defaults to `None` (server-sid
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 datasets = rag_object.list_datasets(name="kb_1")
 dataset_ids = []
 for dataset in datasets:
@@ -1269,9 +1269,9 @@ A dictionary containing the attributes to be updated. Supported keys include:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 datasets = rag_object.list_datasets(name="kb_1")
 dataset_id = datasets[0].id
 assistant = rag_object.create_chat("Miss R", dataset_ids=[dataset_id])
@@ -1283,7 +1283,7 @@ assistant.update({"name": "Stefan", "llm_setting": {"temperature": 0.8}, "top_n"
 ### Delete chat assistants
 
 ```python
-RAGFlow.delete_chats(ids: list[str] | None = None, delete_all: bool = False)
+Swipies.delete_chats(ids: list[str] | None = None, delete_all: bool = False)
 ```
 
 Deletes chat assistants by ID.
@@ -1309,9 +1309,9 @@ Whether to delete all chat assistants owned by the current user when `ids` is om
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 rag_object.delete_chats(ids=["id_1","id_2"])
 rag_object.delete_chats(delete_all=True)
 ```
@@ -1321,7 +1321,7 @@ rag_object.delete_chats(delete_all=True)
 ### List chat assistants
 
 ```python
-RAGFlow.list_chats(
+Swipies.list_chats(
     page: int = 1, 
     page_size: int = 30, 
     orderby: str = "create_time", 
@@ -1385,9 +1385,9 @@ If `id` or `name` is specified, exact filtering takes precedence over the fuzzy 
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 for assistant in rag_object.list_chats():
     print(assistant)
 ```
@@ -1424,9 +1424,9 @@ The name of the chat session to create.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 session = assistant.create_session()
@@ -1458,9 +1458,9 @@ A dictionary representing the attributes to update, with only one key:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 session = assistant.create_session("session_name")
@@ -1526,9 +1526,9 @@ The optional user-defined ID to filter sessions by. Defaults to `None`.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 for session in assistant.list_sessions():
@@ -1566,9 +1566,9 @@ Whether to delete all sessions of the current chat assistant when `ids` is omitt
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 assistant.delete_sessions(ids=["id_1","id_2"])
@@ -1651,9 +1651,9 @@ A list of `Chunk` objects representing references to the message, each containin
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 assistant = rag_object.list_chats(name="Miss R")
 assistant = assistant[0]
 session = assistant.create_session()    
@@ -1702,9 +1702,9 @@ Also supports:
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow, Agent
+from swipies_sdk import Swipies, Agent
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 agent_id = "AGENT_ID"
 agent = rag_object.get_agent(agent_id)
 session = agent.create_session()
@@ -1794,9 +1794,9 @@ A list of `Chunk` objects representing references to the message, each containin
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow, Agent
+from swipies_sdk import Swipies, Agent
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 AGENT_id = "AGENT_ID"
 agent = rag_object.get_agent(AGENT_id)
 session = agent.create_session()
@@ -1817,9 +1817,9 @@ while True:
 Use Begin inputs and request trace output:
 
 ```python
-from ragflow_sdk import RAGFlow, Agent
+from swipies_sdk import Swipies, Agent
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 agent = rag_object.get_agent("AGENT_ID")
 session = agent.create_session()
 
@@ -1888,9 +1888,9 @@ The ID of the agent session to retrieve. Defaults to `None`.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 AGENT_id = "AGENT_ID"
 agent = rag_object.get_agent(AGENT_id)
 sessons = agent.list_sessions()
@@ -1927,9 +1927,9 @@ Whether to delete all sessions of the current agent when `ids` is omitted, or se
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 AGENT_id = "AGENT_ID"
 agent = rag_object.get_agent(AGENT_id)
 agent.delete_sessions(ids=["id_1","id_2"])
@@ -1945,7 +1945,7 @@ agent.delete_sessions(delete_all=True)
 ### List agents
 
 ```python
-RAGFlow.list_agents(
+Swipies.list_agents(
     page: int = 1, 
     page_size: int = 30, 
     orderby: str = "update_time", 
@@ -1984,8 +1984,8 @@ Indicates whether the retrieved agents should be sorted in descending order. Def
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 for agent in rag_object.list_agents():
     print(agent)
 ```
@@ -1995,7 +1995,7 @@ for agent in rag_object.list_agents():
 ### Get agent
 
 ```python
-RAGFlow.get_agent(agent_id: str) -> Agent
+Swipies.get_agent(agent_id: str) -> Agent
 ```
 
 Gets a single agent by ID and returns the detailed agent payload.
@@ -2014,9 +2014,9 @@ The ID of the agent to retrieve.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
+from swipies_sdk import Swipies
 
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 agent = rag_object.get_agent("AGENT_ID")
 print(agent)
 ```
@@ -2026,7 +2026,7 @@ print(agent)
 ### Create agent
 
 ```python
-RAGFlow.create_agent(
+Swipies.create_agent(
     title: str,
     dsl: dict,
     description: str | None = None
@@ -2057,8 +2057,8 @@ The description of the agent. Defaults to `None`.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 rag_object.create_agent(
   title="Test Agent",
   description="A test agent",
@@ -2073,7 +2073,7 @@ rag_object.create_agent(
 ### Update agent
 
 ```python
-RAGFlow.update_agent(
+Swipies.update_agent(
     agent_id: str,
     title: str | None = None,
     description: str | None = None,
@@ -2109,8 +2109,8 @@ The new description of the agent. `None` if you do not want to update this.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 rag_object.update_agent(
   agent_id="58af890a2a8911f0a71a11b922ed82d6",
   title="Test Agent",
@@ -2126,7 +2126,7 @@ rag_object.update_agent(
 ### Delete agent
 
 ```python
-RAGFlow.delete_agent(
+Swipies.delete_agent(
     agent_id: str
 ) -> None
 ```
@@ -2147,8 +2147,8 @@ Specifies the id of the agent to be deleted.
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 rag_object.delete_agent("58af890a2a8911f0a71a11b922ed82d6")
 ```
 
@@ -2161,7 +2161,7 @@ rag_object.delete_agent("58af890a2a8911f0a71a11b922ed82d6")
 ### Create Memory
 
 ```python
-Ragflow.create_memory(
+Swipies.create_memory(
     name: str, 
     memory_type: list[str], 
     embd_id: str, 
@@ -2212,8 +2212,8 @@ The name of the chat model to use. For example: `"glm-4-flash@ZHIPU-AI"`
 #### Examples
 
 ```python
-from ragflow_sdk import RAGFlow
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 memory = rag_obj.create_memory("name", ["raw"], "BAAI/bge-large-zh-v1.5@SILICONFLOW", "glm-4-flash@ZHIPU-AI")
 ```
 
@@ -2305,8 +2305,8 @@ Configurations to update. Available configurations:
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow, Memory
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies, Memory
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 memory_obejct = Memory(rag_object, {"id": "your memory_id"})
 memory_object.update({"name": "New_name"})
 ```
@@ -2318,7 +2318,7 @@ memory_object.update({"name": "New_name"})
 ### List Memory
 
 ```python
-Ragflow.list_memory(
+Swipies.list_memory(
     page: int = 1, 
     page_size: int = 50, 
     tenant_id: str | list[str] = None, 
@@ -2375,8 +2375,8 @@ Failure: `Exception`
 #### Examples
 
 ```
-from ragflow_sdk import Ragflow, Memory
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies, Memory
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 rag_obejct.list_memory()
 ```
 
@@ -2405,8 +2405,8 @@ Failure: `Exception`
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow, Memory
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies, Memory
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 memory_obejct = Memory(rag_object, {"id": "your memory_id"})
 memory_obejct.get_config()
 ```
@@ -2418,7 +2418,7 @@ memory_obejct.get_config()
 ### Delete Memory
 
 ```python
-Ragflow.delete_memory(
+Swipies.delete_memory(
     memory_id: str
 ) -> None
 ```
@@ -2440,8 +2440,8 @@ Failure: `Exception`
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow, Memory
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies, Memory
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 rag_object.delete_memory("your memory_id")
 ```
 
@@ -2493,8 +2493,8 @@ Failure: `Exception`
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow, Memory
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies, Memory
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 memory_obejct = Memory(rag_object, {"id": "your memory_id"})
 memory_obejct.list_memory_messages()
 ```
@@ -2506,7 +2506,7 @@ memory_obejct.list_memory_messages()
 ### Add Message
 
 ```python
-Ragflow.add_message(
+Swipies.add_message(
     memory_id: list[str], 
     agent_id: str, 
     session_id: str, 
@@ -2553,8 +2553,8 @@ Failure: `Exception`
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow, Memory
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies, Memory
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 message_payload = {
     "memory_id": memory_ids,
     "agent_id": agent_id,
@@ -2595,8 +2595,8 @@ Failure: `Exception`
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow, Memory
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies, Memory
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 memory_object = Memory(rag_object, {"id": "your memory_id"})
 memory_object.forget_message(message_id)
 ```
@@ -2632,8 +2632,8 @@ Failure: `Exception`
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow, Memory
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies, Memory
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 memory_object = Memory(rag_object, {"id": "your memory_id"})
 memory_object.update_message_status(message_id, True)
 ```
@@ -2645,7 +2645,7 @@ memory_object.update_message_status(message_id, True)
 ### Search message
 
 ```python
-Ragflow.search_message(
+Swipies.search_message(
     query: str, 
     memory_id: list[str], 
     agent_id: str=None, 
@@ -2706,8 +2706,8 @@ Failure: `Exception`
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 rag_object.search_message("your question", ["your memory_id"])
 ```
 
@@ -2718,7 +2718,7 @@ rag_object.search_message("your question", ["your memory_id"])
 ### Get Recent Messages
 
 ```python
-Ragflow.get_recent_messages(
+Swipies.get_recent_messages(
     memory_id: list[str], 
     agent_id: str=None, 
     session_id: str=None, 
@@ -2755,8 +2755,8 @@ Failure: `Exception`
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 rag_object.get_recent_messages(["your memory_id"])
 ```
 
@@ -2785,8 +2785,8 @@ Failure: `Exception`
 #### Examples
 
 ```python
-from ragflow_sdk import Ragflow
-rag_object = RAGFlow(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
+from swipies_sdk import Swipies
+rag_object = Swipies(api_key="<YOUR_API_KEY>", base_url="http://<YOUR_BASE_URL>:9380")
 memory_object = Memory(rag_object, {"id": "your memory_id"})
 memory_object.get_message_content(message_id)
 ```

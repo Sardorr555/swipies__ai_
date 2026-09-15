@@ -50,11 +50,11 @@ The output of a PDF parser is `json`. In the PDF parser, you select the parsing 
 - A third-party visual model from a specific model provider.
 
 :::danger IMPORTANT
-Starting from v0.22.0, RAGFlow includes MinerU (&ge; 2.6.3) as an optional PDF parser of multiple backends. Please note that RAGFlow acts only as a *remote client* for MinerU, calling the MinerU API to parse documents and reading the returned files. To use this feature:
+Starting from v0.22.0, Swipies includes MinerU (&ge; 2.6.3) as an optional PDF parser of multiple backends. Please note that Swipies acts only as a *remote client* for MinerU, calling the MinerU API to parse documents and reading the returned files. To use this feature:
 :::
 
 1. Prepare a reachable MinerU API service (FastAPI server).
-2. In the **.env** file or from the **Model providers** page in the UI, configure RAGFlow as a remote client to MinerU:
+2. In the **.env** file or from the **Model providers** page in the UI, configure Swipies as a remote client to MinerU:
    - `MINERU_APISERVER`: The MinerU API endpoint (e.g., `http://mineru-host:8886`).
    - `MINERU_BACKEND`: The MinerU backend:
       - `"pipeline"` (default)
@@ -77,7 +77,7 @@ To use an external Docling Serve instance (instead of local in-process Docling),
 
 - `DOCLING_SERVER_URL`: The Docling Serve API endpoint (for example, `http://docling-host:5001`).
 
-When `DOCLING_SERVER_URL` is set, RAGFlow sends PDF content to Docling Serve (`/v1/convert/source`, with fallback to `/v1alpha/convert/source`) and ingests the returned markdown/text. If the variable is not set, RAGFlow keeps using local Docling (`USE_DOCLING=true` + installed package) behavior.
+When `DOCLING_SERVER_URL` is set, Swipies sends PDF content to Docling Serve (`/v1/convert/source`, with fallback to `/v1alpha/convert/source`) and ingests the returned markdown/text. If the variable is not set, Swipies keeps using local Docling (`USE_DOCLING=true` + installed package) behavior.
 
 :::note
 All MinerU environment variables are optional. When set, these values are used to auto-provision a MinerU OCR model for the tenant on first use. To avoid auto-provisioning, skip the environment variable settings and only configure MinerU from the **Model providers** page in the UI.

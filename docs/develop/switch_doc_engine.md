@@ -11,7 +11,7 @@ Switch your doc engine from Elasticsearch to Infinity.
 
 ---
 
-RAGFlow uses Elasticsearch by default for storing full text and vectors. To switch to [Infinity](https://github.com/infiniflow/infinity/), follow these steps:
+Swipies uses Elasticsearch by default for storing full text and vectors. To switch to [Infinity](https://github.com/swipies/infinity/), follow these steps:
 
 :::caution WARNING
 Switching to Infinity on a Linux/arm64 machine is not yet officially supported.

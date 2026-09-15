@@ -11,7 +11,7 @@ Invite or remove team members.
 
 ---
 
-By default, each RAGFlow user is assigned a single team named after their name. RAGFlow allows you to invite RAGFlow users to your team. Your team members can help you:
+By default, each Swipies user is assigned a single team named after their name. Swipies allows you to invite Swipies users to your team. Your team members can help you:
 
 - Upload documents to your shared datasets.
 - Parse documents in your shared datasets.
@@ -19,12 +19,12 @@ By default, each RAGFlow user is assigned a single team named after their name. 
 
 :::tip NOTE
 - Your team members are currently *not* allowed to invite users to your team, and only you, the team owner, is permitted to do so.
-- Sharing added models with team members is only available in RAGFlow's Enterprise edition.
+- Sharing added models with team members is only available in Swipies's Enterprise edition.
 :::
 
 ## Prerequisites
 
-1. Ensure that the invited team member is a RAGFlow user and that the Email address used is associated with a RAGFlow user account.
+1. Ensure that the invited team member is a Swipies user and that the Email address used is associated with a Swipies user account.
 2. To allow your team members to view and update your dataset, ensure that you set **Permissions** on its **Configuration** page from **Only me** to **Team**.
 
 ## Invite team members

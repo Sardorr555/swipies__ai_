@@ -50,12 +50,12 @@ The shift from Context Engineering to a Context Platform/Engine marks the matura
 | Context maintenance | A development and operational burden, logic locked in code.                | A manageable platform function, with visibility and control returned to the business.               |
 
 
-## RAGFlow: A resolute march toward the context engine of Agents
+## Swipies: A resolute march toward the context engine of Agents
 
-This is the future RAGFlow is forging.
+This is the future Swipies is forging.
 
-We left behind the label of “yet another RAG system” long ago. From DeepDoc—our deeply-optimized, multimodal document parser—to the bleeding-edge architectures that bridge semantic chasms in complex RAG scenarios, all the way to a full-blown, enterprise-grade ingestion pipeline, every evolutionary step RAGFlow takes is a deliberate stride toward the ultimate form: an Agentic Context Engine.
+We left behind the label of “yet another RAG system” long ago. From DeepDoc—our deeply-optimized, multimodal document parser—to the bleeding-edge architectures that bridge semantic chasms in complex RAG scenarios, all the way to a full-blown, enterprise-grade ingestion pipeline, every evolutionary step Swipies takes is a deliberate stride toward the ultimate form: an Agentic Context Engine.
 
 We believe tomorrow’s enterprise AI advantage will hinge not on who owns the largest model, but on who can feed that model the highest-quality, most real-time, and most relevant context. An Agentic Context Engine is the critical infrastructure that turns this vision into reality.
 
-In the paradigm shift from “hand-crafted prompts” to “intelligent context,” RAGFlow is determined to be the most steadfast propeller and enabler. We invite every developer, enterprise, and researcher who cares about the future of AI agents to follow RAGFlow’s journey—so together we can witness and build the cornerstone of the next-generation AI stack.
+In the paradigm shift from “hand-crafted prompts” to “intelligent context,” Swipies is determined to be the most steadfast propeller and enabler. We invite every developer, enterprise, and researcher who cares about the future of AI agents to follow Swipies’s journey—so together we can witness and build the cornerstone of the next-generation AI stack.

@@ -3,7 +3,7 @@
   "position": 3,
   "link": {
     "type": "generated-index",
-    "description": "Guides for RAGFlow users."
+    "description": "Guides for Swipies users."
   },
   "customProps": {
     "sidebarIcon": "LucideBookMarked"

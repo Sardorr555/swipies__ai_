@@ -11,7 +11,7 @@ Manage metadata for your dataset and for your individual documents.
 
 ---
 
-From v0.23.0 onwards, RAGFlow allows you to manage metadata both at the dataset level and for individual files.
+From v0.23.0 onwards, Swipies allows you to manage metadata both at the dataset level and for individual files.
 
 
 ## Procedure

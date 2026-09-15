@@ -12,9 +12,9 @@ Integrate an RSS feed as a data source.
 
 ---
 
-This guide explains how to add an RSS feed as a data source to your dataset in RAGFlow.
+This guide explains how to add an RSS feed as a data source to your dataset in Swipies.
 
-RSS (Really Simple Syndication) is a standardized web feed format used to publish frequently updated content—such as blog entries, news headlines, and podcasts. By connecting an RSS feed to RAGFlow, you can automatically ingest new content from a website as soon as it is published.
+RSS (Really Simple Syndication) is a standardized web feed format used to publish frequently updated content—such as blog entries, news headlines, and podcasts. By connecting an RSS feed to Swipies, you can automatically ingest new content from a website as soon as it is published.
 
 ## Benefits
 
@@ -22,12 +22,12 @@ Integrating an RSS data source provides the following advantages:
 
 - **Automated ingestion**: Automatically fetch and process the latest articles, news, and updates from any website or blog that supports RSS or Atom feeds.
 - **Dynamic dataset**: Keeps your Retrieval-Augmented Generation (RAG) system up to date with continuous, hands-free content delivery.
-- **Deleted-file synchronization**: RAGFlow tracks the state of the RSS feed in the background. If an item is removed from the upstream feed, the system automatically synchronizes this change and deletes the corresponding parsed file from your dataset. This prevents stale or outdated information from polluting your RAG context.
+- **Deleted-file synchronization**: Swipies tracks the state of the RSS feed in the background. If an item is removed from the upstream feed, the system automatically synchronizes this change and deletes the corresponding parsed file from your dataset. This prevents stale or outdated information from polluting your RAG context.
 
 ## Prerequisites
 
 - A valid RSS feed URL.
-- An existing dataset in RAGFlow.
+- An existing dataset in Swipies.
 
 ## Find an RSS feed URL
 
@@ -41,15 +41,15 @@ Before adding the data source, you need the direct URL of the RSS feed you want 
 
 To add an RSS feed to your dataset, follow these steps:
 
-1. Log in to RAGFlow.
+1. Log in to Swipies.
 2. Navigate to the **Datasets** page and select the dataset you want to populate.
 3. Go to the **Dataset** tab and click **+ Add data source**.
 4. Select **RSS** from the list of available integrations.
 5. In the configuration dialog, configure the following settings:
    - **Name**: Enter a descriptive name to identify this RSS feed.
    - **Feed URL**: Enter the complete URL of the RSS feed (e.g., `https://news.ycombinator.com/rss`).
-   - **Batch size**: Specify the maximum number of new articles or items RAGFlow should fetch and process during a single background sync cycle. The default is 2. This setting helps manage the ingestion rate and prevents system overload, especially when connecting to highly active feeds or performing the initial fetch.
-   - **Sync deleted files**: Toggle this option on to automatically remove parsed files from your dataset if the corresponding items are deleted from the upstream RSS feed. If disabled, RAGFlow retains all historically ingested content, even if it is no longer available in the source feed.
+   - **Batch size**: Specify the maximum number of new articles or items Swipies should fetch and process during a single background sync cycle. The default is 2. This setting helps manage the ingestion rate and prevents system overload, especially when connecting to highly active feeds or performing the initial fetch.
+   - **Sync deleted files**: Toggle this option on to automatically remove parsed files from your dataset if the corresponding items are deleted from the upstream RSS feed. If disabled, Swipies retains all historically ingested content, even if it is no longer available in the source feed.
 6. Click **OK** to save the configuration.
 
-*Once configured, RAGFlow's background task executors will automatically poll the RSS feed. The system continuously downloads new entries for parsing and chunking, while concurrently running the deleted-file sync to remove files that are no longer present in the source feed, requiring no manual scheduling on your part.*
+*Once configured, Swipies's background task executors will automatically poll the RSS feed. The system continuously downloads new entries for parsing and chunking, while concurrently running the deleted-file sync to remove files that are no longer present in the source feed, requiring no manual scheduling on your part.*

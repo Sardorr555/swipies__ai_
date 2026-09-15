@@ -12,12 +12,12 @@ Integrate Discord as a data source.
 
 ---
 
-This guide outlines how to ingest messages from your Discord servers into RAGFlow by setting up a dedicated bot.
+This guide outlines how to ingest messages from your Discord servers into Swipies by setting up a dedicated bot.
 
 ## Prerequisites
 
 - Administrative privileges for the target Discord server.
-- Permissions to add data sources within your RAGFlow environment.
+- Permissions to add data sources within your Swipies environment.
 
 ## Setting up a Discord bot
 
@@ -39,11 +39,11 @@ The bot must be authorized to view the specific channels you intend to sync.
 - Copy the resulting URL generated at the bottom of the screen.
 - Open this URL in your browser, select your desired server from the dropdown, and approve the authorization prompt.
 
-## Configure the connection in RAGFlow
+## Configure the connection in Swipies
 
-With the bot active in your server, you can finalize the integration inside RAGFlow.
+With the bot active in your server, you can finalize the integration inside Swipies.
 
-- Open RAGFlow and access the data sources configuration module.
+- Open Swipies and access the data sources configuration module.
 - Choose "Discord" from the list of supported external platforms.
 - Paste your saved bot token into the designated input field.
 - Configure any specific channels or indexing preferences as required by the interface.

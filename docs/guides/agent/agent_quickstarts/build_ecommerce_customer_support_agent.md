@@ -8,13 +8,13 @@ sidebar_custom_props: {
 
 # Build Ecommerce customer support agent
 
-This quickstart guides you through building an intelligent e‑commerce customer support agent. The agent uses RAGFlow’s workflow and Agent framework to automatically handle common customer requests such as product comparisons, usage instructions, and installation bookings—providing fast, accurate, and context-aware responses. In the following sections, we will walk you through the process of building an Ecommerce customer support Agent as shown below: 
+This quickstart guides you through building an intelligent e‑commerce customer support agent. The agent uses Swipies’s workflow and Agent framework to automatically handle common customer requests such as product comparisons, usage instructions, and installation bookings—providing fast, accurate, and context-aware responses. In the following sections, we will walk you through the process of building an Ecommerce customer support Agent as shown below: 
 
 ![](https://raw.githubusercontent.com/infiniflow/ragflow-docs/main/images/ecommerce_cs_agent_entirety.PNG)
 
 ## Prerequisites
 
-- Sample datasets (available from [Hugging Face](https://huggingface.co/datasets/InfiniFlow/Ecommerce-Customer-Service-Workflow)).
+- Sample datasets (available from [Hugging Face](https://huggingface.co/datasets/Swipies AI/Ecommerce-Customer-Service-Workflow)).
 
 ## Procedures
 
@@ -26,7 +26,7 @@ This quickstart guides you through building an intelligent e‑commerce customer
    - User Guide
 3. Upload the corresponding documents to each dataset.
 4. On the configurations page of both datasets, choose **Manual** as chunking method.
-   *RAGFlow preserves content integrity by splitting documents at the “smallest heading” level, keeping text and related graphics together.*
+   *Swipies preserves content integrity by splitting documents at the “smallest heading” level, keeping text and related graphics together.*
 
 ### Create an Agent app
 

@@ -23,7 +23,7 @@ You cannot invite users to a team unless you are its owner.
 
 ## Prerequisites
 
-1. Ensure that your Email address that received the team invitation is associated with a RAGFlow user account.
+1. Ensure that your Email address that received the team invitation is associated with a Swipies user account.
 2. The team owner should share his datasets by setting their **Permission** to **Team**.
 
 ## Accept or decline team invite

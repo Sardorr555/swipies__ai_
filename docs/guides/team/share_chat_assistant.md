@@ -7,4 +7,4 @@ sidebar_custom_props: {
 ---
 # Share chat assistant
 
-Sharing chat assistant is currently exclusive to RAGFlow Enterprise, but will be made available in due course.
+Sharing chat assistant is currently exclusive to Swipies Enterprise, but will be made available in due course.

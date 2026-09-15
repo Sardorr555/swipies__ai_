@@ -11,7 +11,7 @@ Initiate an AI-powered chat with a configured chat assistant.
 
 ---
 
-Chats in RAGFlow are based on a particular dataset or multiple datasets. Once you have created your dataset, finished file parsing, and [run a retrieval test](../dataset/run_retrieval_test.md), you can go ahead and start an AI conversation.
+Chats in Swipies are based on a particular dataset or multiple datasets. Once you have created your dataset, finished file parsing, and [run a retrieval test](../dataset/run_retrieval_test.md), you can go ahead and start an AI conversation.
 
 ## Start an AI chat
 
@@ -19,22 +19,22 @@ You start an AI conversation by creating an assistant.
 
 1. Click the **Chat** tab in the middle top of the page **>** **Create an assistant** to show the **Chat Configuration** dialogue *of your next dialogue*.
 
-   > RAGFlow offers you the flexibility of choosing a different chat model for each dialogue, while allowing you to set the default models in **System Model Settings**.
+   > Swipies offers you the flexibility of choosing a different chat model for each dialogue, while allowing you to set the default models in **System Model Settings**.
 
 2. Update Assistant-specific settings:
 
    - **Assistant name** is the name of your chat assistant. Each assistant corresponds to a dialogue with a unique combination of datasets, prompts, hybrid search configurations, and large model settings.
    - **Empty response**:
-     - If you wish to *confine* RAGFlow's answers to your datasets, leave a response here. Then, when it doesn't retrieve an answer, it *uniformly* responds with what you set here.
-     - If you wish RAGFlow to *improvise* when it doesn't retrieve an answer from your datasets, leave it blank, which may give rise to hallucinations.
-   - **Show quote**: This is a key feature of RAGFlow and enabled by default. RAGFlow does not work like a black box. Instead, it clearly shows the sources of information that its responses are based on.
+     - If you wish to *confine* Swipies's answers to your datasets, leave a response here. Then, when it doesn't retrieve an answer, it *uniformly* responds with what you set here.
+     - If you wish Swipies to *improvise* when it doesn't retrieve an answer from your datasets, leave it blank, which may give rise to hallucinations.
+   - **Show quote**: This is a key feature of Swipies and enabled by default. Swipies does not work like a black box. Instead, it clearly shows the sources of information that its responses are based on.
    - Select the corresponding datasets. You can select one or multiple datasets, but ensure that they use the same embedding model, otherwise an error would occur.
 
 3. Update Prompt-specific settings:
 
    - In **System**, you fill in the prompts for your LLM, you can also leave the default prompt as-is for the beginning.
    - **Similarity threshold** sets the similarity "bar" for each chunk of text. The default is 0.2. Text chunks with lower similarity scores are filtered out of the final response.
-   - **Vector similarity weight** is set to 0.3 by default. RAGFlow uses a hybrid score system to evaluate the relevance of different text chunks. This value sets the weight assigned to the vector similarity component in the hybrid score.
+   - **Vector similarity weight** is set to 0.3 by default. Swipies uses a hybrid score system to evaluate the relevance of different text chunks. This value sets the weight assigned to the vector similarity component in the hybrid score.
      - If **Rerank model** is left empty, the hybrid score system uses keyword similarity and vector similarity, and the default weight assigned to the keyword similarity component is 1-0.3=0.7.
      - If **Rerank model** is selected, the hybrid score system uses keyword similarity and reranker score, and the default weight assigned to the reranker score is 1-0.7=0.3.
    - **Top N** determines the *maximum* number of chunks to feed to the LLM. In other words, even if more chunks are retrieved, only the top N chunks are provided as input.
@@ -56,7 +56,7 @@ You start an AI conversation by creating an assistant.
 
 4. Update Model-specific Settings:
 
-   - In **Model**: you select the chat model. Though you have selected the default chat model in **System Model Settings**, RAGFlow allows you to choose an alternative chat model for your dialogue.
+   - In **Model**: you select the chat model. Though you have selected the default chat model in **System Model Settings**, Swipies allows you to choose an alternative chat model for your dialogue.
    - **Creativity**: A shortcut to **Temperature**, **Top P**, **Presence penalty**, and **Frequency penalty** settings, indicating the freedom level of the model. From **Improvise**, **Precise**, to **Balance**, each preset configuration corresponds to a unique combination of **Temperature**, **Top P**, **Presence penalty**, and **Frequency penalty**.   
    This parameter has three options:
       - **Improvise**: Produces more creative responses.
@@ -100,15 +100,15 @@ You start an AI conversation by creating an assistant.
 
 ## Integrate chat capabilities into your application or webpage
 
-RAGFlow offers HTTP and Python APIs for you to integrate RAGFlow's capabilities into your applications. Read the following documents for more information:
+Swipies offers HTTP and Python APIs for you to integrate Swipies's capabilities into your applications. Read the following documents for more information:
 
-- [Acquire a RAGFlow API key](../../develop/acquire_ragflow_api_key.md)
+- [Acquire a Swipies API key](../../develop/acquire_swipies_api_key.md)
 - [HTTP API reference](../../references/http_api_reference.md)
 - [Python API reference](../../references/python_api_reference.md)
 
 You can use iframe to embed the created chat assistant into a third-party webpage:
 
-1. Before proceeding, you must [acquire an API key](../../develop/acquire_ragflow_api_key.md); otherwise, an error message would appear.
+1. Before proceeding, you must [acquire an API key](../../develop/acquire_swipies_api_key.md); otherwise, an error message would appear.
 2. Hover over an intended chat assistant **>** **Edit** to show the **iframe** window:
 
    ![chat-embed](https://raw.githubusercontent.com/infiniflow/ragflow-docs/main/images/embed_chat_into_webpage.jpg)

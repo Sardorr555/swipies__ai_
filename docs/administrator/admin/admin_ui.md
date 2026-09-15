@@ -7,23 +7,23 @@ sidebar_custom_props: {
 ---
 # Admin UI
 
-The RAGFlow Admin UI is a web-based interface that provides comprehensive system status monitoring and user management capabilities.
+The Swipies Admin UI is a web-based interface that provides comprehensive system status monitoring and user management capabilities.
 
 
 ## Accessing the Admin UI
 
-To access the RAGFlow admin UI, append `/admin` to the web UI's address, e.g. `http://[RAGFLOW_WEB_UI_ADDR]/admin`, replace `[RAGFLOW_WEB_UI_ADDR]` with real RAGFlow web UI address.
+To access the Swipies admin UI, append `/admin` to the web UI's address, e.g. `http://[SWPIES_WEB_UI_ADDR]/admin`, replace `[SWPIES_WEB_UI_ADDR]` with real Swipies web UI address.
 
 ### Default Credentials
 | Username           | Password |
 |--------------------|----------|
-| `admin@ragflow.io` | `admin`  |
+| `admin@docs.swipies.app` | `admin`  |
 
 ## Admin UI Overview
 
 ### Service status
 
-The service status page displays of all services within the RAGFlow system.
+The service status page displays of all services within the Swipies system.
 
 - **Service List**: View all services in a table.
 - **Filtering**: Use the filter button to filter services by **Service Type**.
@@ -34,7 +34,7 @@ The service status page displays of all services within the RAGFlow system.
 
 ### User management
 
-The user management page provides comprehensive tools for managing all users in the RAGFlow system.
+The user management page provides comprehensive tools for managing all users in the Swipies system.
 
 - **User List**: View all users in a table.
 - **Search Users**: Use the search bar to find users by email or nickname.

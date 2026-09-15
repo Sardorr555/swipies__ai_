@@ -7,17 +7,17 @@ sidebar_custom_props: {
 ---
 # Configuration
 
-Configurations for deploying RAGFlow via Docker.
+Configurations for deploying Swipies via Docker.
 
 ## Guidelines
 
 When it comes to system configurations, you will need to manage the following files:
 
-- [.env](https://github.com/infiniflow/ragflow/blob/main/docker/.env): Contains important environment variables for Docker.
-- [service_conf.yaml.template](https://github.com/infiniflow/ragflow/blob/main/docker/service_conf.yaml.template): Configures the back-end services. It specifies the system-level configuration for RAGFlow and is used by its API server and task executor. Upon container startup, the `service_conf.yaml` file will be generated based on this template file. This process replaces any environment variables within the template, allowing for dynamic configuration tailored to the container's environment.
-- [docker-compose.yml](https://github.com/infiniflow/ragflow/blob/main/docker/docker-compose.yml): The Docker Compose file for starting up the RAGFlow service.
+- [.env](https://github.com/Sardorr555/swipies__ai_/blob/main/docker/.env): Contains important environment variables for Docker.
+- [service_conf.yaml.template](https://github.com/Sardorr555/swipies__ai_/blob/main/docker/service_conf.yaml.template): Configures the back-end services. It specifies the system-level configuration for Swipies and is used by its API server and task executor. Upon container startup, the `service_conf.yaml` file will be generated based on this template file. This process replaces any environment variables within the template, allowing for dynamic configuration tailored to the container's environment.
+- [docker-compose.yml](https://github.com/Sardorr555/swipies__ai_/blob/main/docker/docker-compose.yml): The Docker Compose file for starting up the Swipies service.
 
-To update the default HTTP serving port (80), go to [docker-compose.yml](https://github.com/infiniflow/ragflow/blob/main/docker/docker-compose.yml) and change `80:80`
+To update the default HTTP serving port (80), go to [docker-compose.yml](https://github.com/Sardorr555/swipies__ai_/blob/main/docker/docker-compose.yml) and change `80:80`
 to `<YOUR_SERVING_PORT>:80`.
 
 :::tip NOTE
@@ -32,9 +32,9 @@ docker compose -f docker/docker-compose.yml up -d
 ## Docker Compose
 
 - **docker-compose.yml**
-  Sets up environment for RAGFlow and its dependencies.
+  Sets up environment for Swipies and its dependencies.
 - **docker-compose-base.yml**
-  Sets up environment for RAGFlow's dependencies: Elasticsearch/[Infinity](https://github.com/infiniflow/infinity), MySQL, MinIO, and Redis.
+  Sets up environment for Swipies's dependencies: Elasticsearch/[Infinity](https://github.com/swipies/infinity), MySQL, MinIO, and Redis.
 
 :::danger IMPORTANT
 We do not actively maintain **docker-compose-CN-oc9.yml**, **docker-compose-macos.yml**, so use them at your own risk. However, you are welcome to file a pull request to improve them.
@@ -42,7 +42,7 @@ We do not actively maintain **docker-compose-CN-oc9.yml**, **docker-compose-maco
 
 ## Docker environment variables
 
-The [.env](https://github.com/infiniflow/ragflow/blob/main/docker/.env) file contains important environment variables for Docker.
+The [.env](https://github.com/Sardorr555/swipies__ai_/blob/main/docker/.env) file contains important environment variables for Docker.
 
 ### Elasticsearch
 
@@ -72,13 +72,13 @@ The [.env](https://github.com/infiniflow/ragflow/blob/main/docker/.env) file con
 - `MYSQL_PASSWORD`
   The password for MySQL.
 - `MYSQL_PORT`
-  The port to connect to MySQL from RAGFlow container. Defaults to `3306`. Change this if you use an external MySQL.
+  The port to connect to MySQL from Swipies container. Defaults to `3306`. Change this if you use an external MySQL.
 - `EXPOSE_MYSQL_PORT`
   The port used to expose the MySQL service to the host machine, allowing **external** access to the MySQL database running inside the Docker container. Defaults to `5455`.
 
 ### MinIO
 
-RAGFlow utilizes MinIO as its object storage solution, leveraging its scalability to store and manage all uploaded files.
+Swipies utilizes MinIO as its object storage solution, leveraging its scalability to store and manage all uploaded files.
 
 - `MINIO_CONSOLE_PORT`
   The port used to expose the MinIO console interface to the host machine, allowing **external** access to the web-based console running inside the Docker container. Defaults to `9001`
@@ -98,19 +98,19 @@ RAGFlow utilizes MinIO as its object storage solution, leveraging its scalabilit
 - `REDIS_PASSWORD`
   The password for Redis.
 
-### RAGFlow
+### Swipies
 
 - `SVR_HTTP_PORT`
-  The port used to expose RAGFlow's HTTP API service to the host machine, allowing **external** access to the service running inside the Docker container. Defaults to `9380`.
-- `RAGFLOW_IMAGE`
-  The Docker image edition. Defaults to `infiniflow/ragflow:v0.26.3` (the RAGFlow Docker image without embedding models).
+  The port used to expose Swipies's HTTP API service to the host machine, allowing **external** access to the service running inside the Docker container. Defaults to `9380`.
+- `SWPIES_IMAGE`
+  The Docker image edition. Defaults to `swipies/swipies:latest` (the Swipies Docker image without embedding models).
 
 :::tip NOTE
-If you cannot download the RAGFlow Docker image, try the following mirrors.
+If you cannot download the Swipies Docker image, try the following mirrors.
 
 - For the `nightly` edition:
-  - `RAGFLOW_IMAGE=swr.cn-north-4.myhuaweicloud.com/infiniflow/ragflow:nightly` or,
-  - `RAGFLOW_IMAGE=registry.cn-hangzhou.aliyuncs.com/infiniflow/ragflow:nightly`.
+  - `SWPIES_IMAGE=swr.cn-north-4.myhuaweicloud.com/swipies/swipies:latest` or,
+  - `SWPIES_IMAGE=registry.cn-hangzhou.aliyuncs.com/swipies/swipies:latest`.
   :::
 
 ### Embedding service
@@ -144,9 +144,9 @@ If you cannot download the RAGFlow Docker image, try the following mirrors.
 
 ## Service configuration
 
-[service_conf.yaml.template](https://github.com/infiniflow/ragflow/blob/main/docker/service_conf.yaml.template) specifies the system-level configuration for RAGFlow and is used by its API server and task executor.
+[service_conf.yaml.template](https://github.com/Sardorr555/swipies__ai_/blob/main/docker/service_conf.yaml.template) specifies the system-level configuration for Swipies and is used by its API server and task executor.
 
-### `ragflow`
+### `swipies`
 
 - `host`: The API server's IP address inside the Docker container. Defaults to `0.0.0.0`.
 - `port`: The API server's serving port inside the Docker container. Defaults to `9380`.
@@ -176,8 +176,8 @@ s3:
   secret_key: 'tsec_YOUR_SECRET_KEY'
   region_name: 'auto'
   endpoint_url: 'https://t3.storage.dev'
-  bucket: 'ragflow'
-  prefix_path: 'ragflow'
+  bucket: 'swipies'
+  prefix_path: 'swipies'
   signature_version: 'v4'
   addressing_style: 'virtual'
 ```
@@ -190,7 +190,7 @@ s3:
 
 When using an external storage backend, you can remove the `minio` service from `docker-compose-base.yml`.
 
-For other S3-compatible backends (AWS S3, Alibaba Cloud OSS, Azure Blob, Google Cloud Storage), see the commented examples in [service_conf.yaml.template](https://github.com/infiniflow/ragflow/blob/main/docker/service_conf.yaml.template).
+For other S3-compatible backends (AWS S3, Alibaba Cloud OSS, Azure Blob, Google Cloud Storage), see the commented examples in [service_conf.yaml.template](https://github.com/Sardorr555/swipies__ai_/blob/main/docker/service_conf.yaml.template).
 
 ### `redis`
 
@@ -201,7 +201,7 @@ For other S3-compatible backends (AWS S3, Alibaba Cloud OSS, Azure Blob, Google 
 
 ### `oauth`
 
-The OAuth configuration for signing up or signing in to RAGFlow using a third-party account.
+The OAuth configuration for signing up or signing in to Swipies using a third-party account.
 
 - `<channel>`: Custom channel ID.
   - `type`: Authentication type, options include `oauth2`, `oidc`, `github`. Default is `oauth2`, when `issuer` parameter is provided, defaults to `oidc`.
@@ -217,7 +217,7 @@ The OAuth configuration for signing up or signing in to RAGFlow using a third-pa
   - `redirect_uri`: Required, URI to which the authorization server redirects during the authentication flow to return results. Must match the callback URI registered with the authentication server. Format: `https://your-app.com/v1/user/oauth/callback/<channel>`. For local configuration, you can directly use `http://127.0.0.1:80/v1/user/oauth/callback/<channel>`.
 
 :::tip NOTE
-The following are best practices for configuring various third-party authentication methods. You can configure one or multiple third-party authentication methods for Ragflow:
+The following are best practices for configuring various third-party authentication methods. You can configure one or multiple third-party authentication methods for Swipies:
 ```yaml
 oauth:
   oauth2:
@@ -250,7 +250,7 @@ oauth:
 
 ### `user_default_llm`
 
-The default LLM to use for a new RAGFlow user. It is disabled by default. To enable this feature, uncomment the corresponding lines in **service_conf.yaml.template**.
+The default LLM to use for a new Swipies user. It is disabled by default. To enable this feature, uncomment the corresponding lines in **service_conf.yaml.template**.
 
 - `factory`: The LLM supplier. Available options:
   - `"OpenAI"`
@@ -266,5 +266,5 @@ The default LLM to use for a new RAGFlow user. It is disabled by default. To ena
   - `"Moonshot"`
 
 :::tip NOTE
-If you do not set the default LLM here, configure the default LLM on the **Settings** page in the RAGFlow UI.
+If you do not set the default LLM here, configure the default LLM on the **Settings** page in the Swipies UI.
 :::

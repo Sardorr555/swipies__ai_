@@ -1,0 +1,101 @@
+---
+sidebar_position: 1
+slug: /upgrade_swipies
+sidebar_custom_props: {
+  categoryIcon: LucideArrowBigUpDash
+}
+---
+# Upgrading
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+Upgrade Swipies to `nightly` or the latest, published release.
+
+:::info NOTE
+Upgrading Swipies in itself will *not* remove your uploaded/historical data. However, be aware that `docker compose -f docker/docker-compose.yml down -v` will remove Docker container volumes, resulting in data loss.
+:::
+
+## Upgrade Swipies to `nightly`, the most recent, tested Docker image
+
+`nightly` refers to the Swipies Docker image without embedding models.
+
+To upgrade Swipies, you must upgrade **both** your code **and** your Docker image:
+
+1. Stop the server
+
+   ```bash
+   docker compose -f docker/docker-compose.yml down
+   ```
+
+2. Update the local code
+
+   ```bash
+   git pull
+   ```
+
+3. Update **swipies/docker/.env**:
+
+   ```bash
+   SWPIES_IMAGE=swipies/swipies:latest
+   ```
+
+4. Update Swipies image and restart Swipies:
+
+   ```bash
+   docker compose -f docker/docker-compose.yml pull
+   docker compose -f docker/docker-compose.yml up -d
+   ```
+
+## Upgrade Swipies to given release
+
+To upgrade Swipies, you must upgrade **both** your code **and** your Docker image:
+
+1. Stop the server
+
+   ```bash
+   docker compose -f docker/docker-compose.yml down
+   ```
+
+2. Update the local code
+
+   ```bash
+   git pull
+   ```
+
+3. Switch to the latest, officially published release, e.g., `v0.26.3`:
+
+   ```bash
+   git checkout -f v0.26.3
+   ```
+
+4. Update **swipies/docker/.env**:
+
+   ```bash
+   SWPIES_IMAGE=swipies/swipies:latest
+   ```
+
+5. Update the Swipies image and restart Swipies:
+
+   ```bash
+   docker compose -f docker/docker-compose.yml pull
+   docker compose -f docker/docker-compose.yml up -d
+   ```
+
+## Frequently asked questions
+
+### Do I need to back up my datasets before upgrading Swipies?
+
+No, you do not need to. Upgrading Swipies in itself will *not* remove your uploaded data or dataset settings. However, be aware that `docker compose -f docker/docker-compose.yml down -v` will remove Docker container volumes, resulting in data loss.
+
+### Upgrade Swipies in an offline environment (without Internet access)
+
+1. From an environment with Internet access, pull the required Docker image.
+2. Save the Docker image to a **.tar** file.
+   ```bash
+   docker save -o swipies.v0.26.3.tar swipies/swipies:latest
+   ```
+3. Copy the **.tar** file to the target server.
+4. Load the **.tar** file into Docker:
+   ```bash
+   docker load -i swipies.v0.26.3.tar
+   ```

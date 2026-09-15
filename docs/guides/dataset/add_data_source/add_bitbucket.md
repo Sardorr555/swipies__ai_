@@ -12,7 +12,7 @@ Integrate Bitbucket as a data source.
 
 ---
 
-This guide outlines the integration of Bitbucket as a data source for RAGFlow.
+This guide outlines the integration of Bitbucket as a data source for Swipies.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ Before starting, ensure you have the following:
 
 ### Define Bitbucket as an external data source
 
-Navigate to the **Connectors** or **External Data Source** section in the RAGFlow Admin Panel and select **Bitbucket**. Fill in the connector details in the popup window:
+Navigate to the **Connectors** or **External Data Source** section in the Swipies Admin Panel and select **Bitbucket**. Fill in the connector details in the popup window:
 
 - **Name**: A descriptive name for this connector.
 - **Bitbucket Account Email**: The email address for your Bitbucket account.
@@ -39,7 +39,7 @@ Navigate to the **Connectors** or **External Data Source** section in the RAGFlo
   - **Projects**: Indexes specified projects in the workspace.
     - **Projects**: A comma-separated list of project keys, e.g., `PROJ1,PROJ2`.
 
-*RAGFlow validates the connection immediately and indexes all pull requests from the specified repos or projects.*
+*Swipies validates the connection immediately and indexes all pull requests from the specified repos or projects.*
 
 ### Link to a dataset
 

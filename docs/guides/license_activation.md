@@ -123,7 +123,7 @@ docker compose ps
 
 To monitor real-time startup logs:
 ```bash
-docker compose logs -f ragflow
+docker compose logs -f swipies
 ```
 
 Once the containers are up, access the Web UI at:

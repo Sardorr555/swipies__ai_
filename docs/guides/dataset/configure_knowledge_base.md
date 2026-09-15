@@ -7,7 +7,7 @@ sidebar_custom_props: {
 ---
 # Configure dataset
 
-Most of RAGFlow's chat assistants and Agents are based on datasets. Each of RAGFlow's datasets serves as a knowledge source, *parsing* files uploaded from your local machine and file references generated in RAGFlow's File system into the real 'knowledge' for future AI chats. This guide demonstrates some basic usages of the dataset feature, covering the following topics:
+Most of Swipies's chat assistants and Agents are based on datasets. Each of Swipies's datasets serves as a knowledge source, *parsing* files uploaded from your local machine and file references generated in Swipies's File system into the real 'knowledge' for future AI chats. This guide demonstrates some basic usages of the dataset feature, covering the following topics:
 
 - Create a dataset
 - Configure a dataset
@@ -39,13 +39,13 @@ This section covers the following topics:
 
 ### Select chunking method
 
-RAGFlow offers multiple built-in chunking template to facilitate chunking files of different layouts and ensure semantic integrity. From the **Built-in** chunking method dropdown under **Parse type**, you can choose the default template that suits the layouts and formats of your files. The following table shows the descriptions and the compatible file formats of each supported chunk template:
+Swipies offers multiple built-in chunking template to facilitate chunking files of different layouts and ensure semantic integrity. From the **Built-in** chunking method dropdown under **Parse type**, you can choose the default template that suits the layouts and formats of your files. The following table shows the descriptions and the compatible file formats of each supported chunk template:
 
 | **Template** | Description                                                                   | File format                                                                                             |
 |--------------|-------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
 | General      | Files are consecutively chunked based on a preset chunk token number.         | MD, MDX, DOCX, XLSX, XLS (Excel 97-2003), PPT, PDF, TXT, JPEG, JPG, PNG, TIF, GIF, CSV, JSON, EML, HTML |
 | Q&A          | Retrieves relevant information and generates answers to respond to questions. | XLSX, XLS (Excel 97-2003), CSV/TXT                                                                      |
-| Resume       | Enterprise edition only. You can also try it out on cloud.ragflow.io.          | DOCX, PDF, TXT                                                                                          |
+| Resume       | Enterprise edition only. You can also try it out on cloud.docs.swipies.app.          | DOCX, PDF, TXT                                                                                          |
 | Manual       |                                                                               | PDF                                                                                                     |
 | Table        | The table mode uses TSI technology for efficient data parsing.                | XLSX, XLS (Excel 97-2003), CSV/TXT                                                                      |
 | Paper        |                                                                               | PDF                                                                                                     |
@@ -61,7 +61,7 @@ You can also change a file's chunking method on the **Files** page.
 ![change chunking method](https://raw.githubusercontent.com/infiniflow/ragflow-docs/main/images/change_chunking_method.jpg)
 
 <details>
-  <summary>From v0.21.0 onward, RAGFlow supports ingestion pipeline for customized data ingestion and cleansing workflows.</summary>
+  <summary>From v0.21.0 onward, Swipies supports ingestion pipeline for customized data ingestion and cleansing workflows.</summary>
    
   To use a customized data pipeline:
 
@@ -84,23 +84,23 @@ Some embedding models are optimized for specific languages, so performance may b
 
 ### Upload file
 
-- RAGFlow's File system allows you to link a file to multiple datasets, in which case each target dataset holds a reference to the file.
+- Swipies's File system allows you to link a file to multiple datasets, in which case each target dataset holds a reference to the file.
 - In **Knowledge Base**, you are also given the option of uploading a single file or a folder of files (bulk upload) from your local machine to a dataset, in which case the dataset holds file copies. 
 
-While uploading files directly to a dataset seems more convenient, we *highly* recommend uploading files to RAGFlow's File system and then linking them to the target datasets. This way, you can avoid permanently deleting files uploaded to the dataset. 
+While uploading files directly to a dataset seems more convenient, we *highly* recommend uploading files to Swipies's File system and then linking them to the target datasets. This way, you can avoid permanently deleting files uploaded to the dataset. 
 
 ### Parse file
 
-File parsing is a crucial topic in dataset configuration. The meaning of file parsing in RAGFlow is twofold: chunking files based on file layout and building embedding and full-text (keyword) indexes on these chunks. After having selected the chunking method and embedding model, you can start parsing a file:
+File parsing is a crucial topic in dataset configuration. The meaning of file parsing in Swipies is twofold: chunking files based on file layout and building embedding and full-text (keyword) indexes on these chunks. After having selected the chunking method and embedding model, you can start parsing a file:
 
 ![parse file](https://raw.githubusercontent.com/infiniflow/ragflow-docs/main/images/parse_file.jpg)
 
-- As shown above, RAGFlow allows you to use a different chunking method for a particular file, offering flexibility beyond the default method. 
-- As shown above, RAGFlow allows you to enable or disable individual files, offering finer control over dataset-based AI chats. 
+- As shown above, Swipies allows you to use a different chunking method for a particular file, offering flexibility beyond the default method. 
+- As shown above, Swipies allows you to enable or disable individual files, offering finer control over dataset-based AI chats. 
 
 ### Intervene with file parsing results
 
-RAGFlow features visibility and explainability, allowing you to view the chunking results and intervene where necessary. To do so: 
+Swipies features visibility and explainability, allowing you to view the chunking results and intervene where necessary. To do so: 
 
 1. Click on the file that completes file parsing to view the chunking results: 
 
@@ -120,13 +120,13 @@ You can add keywords to a file chunk to increase its ranking for queries contain
 
 4. In Retrieval testing, ask a quick question in **Test text** to double-check if your configurations work:
 
-   _As you can tell from the following, RAGFlow responds with truthful citations._
+   _As you can tell from the following, Swipies responds with truthful citations._
 
    ![retrieval test](https://raw.githubusercontent.com/infiniflow/ragflow-docs/main/images/retrieval_test.jpg)
 
 ### Run retrieval testing
 
-RAGFlow uses multiple recall of both full-text search and vector search in its chats. Prior to setting up an AI chat, consider adjusting the following parameters to ensure that the intended information always turns up in answers:
+Swipies uses multiple recall of both full-text search and vector search in its chats. Prior to setting up an AI chat, consider adjusting the following parameters to ensure that the intended information always turns up in answers:
 
 - Similarity threshold: Chunks with similarities below the threshold will be filtered. By default, it is set to 0.2.
 - Vector similarity weight: The percentage by which vector similarity contributes to the overall score. By default, it is set to 0.3.
@@ -135,7 +135,7 @@ See [Run retrieval test](./run_retrieval_test.md) for details.
 
 ## Search for dataset
 
-As of RAGFlow v0.26.3, the search feature is still in a rudimentary form, supporting only dataset search by name.
+As of Swipies v0.26.3, the search feature is still in a rudimentary form, supporting only dataset search by name.
 
 ![search dataset](https://raw.githubusercontent.com/infiniflow/ragflow-docs/main/images/search_datasets.jpg)
 
@@ -144,6 +144,6 @@ As of RAGFlow v0.26.3, the search feature is still in a rudimentary form, suppor
 You are allowed to delete a dataset. Hover your mouse over the three dot of the intended dataset card and the **Delete** option appears. Once you delete a dataset, the associated folder under **root/.knowledge** directory is AUTOMATICALLY REMOVED. The consequence is:
 
 - The files uploaded directly to the dataset are gone;  
-- The file references, which you created from within RAGFlow's File system, are gone, but the associated files still exist. 
+- The file references, which you created from within Swipies's File system, are gone, but the associated files still exist. 
 
 ![delete dataset](https://raw.githubusercontent.com/infiniflow/ragflow-docs/main/images/delete_datasets.jpg)

@@ -13,12 +13,12 @@ Deploy and run local models using Ollama, Xinference, vLLM ，SGLang , GPUStack 
 
 ---
 
-RAGFlow supports deploying models locally using Ollama, Xinference, IPEX-LLM, vLLM ，SGLang , GPUStack or jina. If you have locally deployed models to leverage or wish to enable GPU or CUDA for inference acceleration, you can bind Ollama or Xinference into RAGFlow and use either of them as a local "server" for interacting with your local models.
+Swipies supports deploying models locally using Ollama, Xinference, IPEX-LLM, vLLM ，SGLang , GPUStack or jina. If you have locally deployed models to leverage or wish to enable GPU or CUDA for inference acceleration, you can bind Ollama or Xinference into Swipies and use either of them as a local "server" for interacting with your local models.
 
-RAGFlow seamlessly integrates with Ollama and Xinference, without the need for further environment configurations. You can use them to deploy two types of local models in RAGFlow: chat models and embedding models.
+Swipies seamlessly integrates with Ollama and Xinference, without the need for further environment configurations. You can use them to deploy two types of local models in Swipies: chat models and embedding models.
 
 :::tip NOTE
-This user guide does not intend to cover much of the installation or configuration details of Ollama or Xinference; its focus is on configurations inside RAGFlow. For the most current information, you may need to check out the official site of Ollama or Xinference.
+This user guide does not intend to cover much of the installation or configuration details of Ollama or Xinference; its focus is on configurations inside Swipies. For the most current information, you may need to check out the official site of Ollama or Xinference.
 :::
 
 ## Deploy local models using Ollama
@@ -62,20 +62,20 @@ $ sudo docker exec ollama ollama pull bge-m3
 
 ### 2. Find Ollama URL and ensure it is accessible
 
-- If RAGFlow runs in Docker, the localhost is mapped within the RAGFlow Docker container as `host.docker.internal`. If Ollama runs on the same host machine, the right URL to use for Ollama would be `http://host.docker.internal:11434/' and you should check that Ollama is accessible from inside the RAGFlow container with:
+- If Swipies runs in Docker, the localhost is mapped within the Swipies Docker container as `host.docker.internal`. If Ollama runs on the same host machine, the right URL to use for Ollama would be `http://host.docker.internal:11434/' and you should check that Ollama is accessible from inside the Swipies container with:
 ```bash
-$ sudo docker exec -it docker-ragflow-cpu-1 bash
+$ sudo docker exec -it docker-swipies-cpu-1 bash
 $ curl http://host.docker.internal:11434/
 > Ollama is running
 ```
 
-- If RAGFlow is launched from source code and Ollama runs on the same host machine as RAGFlow, check if Ollama is accessible from RAGFlow's host machine:
+- If Swipies is launched from source code and Ollama runs on the same host machine as Swipies, check if Ollama is accessible from Swipies's host machine:
 ```bash
 $ curl http://localhost:11434/
 > Ollama is running
 ```
 
-- If RAGFlow and Ollama run on different machines, check if Ollama is accessible from RAGFlow's host machine:
+- If Swipies and Ollama run on different machines, check if Ollama is accessible from Swipies's host machine:
 ```bash
 $ curl http://${IP_OF_OLLAMA_MACHINE}:11434/
 > Ollama is running
@@ -83,9 +83,9 @@ $ curl http://${IP_OF_OLLAMA_MACHINE}:11434/
 
 ### 3. Add Ollama
 
-In RAGFlow, click on your logo on the top right of the page **>** **Model providers** and add Ollama to RAGFlow:
+In Swipies, click on your logo on the top right of the page **>** **Model providers** and add Ollama to Swipies:
 
-![add ollama](https://github.com/infiniflow/ragflow/assets/93570324/10635088-028b-4b3d-add9-5c5a6e626814)
+![add ollama](https://github.com/Sardorr555/swipies__ai_/assets/93570324/10635088-028b-4b3d-add9-5c5a6e626814)
 
 
 ### 4. Complete basic Ollama settings
@@ -144,9 +144,9 @@ $ xinference launch -u mistral --model-name mistral-v0.1 --size-in-billions 7 --
 ```
 ### 4. Add Xinference
 
-In RAGFlow, click on your logo on the top right of the page **>** **Model providers** and add Xinference to RAGFlow:
+In Swipies, click on your logo on the top right of the page **>** **Model providers** and add Xinference to Swipies:
 
-![add xinference](https://github.com/infiniflow/ragflow/assets/93570324/10635088-028b-4b3d-add9-5c5a6e626814)
+![add xinference](https://github.com/Sardorr555/swipies__ai_/assets/93570324/10635088-028b-4b3d-add9-5c5a6e626814)
 
 ### 5. Complete basic Xinference settings
 
@@ -307,9 +307,9 @@ With the Ollama service running, open a new terminal and run `./ollama pull <mod
   </TabItem>
 </Tabs>
 
-### 4. Configure RAGFlow
+### 4. Configure Swipies
 
-To enable IPEX-LLM accelerated Ollama in RAGFlow, you must also complete the configurations in RAGFlow. The steps are identical to those outlined in the *Deploy a local model using Ollama* section:
+To enable IPEX-LLM accelerated Ollama in Swipies, you must also complete the configurations in Swipies. The steps are identical to those outlined in the *Deploy a local model using Ollama* section:
 
 1. [Add Ollama](#4-add-ollama)
 2. [Complete basic Ollama settings](#5-complete-basic-ollama-settings)
@@ -338,7 +338,7 @@ Starting vLLM API server 0 on http://0.0.0.0:1025
 Started server process [19177]
 Application startup complete.
 ```
-### 5.2 INTERGRATEING RAGFLOW WITH VLLM CHAT/EM/RERANK LLM WITH WEBUI
+### 5.2 INTERGRATEING SWPIES WITH VLLM CHAT/EM/RERANK LLM WITH WEBUI
 
 setting->model providers->search->vllm->add ,configure as follow:
 
@@ -374,7 +374,7 @@ root@gpustack-prod:~# docker ps
 CONTAINER ID   IMAGE               COMMAND                  CREATED       STATUS       PORTS                                                                                  NAMES
 abf59be84b1a   gpustack/gpustack   "/usr/bin/entrypoint…"   6 hours ago   Up 6 hours   0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:10161->10161/tcp, [::]:10161->10161/tcp   gpustack
 ```
-### 6.2 INTERGRATEING RAGFLOW WITH GPUSTACK CHAT/EM/RERANK LLM WITH WEBUI
+### 6.2 INTERGRATEING SWPIES WITH GPUSTACK CHAT/EM/RERANK LLM WITH WEBUI
 
 setting->model providers->search->gpustack->add ,configure as follow:
 

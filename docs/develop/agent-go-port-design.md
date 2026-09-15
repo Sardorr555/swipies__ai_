@@ -17,7 +17,7 @@
 
 ### 1.1 目标
 
-RAGFlow 的 Agent Canvas（编排 22 个 component + 21 个 tool 的 DSL 执行器）从 Python 移植到 Go。Python 端位于 `agent/canvas.py`（`Graph` / `Canvas`）+ `agent/component/base.py`（`ComponentBase` / `ComponentParamBase`）+ `agent/tools/`。Go 端独立实现于 `internal/agent/`，与 Python 端通过共享 DSL JSON schema 兼容（v1↔v2 双向转换器在 `internal/agent/dsl/`，已收敛为单一 wire 形态）。
+Swipies 的 Agent Canvas（编排 22 个 component + 21 个 tool 的 DSL 执行器）从 Python 移植到 Go。Python 端位于 `agent/canvas.py`（`Graph` / `Canvas`）+ `agent/component/base.py`（`ComponentBase` / `ComponentParamBase`）+ `agent/tools/`。Go 端独立实现于 `internal/agent/`，与 Python 端通过共享 DSL JSON schema 兼容（v1↔v2 双向转换器在 `internal/agent/dsl/`，已收敛为单一 wire 形态）。
 
 ### 1.2 核心架构决策
 
@@ -41,7 +41,7 @@ Before adding any new component, runtime abstraction, or third-party dependency,
 
 **Decision order** (apply in sequence; first match wins):
 
-1. **Reuse the existing RAGFlow model/service capability as-is.** If `internal/entity/models/anthropic.go`, `internal/handler/chat_session.go`, or similar already has the capability, just wire it through — don't reimplement.
+1. **Reuse the existing Swipies model/service capability as-is.** If `internal/entity/models/anthropic.go`, `internal/handler/chat_session.go`, or similar already has the capability, just wire it through — don't reimplement.
 2. **Wrap an existing eino / workflowx / MCP-client primitive.** If eino's `compose.NewGraphMultiBranch` or `workflowx.AddLoopNode` or `internal/utility/mcp_client.go` already provides the mechanism, build a thin adapter.
 3. **Promote an already-declared-but-indirect dependency.** If the dependency is already in `go.mod` (even as `// indirect`), the work is to import it directly and use it.
 4. **Add a registry alias only (no new body)** when an existing engine-level mechanism already handles the semantics.
@@ -172,7 +172,7 @@ internal/observability/otel/
 
 ### 3.1 State + Workflow 混血
 
-eino `compose.Workflow` 本身只支持 DAG（节点间数据通过 declared predecessor 输出传递），没有"任意节点读任意节点输出"的现成 API。RAGFlow Python 端用 `self._canvas.get_variable_value("cpn_id@param")` 实现 `{{cpn_id@param}}` 任意交叉引用。
+eino `compose.Workflow` 本身只支持 DAG（节点间数据通过 declared predecessor 输出传递），没有"任意节点读任意节点输出"的现成 API。Swipies Python 端用 `self._canvas.get_variable_value("cpn_id@param")` 实现 `{{cpn_id@param}}` 任意交叉引用。
 
 **Go 端方案**：
 
@@ -408,7 +408,7 @@ func NewAgentServiceWithOptions(
 | Tier | 含义 | 验收 |
 |------|------|------|
 | **T1** | 直接用 eino 已有类型/接口，零代码 | eino 单元测试覆盖 |
-| **T2** | 薄包装 1 struct + factory，对齐 Python 行为参数 | 跨 eino/RAGFlow 边界 + 1 e2e |
+| **T2** | 薄包装 1 struct + factory，对齐 Python 行为参数 | 跨 eino/Swipies 边界 + 1 e2e |
 | **T3** | `compose.Lambda` + `StatePre/PostHandler` | 1 单测 + 1 e2e |
 | **T4** | 嵌套 `compose.Workflow` + `getState[CanvasState](ctx)` | 子图单测 + 完整 e2e |
 | **T5** | 重 I/O + 第三方 lib | 单测 + e2e + 失败注入 |
@@ -582,7 +582,7 @@ Parity legend: ✅ implemented & tested · 🟡 scaffolded (loud-fail sentinel) 
 
 ## 5. DSL 单一形态
 
-RAGFlow agent DSL 现在只有**一种** wire 形态（之前 v1/v2 双轨已删）：
+Swipies agent DSL 现在只有**一种** wire 形态（之前 v1/v2 双轨已删）：
 
 ```jsonc
 {
@@ -907,8 +907,8 @@ callbacks.Handler (业务实现)
 
 ```bash
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4318"
-export OTEL_SERVICE_NAME="ragflow-agent"
-export OTEL_RESOURCE_ATTRIBUTES="service.namespace=ragflow,deployment.environment=production"
+export OTEL_SERVICE_NAME="swipies-agent"
+export OTEL_RESOURCE_ATTRIBUTES="service.namespace=swipies,deployment.environment=production"
 export OTEL_TRACES_SAMPLER="parentbased_traceidratio"
 export OTEL_TRACES_SAMPLER_ARG="0.1"  # 10% 采样
 ```
@@ -959,7 +959,7 @@ export OTEL_TRACES_SAMPLER_ARG="0.1"  # 10% 采样
 
 ### 10.2 AGPL-3 零容忍
 
-RAGFlow 是 Apache-2.0；AGPL-3 强传染会让整个 RAGFlow Go 二进制被迫 AGPL-3 化。所有候选 AGPL-3 库 (unipdf / unioffice / fumiama-go-docx / baliance-gooxml) **全部排除**。
+Swipies 是 Apache-2.0；AGPL-3 强传染会让整个 Swipies Go 二进制被迫 AGPL-3 化。所有候选 AGPL-3 库 (unipdf / unioffice / fumiama-go-docx / baliance-gooxml) **全部排除**。
 
 **AGPL-3 预筛规则**：
 - README header 含 "AGPL" 或 "Affero" → 直接拒绝
@@ -1067,8 +1067,8 @@ The five Python sandbox providers are ported to Go with functional parity (self_
 - **Aliyun Go SDK gaps (v1.1.0)** — ⏸️ **blocked on upstream aliyun SDK.** Two related gaps to revisit when the SDK catches up: (1) `TemplateName` not sent on `CreateCodeInterpreter` (operators must pre-create non-default templates via Python or the aliyun console, then reference by name in metadata); (2) execute uses raw HTTP because the SDK has no execute method (the wire format was reverse-engineered from the Python SDK). Swap to the SDK calls when both APIs land. (1-2 days once the SDK releases; no in-house workaround)
 - **`LocalProvider` rlimits not applied** — Go `os/exec` has no portable pre-start hook; rlimits (RLIMIT_AS/CPU/FSIZE/NOFILE) are not enforced. The Go `LocalProvider` is **not a security boundary** — for adversarial code, use `SelfManagedProvider` (executor_manager + gVisor) or `AliyunCodeInterpreterProvider` (cloud microVM). This matches the Python note that "local" is "for development / trusted environments". (no fix planned — by design)
 - **`SSHProvider` uses SSH exec, not SFTP** — avoids the `github.com/pkg/sftp` dependency. For workloads with many large artifacts, switch to pkg/sftp if profiling shows exec overhead. (1 day, deferred until profiling shows it matters)
-- **Windows build of `LocalProvider`** — `syscall.Setpgid` is POSIX-only. The Go side is `//go:build !windows`; the Python side runs on Windows via `process.kill()`. Tracked; not blocking because RAGFlow production is Linux. (1-2 days, deferred)
-- **e2b community Go SDK is a single-maintainer port** — `github.com/eric642/e2b-go-sdk` v0.1.3 (Apache-2.0). Re-evaluate quarterly; fork to `github.com/infiniflow/e2b-go-sdk` if maintenance lags. (1 day fork if needed)
+- **Windows build of `LocalProvider`** — `syscall.Setpgid` is POSIX-only. The Go side is `//go:build !windows`; the Python side runs on Windows via `process.kill()`. Tracked; not blocking because Swipies production is Linux. (1-2 days, deferred)
+- **e2b community Go SDK is a single-maintainer port** — `github.com/eric642/e2b-go-sdk` v0.1.3 (Apache-2.0). Re-evaluate quarterly; fork to `github.com/swipies/e2b-go-sdk` if maintenance lags. (1 day fork if needed)
 - **OTel spans on provider ops** — providers are log-free; OTel span propagation is on the HTTP client only (via `otelhttp.NewTransport`). Providers themselves do not emit OTel spans. (1 day)
 
 ---

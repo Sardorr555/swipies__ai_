@@ -23,23 +23,23 @@ We use gVisor to isolate code execution from the host system. Please follow [the
 
 ### 2. Ensure Sandbox is properly installed
 
-RAGFlow Sandbox is a secure, pluggable code execution backend. It serves as the code executor for the **Code** component. Please follow the [instructions here](https://github.com/infiniflow/ragflow/tree/main/agent/sandbox) to install RAGFlow Sandbox.
+Swipies Sandbox is a secure, pluggable code execution backend. It serves as the code executor for the **Code** component. Please follow the [instructions here](https://github.com/Sardorr555/swipies__ai_/tree/main/agent/sandbox) to install Swipies Sandbox.
 
 :::note Docker client version
-The executor manager image now bundles Docker CLI `29.1.0` (API 1.44+). Older images shipped Docker 24.x and will fail against newer Docker daemons with `client version 1.43 is too old`. Pull the latest `infiniflow/sandbox-executor-manager:latest` or rebuild it in `./sandbox/executor_manager` if you encounter this error.
+The executor manager image now bundles Docker CLI `29.1.0` (API 1.44+). Older images shipped Docker 24.x and will fail against newer Docker daemons with `client version 1.43 is too old`. Pull the latest `swipies/sandbox-executor-manager:latest` or rebuild it in `./sandbox/executor_manager` if you encounter this error.
 :::
 
 :::tip NOTE
-If your RAGFlow Sandbox is not working, please be sure to consult the [Troubleshooting](#troubleshooting) section in this document. We assure you that it addresses 99.99% of the issues!
+If your Swipies Sandbox is not working, please be sure to consult the [Troubleshooting](#troubleshooting) section in this document. We assure you that it addresses 99.99% of the issues!
 :::
 
 ### 3. (Optional) Install necessary dependencies
 
 If you need to import your own Python or JavaScript packages into Sandbox, please follow the commands provided in the [How to import my own Python or JavaScript packages into Sandbox?](#how-to-import-my-own-python-or-javascript-packages-into-sandbox) section to install the additional dependencies. 
 
-### 4. Enable Sandbox-specific settings in RAGFlow
+### 4. Enable Sandbox-specific settings in Swipies
 
-Ensure all Sandbox-specific settings are enabled in **ragflow/docker/.env**.
+Ensure all Sandbox-specific settings are enabled in **swipies/docker/.env**.
 
 ### 5. Restart the service after making changes
 
@@ -75,7 +75,7 @@ If your code implementation includes defined variables, whether input or output 
     const axios = require('axios');
     async function main(args) {
       try {
-        const response = await axios.get('https://github.com/infiniflow/ragflow');
+        const response = await axios.get('https://github.com/Sardorr555/swipies__ai_');
         console.log('Body:', response.data);
       } catch (error) {
         console.error('Error:', error.message);
@@ -166,8 +166,8 @@ For the gVisor issue:
 For the base image issue, pull the required base images:
 
 ```bash
-docker pull infiniflow/sandbox-base-nodejs:latest
-docker pull infiniflow/sandbox-base-python:latest
+docker pull swipies/sandbox-base-nodejs:latest
+docker pull swipies/sandbox-base-python:latest
 ```
 
 ### `docker: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44`
@@ -181,7 +181,7 @@ Your executor manager image includes Docker CLI 24.x (API 1.43), but the host Do
 Pull the latest executor manager image or rebuild it in `./sandbox/executor_manager` to upgrade the built-in Docker client:
 
 ```bash
-docker pull infiniflow/sandbox-executor-manager:latest
+docker pull swipies/sandbox-executor-manager:latest
 # or
 docker build -t sandbox-executor-manager:latest ./sandbox/executor_manager
 ```
@@ -216,20 +216,20 @@ Please try again shortly or increase the pool size in the configuration to impro
 To import your Python packages, update **sandbox_base_image/python/requirements.txt** to install the required dependencies. For example, to add the `openpyxl` package, proceed with the following command lines:
 
 ```bash {4,6}
-(ragflow) ➜ ragflow/sandbox main ✓ pwd # make sure you are in the right directory
-/home/infiniflow/workspace/ragflow/sandbox
+(swipies) ➜ swipies/sandbox main ✓ pwd # make sure you are in the right directory
+/home/swipies/workspace/swipies/sandbox
 
-(ragflow) ➜ ragflow/sandbox main ✓ echo "openpyxl" >> sandbox_base_image/python/requirements.txt # add the package to the requirements.txt file
+(swipies) ➜ swipies/sandbox main ✓ echo "openpyxl" >> sandbox_base_image/python/requirements.txt # add the package to the requirements.txt file
 
-(ragflow) ➜ ragflow/sandbox main ✗ cat sandbox_base_image/python/requirements.txt # make sure the package is added
+(swipies) ➜ swipies/sandbox main ✗ cat sandbox_base_image/python/requirements.txt # make sure the package is added
 numpy
 pandas
 requests
 openpyxl # here it is
 
-(ragflow) ➜ ragflow/sandbox main ✗ make # rebuild the docker image, this command will rebuild the image and start the service immediately. To build image only, using `make build` instead.
+(swipies) ➜ swipies/sandbox main ✗ make # rebuild the docker image, this command will rebuild the image and start the service immediately. To build image only, using `make build` instead.
 
-(ragflow) ➜ ragflow/sandbox main ✗ docker exec -it sandbox_python_0 /bin/bash # entering container to check if the package is installed
+(swipies) ➜ swipies/sandbox main ✗ docker exec -it sandbox_python_0 /bin/bash # entering container to check if the package is installed
 
 
 # in the container
@@ -244,18 +244,18 @@ Type "help", "copyright", "credits" or "license" for more information.
 To import your JavaScript packages, navigate to `sandbox_base_image/nodejs` and use `npm` to install the required packages. For example, to add the `lodash` package, run the following commands:
 
 ```bash
-(ragflow) ➜ ragflow/sandbox main ✓ pwd
-/home/infiniflow/workspace/ragflow/sandbox
+(swipies) ➜ swipies/sandbox main ✓ pwd
+/home/swipies/workspace/swipies/sandbox
 
-(ragflow) ➜ ragflow/sandbox main ✓ cd sandbox_base_image/nodejs
+(swipies) ➜ swipies/sandbox main ✓ cd sandbox_base_image/nodejs
 
-(ragflow) ➜ ragflow/sandbox/sandbox_base_image/nodejs main ✓ npm install lodash 
+(swipies) ➜ swipies/sandbox/sandbox_base_image/nodejs main ✓ npm install lodash 
 
-(ragflow) ➜ ragflow/sandbox/sandbox_base_image/nodejs main ✓ cd ../.. # go back to sandbox root directory
+(swipies) ➜ swipies/sandbox/sandbox_base_image/nodejs main ✓ cd ../.. # go back to sandbox root directory
 
-(ragflow) ➜ ragflow/sandbox main ✗ make # rebuild the docker image, this command will rebuild the image and start the service immediately. To build image only, using `make build` instead.
+(swipies) ➜ swipies/sandbox main ✗ make # rebuild the docker image, this command will rebuild the image and start the service immediately. To build image only, using `make build` instead.
 
-(ragflow) ➜ ragflow/sandbox main ✗ docker exec -it sandbox_nodejs_0 /bin/bash # entering container to check if the package is installed
+(swipies) ➜ swipies/sandbox main ✗ docker exec -it sandbox_nodejs_0 /bin/bash # entering container to check if the package is installed
 
 # in the container
 nobody@dd4bbcabef63:/workspace$ npm list lodash # verify via npm list

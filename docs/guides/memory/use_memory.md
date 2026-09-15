@@ -8,7 +8,7 @@ sidebar_custom_props: {
 
 # Use memory
 
-RAGFlow's Memory module is built to save everything, including conversation that happens while an Agent is working. It keeps the raw logs of conversations, like what a user says and what the AI says back. It also saves extra information created during the chat, like summaries or notes the AI makes about the interaction. Its main jobs are to make conversations flow smoothly from one to the next, to allow the AI to remember personal details about a user, and to let the AI learn from all its past talks.
+Swipies's Memory module is built to save everything, including conversation that happens while an Agent is working. It keeps the raw logs of conversations, like what a user says and what the AI says back. It also saves extra information created during the chat, like summaries or notes the AI makes about the interaction. Its main jobs are to make conversations flow smoothly from one to the next, to allow the AI to remember personal details about a user, and to let the AI learn from all its past talks.
 
 This module does more than just store the raw data. It is smart enough to sort information into different useful types. It can pull out key facts and meanings (semantic memory), remember specific events and stories from past chats (episodic memory), and hold details needed for the current task (working memory). This turns a simple log into an organized library of past experiences.
 

@@ -37,5 +37,5 @@ Save the conversation to specified memories. Expand the dropdown list to either 
 Enabled by default, indicates whether to link the conversations with the agent app via a user ID. Once activated, you can target specific memories associated with that ID during retrieval.
 
 :::tip NOTE
-RAGFlow allows multiple users to share memory. This feature is therefore associated with **Save to memory**.
+Swipies allows multiple users to share memory. This feature is therefore associated with **Save to memory**.
 :::

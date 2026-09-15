@@ -7,11 +7,11 @@ sidebar_custom_props: {
 ---
 # Configure SSL certificates
 
-Configure SSL certificates for a RAGFlow instance deployed via Docker.
+Configure SSL certificates for a Swipies instance deployed via Docker.
 
 ---
 
-This guide details how to configure SSL certificates for a RAGFlow instance deployed via Docker, using the container name `docker-ragflow-cpu-1` as an example.
+This guide details how to configure SSL certificates for a Swipies instance deployed via Docker, using the container name `docker-swipies-cpu-1` as an example.
 
 ## 1. Prepare certificate files
 
@@ -42,8 +42,8 @@ docker ps
 Transfer the files from your host machine to the container's temporary directory:
 
 ```bash
-docker cp ./fullchain.pem docker-ragflow-cpu-1:/tmp/fullchain.pem
-docker cp ./privkey.pem docker-ragflow-cpu-1:/tmp/privkey.pem
+docker cp ./fullchain.pem docker-swipies-cpu-1:/tmp/fullchain.pem
+docker cp ./privkey.pem docker-swipies-cpu-1:/tmp/privkey.pem
 ```
 
 ## 4. Deploy certificates inside the container
@@ -51,7 +51,7 @@ docker cp ./privkey.pem docker-ragflow-cpu-1:/tmp/privkey.pem
 Enter the container's interactive terminal:
 
 ```bash
-docker exec -it docker-ragflow-cpu-1 /bin/bash
+docker exec -it docker-swipies-cpu-1 /bin/bash
 ```
 
 Once inside, move the files and set appropriate permissions:
@@ -71,12 +71,12 @@ chmod 600 /etc/nginx/ssl/privkey.pem
 Replace the default HTTP configuration with the HTTPS template:
 
 1. Navigate to the configuration directory: `cd /etc/nginx/conf.d/`.
-2. Back up the original configuration: `mv ragflow.conf ragflow.conf.bak`.
-3. Enable the HTTPS template: `cp /etc/nginx/ragflow.https.conf ./ragflow.conf`.
+2. Back up the original configuration: `mv swipies.conf swipies.conf.bak`.
+3. Enable the HTTPS template: `cp /etc/nginx/swipies.https.conf ./swipies.conf`.
 
 ## 6. Edit the HTTPS template
 
-1. Open the configuration file: `vi ragflow.conf`.
+1. Open the configuration file: `vi swipies.conf`.
 2. Ensure `ssl_certificate` and `ssl_certificate_key` paths point to your files in `/etc/nginx/ssl/`.
 3. Verify the Nginx syntax: `nginx -t`.
 
@@ -92,12 +92,12 @@ If the changes do not take effect, exit the container and restart it:
 
 ```bash
 exit
-docker restart docker-ragflow-cpu-1
+docker restart docker-swipies-cpu-1
 ```
 
 ## Configuration persistence
 
 :::tip IMPORTANT
 Changes made via `docker cp` and `docker exec` are lost if the container is removed or stopped via `docker-compose down`.
-**Recommendation**: After a successful test, store the certificates on the host machine and use `volumes` in your `docker-compose.yaml` to mount the certificates and `ragflow.conf` permanently.
+**Recommendation**: After a successful test, store the certificates on the host machine and use `volumes` in your `docker-compose.yaml` to mount the certificates and `swipies.conf` permanently.
 :::

@@ -8,11 +8,11 @@ sidebar_custom_props: {
 
 # Ingestion pipeline quickstart
 
-RAGFlow's ingestion pipeline is a customizable, step-by-step workflow that prepares your documents for high-quality AI retrieval and answering. You can think of it as building blocks: you connect different processing "components" to create a pipeline tailored to your specific documents and needs.
+Swipies's ingestion pipeline is a customizable, step-by-step workflow that prepares your documents for high-quality AI retrieval and answering. You can think of it as building blocks: you connect different processing "components" to create a pipeline tailored to your specific documents and needs.
 
 ---
 
-RAGFlow is an open-source RAG platform with strong document processing capabilities. Its built-in module, DeepDoc, uses intelligent parsing to split documents for accurate retrieval. To handle diverse real-world needs—like varied file sources, complex layouts, and richer semantics—RAGFlow now introduces the *ingestion pipeline*.
+Swipies is an open-source RAG platform with strong document processing capabilities. Its built-in module, DeepDoc, uses intelligent parsing to split documents for accurate retrieval. To handle diverse real-world needs—like varied file sources, complex layouts, and richer semantics—Swipies now introduces the *ingestion pipeline*.
 
 The ingestion pipeline lets you customize every step of document processing:
 
@@ -43,7 +43,7 @@ This flexible pipeline adapts to your data, improving answer quality in RAG.
 A **Parser** component converts your files into structured text while preserving layout, tables, headers, and other formatting. Its supported files 8 categories, 23+ formats including PDF, Image, Audio, Video, Email, Spreadsheet (Excel), Word, PPT, HTML, and Markdown. The following are some key configurations:
 
 - For PDF files, choose one of the following: 
-  - **DeepDoc** (Default): RAGFlow's built-in model. Best for scanned documents or complex layouts with tables.
+  - **DeepDoc** (Default): Swipies's built-in model. Best for scanned documents or complex layouts with tables.
   - **MinerU**: Industry-leading for complex elements like mathematical formulas and intricate layouts.
   - **Naive**: Simple text extraction. Use for clean, text-based PDFs without complex elements.
 - For image files: Default uses OCR. Can also configure Vision Language Models (VLMs) for advanced visual understanding.

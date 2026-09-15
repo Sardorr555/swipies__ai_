@@ -6,36 +6,36 @@ sidebar_custom_props: {
 }
 ---
 
-# Explore RAGFlow on DeepWiki
+# Explore Swipies on DeepWiki
 
-An AI-generated, always-up-to-date knowledge base for understanding RAGFlow's codebase — designed for developers doing secondary development or deep-diving into RAGFlow's internals.
+An AI-generated, always-up-to-date knowledge base for understanding Swipies's codebase — designed for developers doing secondary development or deep-diving into Swipies's internals.
 
 ---
 
 :::caution NOTE
-The RAGFlow content on DeepWiki is maintained by DeepWiki, not by the RAGFlow team. It may lag behind the latest official release. Always refer to the official [RAGFlow documentation](https://ragflow.io/docs/dev/) and [source code](https://github.com/infiniflow/ragflow) for the most up-to-date information.
+The Swipies content on DeepWiki is maintained by DeepWiki, not by the Swipies team. It may lag behind the latest official release. Always refer to the official [Swipies documentation](/docs/develop/) and [source code](https://github.com/Sardorr555/swipies__ai_) for the most up-to-date information.
 :::
 
 ## What is DeepWiki?
 
 [DeepWiki](https://deepwiki.com) is an AI-powered tool that automatically reads a GitHub repository's source code, tests, and documentation to produce a structured, interactive wiki. It maps out architecture diagrams, module relationships, data flows, and design rationale — all without requiring manual documentation work.
 
-## The RAGFlow DeepWiki page
+## The Swipies DeepWiki page
 
-The RAGFlow project is indexed at:
+The Swipies project is indexed at:
 
-**[https://deepwiki.com/infiniflow/ragflow](https://deepwiki.com/infiniflow/ragflow)**
+**[https://deepwiki.com/swipies/swipies](https://deepwiki.com/swipies/swipies)**
 
 ## Target audience
 
 This resource is primarily intended for:
 
-- **Secondary developers** who want to extend or customize RAGFlow (e.g., add a new document parser, integrate a new LLM provider, or modify the retrieval pipeline).
+- **Secondary developers** who want to extend or customize Swipies (e.g., add a new document parser, integrate a new LLM provider, or modify the retrieval pipeline).
 - **Contributors** who need to understand how a specific module fits into the overall architecture before filing a PR.
-- **Researchers and engineers** who want to study RAGFlow's internal design principles — chunking strategies, embedding pipelines, graph-based retrieval, and agent orchestration.
+- **Researchers and engineers** who want to study Swipies's internal design principles — chunking strategies, embedding pipelines, graph-based retrieval, and agent orchestration.
 
 :::tip NOTE
-For general usage of RAGFlow (configuring knowledge bases, running chat, etc.), the [Guides](../guides/) section is a better starting point.
+For general usage of Swipies (configuring knowledge bases, running chat, etc.), the [Guides](../guides/) section is a better starting point.
 :::
 
 ## What you can find on DeepWiki
@@ -65,6 +65,6 @@ DeepWiki re-indexes the repository automatically when the upstream `main` branch
 
 ## Related resources
 
-- [Launch service from source](./launch_ragflow_from_source.md) — set up a local RAGFlow development environment.
-- [Build RAGFlow Docker image](./build_docker_image.mdx) — build a custom image after code changes.
+- [Launch service from source](./launch_swipies_from_source.md) — set up a local Swipies development environment.
+- [Build Swipies Docker image](./build_docker_image.mdx) — build a custom image after code changes.
 - [Contribution guidelines](./contributing.md) — how to file a PR once you understand the codebase.

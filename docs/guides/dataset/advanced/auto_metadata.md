@@ -11,7 +11,7 @@ Automatically extract metadata from uploaded files.
 
 ---
 
-RAGFlow v0.23.0 introduces the Auto-metadata feature, which uses large language models to automatically extract and generate metadata for files—eliminating the need for manual entry. In a typical RAG pipeline, metadata serves two key purposes:
+Swipies v0.23.0 introduces the Auto-metadata feature, which uses large language models to automatically extract and generate metadata for files—eliminating the need for manual entry. In a typical RAG pipeline, metadata serves two key purposes:
 
 - During the retrieval stage: Filters out irrelevant documents, narrowing the search scope to improve retrieval accuracy.
 - During the generation stage: If a text chunk is retrieved, its associated metadata is also passed to the LLM, providing richer contextual information about the source document to aid answer generation.

@@ -15,21 +15,21 @@ Released on July 2, 2026.
 
 ### New features
 
-- Data source connector: Introduces Google BigQuery as a data source connector for document ingestion and incremental syncing. [#15871](https://github.com/infiniflow/ragflow/pull/15871)
-- MCP: Adds two MCP tools `ragflow_list_datasets` and `ragflow_list_chats` to the RAGFlow MCP server. [#15384](https://github.com/infiniflow/ragflow/pull/15384)
+- Data source connector: Introduces Google BigQuery as a data source connector for document ingestion and incremental syncing. [#15871](https://github.com/Sardorr555/swipies__ai_/pull/15871)
+- MCP: Adds two MCP tools `swipies_list_datasets` and `swipies_list_chats` to the Swipies MCP server. [#15384](https://github.com/Sardorr555/swipies__ai_/pull/15384)
 - File ingestion
-  - Integrates the layout-aware SoMark OCR parser into the system for extracting and indexing complex document elements like tables and figures. [#16482](https://github.com/infiniflow/ragflow/pull/16482)
-  - API: Exposes the [Ingest documents](./references/http_api_reference.md#ingest-documents) endpoint for processing documents using a customized pipeline. [#16395](https://github.com/infiniflow/ragflow/pull/16395)
+  - Integrates the layout-aware SoMark OCR parser into the system for extracting and indexing complex document elements like tables and figures. [#16482](https://github.com/Sardorr555/swipies__ai_/pull/16482)
+  - API: Exposes the [Ingest documents](./references/http_api_reference.md#ingest-documents) endpoint for processing documents using a customized pipeline. [#16395](https://github.com/Sardorr555/swipies__ai_/pull/16395)
 
 ### Improvements
 
-- Backend: Introduces partial success handling for batch document uploads, ensuring that a single failed file no longer causes the entire batch to be discarded. [#16438](https://github.com/infiniflow/ragflow/pull/16438)
-- UI/UX: Refactors the global header to dynamically switch between a full desktop navigation bar and a mobile-friendly side drawer based on available screen space, resolving overlapping issues and significantly improving the mobile user experience. [#15984](https://github.com/infiniflow/ragflow/pull/15984)
+- Backend: Introduces partial success handling for batch document uploads, ensuring that a single failed file no longer causes the entire batch to be discarded. [#16438](https://github.com/Sardorr555/swipies__ai_/pull/16438)
+- UI/UX: Refactors the global header to dynamically switch between a full desktop navigation bar and a mobile-friendly side drawer based on available screen space, resolving overlapping issues and significantly improving the mobile user experience. [#15984](https://github.com/Sardorr555/swipies__ai_/pull/15984)
 
 ### Bug fixes
 
-- After setting up the Ollama provider, the system returned the error: 'Failed to access model(name) using this api key'. [#16519](https://github.com/infiniflow/ragflow/pull/16519)
-- Deleting a user/assistant chat message pair mistakenly removed the previous conversation turn's reference due to an index misalignment. [#16436](https://github.com/infiniflow/ragflow/pull/16436)
+- After setting up the Ollama provider, the system returned the error: 'Failed to access model(name) using this api key'. [#16519](https://github.com/Sardorr555/swipies__ai_/pull/16519)
+- Deleting a user/assistant chat message pair mistakenly removed the previous conversation turn's reference due to an index misalignment. [#16436](https://github.com/Sardorr555/swipies__ai_/pull/16436)
 
 ## v0.26.2
 
@@ -38,38 +38,38 @@ Released on June 29, 2026.
 ### New features
 
 - Chat channels:
-  - Integrates WhatsApp via a QR code scan. [#16238](https://github.com/infiniflow/ragflow/pull/16238)
-  - Integrates DingTalk via bot API credentials. [#16183](https://github.com/infiniflow/ragflow/pull/16183)
-  - Integrates WeCom via WebSocket connection. [#16175](https://github.com/infiniflow/ragflow/pull/16175)
-- File parsing: Adds fallback logic for PP-OCRv6 and similar text recognition models, and integrates image parsing within the PaddleOCR pipeline. [#16150](https://github.com/infiniflow/ragflow/pull/16150)
+  - Integrates WhatsApp via a QR code scan. [#16238](https://github.com/Sardorr555/swipies__ai_/pull/16238)
+  - Integrates DingTalk via bot API credentials. [#16183](https://github.com/Sardorr555/swipies__ai_/pull/16183)
+  - Integrates WeCom via WebSocket connection. [#16175](https://github.com/Sardorr555/swipies__ai_/pull/16175)
+- File parsing: Adds fallback logic for PP-OCRv6 and similar text recognition models, and integrates image parsing within the PaddleOCR pipeline. [#16150](https://github.com/Sardorr555/swipies__ai_/pull/16150)
 
 ### Improvements
 
 - Datasets
-  - Adds an edge-case check to the file ingestion logic to safely link empty folders to a dataset. [#16296](https://github.com/infiniflow/ragflow/pull/16296)
-  - Adds pagination to the `get_flatted_meta_by_kbs()` method to prevent CRUD failures relating to datasets with more than 10,000 documents. [#16095](https://github.com/infiniflow/ragflow/pull/16095)
-- Chat channels: Ensures end-user conversation histories persist across restarts but still separate when a channel is bound to a new dialog. [#16274](https://github.com/infiniflow/ragflow/pull/16274)
+  - Adds an edge-case check to the file ingestion logic to safely link empty folders to a dataset. [#16296](https://github.com/Sardorr555/swipies__ai_/pull/16296)
+  - Adds pagination to the `get_flatted_meta_by_kbs()` method to prevent CRUD failures relating to datasets with more than 10,000 documents. [#16095](https://github.com/Sardorr555/swipies__ai_/pull/16095)
+- Chat channels: Ensures end-user conversation histories persist across restarts but still separate when a channel is bound to a new dialog. [#16274](https://github.com/Sardorr555/swipies__ai_/pull/16274)
 
 ### i18n
 
-- Expands i18n coverage and refines translations for the Korean UI. [#16203](https://github.com/infiniflow/ragflow/pull/16203)；
-- Adds missing French translations for chat channels, username validation, and model editing. [#16217](https://github.com/infiniflow/ragflow/pull/16217)
+- Expands i18n coverage and refines translations for the Korean UI. [#16203](https://github.com/Sardorr555/swipies__ai_/pull/16203)；
+- Adds missing French translations for chat channels, username validation, and model editing. [#16217](https://github.com/Sardorr555/swipies__ai_/pull/16217)
 
 ### Bug fixes
 
 - File parsing:
-  - A `ValueError` was raised during `.docx` parsing on 'Heading' styles. [#16284](https://github.com/infiniflow/ragflow/pull/16284)
-  - Tables in `.docx` files were silently removed by the laws document parser. [#16155](https://github.com/infiniflow/ragflow/pull/16155)
-  - Lone Markdown headers were separated from their subsequent sections when a DeepDoc delimiter was set. [#16109](https://github.com/infiniflow/ragflow/pull/16109)
-  - Markdown tables appeared twice in chunk results, once as a standalone chunk and again within a regular text chunk. [#16143](https://github.com/infiniflow/ragflow/pull/16143)
+  - A `ValueError` was raised during `.docx` parsing on 'Heading' styles. [#16284](https://github.com/Sardorr555/swipies__ai_/pull/16284)
+  - Tables in `.docx` files were silently removed by the laws document parser. [#16155](https://github.com/Sardorr555/swipies__ai_/pull/16155)
+  - Lone Markdown headers were separated from their subsequent sections when a DeepDoc delimiter was set. [#16109](https://github.com/Sardorr555/swipies__ai_/pull/16109)
+  - Markdown tables appeared twice in chunk results, once as a standalone chunk and again within a regular text chunk. [#16143](https://github.com/Sardorr555/swipies__ai_/pull/16143)
 - MCP
-  - The MCP server hung indefinitely when encountering empty document pages; the final page of documents was silently dropped due to flawed pagination. [#16285](https://github.com/infiniflow/ragflow/pull/16285)
-  - The MCP connection and dataset discovery process failed because the server's hardcoded fetch limit exceeded the introduced `page_size` restriction. [#16148](https://github.com/infiniflow/ragflow/pull/16148)
+  - The MCP server hung indefinitely when encountering empty document pages; the final page of documents was silently dropped due to flawed pagination. [#16285](https://github.com/Sardorr555/swipies__ai_/pull/16285)
+  - The MCP connection and dataset discovery process failed because the server's hardcoded fetch limit exceeded the introduced `page_size` restriction. [#16148](https://github.com/Sardorr555/swipies__ai_/pull/16148)
 - Dataflow
-  - Restores the dataflow rerun endpoint and ensures the ingestion response includes the DSL payload to reliably render the timeline and parser views. [#16292](https://github.com/infiniflow/ragflow/pull/16292)
-  - Restores dataflow parser defaults and returns the actual SSE payload, ensuring pipeline runs correctly surface message IDs and log updates. [#16290](https://github.com/infiniflow/ragflow/pull/16290)
-- LLM: Failed to use the new `gemini-3.5-flash` model via the Google Cloud (Vertex AI) provider using `eu` or `us` region endpoint. This is resolved by explicitly routing multi-region requests to the required `aiplatform.<region>.rep.googleapis.com` domains instead of the synthesized `<region>-aiplatform.googleapis.com` hosts. [#15990](https://github.com/infiniflow/ragflow/pull/15990)
-- UI/UX: The metadata add modal sent empty values to the backend. [#15229](https://github.com/infiniflow/ragflow/pull/15229)
+  - Restores the dataflow rerun endpoint and ensures the ingestion response includes the DSL payload to reliably render the timeline and parser views. [#16292](https://github.com/Sardorr555/swipies__ai_/pull/16292)
+  - Restores dataflow parser defaults and returns the actual SSE payload, ensuring pipeline runs correctly surface message IDs and log updates. [#16290](https://github.com/Sardorr555/swipies__ai_/pull/16290)
+- LLM: Failed to use the new `gemini-3.5-flash` model via the Google Cloud (Vertex AI) provider using `eu` or `us` region endpoint. This is resolved by explicitly routing multi-region requests to the required `aiplatform.<region>.rep.googleapis.com` domains instead of the synthesized `<region>-aiplatform.googleapis.com` hosts. [#15990](https://github.com/Sardorr555/swipies__ai_/pull/15990)
+- UI/UX: The metadata add modal sent empty values to the backend. [#15229](https://github.com/Sardorr555/swipies__ai_/pull/15229)
 
 ## v0.26.1
 
@@ -77,18 +77,18 @@ Released on June 17, 2026.
 
 ### New features
 
-- **Model providers**: Allows users to modify the model type of existing model configurations. [#16029](https://github.com/infiniflow/ragflow/pull/16029)
-- **Chat channels**: Enables users to deploy RAGFlow assistants as chatbots within external messaging platforms like Discord and Feishu. [#15850](https://github.com/infiniflow/ragflow/pull/15850)
-- **Observability**: Groups multi-turn chat traces by session within Langfuse to facilitate conversation debugging and replay. [#15679](https://github.com/infiniflow/ragflow/pull/15679)
+- **Model providers**: Allows users to modify the model type of existing model configurations. [#16029](https://github.com/Sardorr555/swipies__ai_/pull/16029)
+- **Chat channels**: Enables users to deploy Swipies assistants as chatbots within external messaging platforms like Discord and Feishu. [#15850](https://github.com/Sardorr555/swipies__ai_/pull/15850)
+- **Observability**: Groups multi-turn chat traces by session within Langfuse to facilitate conversation debugging and replay. [#15679](https://github.com/Sardorr555/swipies__ai_/pull/15679)
 
 ### i18n
 
-- Adds ~70 missing translation keys for the French UI. [#15983](https://github.com/infiniflow/ragflow/pull/15983)
+- Adds ~70 missing translation keys for the French UI. [#15983](https://github.com/Sardorr555/swipies__ai_/pull/15983)
 
 ### Bug fixes
 
-- **Model provider**: Fixes inaccurate token billing, corrects embedding truncation limits to prevent indexing failures, and refactors error handling to surface root error causes. [#15424](https://github.com/infiniflow/ragflow/pull/15424)
-- **API**: Adds a legacy mode to the `/chat/completions` endpoint to restore the v0.23.0 style `<think>` output for backward compatibility. [#16014](https://github.com/infiniflow/ragflow/pull/16014) See also [Converse with chat assistant](./references/http_api_reference.md#converse-with-chat-assistant).
+- **Model provider**: Fixes inaccurate token billing, corrects embedding truncation limits to prevent indexing failures, and refactors error handling to surface root error causes. [#15424](https://github.com/Sardorr555/swipies__ai_/pull/15424)
+- **API**: Adds a legacy mode to the `/chat/completions` endpoint to restore the v0.23.0 style `<think>` output for backward compatibility. [#16014](https://github.com/Sardorr555/swipies__ai_/pull/16014) See also [Converse with chat assistant](./references/http_api_reference.md#converse-with-chat-assistant).
 
 ## v0.26.0
 
@@ -98,47 +98,47 @@ Released on June 11, 2026.
 
 - **Model providers**
   - Implements auto-populated model lists for multiple providers, eliminating the need to type model names manually. This feature currently supports: Ollama, OpenRouter, vLLM, OpenAI-API-Compatible, LM-Studio, VolcEngine, Xinference, LocalAI, BaiduYiyan, GPUStack, and Fish Audio.
-  - Allows configuring multiple API keys for the same model provider. [#14595](https://github.com/infiniflow/ragflow/pull/14595)
-  - Dynamically populates model selection dropdowns in the UI by fetching the currently available models directly from remote model providers. [#15711](https://github.com/infiniflow/ragflow/pull/15711)
-- **Data source connectors**: Implements new data source connectors for Outlook, OneDrive, Microsoft Teams, Slack, SharePoint, Salesforce, and Azure Blob Storage. [#15333](https://github.com/infiniflow/ragflow/pull/15333)[#15330](https://github.com/infiniflow/ragflow/pull/15330)[#15332](https://github.com/infiniflow/ragflow/pull/15332)[#15188](https://github.com/infiniflow/ragflow/pull/15188)[#15190](https://github.com/infiniflow/ragflow/pull/15190)[#15462](https://github.com/infiniflow/ragflow/pull/15462)[#15466](https://github.com/infiniflow/ragflow/pull/15466)
-- **Dataset** - Implements a checkpoint and resume feature for community extraction and entity resolution, the most expensive and time-consuming parts of the GraphRAG indexing pipeline. [#15518](https://github.com/infiniflow/ragflow/issues/15518)[#15523](https://github.com/infiniflow/ragflow/pull/15523)
+  - Allows configuring multiple API keys for the same model provider. [#14595](https://github.com/Sardorr555/swipies__ai_/pull/14595)
+  - Dynamically populates model selection dropdowns in the UI by fetching the currently available models directly from remote model providers. [#15711](https://github.com/Sardorr555/swipies__ai_/pull/15711)
+- **Data source connectors**: Implements new data source connectors for Outlook, OneDrive, Microsoft Teams, Slack, SharePoint, Salesforce, and Azure Blob Storage. [#15333](https://github.com/Sardorr555/swipies__ai_/pull/15333)[#15330](https://github.com/Sardorr555/swipies__ai_/pull/15330)[#15332](https://github.com/Sardorr555/swipies__ai_/pull/15332)[#15188](https://github.com/Sardorr555/swipies__ai_/pull/15188)[#15190](https://github.com/Sardorr555/swipies__ai_/pull/15190)[#15462](https://github.com/Sardorr555/swipies__ai_/pull/15462)[#15466](https://github.com/Sardorr555/swipies__ai_/pull/15466)
+- **Dataset** - Implements a checkpoint and resume feature for community extraction and entity resolution, the most expensive and time-consuming parts of the GraphRAG indexing pipeline. [#15518](https://github.com/Sardorr555/swipies__ai_/issues/15518)[#15523](https://github.com/Sardorr555/swipies__ai_/pull/15523)
 
 ### Improvements
 
-- Removes `<think>` text buffering to ensure reasoning-capable models feel faster and more transparent during interactions. [#15891](https://github.com/infiniflow/ragflow/pull/15891)
-- Marks MySQL migrations as applied. [#15504](https://github.com/infiniflow/ragflow/pull/15504)
+- Removes `<think>` text buffering to ensure reasoning-capable models feel faster and more transparent during interactions. [#15891](https://github.com/Sardorr555/swipies__ai_/pull/15891)
+- Marks MySQL migrations as applied. [#15504](https://github.com/Sardorr555/swipies__ai_/pull/15504)
 
 ### Model Support
 
-- Four new SiliconFlow models [#15383](https://github.com/infiniflow/ragflow/pull/15383)
-- MiniMax-M3 model [#15513](https://github.com/infiniflow/ragflow/pull/15513)
-- Latest Anthropic models [#15516](https://github.com/infiniflow/ragflow/pull/15516)
-- Voyage 4 model family [#15516](https://github.com/infiniflow/ragflow/pull/15516)
-- Cohere model list. [#15576](https://github.com/infiniflow/ragflow/pull/15576)
+- Four new SiliconFlow models [#15383](https://github.com/Sardorr555/swipies__ai_/pull/15383)
+- MiniMax-M3 model [#15513](https://github.com/Sardorr555/swipies__ai_/pull/15513)
+- Latest Anthropic models [#15516](https://github.com/Sardorr555/swipies__ai_/pull/15516)
+- Voyage 4 model family [#15516](https://github.com/Sardorr555/swipies__ai_/pull/15516)
+- Cohere model list. [#15576](https://github.com/Sardorr555/swipies__ai_/pull/15576)
 
 ### i18n
 
-- Completes Korean translation. [#15863](https://github.com/infiniflow/ragflow/pull/15863)
-- Completes Italian translation. [#15729](https://github.com/infiniflow/ragflow/pull/15729)
+- Completes Korean translation. [#15863](https://github.com/Sardorr555/swipies__ai_/pull/15863)
+- Completes Italian translation. [#15729](https://github.com/Sardorr555/swipies__ai_/pull/15729)
 
 ### Bug fixes
 
-- The thinking mode of MiniMax models was not correctly enabled. [#15496](https://github.com/infiniflow/ragflow/pull/15496)
-- Infinite loops were triggered when the thinking mode was enabled for Qwen3.5 and Qwen3.6 models. [#15101](https://github.com/infiniflow/ragflow/pull/15101)
-- Streamed answers were being duplicated when using the OpenAI-compatible chat completions API endpoint. [#15286](https://github.com/infiniflow/ragflow/issues/15286)[#15443](https://github.com/infiniflow/ragflow/pull/15443)
-- Serialization errors were caused during chat completions when invalid numeric scores like `NaN` (Not-a-Number) or `Inf` (Infinity) were passed to the JSON encoder. [#15245](https://github.com/infiniflow/ragflow/issues/15245)[#15266](https://github.com/infiniflow/ragflow/pull/15266)
-- Chat completions using LiteLLM providers were failing because unrecognized internal configuration parameters were not being filtered out before reaching the external APIs. [#15427](https://github.com/infiniflow/ragflow/issues/15427)[#15432](https://github.com/infiniflow/ragflow/pull/15432)
-- The OpenAI-compatible chat completions API was defaulting to streamed responses. [#15356](https://github.com/infiniflow/ragflow/issues/15356)[#15394](https://github.com/infiniflow/ragflow/pull/15394)
-- Empty `AND` results were incorrectly dropped during metadata filtering. [#15477](https://github.com/infiniflow/ragflow/pull/15477)
-- Repetitive page chrome, such as headers and footers, was incorrectly extracted as main text by the MinerU parser. [#15335](https://github.com/infiniflow/ragflow/issues/15335)[#15387](https://github.com/infiniflow/ragflow/pull/15387)
-- English chart titles were missing during document extraction in the DeepDoc module. [#15481](https://github.com/infiniflow/ragflow/pull/15481)
-- Empty outputs were returned by the TitleChunker for `json` and `chunks` upstream formats [#14247](https://github.com/infiniflow/ragflow/pull/14247)[#15396](https://github.com/infiniflow/ragflow/pull/15396)
-- An error message was missing when a .tsv file upload attempt failed. [#15284](https://github.com/infiniflow/ragflow/pull/15284)
-- API tokens missing beta values caused token retrieval errors. [#15405](https://github.com/infiniflow/ragflow/pull/15405)
-- Caps the maximum page size to fix system crashes or slowdowns from large queries. [#15292](https://github.com/infiniflow/ragflow/pull/15292)
-- Client errors were caused by the OpenAI-compatible chat completion API incorrectly defaulting to streamed responses. [#15356](https://github.com/infiniflow/ragflow/issues/15356)[#15394](https://github.com/infiniflow/ragflow/pull/15394)
-- HTTP 500 internal server errors were triggered instead of standard 4xx client errors when users attempted to download missing files from the storage backend. [#15369](https://github.com/infiniflow/ragflow/issues/15369)[#15371](https://github.com/infiniflow/ragflow/pull/15371)
-- GraphRAG entity ranking was broken. [#15795](https://github.com/infiniflow/ragflow/issues/15795)[#15797](https://github.com/infiniflow/ragflow/pull/15797)
+- The thinking mode of MiniMax models was not correctly enabled. [#15496](https://github.com/Sardorr555/swipies__ai_/pull/15496)
+- Infinite loops were triggered when the thinking mode was enabled for Qwen3.5 and Qwen3.6 models. [#15101](https://github.com/Sardorr555/swipies__ai_/pull/15101)
+- Streamed answers were being duplicated when using the OpenAI-compatible chat completions API endpoint. [#15286](https://github.com/Sardorr555/swipies__ai_/issues/15286)[#15443](https://github.com/Sardorr555/swipies__ai_/pull/15443)
+- Serialization errors were caused during chat completions when invalid numeric scores like `NaN` (Not-a-Number) or `Inf` (Infinity) were passed to the JSON encoder. [#15245](https://github.com/Sardorr555/swipies__ai_/issues/15245)[#15266](https://github.com/Sardorr555/swipies__ai_/pull/15266)
+- Chat completions using LiteLLM providers were failing because unrecognized internal configuration parameters were not being filtered out before reaching the external APIs. [#15427](https://github.com/Sardorr555/swipies__ai_/issues/15427)[#15432](https://github.com/Sardorr555/swipies__ai_/pull/15432)
+- The OpenAI-compatible chat completions API was defaulting to streamed responses. [#15356](https://github.com/Sardorr555/swipies__ai_/issues/15356)[#15394](https://github.com/Sardorr555/swipies__ai_/pull/15394)
+- Empty `AND` results were incorrectly dropped during metadata filtering. [#15477](https://github.com/Sardorr555/swipies__ai_/pull/15477)
+- Repetitive page chrome, such as headers and footers, was incorrectly extracted as main text by the MinerU parser. [#15335](https://github.com/Sardorr555/swipies__ai_/issues/15335)[#15387](https://github.com/Sardorr555/swipies__ai_/pull/15387)
+- English chart titles were missing during document extraction in the DeepDoc module. [#15481](https://github.com/Sardorr555/swipies__ai_/pull/15481)
+- Empty outputs were returned by the TitleChunker for `json` and `chunks` upstream formats [#14247](https://github.com/Sardorr555/swipies__ai_/pull/14247)[#15396](https://github.com/Sardorr555/swipies__ai_/pull/15396)
+- An error message was missing when a .tsv file upload attempt failed. [#15284](https://github.com/Sardorr555/swipies__ai_/pull/15284)
+- API tokens missing beta values caused token retrieval errors. [#15405](https://github.com/Sardorr555/swipies__ai_/pull/15405)
+- Caps the maximum page size to fix system crashes or slowdowns from large queries. [#15292](https://github.com/Sardorr555/swipies__ai_/pull/15292)
+- Client errors were caused by the OpenAI-compatible chat completion API incorrectly defaulting to streamed responses. [#15356](https://github.com/Sardorr555/swipies__ai_/issues/15356)[#15394](https://github.com/Sardorr555/swipies__ai_/pull/15394)
+- HTTP 500 internal server errors were triggered instead of standard 4xx client errors when users attempted to download missing files from the storage backend. [#15369](https://github.com/Sardorr555/swipies__ai_/issues/15369)[#15371](https://github.com/Sardorr555/swipies__ai_/pull/15371)
+- GraphRAG entity ranking was broken. [#15795](https://github.com/Sardorr555/swipies__ai_/issues/15795)[#15797](https://github.com/Sardorr555/swipies__ai_/pull/15797)
 
 ## v0.25.6
 
@@ -146,34 +146,34 @@ Released on May 26, 2026.
 
 ### New features
 
-- Agent: Adds a **Browser** component that enables AI to autonomously navigate and interact with web pages. [#14888](https://github.com/infiniflow/ragflow/pull/14888)
+- Agent: Adds a **Browser** component that enables AI to autonomously navigate and interact with web pages. [#14888](https://github.com/Sardorr555/swipies__ai_/pull/14888)
 
 ### Improvements
 
-- RAG: Stabilizes RAPTOR's AHC mode (Ψ-RAG), which was introduced in v0.25.3 to resolve previous semantic loss by building individual document trees and then merging them hierarchically. This new approach significantly accelerates index construction and outperforms the legacy GMM mode in Recall@5 and average F1. Users retain the option to switch between the two modes. [#14674](https://github.com/infiniflow/ragflow/issues/14674)[#14679](https://github.com/infiniflow/ragflow/pull/14679)
-- Agent: Introduces lightweight `@tool` decorator to streamline Python function registration process for chat models. [#15047](https://github.com/infiniflow/ragflow/pull/15047)
-- Agent: Enables agent messages to display base64-encoded images. [#15212](https://github.com/infiniflow/ragflow/pull/15212)
-- Agent: Exposes **Doc Generator** component's file metadata as discrete variables. [#15080](https://github.com/infiniflow/ragflow/pull/15080)
-- Agent: Allows developers to pass `chat_template_kwargs` to agent chat completion endpoint. [#14182](https://github.com/infiniflow/ragflow/issues/14182)[#14542](https://github.com/infiniflow/ragflow/pull/14542) See also [Converse with agent](./references/http_api_reference.md#converse-with-agent)
+- RAG: Stabilizes RAPTOR's AHC mode (Ψ-RAG), which was introduced in v0.25.3 to resolve previous semantic loss by building individual document trees and then merging them hierarchically. This new approach significantly accelerates index construction and outperforms the legacy GMM mode in Recall@5 and average F1. Users retain the option to switch between the two modes. [#14674](https://github.com/Sardorr555/swipies__ai_/issues/14674)[#14679](https://github.com/Sardorr555/swipies__ai_/pull/14679)
+- Agent: Introduces lightweight `@tool` decorator to streamline Python function registration process for chat models. [#15047](https://github.com/Sardorr555/swipies__ai_/pull/15047)
+- Agent: Enables agent messages to display base64-encoded images. [#15212](https://github.com/Sardorr555/swipies__ai_/pull/15212)
+- Agent: Exposes **Doc Generator** component's file metadata as discrete variables. [#15080](https://github.com/Sardorr555/swipies__ai_/pull/15080)
+- Agent: Allows developers to pass `chat_template_kwargs` to agent chat completion endpoint. [#14182](https://github.com/Sardorr555/swipies__ai_/issues/14182)[#14542](https://github.com/Sardorr555/swipies__ai_/pull/14542) See also [Converse with agent](./references/http_api_reference.md#converse-with-agent)
 
 ### Bug fixes
 
-- Fixes `/chat/completions` to allow sending only latest message in API payload and removes requirement to transmit full conversation history. [#15197](https://github.com/infiniflow/ragflow/pull/15197) See also [Converse with chat assistant](./references/http_api_reference.md#converse-with-chat-assistant).
-- Weight assigned to vector similarity was not properly applied during the retrieval phase. [#15108](https://github.com/infiniflow/ragflow/pull/15108)
-- Users were unable to save parser configurations on the dataset configuration page. [#15175](https://github.com/infiniflow/ragflow/issues/15175)[#15177](https://github.com/infiniflow/ragflow/pull/15177)
-- Log text on a data source's details page was truncated. [#15056](https://github.com/infiniflow/ragflow/pull/15056)
-- An unresponsive "Status" filter on the document list page prevented users from filtering or managing uploaded documents by their parsing status. [#15170](https://github.com/infiniflow/ragflow/issues/15170)[#15216](https://github.com/infiniflow/ragflow/pull/15216)
-- Calling `GET /agents/<agent_id>/sessions/<session_id>` with a missing or invalid session ID caused a server error. [#14989](https://github.com/infiniflow/ragflow/issues/14989)[#15011](https://github.com/infiniflow/ragflow/pull/15011)
-- RAG: RAPTOR construction process halted when using the [Infinity](https://github.com/infiniflow/infinity) document engine. [#14998](https://github.com/infiniflow/ragflow/pull/14998)
-- The system failed to correctly parse structured content returned by Mistral reasoning models. [#14805](https://github.com/infiniflow/ragflow/pull/14805)
-- The **Parser** component in an ingestion pipeline incorrectly retained raw HTML tags in its text output. [#14831](https://github.com/infiniflow/ragflow/issues/14831)[#14920](https://github.com/infiniflow/ragflow/pull/14920)
-- The table parser incorrectly extracted or attached metadata during document processing. [#15127](https://github.com/infiniflow/ragflow/pull/15127)
-- Asynchronous background tasks and nested event loops were not properly handled, causing backend instability. [#14755](https://github.com/infiniflow/ragflow/issues/14755)[#14761](https://github.com/infiniflow/ragflow/pull/14761)
-- Prompt variables configured in the **Agent** component disappeared after being entered. [#15218](https://github.com/infiniflow/ragflow/pull/15218)
+- Fixes `/chat/completions` to allow sending only latest message in API payload and removes requirement to transmit full conversation history. [#15197](https://github.com/Sardorr555/swipies__ai_/pull/15197) See also [Converse with chat assistant](./references/http_api_reference.md#converse-with-chat-assistant).
+- Weight assigned to vector similarity was not properly applied during the retrieval phase. [#15108](https://github.com/Sardorr555/swipies__ai_/pull/15108)
+- Users were unable to save parser configurations on the dataset configuration page. [#15175](https://github.com/Sardorr555/swipies__ai_/issues/15175)[#15177](https://github.com/Sardorr555/swipies__ai_/pull/15177)
+- Log text on a data source's details page was truncated. [#15056](https://github.com/Sardorr555/swipies__ai_/pull/15056)
+- An unresponsive "Status" filter on the document list page prevented users from filtering or managing uploaded documents by their parsing status. [#15170](https://github.com/Sardorr555/swipies__ai_/issues/15170)[#15216](https://github.com/Sardorr555/swipies__ai_/pull/15216)
+- Calling `GET /agents/<agent_id>/sessions/<session_id>` with a missing or invalid session ID caused a server error. [#14989](https://github.com/Sardorr555/swipies__ai_/issues/14989)[#15011](https://github.com/Sardorr555/swipies__ai_/pull/15011)
+- RAG: RAPTOR construction process halted when using the [Infinity](https://github.com/swipies/infinity) document engine. [#14998](https://github.com/Sardorr555/swipies__ai_/pull/14998)
+- The system failed to correctly parse structured content returned by Mistral reasoning models. [#14805](https://github.com/Sardorr555/swipies__ai_/pull/14805)
+- The **Parser** component in an ingestion pipeline incorrectly retained raw HTML tags in its text output. [#14831](https://github.com/Sardorr555/swipies__ai_/issues/14831)[#14920](https://github.com/Sardorr555/swipies__ai_/pull/14920)
+- The table parser incorrectly extracted or attached metadata during document processing. [#15127](https://github.com/Sardorr555/swipies__ai_/pull/15127)
+- Asynchronous background tasks and nested event loops were not properly handled, causing backend instability. [#14755](https://github.com/Sardorr555/swipies__ai_/issues/14755)[#14761](https://github.com/Sardorr555/swipies__ai_/pull/14761)
+- Prompt variables configured in the **Agent** component disappeared after being entered. [#15218](https://github.com/Sardorr555/swipies__ai_/pull/15218)
 
 ### i18n
 
-- Fully translates the interface into French with the addition of roughly 1,400 localization keys. [#15192](https://github.com/infiniflow/ragflow/pull/15192)
+- Fully translates the interface into French with the addition of roughly 1,400 localization keys. [#15192](https://github.com/Sardorr555/swipies__ai_/pull/15192)
 
 ## v0.25.5
 
@@ -181,31 +181,31 @@ Released on May 20, 2026.
 
 ### New features
 
-- Introduces local and SSH provider options for sandbox environment settings within the admin interface, allowing administrators to configure execution environments without editing environment variables. [#15039](https://github.com/infiniflow/ragflow/pull/15039)
+- Introduces local and SSH provider options for sandbox environment settings within the admin interface, allowing administrators to configure execution environments without editing environment variables. [#15039](https://github.com/Sardorr555/swipies__ai_/pull/15039)
 
 ### Improvements
 
-- Elasticsearch: Accelerates the retrieval process by removing unnecessary vector fetches during the main search phase, reducing latency by 50–100%. [#14970](https://github.com/infiniflow/ragflow/pull/14970)
-- Pushes metadata filters down to the [Infinity](https://github.com/infiniflow/infinity) document engine, significantly improving retrieval performance. [#14974](https://github.com/infiniflow/ragflow/pull/14974)
-- Introduces Redis-based caching for Text-to-Speech model outputs, eliminating redundant API calls for identical text to reduce latency and save provider quota. [#14851](https://github.com/infiniflow/ragflow/pull/14851)
-- Reduces server startup time by 5-9 seconds and saves roughly 200MB of memory by replacing heavy module-level imports with lazy runtime loading. [#14973](https://github.com/infiniflow/ragflow/pull/14973)
-- Optimizes the connector dashboard. [#14979](https://github.com/infiniflow/ragflow/pull/14979)
-- Increases minimum supported Python version to 3.13. [#14767](https://github.com/infiniflow/ragflow/pull/14767)
+- Elasticsearch: Accelerates the retrieval process by removing unnecessary vector fetches during the main search phase, reducing latency by 50–100%. [#14970](https://github.com/Sardorr555/swipies__ai_/pull/14970)
+- Pushes metadata filters down to the [Infinity](https://github.com/swipies/infinity) document engine, significantly improving retrieval performance. [#14974](https://github.com/Sardorr555/swipies__ai_/pull/14974)
+- Introduces Redis-based caching for Text-to-Speech model outputs, eliminating redundant API calls for identical text to reduce latency and save provider quota. [#14851](https://github.com/Sardorr555/swipies__ai_/pull/14851)
+- Reduces server startup time by 5-9 seconds and saves roughly 200MB of memory by replacing heavy module-level imports with lazy runtime loading. [#14973](https://github.com/Sardorr555/swipies__ai_/pull/14973)
+- Optimizes the connector dashboard. [#14979](https://github.com/Sardorr555/swipies__ai_/pull/14979)
+- Increases minimum supported Python version to 3.13. [#14767](https://github.com/Sardorr555/swipies__ai_/pull/14767)
 
 ### Bug fixes
 
-- Atomic database updates: Wraps document and dataset chunk counter updates in atomic database transactions to prevent data drift. [#14866](https://github.com/infiniflow/ragflow/issues/14866)[#14867](https://github.com/infiniflow/ragflow/pull/14867)
-- Data source: the GitHub data source connector was failing to sync any content by default. [#13975](https://github.com/infiniflow/ragflow/issues/13975)[#14062](https://github.com/infiniflow/ragflow/pull/14062)
-- The Tongyi-Qianwen text embedding models were hitting the wrong API endpoints when configured with international or Chinese regional URLs. [#14784](https://github.com/infiniflow/ragflow/pull/14784)
-- Agent: Fully aggregates message content, reference data, and structured outputs across all generated events to fix incomplete responses in the non-streaming `/api/v1/agentbots/<agent_id>/completions` endpoint. [#13384](https://github.com/infiniflow/ragflow/issues/13384)[#14848](https://github.com/infiniflow/ragflow/pull/14848)
-- Prevents the **Retrieval** component's manual metadata filters from getting stuck on the first loop's value by making a temporary copy of the filter settings to preserve the original placeholder.[#12582](https://github.com/infiniflow/ragflow/issues/12582)[#14849](https://github.com/infiniflow/ragflow/pull/14849)
-- Agent: Fixed MCP tool name duplication.[#14217](https://github.com/infiniflow/ragflow/pull/14217)
-- Agent: top_k passing issues [#14760](https://github.com/infiniflow/ragflow/pull/14760)
-- Chat file attachment loss. [#13993](https://github.com/infiniflow/ragflow/pull/13993)
-- IMAP synchronization process crashed when multiple email addresses or quoted commas were detected in "From" header. [#14963](https://github.com/infiniflow/ragflow/issues/14963)[#14964](https://github.com/infiniflow/ragflow/issues/14964)[#15006](https://github.com/infiniflow/ragflow/pull/15006)
-- Langfuse integration failed to track token consumption. [#9837](https://github.com/infiniflow/ragflow/issues/9837)[#13294](https://github.com/infiniflow/ragflow/pull/13294)
-- Enhances the stability and fault tolerance of the reranking module by implementing network timeouts, crash-prevention safeguards, and specific provider bug fixes. [#14264](https://github.com/infiniflow/ragflow/pull/14264)
-- Increases minimum supported Nginx to 1.31.0. [#14928](https://github.com/infiniflow/ragflow/issues/14928)[#15007](https://github.com/infiniflow/ragflow/pull/15007)
+- Atomic database updates: Wraps document and dataset chunk counter updates in atomic database transactions to prevent data drift. [#14866](https://github.com/Sardorr555/swipies__ai_/issues/14866)[#14867](https://github.com/Sardorr555/swipies__ai_/pull/14867)
+- Data source: the GitHub data source connector was failing to sync any content by default. [#13975](https://github.com/Sardorr555/swipies__ai_/issues/13975)[#14062](https://github.com/Sardorr555/swipies__ai_/pull/14062)
+- The Tongyi-Qianwen text embedding models were hitting the wrong API endpoints when configured with international or Chinese regional URLs. [#14784](https://github.com/Sardorr555/swipies__ai_/pull/14784)
+- Agent: Fully aggregates message content, reference data, and structured outputs across all generated events to fix incomplete responses in the non-streaming `/api/v1/agentbots/<agent_id>/completions` endpoint. [#13384](https://github.com/Sardorr555/swipies__ai_/issues/13384)[#14848](https://github.com/Sardorr555/swipies__ai_/pull/14848)
+- Prevents the **Retrieval** component's manual metadata filters from getting stuck on the first loop's value by making a temporary copy of the filter settings to preserve the original placeholder.[#12582](https://github.com/Sardorr555/swipies__ai_/issues/12582)[#14849](https://github.com/Sardorr555/swipies__ai_/pull/14849)
+- Agent: Fixed MCP tool name duplication.[#14217](https://github.com/Sardorr555/swipies__ai_/pull/14217)
+- Agent: top_k passing issues [#14760](https://github.com/Sardorr555/swipies__ai_/pull/14760)
+- Chat file attachment loss. [#13993](https://github.com/Sardorr555/swipies__ai_/pull/13993)
+- IMAP synchronization process crashed when multiple email addresses or quoted commas were detected in "From" header. [#14963](https://github.com/Sardorr555/swipies__ai_/issues/14963)[#14964](https://github.com/Sardorr555/swipies__ai_/issues/14964)[#15006](https://github.com/Sardorr555/swipies__ai_/pull/15006)
+- Langfuse integration failed to track token consumption. [#9837](https://github.com/Sardorr555/swipies__ai_/issues/9837)[#13294](https://github.com/Sardorr555/swipies__ai_/pull/13294)
+- Enhances the stability and fault tolerance of the reranking module by implementing network timeouts, crash-prevention safeguards, and specific provider bug fixes. [#14264](https://github.com/Sardorr555/swipies__ai_/pull/14264)
+- Increases minimum supported Nginx to 1.31.0. [#14928](https://github.com/Sardorr555/swipies__ai_/issues/14928)[#15007](https://github.com/Sardorr555/swipies__ai_/pull/15007)
 
 ## v0.25.4
 
@@ -213,20 +213,20 @@ Released on May 14, 2026
 
 ### New features
 
-- Introduces a generic RESTful API connector, enabling configurable data ingestion from niche or enterprise-specific platforms into RAGFlow. [#13545](https://github.com/infiniflow/ragflow/pull/13545)
-- Agent: Implements tag management to help users categorize, filter, and sort their Agent apps. [#14799](https://github.com/infiniflow/ragflow/pull/14799)
+- Introduces a generic RESTful API connector, enabling configurable data ingestion from niche or enterprise-specific platforms into Swipies. [#13545](https://github.com/Sardorr555/swipies__ai_/pull/13545)
+- Agent: Implements tag management to help users categorize, filter, and sort their Agent apps. [#14799](https://github.com/Sardorr555/swipies__ai_/pull/14799)
 
 ### Improvements
 
-- Adds widget customization and persistence, allowing users to tailor their chat interface and ensure their settings are retained across sessions. [#14603](https://github.com/infiniflow/ragflow/pull/14603)
+- Adds widget customization and persistence, allowing users to tailor their chat interface and ensure their settings are retained across sessions. [#14603](https://github.com/Sardorr555/swipies__ai_/pull/14603)
 
 ### Model support
 
-- Adds gpt-5.4-mini and gpt-5.4-nano to the OpenAI model list [#14908](https://github.com/infiniflow/ragflow/pull/14908)
+- Adds gpt-5.4-mini and gpt-5.4-nano to the OpenAI model list [#14908](https://github.com/Sardorr555/swipies__ai_/pull/14908)
 
 ### Bug fixes
 
-- Corrects the API endpoint for downloading original files from a specified dataset. [#14910](https://github.com/infiniflow/ragflow/pull/14910) See also [Download document](./references/http_api_reference.md#download-document).
+- Corrects the API endpoint for downloading original files from a specified dataset. [#14910](https://github.com/Sardorr555/swipies__ai_/pull/14910) See also [Download document](./references/http_api_reference.md#download-document).
 
 ## v0.25.3
 
@@ -234,27 +234,27 @@ Released on May 13, 2026.
 
 ### New features
 
-- Enables assigning specific roles like content, metadata, and primary key, to table columns. [#13710](https://github.com/infiniflow/ragflow/pull/13710)
+- Enables assigning specific roles like content, metadata, and primary key, to table columns. [#13710](https://github.com/Sardorr555/swipies__ai_/pull/13710)
 
 ### Improvements
 
-- S3 connector: Implements ETag-based incremental synchronization for S3 data sources, drastically reducing sync time and AWS egress costs for users with massive-volumn S3-based datasets. [#14628](https://github.com/infiniflow/ragflow/issues/14628)[#14677](https://github.com/infiniflow/ragflow/pull/14677)
+- S3 connector: Implements ETag-based incremental synchronization for S3 data sources, drastically reducing sync time and AWS egress costs for users with massive-volumn S3-based datasets. [#14628](https://github.com/Sardorr555/swipies__ai_/issues/14628)[#14677](https://github.com/Sardorr555/swipies__ai_/pull/14677)
 - API refactoring and security
   - Continues the transition of web APIs to RESTful conventions, ensuring backward compatibility for all legacy endpoints.
-  - Binds the `user_id` in `POST /api/v1/messages` to the authenticated JWT principal. [#14745](https://github.com/infiniflow/ragflow/pull/14745)
-  - Secures the sandbox executor against dynamic and indirect code execution bypasses. [#14690](https://github.com/infiniflow/ragflow/pull/14690)
-  - Enforces HTTP request timeouts across the LLM integration layer. [#14313](https://github.com/infiniflow/ragflow/pull/14313)
-- Refactors thread pool lifecycle management in `file_service.py` and `task_executor.py` for more efficient, lightweight resource handling. [#14668](https://github.com/infiniflow/ragflow/pull/14668)
-- Agent: Enables the **Code** component to output and display file-based attachments, such as charts and images, directly in the chat. [#14787](https://github.com/infiniflow/ragflow/pull/14787)
-- Reduces ingestion server boot time. [#14894](https://github.com/infiniflow/ragflow/pull/14894)
+  - Binds the `user_id` in `POST /api/v1/messages` to the authenticated JWT principal. [#14745](https://github.com/Sardorr555/swipies__ai_/pull/14745)
+  - Secures the sandbox executor against dynamic and indirect code execution bypasses. [#14690](https://github.com/Sardorr555/swipies__ai_/pull/14690)
+  - Enforces HTTP request timeouts across the LLM integration layer. [#14313](https://github.com/Sardorr555/swipies__ai_/pull/14313)
+- Refactors thread pool lifecycle management in `file_service.py` and `task_executor.py` for more efficient, lightweight resource handling. [#14668](https://github.com/Sardorr555/swipies__ai_/pull/14668)
+- Agent: Enables the **Code** component to output and display file-based attachments, such as charts and images, directly in the chat. [#14787](https://github.com/Sardorr555/swipies__ai_/pull/14787)
+- Reduces ingestion server boot time. [#14894](https://github.com/Sardorr555/swipies__ai_/pull/14894)
 
 ### Bug fixes
 
-- Images in multi-sheet Excel workbooks were not scoped by sheet, causing images to be incorrectly attributed across different worksheets. [#14120](https://github.com/infiniflow/ragflow/pull/14120)
-- Agent: Splits the **Message** component output into distinct 'waiting' and 'message' states when nested inside an **Iteration** component alongside a **Wait** component. [#14839](https://github.com/infiniflow/ragflow/pull/14839)
-- Agent: The **Iteration** component failed to correctly pass array elements to its child components due to a naming mismatch between the expected `IterationItem` alias and the runtime `item` variable. [#14146](https://github.com/infiniflow/ragflow/pull/14146)
-- Agent: Template strings in tool-type components like **Email** and **Invoke** failed to interpolate; `{{variable}}` placeholders were passed through as raw text. [#14601](https://github.com/infiniflow/ragflow/pull/14601)
-- Volcengine (Doubao/Ark) endpoints were not visible in the provider list. [#14702](https://github.com/infiniflow/ragflow/pull/14702)
+- Images in multi-sheet Excel workbooks were not scoped by sheet, causing images to be incorrectly attributed across different worksheets. [#14120](https://github.com/Sardorr555/swipies__ai_/pull/14120)
+- Agent: Splits the **Message** component output into distinct 'waiting' and 'message' states when nested inside an **Iteration** component alongside a **Wait** component. [#14839](https://github.com/Sardorr555/swipies__ai_/pull/14839)
+- Agent: The **Iteration** component failed to correctly pass array elements to its child components due to a naming mismatch between the expected `IterationItem` alias and the runtime `item` variable. [#14146](https://github.com/Sardorr555/swipies__ai_/pull/14146)
+- Agent: Template strings in tool-type components like **Email** and **Invoke** failed to interpolate; `{{variable}}` placeholders were passed through as raw text. [#14601](https://github.com/Sardorr555/swipies__ai_/pull/14601)
+- Volcengine (Doubao/Ark) endpoints were not visible in the provider list. [#14702](https://github.com/Sardorr555/swipies__ai_/pull/14702)
 
 ## v0.25.2
 
@@ -266,13 +266,13 @@ Released on May 11, 2026.
 
 ### Data source
 
-- Introduces a lightweight snapshot mechanism for synchronizing deleted files across eight data sources—including Moodle, DingTalk AI Table, and RSS—ensuring a faithful reflection of all remote data sources. [#14362](https://github.com/infiniflow/ragflow/issues/14362)[#14499](https://github.com/infiniflow/ragflow/pull/14499)
+- Introduces a lightweight snapshot mechanism for synchronizing deleted files across eight data sources—including Moodle, DingTalk AI Table, and RSS—ensuring a faithful reflection of all remote data sources. [#14362](https://github.com/Sardorr555/swipies__ai_/issues/14362)[#14499](https://github.com/Sardorr555/swipies__ai_/pull/14499)
 
 ### Bug fixes
 
 - Metadata visibility issues during v0.24.0 to v0.25.0 upgrades.
 - Duplicate chat output.
-- Metadata filtering was handled in-memory instead of leveraging Elasticsearch, incurring performance bottlenecks. [#14576](https://github.com/infiniflow/ragflow/pull/14576)
+- Metadata filtering was handled in-memory instead of leveraging Elasticsearch, incurring performance bottlenecks. [#14576](https://github.com/Sardorr555/swipies__ai_/pull/14576)
 
 ## v0.25.1
 
@@ -281,12 +281,12 @@ Released on April 29, 2026.
 ### Improvements
 
 - API refactoring and unification: Standardizes web APIs to RESTful conventions across all endpoints, unifying document creation and indexing flows while maintaining backward compatibility.
-- Parsing optimizations: Adds [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf) PDF parser backend. [#14097](https://github.com/infiniflow/ragflow/pull/14097)
-- Introduces lazy loading and chunked parsing for large PDFs (&gt;50 pages), significantly reducing memory footprint. [#14385](https://github.com/infiniflow/ragflow/pull/14385)
+- Parsing optimizations: Adds [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf) PDF parser backend. [#14097](https://github.com/Sardorr555/swipies__ai_/pull/14097)
+- Introduces lazy loading and chunked parsing for large PDFs (&gt;50 pages), significantly reducing memory footprint. [#14385](https://github.com/Sardorr555/swipies__ai_/pull/14385)
 
 ### Data source
 
-Enables synchronizing deleted files in Bitbucket, Gmail, Google Drive, and Airtable. [#14362](https://github.com/infiniflow/ragflow/issues/14362)
+Enables synchronizing deleted files in Bitbucket, Gmail, Google Drive, and Airtable. [#14362](https://github.com/Sardorr555/swipies__ai_/issues/14362)
 
 ### Model support
 
@@ -314,16 +314,16 @@ Released on April 21, 2026.
   - Adds a beginner's data analytics Agent template.
 - Memory: Supports user-level memory storage and retrieval.
 - New UI language: Arabic (implemented a Right-to-Left layout), Bulgarian, and Turkish.
-- Ecosystem integration: RAGFlow datasets are accessible via OpenClaw.
+- Ecosystem integration: Swipies datasets are accessible via OpenClaw.
 
 ### Improvements
 
 - Optimizes Docx parsing by supporting image lazy-loading, reducing memory footprint.
 - Optimizes Chat, Agent, and Search embedded dialog pages for mobile compatibility.
 - Underlying system & infrastructure optimization:
-  - Bumps RAGFlow's document engine, Elasticsearch to 9.x.
+  - Bumps Swipies's document engine, Elasticsearch to 9.x.
   - Switches the default object storage container to `pgsty/minio` due to the deprecation of the official MinIO images.
-  - Adds database migration scripts; see [this readme](https://github.com/infiniflow/ragflow/tree/74b44e1aa3ecd6687b3aa4ef731d0187720c3cb5/tools/scripts) for further details.
+  - Adds database migration scripts; see [this readme](https://github.com/Sardorr555/swipies__ai_/tree/74b44e1aa3ecd6687b3aa4ef731d0187720c3cb5/tools/scripts) for further details.
 
 ### Model support
 
@@ -404,7 +404,7 @@ Released on December 31, 2025.
 ### Fixed issues
 
 - Memory: 
-  - The RAGFlow server failed to start if an empty memory object existed.
+  - The Swipies server failed to start if an empty memory object existed.
   - Unable to delete a newly created empty Memory.
 - RAG: MDX file parsing was not supported.
 
@@ -441,7 +441,7 @@ Released on December 27, 2025.
 ### Improvements
 
 - RAG: Accelerates GraphRAG generation significantly.
-- Bumps RAGFlow's document engine, [Infinity](https://github.com/infiniflow/infinity) to v0.6.15 (backward compatible).
+- Bumps Swipies's document engine, [Infinity](https://github.com/swipies/infinity) to v0.6.15 (backward compatible).
 
 ### Data sources
 
@@ -489,8 +489,8 @@ Released on November 19, 2025.
 
 ### Fixed issues
 
-- A v0.22.0 issue: Users failed to parse uploaded files or switch embedding model in a dataset containing parsed files using a built-in model from a `-full` RAGFlow edition.
-- Image concatenated in Word documents. [#11310](https://github.com/infiniflow/ragflow/pull/11310)
+- A v0.22.0 issue: Users failed to parse uploaded files or switch embedding model in a dataset containing parsed files using a built-in model from a `-full` Swipies edition.
+- Image concatenated in Word documents. [#11310](https://github.com/Sardorr555/swipies__ai_/pull/11310)
 - Mixed images and text were not correctly displayed in the chat history.
 
 ### Newly supported models
@@ -523,7 +523,7 @@ From this release onwards, we ship only the slim edition (without embedding mode
 
 - Agent: Supports visualizing previous components' outputs in the **Await Response** component.
 - Revamps the model provider page.
-- Upgrades RAGFlow's document engine Infinity to v0.6.5.
+- Upgrades Swipies's document engine Infinity to v0.6.5.
 
 ### Added Models
 
@@ -544,7 +544,7 @@ Released on October 23, 2025.
 ### Improvements
 
 - Enhances UI/UX for the dataset and personal center pages.
-- Upgrades RAGFlow's document engine, [Infinity](https://github.com/infiniflow/infinity), to v0.6.1.
+- Upgrades Swipies's document engine, [Infinity](https://github.com/swipies/infinity), to v0.6.1.
 
 ### Fixed issues
 
@@ -560,12 +560,12 @@ Released on October 15, 2025.
 - GraphRAG & RAPTOR write process optimized: Replaces the automatic incremental build process with manual batch building, significantly reducing construction overhead.
 - Long-context RAG: Automatically generates document-level table of contents (TOC) structures to mitigate context loss caused by inaccurate or excessive chunking, substantially improving retrieval quality. This feature is now available via a TOC extraction template. See [here](./guides/dataset/advanced/extract_table_of_contents.md).
 - Video file parsing: Expands the system's multimodal data processing capabilities by supporting video file parsing.
-- Admin CLI: Introduces a new command-line tool for system administration, allowing users to manage and monitor RAGFlow's service status via command line.
+- Admin CLI: Introduces a new command-line tool for system administration, allowing users to manage and monitor Swipies's service status via command line.
 
 ### Improvements
 
-- Redesigns RAGFlow's Login and Registration pages.
-- Upgrades RAGFlow's document engine Infinity to v0.6.0.
+- Redesigns Swipies's Login and Registration pages.
+- Upgrades Swipies's document engine Infinity to v0.6.0.
 
 ### Newly supported models
 
@@ -611,11 +611,11 @@ Released on September 10, 2025.
 
 #### HTTP APIs
 
-- Adds a body parameter `"metadata_condition"` to the [Retrieve chunks](./references/http_api_reference.md#retrieve-chunks) method, enabling metadata-based chunk filtering during retrieval. [#9877](https://github.com/infiniflow/ragflow/pull/9877)
+- Adds a body parameter `"metadata_condition"` to the [Retrieve chunks](./references/http_api_reference.md#retrieve-chunks) method, enabling metadata-based chunk filtering during retrieval. [#9877](https://github.com/Sardorr555/swipies__ai_/pull/9877)
 
 #### Python APIs
 
-- Adds a parameter `metadata_condition` to the [Retrieve chunks](./references/python_api_reference.md#retrieve-chunks) method, enabling metadata-based chunk filtering during retrieval. [#9877](https://github.com/infiniflow/ragflow/pull/9877)
+- Adds a parameter `metadata_condition` to the [Retrieve chunks](./references/python_api_reference.md#retrieve-chunks) method, enabling metadata-based chunk filtering during retrieval. [#9877](https://github.com/Sardorr555/swipies__ai_/pull/9877)
 
 ## v0.20.4
 
@@ -666,14 +666,14 @@ Released on August 20, 2025.
 
 ### New Agent templates
 
-- Report Agent: A template for generating summary reports in internal question-answering scenarios, supporting the display of tables and formulae.  [#9427](https://github.com/infiniflow/ragflow/pull/9427)
+- Report Agent: A template for generating summary reports in internal question-answering scenarios, supporting the display of tables and formulae.  [#9427](https://github.com/Sardorr555/swipies__ai_/pull/9427)
 
 ### Fixed issues
 
 - The timeout mechanism introduced in v0.20.0 caused tasks like GraphRAG to halt.
 - Predefined opening greeting in the **Agent** component was missing during conversations.  
 - An automatic line break issue in the prompt editor.  
-- A memory leak issue caused by PyPDF. [#9469](https://github.com/infiniflow/ragflow/pull/9469)
+- A memory leak issue caused by PyPDF. [#9469](https://github.com/Sardorr555/swipies__ai_/pull/9469)
 
 ### API changes
 
@@ -698,8 +698,8 @@ Released on August 8, 2025.
 ### New agent templates (both workflow and agentic)
 
 - Text-to-SQL data expert Workflow: Empowers non-technical teams (e.g., operations, product) to independently query business data.
-- Choose Your Knowledge Base Workflow: Lets users select a dataset to query during conversations. [#9325](https://github.com/infiniflow/ragflow/pull/9325)
-- Choose Your Knowledge Base Agent: Delivers higher-quality responses with extended reasoning time, suited for complex queries. [#9325](https://github.com/infiniflow/ragflow/pull/9325)
+- Choose Your Knowledge Base Workflow: Lets users select a dataset to query during conversations. [#9325](https://github.com/Sardorr555/swipies__ai_/pull/9325)
+- Choose Your Knowledge Base Agent: Delivers higher-quality responses with extended reasoning time, suited for complex queries. [#9325](https://github.com/Sardorr555/swipies__ai_/pull/9325)
 
 ### Fixed Issues
 
@@ -719,20 +719,20 @@ From v0.20.0 onwards, Agents are no longer compatible with earlier versions, and
 
 - Unified orchestration of both Agents and Workflows.
 - A comprehensive refactor of the Agent, greatly enhancing its capabilities and usability, with support for Multi-Agent configurations, planning and reflection, and visual functionalities.
-- Fully implemented MCP functionality, allowing for MCP Server import, Agents functioning as MCP Clients, and RAGFlow itself operating as an MCP Server.
+- Fully implemented MCP functionality, allowing for MCP Server import, Agents functioning as MCP Clients, and Swipies itself operating as an MCP Server.
 - Access to runtime logs for Agents.
 - Chat histories with Agents available through the management panel.
 - Integration of a new, more robust version of Infinity, enabling the auto-tagging functionality with Infinity as the underlying document engine.
 - An OpenAI-compatible API that supports file reference information.
 - Support for new models, including Kimi K2, Grok 4, and Voyage embedding.
-- RAGFlow’s codebase is now mirrored on Gitee.
+- Swipies’s codebase is now mirrored on Gitee.
 - Introduction of a new model provider, Gitee AI.
 
 ### New agent templates introduced
 
 - Multi-Agent based Deep research: Collaborative Agent teamwork led by a Lead Agent with multiple Subagents, distinct from traditional workflow orchestration.
 - An intelligent Q&A chatbot leveraging internal datasets, designed for customer service and training scenarios.
-- A resume analysis template used by the RAGFlow team to screen, analyze, and record candidate information.
+- A resume analysis template used by the Swipies team to screen, analyze, and record candidate information.
 - A blog generation workflow that transforms raw ideas into SEO-friendly blog content.
 - An intelligent customer service workflow.
 - A user feedback analysis template that directs user feedback to appropriate teams through semantic analysis.
@@ -747,17 +747,17 @@ Released on June 23, 2025.
 ### Fixed issues
 
 - A memory leak issue during high-concurrency requests.
-- Large file parsing freezes when GraphRAG entity resolution is enabled. [#8223](https://github.com/infiniflow/ragflow/pull/8223)
-- A context error occurring when using Sandbox in standalone mode. [#8340](https://github.com/infiniflow/ragflow/pull/8340)
-- An excessive CPU usage issue caused by Ollama. [#8216](https://github.com/infiniflow/ragflow/pull/8216)
-- A bug in the Code Component. [#7949](https://github.com/infiniflow/ragflow/pull/7949)
-- Added support for models installed via Ollama or VLLM when creating a dataset through the API. [#8069](https://github.com/infiniflow/ragflow/pull/8069)
-- Enabled role-based authentication for S3 bucket access. [#8149](https://github.com/infiniflow/ragflow/pull/8149)
+- Large file parsing freezes when GraphRAG entity resolution is enabled. [#8223](https://github.com/Sardorr555/swipies__ai_/pull/8223)
+- A context error occurring when using Sandbox in standalone mode. [#8340](https://github.com/Sardorr555/swipies__ai_/pull/8340)
+- An excessive CPU usage issue caused by Ollama. [#8216](https://github.com/Sardorr555/swipies__ai_/pull/8216)
+- A bug in the Code Component. [#7949](https://github.com/Sardorr555/swipies__ai_/pull/7949)
+- Added support for models installed via Ollama or VLLM when creating a dataset through the API. [#8069](https://github.com/Sardorr555/swipies__ai_/pull/8069)
+- Enabled role-based authentication for S3 bucket access. [#8149](https://github.com/Sardorr555/swipies__ai_/pull/8149)
 
 ### Newly supported models
 
-- Qwen 3 Embedding. [#8184](https://github.com/infiniflow/ragflow/pull/8184) 
-- Voyage Multimodal 3. [#7987](https://github.com/infiniflow/ragflow/pull/7987)
+- Qwen 3 Embedding. [#8184](https://github.com/Sardorr555/swipies__ai_/pull/8184) 
+- Voyage Multimodal 3. [#7987](https://github.com/Sardorr555/swipies__ai_/pull/7987)
 
 ## v0.19.0
 
@@ -774,7 +774,7 @@ Released on May 26, 2025.
 
 - Agent component: Enables tool calling within the Generate Component. Thanks to [notsyncing](https://github.com/notsyncing).
 - Markdown rendering: Image references in a markdown file can be displayed after chunking. Thanks to [Woody-Hu](https://github.com/Woody-Hu).
-- Document engine support: OpenSearch can now be used as RAGFlow's document engine. Thanks to [pyyuhao](https://github.com/pyyuhao).
+- Document engine support: OpenSearch can now be used as Swipies's document engine. Thanks to [pyyuhao](https://github.com/pyyuhao).
 
 ### Documentation
 
@@ -794,7 +794,7 @@ From this release onwards, built-in rerank models have been removed because they
 
 ### New features
 
-- MCP server: enables access to RAGFlow's datasets via MCP.
+- MCP server: enables access to Swipies's datasets via MCP.
 - DeepDoc supports adopting VLM model as a processing pipeline during document layout recognition, enabling in-depth analysis of images in PDF and DOCX files.
 - OpenAI-compatible APIs: Agents can be called via OpenAI-compatible APIs.
 - User registration control: administrators can enable or disable user registration through an environment variable.
@@ -815,7 +815,7 @@ From this release onwards, built-in rerank models have been removed because they
 - [Set page rank](./guides/dataset/set_page_rank.md)
 - [Enable RAPTOR](./guides/dataset/advanced/enable_raptor.md)
 - [Set variables for your chat assistant](./guides/chat/set_chat_variables.md)
-- [Launch RAGFlow MCP server](./develop/mcp/launch_mcp_server.md)
+- [Launch Swipies MCP server](./develop/mcp/launch_mcp_server.md)
 
 ## v0.17.2
 
@@ -826,7 +826,7 @@ Released on March 13, 2025.
 - Removes the **Max_tokens** setting from **Chat configuration**.
 - Removes the **Max_tokens** setting from **Generate**, **Rewrite**, **Categorize**, **Keyword** agent components.
 
-From this release onwards, if you still see RAGFlow's responses being cut short or truncated, check the **Max_tokens** setting of your model provider.
+From this release onwards, if you still see Swipies's responses being cut short or truncated, check the **Max_tokens** setting of your model provider.
 
 ### Improvements
 
@@ -894,7 +894,7 @@ Released on March 3, 2025.
 - Models: Updates the supported model list for Tongyi-Qianwen (Qwen), adding DeepSeek-specific models; adds ModelScope as a model provider.
 - APIs: Document metadata can be updated through an API.
 
-The following diagram illustrates the workflow of RAGFlow's Deep research:
+The following diagram illustrates the workflow of Swipies's Deep research:
 
 ![Image](https://github.com/user-attachments/assets/f65d4759-4f09-4d9d-9549-c0e1fe907525)
 
@@ -929,12 +929,12 @@ Released on February 6, 2025.
 - Adds an **Iteration** agent component and a **Research report generator** agent template. See [here](./guides/agent/agent_component_reference/iteration.mdx).
 - New UI language: Portuguese.
 - Allows setting metadata for a specific file in a dataset to enhance AI-powered chats. See [here](./guides/dataset/set_metadata.md).
-- Upgrades RAGFlow's document engine [Infinity](https://github.com/infiniflow/infinity) to v0.6.0.dev3.
-- Supports GPU acceleration for DeepDoc (see [docker-compose-gpu.yml](https://github.com/infiniflow/ragflow/blob/main/docker/docker-compose-gpu.yml)).
+- Upgrades Swipies's document engine [Infinity](https://github.com/swipies/infinity) to v0.6.0.dev3.
+- Supports GPU acceleration for DeepDoc (see [docker-compose-gpu.yml](https://github.com/Sardorr555/swipies__ai_/blob/main/docker/docker-compose-gpu.yml)).
 - Supports creating and referencing a **Tag** dataset as a key milestone towards bridging the semantic gap between query and response.
 
 :::danger IMPORTANT
-The **Tag dataset** feature is *unavailable* on the [Infinity](https://github.com/infiniflow/infinity) document engine.
+The **Tag dataset** feature is *unavailable* on the [Infinity](https://github.com/swipies/infinity) document engine.
 :::
 
 ### Documentation
@@ -963,14 +963,14 @@ Released on December 25, 2024.
 
 ### Upgrades
 
-- Upgrades RAGFlow's document engine [Infinity](https://github.com/infiniflow/infinity) to v0.5.2.
+- Upgrades Swipies's document engine [Infinity](https://github.com/swipies/infinity) to v0.5.2.
 - Enhances the log display of document parsing status.
 
 ### Fixed issues
 
 This release fixes the following issues:
 
-- The `SCORE not found` and `position_int` errors returned by [Infinity](https://github.com/infiniflow/infinity).
+- The `SCORE not found` and `position_int` errors returned by [Infinity](https://github.com/swipies/infinity).
 - Once an embedding model in a specific dataset is changed, embedding models in other datasets can no longer be changed.
 - Slow response in question-answering and AI search due to repetitive loading of the embedding model.
 - Fails to parse documents with RAPTOR.
@@ -983,13 +983,13 @@ This release fixes the following issues:
 
 Adds an optional parameter `"user_id"` to the following APIs:
 
-- [Create session with chat assistant](https://ragflow.io/docs/dev/http_api_reference#create-session-with-chat-assistant)
-- [Update chat assistant's session](https://ragflow.io/docs/dev/http_api_reference#update-chat-assistants-session)
-- [List chat assistant's sessions](https://ragflow.io/docs/dev/http_api_reference#list-chat-assistants-sessions)
-- [Create session with agent](https://ragflow.io/docs/dev/http_api_reference#create-session-with-agent)
-- [Converse with chat assistant](https://ragflow.io/docs/dev/http_api_reference#converse-with-chat-assistant)
-- [Converse with agent](https://ragflow.io/docs/dev/http_api_reference#converse-with-agent)
-- [List agent sessions](https://ragflow.io/docs/dev/http_api_reference#list-agent-sessions)
+- [Create session with chat assistant](/docs/develop/http_api_reference#create-session-with-chat-assistant)
+- [Update chat assistant's session](/docs/develop/http_api_reference#update-chat-assistants-session)
+- [List chat assistant's sessions](/docs/develop/http_api_reference#list-chat-assistants-sessions)
+- [Create session with agent](/docs/develop/http_api_reference#create-session-with-agent)
+- [Converse with chat assistant](/docs/develop/http_api_reference#converse-with-chat-assistant)
+- [Converse with agent](/docs/develop/http_api_reference#converse-with-agent)
+- [List agent sessions](/docs/develop/http_api_reference#list-agent-sessions)
 
 ## v0.15.0
 
@@ -999,8 +999,8 @@ Released on December 18, 2024.
 
 - Introduces additional Agent-specific APIs.
 - Supports using page rank score to improve retrieval performance when searching across multiple datasets.
-- Offers an iframe in Chat and Agent to facilitate the integration of RAGFlow into your webpage.
-- Adds a Helm chart for deploying RAGFlow on Kubernetes.
+- Offers an iframe in Chat and Agent to facilitate the integration of Swipies into your webpage.
+- Adds a Helm chart for deploying Swipies on Kubernetes.
 - Supports importing or exporting an agent in JSON format.
 - Supports step run for Agent components/tools.
 - Adds a new UI language: Japanese.
@@ -1011,19 +1011,19 @@ Released on December 18, 2024.
 ### Improvements
 
 - Upgrades the Document Layout Analysis model in DeepDoc.
-- Significantly enhances the retrieval performance when using [Infinity](https://github.com/infiniflow/infinity) as document engine.
+- Significantly enhances the retrieval performance when using [Infinity](https://github.com/swipies/infinity) as document engine.
 
 ### API changes
 
 #### HTTP APIs
 
-- [List agent sessions](https://ragflow.io/docs/dev/http_api_reference#list-agent-sessions)
-- [List agents](https://ragflow.io/docs/dev/http_api_reference#list-agents)
+- [List agent sessions](/docs/develop/http_api_reference#list-agent-sessions)
+- [List agents](/docs/develop/http_api_reference#list-agents)
 
 #### Python APIs
 
-- [List agent sessions](https://ragflow.io/docs/dev/python_api_reference#list-agent-sessions)
-- [List agents](https://ragflow.io/docs/dev/python_api_reference#list-agents)
+- [List agent sessions](/docs/develop/python_api_reference#list-agent-sessions)
+- [List agents](/docs/develop/python_api_reference#list-agents)
 
 ## v0.14.1
 
@@ -1031,7 +1031,7 @@ Released on November 29, 2024.
 
 ### Improvements
 
-Adds [Infinity's configuration file](https://github.com/infiniflow/ragflow/blob/main/docker/infinity_conf.toml) to facilitate integration and customization of [Infinity](https://github.com/infiniflow/infinity) as a document engine. From this release onwards, updates to Infinity's configuration can be made directly within RAGFlow and will take effect immediately after restarting RAGFlow using `docker compose`. [#3715](https://github.com/infiniflow/ragflow/pull/3715)
+Adds [Infinity's configuration file](https://github.com/Sardorr555/swipies__ai_/blob/main/docker/infinity_conf.toml) to facilitate integration and customization of [Infinity](https://github.com/swipies/infinity) as a document engine. From this release onwards, updates to Infinity's configuration can be made directly within Swipies and will take effect immediately after restarting Swipies using `docker compose`. [#3715](https://github.com/Sardorr555/swipies__ai_/pull/3715)
 
 ### Fixed issues
 
@@ -1049,7 +1049,7 @@ Released on November 26, 2024.
 
 ### New features
 
-- Supports [Infinity](https://github.com/infiniflow/infinity) or Elasticsearch (default) as document engine for vector storage and full-text indexing. [#2894](https://github.com/infiniflow/ragflow/pull/2894)
+- Supports [Infinity](https://github.com/swipies/infinity) or Elasticsearch (default) as document engine for vector storage and full-text indexing. [#2894](https://github.com/Sardorr555/swipies__ai_/pull/2894)
 - Enhances user experience by adding more variables to the Agent and implementing auto-saving.
 - Adds a three-step translation agent template, inspired by [Andrew Ng's translation agent](https://github.com/andrewyng/translation-agent).
 - Adds an SEO-optimized blog writing agent template.
@@ -1062,33 +1062,33 @@ Released on November 26, 2024.
 
 ### Compatibility changes
 
-From this release onwards, **service_config.yaml.template** replaces **service_config.yaml** for configuring backend services. Upon Docker container startup, the environment variables defined in this template file are automatically populated and a **service_config.yaml** is auto-generated from it. [#3341](https://github.com/infiniflow/ragflow/pull/3341)
+From this release onwards, **service_config.yaml.template** replaces **service_config.yaml** for configuring backend services. Upon Docker container startup, the environment variables defined in this template file are automatically populated and a **service_config.yaml** is auto-generated from it. [#3341](https://github.com/Sardorr555/swipies__ai_/pull/3341)
 
 This approach eliminates the need to manually update **service_config.yaml** after making changes to **.env**, facilitating dynamic environment configurations.
 
 :::danger IMPORTANT
-Ensure that you [upgrade **both** your code **and** Docker image to this release](./administrator/upgrade_ragflow.mdx#upgrade-ragflow-to-the-most-recent-officially-published-release) before trying this new approach.
+Ensure that you [upgrade **both** your code **and** Docker image to this release](./administrator/upgrade_swipies.mdx#upgrade-swipies-to-given-release) before trying this new approach.
 :::
 
 ### API changes
 
 #### HTTP APIs
 
-- [Create session with agent](https://ragflow.io/docs/dev/http_api_reference#create-session-with-agent)
-- [Converse with agent](https://ragflow.io/docs/dev/http_api_reference#converse-with-agent)
+- [Create session with agent](/docs/develop/http_api_reference#create-session-with-agent)
+- [Converse with agent](/docs/develop/http_api_reference#converse-with-agent)
 
 #### Python APIs
 
-- [Create session with agent](https://ragflow.io/docs/dev/python_api_reference#create-session-with-agent)
-- [Converse with agent](https://ragflow.io/docs/dev/python_api_reference#create-session-with-agent)
+- [Create session with agent](/docs/develop/python_api_reference#create-session-with-agent)
+- [Converse with agent](/docs/develop/python_api_reference#create-session-with-agent)
 
 ### Documentation
 
 #### Added documents
 
-- [Configurations](https://ragflow.io/docs/dev/configurations)
+- [Configurations](/docs/develop/configurations)
 - [Manage team members](./guides/team/manage_team_members.md)
-- [Run health check on RAGFlow's dependencies](https://ragflow.io/docs/dev/run_health_check)
+- [Run health check on Swipies's dependencies](/docs/develop/run_health_check)
 
 ## v0.13.0
 
@@ -1105,10 +1105,10 @@ Released on October 31, 2024.
 - Introduces HTTP and Python APIs for dataset management, file management within dataset, and chat assistant management.
 
 :::tip NOTE
-To download RAGFlow's Python SDK:
+To download Swipies's Python SDK:
 
 ```bash
-pip install ragflow-sdk==0.13.0
+pip install swipies-sdk==0.13.0
 ```
 :::
 
@@ -1116,7 +1116,7 @@ pip install ragflow-sdk==0.13.0
 
 #### Added documents
 
-- [Acquire a RAGFlow API key](./develop/acquire_ragflow_api_key.md)
+- [Acquire a Swipies API key](./develop/acquire_swipies_api_key.md)
 - [HTTP API Reference](./references/http_api_reference.md)
 - [Python API Reference](./references/python_api_reference.md)
 
@@ -1126,7 +1126,7 @@ Released on September 30, 2024.
 
 ### New features
 
-- Offers slim editions of RAGFlow's Docker images, which do not include built-in BGE/BCE embedding or reranking models.
+- Offers slim editions of Swipies's Docker images, which do not include built-in BGE/BCE embedding or reranking models.
 - Improves the results of multi-round dialogues.
 - Enables users to remove added LLM vendors.
 - Adds support for **OpenTTS** and **SparkTTS** models.
@@ -1136,7 +1136,7 @@ Released on September 30, 2024.
 
 ### Compatibility changes
 
-From this release onwards, RAGFlow offers slim editions of its Docker images to improve the experience for users with limited Internet access. A slim edition of RAGFlow's Docker image does not include built-in BGE/BCE embedding models and has a size of about 1GB; a full edition of RAGFlow is approximately 9GB and includes two built-in embedding models.
+From this release onwards, Swipies offers slim editions of its Docker images to improve the experience for users with limited Internet access. A slim edition of Swipies's Docker image does not include built-in BGE/BCE embedding models and has a size of about 1GB; a full edition of Swipies is approximately 9GB and includes two built-in embedding models.
 
 The default Docker image edition is `nightly-slim`. The following list clarifies the differences between various editions:
 
@@ -1145,13 +1145,13 @@ The default Docker image edition is `nightly-slim`. The following list clarifies
 - `nightly`: The full edition of the most recent tested Docker image.
 - `v0.12.0`: The full edition of the most recent **officially released** Docker image.
 
-See [Upgrade RAGFlow](./administrator/upgrade_ragflow.mdx) for instructions on upgrading.
+See [Upgrade Swipies](./administrator/upgrade_swipies.mdx) for instructions on upgrading.
 
 ### Documentation
 
 #### Added documents
 
-- [Upgrade RAGFlow](./administrator/upgrade_ragflow.mdx)
+- [Upgrade Swipies](./administrator/upgrade_swipies.mdx)
 
 ## v0.11.0
 
@@ -1159,7 +1159,7 @@ Released on September 14, 2024.
 
 ### New features
 
--  Introduces an AI search interface within the RAGFlow UI.
+-  Introduces an AI search interface within the Swipies UI.
 -  Supports audio output via **FishAudio** or **Tongyi Qwen TTS**.
 -  Allows the use of Postgres for metadata storage, in addition to MySQL.
 -  Supports object storage options with S3 or Azure Blob.
@@ -1224,20 +1224,20 @@ Released on May 31, 2024.
 - Supports ARM64 platforms.
 
 :::danger IMPORTANT
-While we also test RAGFlow on ARM64 platforms, we do not maintain RAGFlow Docker images for ARM.
+While we also test Swipies on ARM64 platforms, we do not maintain Swipies Docker images for ARM.
 
-If you are on an ARM platform, follow [this guide](./develop/build_docker_image.mdx) to build a RAGFlow Docker image.
+If you are on an ARM platform, follow [this guide](./develop/build_docker_image.mdx) to build a Swipies Docker image.
 :::
 
 ### API changes
 
 #### HTTP API
 
-- [Delete documents](https://ragflow.io/docs/dev/http_api_reference#delete-documents)
+- [Delete documents](/docs/develop/http_api_reference#delete-documents)
 
 #### Python API
 
-- [Delete documents](https://ragflow.io/docs/dev/python_api_reference#delete-documents)
+- [Delete documents](/docs/develop/python_api_reference#delete-documents)
 
 ## v0.6.0
 
@@ -1254,11 +1254,11 @@ Released on May 21, 2024.
 
 #### HTTP API
 
-- [Retrieve chunks](https://ragflow.io/docs/dev/http_api_reference#retrieve-chunks)
+- [Retrieve chunks](/docs/develop/http_api_reference#retrieve-chunks)
 
 #### Python API
 
-- [Retrieve chunks](https://ragflow.io/docs/dev/python_api_reference#retrieve-chunks)
+- [Retrieve chunks](/docs/develop/python_api_reference#retrieve-chunks)
 
 ## v0.5.0
 

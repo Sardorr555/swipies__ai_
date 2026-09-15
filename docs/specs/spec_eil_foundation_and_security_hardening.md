@@ -21,7 +21,7 @@
 ### 1.1 Context & Background
 The Enterprise Intelligence Layer (EIL) is designed to extract structured business intelligence (decisions, action items, unresolved questions, domain expertise signals, topics, and knowledge graphs) from user dialogues and organizational onboarding questionnaires.
 
-However, during branch reconciliation and development iterations, the underlying database schemas were partially lost in [`api/db/db_models.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/db_models.py), while the service and API layers were left active. Furthermore, an architectural and security audit revealed severe vulnerabilities and disconnected components in the current branch `test`.
+However, during branch reconciliation and development iterations, the underlying database schemas were partially lost in [`api/db/db_models.py`](file:///D:/swipies/swipies_25/swipies/api/db/db_models.py), while the service and API layers were left active. Furthermore, an architectural and security audit revealed severe vulnerabilities and disconnected components in the current branch `test`.
 
 ```mermaid
 flowchart TD
@@ -34,7 +34,7 @@ flowchart TD
 
     subgraph HardenedPhase1State [✅ Hardened Phase 1 Architecture]
         USER["Tenant User (Regular)"] -->|Requests with tenant_id| GATED_API["intelligence_api.py<br/>(Enforced Tenant Isolation)"]
-        ADMIN["Superuser (admin@ragflow.io)"] -->|Requests global=true| GATED_API
+        ADMIN["Superuser (admin@docs.swipies.app)"] -->|Requests global=true| GATED_API
         GATED_API -->|Strict Scope| RESTORED_DB[("Restored DB Models & Tables with tenant_id Index")]
         
         CHAT_SVC["dialog_service.py"] -->|asyncio.create_task (Non-blocking)| EIL_WORKER["EILBackgroundWorker"]
@@ -47,14 +47,14 @@ flowchart TD
 ### 1.2 Critical Defects & Security Findings
 
 1. **Critical IDOR & Data Leakage (`intelligence_api.py`):**
-   - All 11 REST endpoints in [`api/apps/restful_apis/intelligence_api.py`](file:///D:/ragflow/swipies_25/ragflow/api/apps/restful_apis/intelligence_api.py) use only `@login_required` without `@require_superuser` or administrative role validation.
+   - All 11 REST endpoints in [`api/apps/restful_apis/intelligence_api.py`](file:///D:/swipies/swipies_25/swipies/api/apps/restful_apis/intelligence_api.py) use only `@login_required` without `@require_superuser` or administrative role validation.
    - The query parameter `global` defaults to `"true"`, which immediately drops tenant filtering (`tenant_id = None`).
    - **Impact:** Any authenticated low-privilege user can download the complete CSV export of all user onboarding data (`/v1/intelligence/export/excel?global=true`), exposing email addresses, names, company names, industry sectors, and organizational roles across all tenants.
 2. **Missing Database Models & Runtime 500s:**
-   - [`api/db/services/intelligence_service.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/services/intelligence_service.py) imports `KnowledgeEntity`, `KnowledgeRelation`, `ConversationMetadata`, `ExpertiseProfile`, `SummaryRegistry`, and `EILAuditLog` from `api.db.db_models`.
-   - None of these classes exist in [`api/db/db_models.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/db_models.py). Service invocations fail silently into `except Exception` blocks or throw runtime `AttributeError`/`OperationalError`.
+   - [`api/db/services/intelligence_service.py`](file:///D:/swipies/swipies_25/swipies/api/db/services/intelligence_service.py) imports `KnowledgeEntity`, `KnowledgeRelation`, `ConversationMetadata`, `ExpertiseProfile`, `SummaryRegistry`, and `EILAuditLog` from `api.db.db_models`.
+   - None of these classes exist in [`api/db/db_models.py`](file:///D:/swipies/swipies_25/swipies/api/db/db_models.py). Service invocations fail silently into `except Exception` blocks or throw runtime `AttributeError`/`OperationalError`.
 3. **Dead Pipeline Worker:**
-   - [`rag/intelligence/pipeline/worker.py`](file:///D:/ragflow/swipies_25/ragflow/rag/intelligence/pipeline/worker.py) (`EILBackgroundWorker`) is completely decoupled from [`api/db/services/dialog_service.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/services/dialog_service.py). No conversation events are processed or recorded in real-time.
+   - [`rag/intelligence/pipeline/worker.py`](file:///D:/swipies/swipies_25/swipies/rag/intelligence/pipeline/worker.py) (`EILBackgroundWorker`) is completely decoupled from [`api/db/services/dialog_service.py`](file:///D:/swipies/swipies_25/swipies/api/db/services/dialog_service.py). No conversation events are processed or recorded in real-time.
 4. **Privacy System Disconnect & Plaintext Entity Risk:**
    - `PIIAnonymizer` in `rag/intelligence/security/anonymizer.py` operates in total isolation with two primitive regex patterns (email and phone), completely ignoring the platform's `sensitive_data_replacement` subsystem ($A \to B$ placeholder engine).
    - If an entity extractor extracts a person's real name (Word A), without strict integration it would be written to `knowledge_entity.name` in plaintext, creating an un-redacted parallel intelligence graph.
@@ -64,12 +64,12 @@ flowchart TD
 ## 2. Scope of Phase 1
 
 ### In Scope (Phase 1)
-- **Database Schema Restoration:** Implement Peewee ORM classes for `KnowledgeEntity`, `EntityAlias`, `KnowledgeRelation`, `ConversationMetadata`, `ExpertiseProfile`, `SummaryRegistry`, and `EILAuditLog` in [`api/db/db_models.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/db_models.py) with database initialization.
+- **Database Schema Restoration:** Implement Peewee ORM classes for `KnowledgeEntity`, `EntityAlias`, `KnowledgeRelation`, `ConversationMetadata`, `ExpertiseProfile`, `SummaryRegistry`, and `EILAuditLog` in [`api/db/db_models.py`](file:///D:/swipies/swipies_25/swipies/api/db/db_models.py) with database initialization.
 - **Access Control & IDOR Hardening:**
-  - Secure all 11 endpoints in [`api/apps/restful_apis/intelligence_api.py`](file:///D:/ragflow/swipies_25/ragflow/api/apps/restful_apis/intelligence_api.py).
+  - Secure all 11 endpoints in [`api/apps/restful_apis/intelligence_api.py`](file:///D:/swipies/swipies_25/swipies/api/apps/restful_apis/intelligence_api.py).
   - Cross-tenant data access (`global=true`) and administrative export (`/intelligence/export/excel`) strictly restricted to superusers (`current_user.is_superuser == True`).
   - Regular tenant users are strictly scoped to their own `tenant_id`. Any attempt by a non-superuser to supply `global=true` is automatically overridden to `tenant_id = current_user.tenant_id` (fail-safe).
-- **Asynchronous Chat Pipeline Hook:** Integrate `EILBackgroundWorker.process_conversation_event()` non-blockingly into [`api/db/services/dialog_service.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/services/dialog_service.py) via `asyncio.create_task` or a background thread pool, with zero impact on chat latency or availability.
+- **Asynchronous Chat Pipeline Hook:** Integrate `EILBackgroundWorker.process_conversation_event()` non-blockingly into [`api/db/services/dialog_service.py`](file:///D:/swipies/swipies_25/swipies/api/db/services/dialog_service.py) via `asyncio.create_task` or a background thread pool, with zero impact on chat latency or availability.
 - **Strict Privacy Contract with `sensitive_data_replacement`:** Technical enforcement guaranteeing that zero Word A sensitive terms ever reach EIL tables.
 - **Security & Multi-Tenant Regression Test Suite:** Comprehensive test coverage validating database persistence, IDOR prevention, tenant boundary isolation, and database-wide zero-plaintext assertion.
 
@@ -83,7 +83,7 @@ flowchart TD
 ## 3. Acceptance Criteria & Requirements
 
 ### AC-1: Database Schema Restoration & Service Stability
-1. The following Peewee model classes MUST be defined in [`api/db/db_models.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/db_models.py):
+1. The following Peewee model classes MUST be defined in [`api/db/db_models.py`](file:///D:/swipies/swipies_25/swipies/api/db/db_models.py):
    - `KnowledgeEntity` (fields: `id`, `tenant_id`, `name`, `entity_type`, `description`, `canonical_id`, `attributes`, `confidence_score`) -> table `knowledge_entity`.
    - `EntityAlias` (fields: `id`, `tenant_id`, `alias_name`, `entity_id`, `source_type`) -> table `entity_alias`.
    - `KnowledgeRelation` (fields: `id`, `tenant_id`, `src_entity_id`, `predicate`, `dst_entity_id`, `weight`, `confidence_score`, `conversation_id`, `document_id`, `source_snippet`) -> table `knowledge_relation`.
@@ -91,8 +91,8 @@ flowchart TD
    - `ExpertiseProfile` (fields: `id`, `tenant_id`, `user_id`, `domain_topic`, `confidence_score`, `depth_level`, `contribution_count`, `evidence_summary`, `last_active_at`) -> table `expertise_profile`.
    - `SummaryRegistry` (fields: `id`, `tenant_id`, `summary_type`, `target_id`, `title`, `content`, `key_decisions`, `key_risks`, `trending_topics`, `period_start`, `period_end`) -> table `summary_registry`.
    - `EILAuditLog` (fields: `id`, `tenant_id`, `operator_id`, `action`, `resource_type`, `resource_id`, `details`, `ip_address`) -> table `eil_audit_log`.
-2. All tables MUST be registered in `init_database_tables()` in [`api/db/db_models.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/db_models.py) to guarantee automatic creation on system bootstrap.
-3. `KnowledgeEntityService`, `EnterpriseSearchService`, `ExecutiveDigestService`, `ProactiveIntelligenceService`, and `ExpertiseService` in [`api/db/services/intelligence_service.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/services/intelligence_service.py) MUST execute queries without unhandled exceptions or missing model errors.
+2. All tables MUST be registered in `init_database_tables()` in [`api/db/db_models.py`](file:///D:/swipies/swipies_25/swipies/api/db/db_models.py) to guarantee automatic creation on system bootstrap.
+3. `KnowledgeEntityService`, `EnterpriseSearchService`, `ExecutiveDigestService`, `ProactiveIntelligenceService`, and `ExpertiseService` in [`api/db/services/intelligence_service.py`](file:///D:/swipies/swipies_25/swipies/api/db/services/intelligence_service.py) MUST execute queries without unhandled exceptions or missing model errors.
 
 ---
 
@@ -101,7 +101,7 @@ flowchart TD
    - MUST verify `current_user.is_superuser`.
    - If `current_user.is_superuser` is `False`, the endpoint MUST return HTTP 403 Forbidden (`RetCode.AUTHENTICATION_ERROR` / "Permission denied").
 2. **Tenant Isolation Helper:**
-   - A unified tenant resolution function MUST be used across all routes in [`api/apps/restful_apis/intelligence_api.py`](file:///D:/ragflow/swipies_25/ragflow/api/apps/restful_apis/intelligence_api.py):
+   - A unified tenant resolution function MUST be used across all routes in [`api/apps/restful_apis/intelligence_api.py`](file:///D:/swipies/swipies_25/swipies/api/apps/restful_apis/intelligence_api.py):
      ```python
      def resolve_scoped_tenant_id(user, requested_global: bool) -> str | None:
          if requested_global and getattr(user, "is_superuser", False):
@@ -129,7 +129,7 @@ flowchart TD
 
 ### AC-3: Non-Blocking Chat Pipeline Integration
 1. **Trigger Point:**
-   - In [`api/db/services/dialog_service.py`](file:///D:/ragflow/swipies_25/ragflow/api/db/services/dialog_service.py), upon the completion of a chat turn (both in `async_chat_solo` and knowledgebase streaming `chat`), an asynchronous background task MUST be dispatched to `EILBackgroundWorker.process_conversation_event()`.
+   - In [`api/db/services/dialog_service.py`](file:///D:/swipies/swipies_25/swipies/api/db/services/dialog_service.py), upon the completion of a chat turn (both in `async_chat_solo` and knowledgebase streaming `chat`), an asynchronous background task MUST be dispatched to `EILBackgroundWorker.process_conversation_event()`.
 2. **Parameters Passed:**
    - `tenant_id`: Current tenant ID (`dialog.tenant_id`).
    - `conversation_id`: Current conversation ID.
@@ -241,7 +241,7 @@ To prevent any model hallucination or partial extraction leak from inserting Wor
 
 ### AC-6: Verification & Test Suite
 
-The automated test suite in [`test/test_intelligence_layer.py`](file:///D:/ragflow/swipies_25/ragflow/test/test_intelligence_layer.py) MUST implement the following mandatory test cases:
+The automated test suite in [`test/test_intelligence_layer.py`](file:///D:/swipies/swipies_25/swipies/test/test_intelligence_layer.py) MUST implement the following mandatory test cases:
 
 1. **AC-6.1 (Database-Wide Zero-Plaintext Assertion):**
    - Configure a mock dialog with the rule: `{"search_val": "Иван Иванов", "replace_val": "[CLIENT_NAME]", "is_regex": False}`.
@@ -261,7 +261,7 @@ The automated test suite in [`test/test_intelligence_layer.py`](file:///D:/ragfl
    - Seed distinct knowledge entities and conversation metadata for `tenant_alpha` and `tenant_beta`.
    - Perform queries from `tenant_alpha` -> Assert that 0 records from `tenant_beta` are returned.
 4. **AC-6.4 (Superuser Cross-Tenant Access):**
-   - Authenticate as superuser (`is_superuser = True`, `email = "admin@ragflow.io"`).
+   - Authenticate as superuser (`is_superuser = True`, `email = "admin@docs.swipies.app"`).
    - Request `GET /v1/intelligence/dashboard/stats?global=true` -> Assert aggregates reflect totals across all tenants.
 5. **AC-6.5 (Database Schema & Service Resilience):**
    - Verify that calling `KnowledgeEntityService`, `EnterpriseSearchService`, `ExecutiveDigestService`, and `ProactiveIntelligenceService` against empty tables returns clean empty JSON structures without throwing Peewee or DB exceptions.

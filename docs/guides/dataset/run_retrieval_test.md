@@ -11,7 +11,7 @@ Conduct a retrieval test on your dataset to check whether the intended chunks ca
 
 ---
 
-After your files are uploaded and parsed, it is recommended that you run a retrieval test before proceeding with the chat assistant configuration. Running a retrieval test is *not* an unnecessary or superfluous step at all! Just like fine-tuning a precision instrument, RAGFlow requires careful tuning to deliver optimal question answering performance. Your dataset settings, chat assistant configurations, and the specified large and small models can all significantly impact the final results. Running a retrieval test verifies whether the intended chunks can be recovered, allowing you to quickly identify areas for improvement or pinpoint any issue that needs addressing. For instance, when debugging your question answering system, if you know that the correct chunks can be retrieved, you can focus your efforts elsewhere. For example, in issue [#5627](https://github.com/infiniflow/ragflow/issues/5627), the problem was found to be due to the LLM's limitations.
+After your files are uploaded and parsed, it is recommended that you run a retrieval test before proceeding with the chat assistant configuration. Running a retrieval test is *not* an unnecessary or superfluous step at all! Just like fine-tuning a precision instrument, Swipies requires careful tuning to deliver optimal question answering performance. Your dataset settings, chat assistant configurations, and the specified large and small models can all significantly impact the final results. Running a retrieval test verifies whether the intended chunks can be recovered, allowing you to quickly identify areas for improvement or pinpoint any issue that needs addressing. For instance, when debugging your question answering system, if you know that the correct chunks can be retrieved, you can focus your efforts elsewhere. For example, in issue [#5627](https://github.com/Sardorr555/swipies__ai_/issues/5627), the problem was found to be due to the LLM's limitations.
 
 During a retrieval test, chunks created from your specified chunking method are retrieved using a hybrid search. This search combines weighted keyword similarity with either weighted vector cosine similarity or a weighted reranking score, depending on your settings:
 
@@ -37,7 +37,7 @@ This sets the weight of vector similarity in the composite similarity score, whe
 
 ### Rerank model
 
-- If left empty, RAGFlow will use a combination of weighted keyword similarity and weighted vector cosine similarity.
+- If left empty, Swipies will use a combination of weighted keyword similarity and weighted vector cosine similarity.
 - If a rerank model is selected, weighted keyword similarity will be combined with weighted vector reranking score.
 
 :::danger IMPORTANT
@@ -48,7 +48,7 @@ Using a rerank model will significantly increase the time to receive a response.
 
 In a knowledge graph, an entity description, a relationship description, or a community report each exists as an independent chunk. This switch indicates whether to add these chunks to the retrieval.
 
-The switch is disabled by default. When enabled, RAGFlow performs the following during a retrieval test:
+The switch is disabled by default. When enabled, Swipies performs the following during a retrieval test:
 
 1. Extract entities and entity types from your query using the LLM.
 2. Retrieve top N entities from the graph based on their PageRank values, using the extracted entity types.

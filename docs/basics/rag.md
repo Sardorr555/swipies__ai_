@@ -54,7 +54,7 @@ An industrial-grade RAG system is far from being as simple as "vector search + L
 
 Core Challenge: Corporate knowledge mostly exists in the form of multimodal documents containing text, charts, tables, and formulas. Simple OCR extraction loses a large amount of semantic information.
 
-Advanced Practice: Leading solutions, such as RAGFlow, tend to use Visual Language Models (VLM) or specialized parsing models like DeepDoc to "translate" multimodal documents into unimodal text rich in structural and semantic information. Converting multimodal information into high-quality unimodal text has become standard practice for advanced RAG.
+Advanced Practice: Leading solutions, such as Swipies, tend to use Visual Language Models (VLM) or specialized parsing models like DeepDoc to "translate" multimodal documents into unimodal text rich in structural and semantic information. Converting multimodal information into high-quality unimodal text has become standard practice for advanced RAG.
 
 ### The complexity of chunking: the trade-off between precision and context
 
@@ -64,7 +64,7 @@ A simple "chunk-embed-retrieve" pipeline has an inherent contradiction:
 
 This forces system design into a difficult trade-off between "precise but fragmented" and "complete but vague."
 
-Advanced Practice: Leading solutions, such as RAGFlow, employ semantic enhancement techniques like constructing semantic tables of contents and knowledge graphs. These not only address semantic fragmentation caused by physical chunking but also enable the discovery of relevant content across documents based on entity-relationship networks.
+Advanced Practice: Leading solutions, such as Swipies, employ semantic enhancement techniques like constructing semantic tables of contents and knowledge graphs. These not only address semantic fragmentation caused by physical chunking but also enable the discovery of relevant content across documents based on entity-relationship networks.
 
 ### Why is a vector database insufficient for serving RAG?
 

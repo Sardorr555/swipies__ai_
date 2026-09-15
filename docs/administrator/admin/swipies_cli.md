@@ -5,25 +5,25 @@ sidebar_custom_props: {
   categoryIcon: LucideSquareTerminal
 }
 ---
-# RAGFlow CLI
+# Swipies CLI
 
-The RAGFlow CLI is a command-line-based system administration tool that offers administrators an efficient and flexible method for system interaction and control. Operating on a client-server architecture, it communicates in real-time with the Admin Service, receiving administrator commands and dynamically returning execution results.
+The Swipies CLI is a command-line-based system administration tool that offers administrators an efficient and flexible method for system interaction and control. Operating on a client-server architecture, it communicates in real-time with the Admin Service, receiving administrator commands and dynamically returning execution results.
 
-## Using the RAGFlow CLI
+## Using the Swipies CLI
 
 1. Ensure the Admin Service is running.
 
-2. Install ragflow-cli.
+2. Install swipies-cli.
 
    ```bash
-   pipx install ragflow-cli==0.26.3
+   pipx install swipies-cli==0.26.3
    ```
-  > You can also use `uv`, a tool for managing virtual environments and packages, to install RAGFlow CLI: `uv tool install ragflow-cli@0.26.3`.
+  > You can also use `uv`, a tool for managing virtual environments and packages, to install Swipies CLI: `uv tool install swipies-cli@0.26.3`.
 
 3. Launch the CLI client:
 
    ```bash
-   ragflow-cli -h 127.0.0.1 -p 9381
+   swipies-cli -h 127.0.0.1 -p 9381
    ```
 
     You will be prompted to enter the superuser's password to log in.
@@ -31,13 +31,13 @@ The RAGFlow CLI is a command-line-based system administration tool that offers a
 
     **Parameters:**
     
-    - -h: RAGFlow admin server host address
+    - -h: Swipies admin server host address
     
-    - -p: RAGFlow admin server port
+    - -p: Swipies admin server port
 
 ## Default administrative account
 
-- Username: admin@ragflow.io
+- Username: admin@docs.swipies.app
 - Password: admin
 
 ## Supported Commands
@@ -48,7 +48,7 @@ Commands are case-insensitive and must be terminated with a semicolon(;).
 
 `LIST SERVICES;`
 
-- Lists all available services within the RAGFlow system.
+- Lists all available services within the Swipies system.
 
 - [Example](#example-list-services)
 
@@ -59,7 +59,7 @@ Commands are case-insensitive and must be terminated with a semicolon(;).
 
 `SHOW VERSION;`
 
-- Shows RAGFlow version.
+- Shows Swipies version.
 - [Example](#example-show-version)
 
 ### User Management Commands
@@ -124,7 +124,7 @@ Commands are case-insensitive and must be terminated with a semicolon(;).
 ### System info
 
 `SHOW VERSION;`
-- Display the current RAGFlow version.
+- Display the current Swipies version.
 - [Example](#example-show-version)
 
 `GRANT ADMIN <username>`
@@ -170,13 +170,13 @@ Commands are case-insensitive and must be terminated with a semicolon(;).
 - List all available services.
 
 ```
-ragflow> list services;
+swipies> list services;
 command: list services;
 Listing all services
 +-------------------------------------------------------------------------------------------+-----------+----+---------------+-------+----------------+---------+
 | extra                                                                                     | host      | id | name          | port  | service_type   | status  |
 +-------------------------------------------------------------------------------------------+-----------+----+---------------+-------+----------------+---------+
-| {}                                                                                        | 0.0.0.0   | 0  | ragflow_0     | 9380  | ragflow_server | Timeout |
+| {}                                                                                        | 0.0.0.0   | 0  | swipies_0     | 9380  | swipies_server | Timeout |
 | {'meta_type': 'mysql', 'password': 'infini_rag_flow', 'username': 'root'}                 | localhost | 1  | mysql         | 5455  | meta_data      | Alive   |
 | {'password': 'infini_rag_flow', 'store_type': 'minio', 'user': 'rag_flow'}                | localhost | 2  | minio         | 9000  | file_store     | Alive   |
 | {'password': 'infini_rag_flow', 'retrieval_type': 'elasticsearch', 'username': 'elastic'} | localhost | 3  | elasticsearch | 1200  | retrieval      | Alive   |
@@ -188,20 +188,20 @@ Listing all services
 
 <span id="example-show-service"></span>
 
-- Show ragflow_server.
+- Show swipies_server.
 
 ```
-ragflow> show service 0;
+swipies> show service 0;
 command: show service 0;
 Showing service: 0
-Service ragflow_0 is alive. Detail:
+Service swipies_0 is alive. Detail:
 Confirm elapsed: 26.0 ms.
 ```
 
 - Show mysql.
 
 ```
-ragflow> show service 1;
+swipies> show service 1;
 command: show service 1;
 Showing service: 1
 Service mysql is alive. Detail:
@@ -217,7 +217,7 @@ Service mysql is alive. Detail:
 - Show minio.
 
 ```
-ragflow> show service 2;
+swipies> show service 2;
 command: show service 2;
 Showing service: 2
 Service minio is alive. Detail:
@@ -227,7 +227,7 @@ Confirm elapsed: 2.1 ms.
 - Show elasticsearch.
 
 ```
-ragflow> show service 3;
+swipies> show service 3;
 command: show service 3;
 Showing service: 3
 Service elasticsearch is alive. Detail:
@@ -241,7 +241,7 @@ Service elasticsearch is alive. Detail:
 - Show infinity.
 
 ```
-ragflow> show service 4;
+swipies> show service 4;
 command: show service 4;
 Showing service: 4
 Fail to show service, code: 500, message: Infinity is not in use.
@@ -250,7 +250,7 @@ Fail to show service, code: 500, message: Infinity is not in use.
 - Show redis.
 
 ```
-ragflow> show service 5;
+swipies> show service 5;
 command: show service 5;
 Showing service: 5
 Service redis is alive. Detail:
@@ -262,10 +262,10 @@ Service redis is alive. Detail:
 ```
 <span id="example-show-version"></span>
 
-- Show RAGFlow version
+- Show Swipies version
 
 ```
-ragflow> show version;
+swipies> show version;
 +-----------------------+
 | version               |
 +-----------------------+
@@ -278,13 +278,13 @@ ragflow> show version;
 - List all user.
 
 ```
-ragflow> list users;
+swipies> list users;
 command: list users;
 Listing all users
 +-------------------------------+----------------------+-----------+----------+
 | create_date                   | email                | is_active | nickname |
 +-------------------------------+----------------------+-----------+----------+
-| Mon, 22 Sep 2025 10:59:04 GMT | admin@ragflow.io     | 1         | admin    |
+| Mon, 22 Sep 2025 10:59:04 GMT | admin@docs.swipies.app     | 1         | admin    |
 | Sun, 14 Sep 2025 17:36:27 GMT | lynn_inf@hotmail.com | 1         | Lynn     |
 +-------------------------------+----------------------+-----------+----------+
 ```
@@ -294,13 +294,13 @@ Listing all users
 - Show specified user.
 
 ```
-ragflow> show user "admin@ragflow.io";
-command: show user "admin@ragflow.io";
-Showing user: admin@ragflow.io
+swipies> show user "admin@docs.swipies.app";
+command: show user "admin@docs.swipies.app";
+Showing user: admin@docs.swipies.app
 +-------------------------------+------------------+-----------+--------------+------------------+--------------+----------+-----------------+---------------+--------+-------------------------------+
 | create_date                   | email            | is_active | is_anonymous | is_authenticated | is_superuser | language | last_login_time | login_channel | status | update_date                   |
 +-------------------------------+------------------+-----------+--------------+------------------+--------------+----------+-----------------+---------------+--------+-------------------------------+
-| Mon, 22 Sep 2025 10:59:04 GMT | admin@ragflow.io | 1         | 0            | 1                | True         | Chinese  | None            | None          | 1      | Mon, 22 Sep 2025 10:59:04 GMT |
+| Mon, 22 Sep 2025 10:59:04 GMT | admin@docs.swipies.app | 1         | 0            | 1                | True         | Chinese  | None            | None          | 1      | Mon, 22 Sep 2025 10:59:04 GMT |
 +-------------------------------+------------------+-----------+--------------+------------------+--------------+----------+-----------------+---------------+--------+-------------------------------+
 ```
 
@@ -309,13 +309,13 @@ Showing user: admin@ragflow.io
 - Create new user.
 
 ```
-ragflow> create user "example@ragflow.io" "psw";
-command: create user "example@ragflow.io" "psw";
-Create user: example@ragflow.io, password: psw, role: user
+swipies> create user "example@docs.swipies.app" "psw";
+command: create user "example@docs.swipies.app" "psw";
+Create user: example@docs.swipies.app, password: psw, role: user
 +----------------------------------+--------------------+----------------------------------+--------------+---------------+----------+
 | access_token                     | email              | id                               | is_superuser | login_channel | nickname |
 +----------------------------------+--------------------+----------------------------------+--------------+---------------+----------+
-| 5cdc6d1e9df111f099b543aee592c6bf | example@ragflow.io | 5cdc6ca69df111f099b543aee592c6bf | False        | password      |          |
+| 5cdc6d1e9df111f099b543aee592c6bf | example@docs.swipies.app | 5cdc6ca69df111f099b543aee592c6bf | False        | password      |          |
 +----------------------------------+--------------------+----------------------------------+--------------+---------------+----------+
 ```
 
@@ -324,9 +324,9 @@ Create user: example@ragflow.io, password: psw, role: user
 - Alter user password.
 
 ```
-ragflow> alter user password "example@ragflow.io" "newpsw";
-command: alter user password "example@ragflow.io" "newpsw";
-Alter user: example@ragflow.io, password: newpsw
+swipies> alter user password "example@docs.swipies.app" "newpsw";
+command: alter user password "example@docs.swipies.app" "newpsw";
+Alter user: example@docs.swipies.app, password: newpsw
 Password updated successfully!
 ```
 
@@ -335,9 +335,9 @@ Password updated successfully!
 - Alter user active, turn off.
 
 ```
-ragflow> alter user active "example@ragflow.io" off;
-command: alter user active "example@ragflow.io" off;
-Alter user example@ragflow.io activate status, turn off.
+swipies> alter user active "example@docs.swipies.app" off;
+command: alter user active "example@docs.swipies.app" off;
+Alter user example@docs.swipies.app activate status, turn off.
 Turn off user activate status successfully!
 ```
 
@@ -346,9 +346,9 @@ Turn off user activate status successfully!
 - Drop user.
 
 ```
-ragflow> Drop user "example@ragflow.io";
-command: Drop user "example@ragflow.io";
-Drop user: example@ragflow.io
+swipies> Drop user "example@docs.swipies.app";
+command: Drop user "example@docs.swipies.app";
+Drop user: example@docs.swipies.app
 Successfully deleted user. Details:
 Start to delete owned tenant.
 - Deleted 2 tenant-LLM records.
@@ -366,12 +366,12 @@ Delete user's data at the same time.
 - Generate API key for user.
 
 ```
-admin> generate key for user "example@ragflow.io";
-Generating API key for user: example@ragflow.io
+admin> generate key for user "example@docs.swipies.app";
+Generating API key for user: example@docs.swipies.app
 +----------------------------------+-------------------------------+---------------+----------------------------------+-----------------------------------------------------+-------------+-------------+
 | beta                             | create_date                   | create_time   | tenant_id                        | token                                               | update_date | update_time |
 +----------------------------------+-------------------------------+---------------+----------------------------------+-----------------------------------------------------+-------------+-------------+
-| Es9OpZ6hrnPGeYA3VU1xKUkj6NCb7cp- | Mon, 12 Jan 2026 15:19:11 GMT | 1768227551361 | 5d5ea8a3efc111f0a79b80fa5b90e659 | ragflow-piwVJHEk09M5UN3LS_Xx9HA7yehs3yNOc9GGsD4jzus | None        | None        |
+| Es9OpZ6hrnPGeYA3VU1xKUkj6NCb7cp- | Mon, 12 Jan 2026 15:19:11 GMT | 1768227551361 | 5d5ea8a3efc111f0a79b80fa5b90e659 | swipies-piwVJHEk09M5UN3LS_Xx9HA7yehs3yNOc9GGsD4jzus | None        | None        |
 +----------------------------------+-------------------------------+---------------+----------------------------------+-----------------------------------------------------+-------------+-------------+
 ```
 
@@ -380,12 +380,12 @@ Generating API key for user: example@ragflow.io
 - List all API keys for user.
 
 ```
-admin> list keys of "example@ragflow.io";
-Listing API keys for user: example@ragflow.io
+admin> list keys of "example@docs.swipies.app";
+Listing API keys for user: example@docs.swipies.app
 +----------------------------------+-------------------------------+---------------+-----------+--------+----------------------------------+-----------------------------------------------------+-------------------------------+---------------+
 | beta                             | create_date                   | create_time   | dialog_id | source | tenant_id                        | token                                               | update_date                   | update_time   |
 +----------------------------------+-------------------------------+---------------+-----------+--------+----------------------------------+-----------------------------------------------------+-------------------------------+---------------+
-| Es9OpZ6hrnPGeYA3VU1xKUkj6NCb7cp- | Mon, 12 Jan 2026 15:19:11 GMT | 1768227551361 | None      | None   | 5d5ea8a3efc111f0a79b80fa5b90e659 | ragflow-piwVJHEk09M5UN3LS_Xx9HA7yehs3yNOc9GGsD4jzus | Mon, 12 Jan 2026 15:19:11 GMT | 1768227551361 |
+| Es9OpZ6hrnPGeYA3VU1xKUkj6NCb7cp- | Mon, 12 Jan 2026 15:19:11 GMT | 1768227551361 | None      | None   | 5d5ea8a3efc111f0a79b80fa5b90e659 | swipies-piwVJHEk09M5UN3LS_Xx9HA7yehs3yNOc9GGsD4jzus | Mon, 12 Jan 2026 15:19:11 GMT | 1768227551361 |
 +----------------------------------+-------------------------------+---------------+-----------+--------+----------------------------------+-----------------------------------------------------+-------------------------------+---------------+
 ```
 
@@ -394,8 +394,8 @@ Listing API keys for user: example@ragflow.io
 - Drop API key for user.
 
 ```
-admin> drop key "ragflow-piwVJHEk09M5UN3LS_Xx9HA7yehs3yNOc9GGsD4jzus" of "example@ragflow.io";
-Dropping API key for user: example@ragflow.io
+admin> drop key "swipies-piwVJHEk09M5UN3LS_Xx9HA7yehs3yNOc9GGsD4jzus" of "example@docs.swipies.app";
+Dropping API key for user: example@docs.swipies.app
 API key deleted successfully
 ```
 
@@ -404,7 +404,7 @@ API key deleted successfully
 - List the specified user's dataset.
 
 ```
-ragflow> list datasets of "lynn_inf@hotmail.com";
+swipies> list datasets of "lynn_inf@hotmail.com";
 command: list datasets of "lynn_inf@hotmail.com";
 Listing all datasets of user: lynn_inf@hotmail.com
 +-----------+-------------------------------+---------+----------+---------------+------------+--------+-----------+-------------------------------+
@@ -420,7 +420,7 @@ Listing all datasets of user: lynn_inf@hotmail.com
 - List the specified user's agents.
 
 ```
-ragflow> list agents of "lynn_inf@hotmail.com";
+swipies> list agents of "lynn_inf@hotmail.com";
 command: list agents of "lynn_inf@hotmail.com";
 Listing all agents of user: lynn_inf@hotmail.com
 +-----------------+-------------+------------+-----------------+
@@ -432,10 +432,10 @@ Listing all agents of user: lynn_inf@hotmail.com
 
 <span id="example-show-version"></span>
 
-- Display the current RAGFlow version.
+- Display the current Swipies version.
 
 ```
-ragflow> show version;
+swipies> show version;
 show_version
 +-----------------------+
 | version               |
@@ -449,7 +449,7 @@ show_version
 - Grant administrator privileges to the specified user.
 
 ```
-ragflow> grant admin "anakin.skywalker@ragflow.io";
+swipies> grant admin "anakin.skywalker@docs.swipies.app";
 Grant successfully!
 ```
 
@@ -458,7 +458,7 @@ Grant successfully!
 - Revoke administrator privileges from the specified user.
 
 ```
-ragflow> revoke admin "anakin.skywalker@ragflow.io";
+swipies> revoke admin "anakin.skywalker@docs.swipies.app";
 Revoke successfully!
 ```
 
@@ -467,7 +467,7 @@ Revoke successfully!
 - List all system settings.
 
 ```
-ragflow> list vars;
+swipies> list vars;
 +-----------+---------------------+--------------+-----------+
 | data_type | name                | setting_type | value     |
 +-----------+---------------------+--------------+-----------+
@@ -489,7 +489,7 @@ ragflow> list vars;
 - Display the content of a specific system configuration/setting by its name or name prefix.
 
 ```
-ragflow> show var mail.server;
+swipies> show var mail.server;
 +-----------+-------------+--------------+-----------+
 | data_type | name        | setting_type | value     |
 +-----------+-------------+--------------+-----------+
@@ -502,7 +502,7 @@ ragflow> show var mail.server;
 - Set the value for a specified configuration item.
 
 ```
-ragflow> set var mail.server 127.0.0.1;
+swipies> set var mail.server 127.0.0.1;
 Set variable successfully
 ```
 
@@ -512,11 +512,11 @@ Set variable successfully
 - List all system configurations.
 
 ```
-ragflow> list configs;
+swipies> list configs;
 +-------------------------------------------------------------------------------------------+-----------+----+---------------+-------+----------------+
 | extra                                                                                     | host      | id | name          | port  | service_type   |
 +-------------------------------------------------------------------------------------------+-----------+----+---------------+-------+----------------+
-| {}                                                                                        | 0.0.0.0   | 0  | ragflow_0     | 9380  | ragflow_server |
+| {}                                                                                        | 0.0.0.0   | 0  | swipies_0     | 9380  | swipies_server |
 | {'meta_type': 'mysql', 'password': 'infini_rag_flow', 'username': 'root'}                 | localhost | 1  | mysql         | 5455  | meta_data      |
 | {'password': 'infini_rag_flow', 'store_type': 'minio', 'user': 'rag_flow'}                | localhost | 2  | minio         | 9000  | file_store     |
 | {'password': 'infini_rag_flow', 'retrieval_type': 'elasticsearch', 'username': 'elastic'} | localhost | 3  | elasticsearch | 1200  | retrieval      |
@@ -531,12 +531,12 @@ ragflow> list configs;
 - List all system environments which can accessed by Admin service.
 
 ```
-ragflow> list envs;
+swipies> list envs;
 +-------------------------+------------------+
 | env                     | value            |
 +-------------------------+------------------+
 | DOC_ENGINE              | elasticsearch    |
-| DEFAULT_SUPERUSER_EMAIL | admin@ragflow.io |
+| DEFAULT_SUPERUSER_EMAIL | admin@docs.swipies.app |
 | DB_TYPE                 | mysql            |
 | DEVICE                  | cpu              |
 | STORAGE_IMPL            | MINIO            |
@@ -549,7 +549,7 @@ ragflow> list envs;
 - Show help information.
 
 ```
-ragflow> \help
+swipies> \help
 command: \help
 
 Commands:
@@ -590,7 +590,7 @@ Meta Commands:
 - Exit
 
 ```
-ragflow> \q
+swipies> \q
 command: \q
 Goodbye!
 ```

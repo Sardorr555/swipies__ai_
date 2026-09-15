@@ -17,11 +17,11 @@ sidebar_custom_props: {
 This document is contributed by our community contributor [TreeDy](https://github.com/Treedy2020). We may not actively maintain this document.
 :::
 
-A common scenario is processing large datasets on a powerful instance (e.g., with a GPU) and then migrating the entire RAGFlow service to a different production environment (e.g., a CPU-only server). This guide explains how to safely back up and restore your data using our provided migration script.
+A common scenario is processing large datasets on a powerful instance (e.g., with a GPU) and then migrating the entire Swipies service to a different production environment (e.g., a CPU-only server). This guide explains how to safely back up and restore your data using our provided migration script.
 
 ### Identify your data
 
-By default, RAGFlow uses Docker volumes to store all persistent data, including your database, uploaded files, and search indexes. You can see these volumes by running:
+By default, Swipies uses Docker volumes to store all persistent data, including your database, uploaded files, and search indexes. You can see these volumes by running:
 
 ```bash
 docker volume ls
@@ -40,21 +40,21 @@ local     docker_redis_data
 These volumes contain all the data you need to migrate.
 
 :::note
-The volume name prefix (e.g., `docker_`) comes from the Docker Compose project name. By default it is `docker` (derived from the directory name). If you started RAGFlow with `docker compose -p <project_name>`, your volumes will be prefixed with `<project_name>_` instead, for example `ragflow_mysql_data`.
+The volume name prefix (e.g., `docker_`) comes from the Docker Compose project name. By default it is `docker` (derived from the directory name). If you started Swipies with `docker compose -p <project_name>`, your volumes will be prefixed with `<project_name>_` instead, for example `swipies_mysql_data`.
 :::
 
-### Step 1: Stop RAGFlow services
+### Step 1: Stop Swipies services
 
-Before starting the migration, you must stop all running RAGFlow services on the **source machine**. Navigate to the project's root directory and run:
+Before starting the migration, you must stop all running Swipies services on the **source machine**. Navigate to the project's root directory and run:
 
 ```bash
 docker compose -f docker/docker-compose.yml down
 ```
 
-If you started RAGFlow with a custom project name (e.g., `docker compose -p ragflow`), include it in the command:
+If you started Swipies with a custom project name (e.g., `docker compose -p swipies`), include it in the command:
 
 ```bash
-docker compose -p ragflow -f docker/docker-compose.yml down
+docker compose -p swipies -f docker/docker-compose.yml down
 ```
 
 **Important:** Do **not** use the `-v` flag (e.g., `docker compose down -v`), as this will delete all your data volumes. The migration script includes a check and will prevent you from running it if services are active.
@@ -79,25 +79,25 @@ This will create a `backup/` folder in your project root containing compressed a
 You can also specify a custom name for your backup folder:
 
 ```bash
-bash docker/migration.sh backup my_ragflow_backup
+bash docker/migration.sh backup my_swipies_backup
 ```
 
-This will create a folder named `my_ragflow_backup/` instead.
+This will create a folder named `my_swipies_backup/` instead.
 
-If you started RAGFlow with a custom project name (e.g., `docker compose -p ragflow`), use the `-p` flag so the script can find the correct volumes:
+If you started Swipies with a custom project name (e.g., `docker compose -p swipies`), use the `-p` flag so the script can find the correct volumes:
 
 ```bash
-bash docker/migration.sh -p ragflow backup
-bash docker/migration.sh -p ragflow backup my_ragflow_backup
+bash docker/migration.sh -p swipies backup
+bash docker/migration.sh -p swipies backup my_swipies_backup
 ```
 
 ### Step 3: Transfer the backup folder
 
-Copy the entire backup folder (e.g., `backup/` or `my_ragflow_backup/`) from your source machine to the RAGFlow project directory on your **target machine**. You can use tools like `scp`, `rsync`, or a physical drive for the transfer.
+Copy the entire backup folder (e.g., `backup/` or `my_swipies_backup/`) from your source machine to the Swipies project directory on your **target machine**. You can use tools like `scp`, `rsync`, or a physical drive for the transfer.
 
 ### Step 4: Restore your data
 
-On the **target machine**, ensure that RAGFlow services are not running. Then, use the migration script to restore your data from the backup folder.
+On the **target machine**, ensure that Swipies services are not running. Then, use the migration script to restore your data from the backup folder.
 
 If your backup folder is named `backup/`, run:
 
@@ -108,23 +108,23 @@ bash docker/migration.sh restore
 If you used a custom name, specify it in the command:
 
 ```bash
-bash docker/migration.sh restore my_ragflow_backup
+bash docker/migration.sh restore my_swipies_backup
 ```
 
 If the target machine uses a custom project name, use the `-p` flag to ensure the volumes are created with the correct prefix:
 
 ```bash
-bash docker/migration.sh -p ragflow restore
-bash docker/migration.sh -p ragflow restore my_ragflow_backup
+bash docker/migration.sh -p swipies restore
+bash docker/migration.sh -p swipies restore my_swipies_backup
 ```
 
 The script will automatically create the necessary Docker volumes and unpack the data.
 
 **Note:** If the script detects that Docker volumes with the same names already exist on the target machine, it will warn you that restoring will overwrite the existing data and ask for confirmation before proceeding.
 
-### Step 5: Start RAGFlow services
+### Step 5: Start Swipies services
 
-Once the restore process is complete, you can start the RAGFlow services on your new machine:
+Once the restore process is complete, you can start the Swipies services on your new machine:
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
@@ -133,7 +133,7 @@ docker compose -f docker/docker-compose.yml up -d
 If you use a custom project name:
 
 ```bash
-docker compose -p ragflow -f docker/docker-compose.yml up -d
+docker compose -p swipies -f docker/docker-compose.yml up -d
 ```
 
 **Note:** If you already have built a service by docker compose before, you may need to backup your data for target machine like this guide above and run like:
@@ -145,7 +145,7 @@ docker compose -f docker/docker-compose.yml down -v
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-Your RAGFlow instance is now running with all the data from your original machine.
+Your Swipies instance is now running with all the data from your original machine.
 
 ## Migrate from multi-bucket to single-bucket mode
 
@@ -153,13 +153,13 @@ Your RAGFlow instance is now running with all the data from your original machin
 This document is contributed by our community contributor [arogan178](https://github.com/arogan178). We may not actively maintain this document.
 :::
 
-By default, RAGFlow creates one bucket per Knowledge Base (dataset) and one bucket per user folder. This can be problematic when:
+By default, Swipies creates one bucket per Knowledge Base (dataset) and one bucket per user folder. This can be problematic when:
 
 - Your cloud provider charges per bucket
 - Your IAM policy restricts bucket creation
 - You want all data organized in a single bucket with directory structure
 
-The **Single Bucket Mode** allows you to configure RAGFlow to use a single bucket with a directory structure instead of multiple buckets.
+The **Single Bucket Mode** allows you to configure Swipies to use a single bucket with a directory structure instead of multiple buckets.
 
 ### How it works
 
@@ -177,8 +177,8 @@ bucket: folder_abc/
 #### Single bucket mode (with prefix_path)
 
 ```
-bucket: ragflow-bucket/
-  └── ragflow/
+bucket: swipies-bucket/
+  └── swipies/
       ├── kb_12345/
       │   └── document_1.pdf
       ├── kb_67890/
@@ -198,8 +198,8 @@ minio:
   user: "your-access-key"
   password: "your-secret-key"
   host: "minio.example.com:443"
-  bucket: "ragflow-bucket" # Default bucket name
-  prefix_path: "ragflow" # Optional prefix path
+  bucket: "swipies-bucket" # Default bucket name
+  prefix_path: "swipies" # Optional prefix path
 ```
 
 Or using environment variables:
@@ -208,8 +208,8 @@ Or using environment variables:
 export MINIO_USER=your-access-key
 export MINIO_PASSWORD=your-secret-key
 export MINIO_HOST=minio.example.com:443
-export MINIO_BUCKET=ragflow-bucket
-export MINIO_PREFIX_PATH=ragflow
+export MINIO_BUCKET=swipies-bucket
+export MINIO_PREFIX_PATH=swipies
 ```
 
 #### S3 configuration (already supported)
@@ -219,14 +219,14 @@ s3:
   access_key: "your-access-key"
   secret_key: "your-secret-key"
   endpoint_url: "https://s3.amazonaws.com"
-  bucket: "my-ragflow-bucket"
+  bucket: "my-swipies-bucket"
   prefix_path: "production"
   region_name: "us-east-1"
 ```
 
 #### Tigris configuration
 
-[Tigris](https://www.tigrisdata.com) is an S3-compatible object storage service that works with RAGFlow's `AWS_S3` backend. Set `STORAGE_IMPL=AWS_S3` in your `.env` file:
+[Tigris](https://www.tigrisdata.com) is an S3-compatible object storage service that works with Swipies's `AWS_S3` backend. Set `STORAGE_IMPL=AWS_S3` in your `.env` file:
 
 ```yaml
 s3:
@@ -234,8 +234,8 @@ s3:
   secret_key: "tsec_YOUR_SECRET_KEY"
   region_name: "auto"
   endpoint_url: "https://t3.storage.dev"
-  bucket: "ragflow"
-  prefix_path: "ragflow"
+  bucket: "swipies"
+  prefix_path: "swipies"
   signature_version: "v4"
   addressing_style: "virtual"
 ```
@@ -254,8 +254,8 @@ When using single bucket mode, you only need permissions for one bucket:
       "Effect": "Allow",
       "Action": ["s3:*"],
       "Resource": [
-        "arn:aws:s3:::ragflow-bucket",
-        "arn:aws:s3:::ragflow-bucket/*"
+        "arn:aws:s3:::swipies-bucket",
+        "arn:aws:s3:::swipies-bucket/*"
       ]
     }
   ]
@@ -267,7 +267,7 @@ When using single bucket mode, you only need permissions for one bucket:
 If you're migrating from multi-bucket mode to single-bucket mode:
 
 1. **Set environment variables** for the new configuration
-2. **Restart RAGFlow** services
+2. **Restart Swipies** services
 3. **Migrate existing data** (optional):
 
 ```bash
@@ -279,7 +279,7 @@ mc alias set new-minio https://new-minio:443 ACCESS_KEY SECRET_KEY
 mc ls old-minio/ | grep kb_ | while read -r line; do
     bucket=$(echo $line | awk '{print $5}')
     # Copy each bucket to the new structure
-    mc cp --recursive old-minio/$bucket/ new-minio/ragflow-bucket/ragflow/$bucket/
+    mc cp --recursive old-minio/$bucket/ new-minio/swipies-bucket/swipies/$bucket/
 done
 ```
 
@@ -290,7 +290,7 @@ done
 ```yaml
 minio:
   bucket: "my-single-bucket"
-  prefix_path: "ragflow"
+  prefix_path: "swipies"
 ```
 
 #### Disable (Use multi-bucket mode)
