@@ -83,21 +83,28 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 
 ## 4. Downloading and Deploying Swipies AI to Your Server
 
-### Step 4.1: Clone the Official Repository
+### Step 4.1: Automated One-Line Installer (Recommended)
 
-Clone the Swipies AI repository to your server's application directory:
+Since the Swipies AI engine repository is private, you can download and launch all pre-configured Docker containers onto your server with our automated installation script:
 
 ```bash
-# Clone the repository
-git clone https://github.com/Sardorr555/swipies__ai_.git /opt/swipies
-cd /opt/swipies
+curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/install.sh | bash
 ```
 
-### Step 4.2: Configure Environment Variables
+The script automatically executes:
+- Docker and Docker Compose plugin prerequisites.
+- System kernel configuration (`vm.max_map_count = 262144`).
+- Swap memory check and creation (prevents out-of-memory issues).
+- Downloading and starting all Docker containers (`swipies-cpu`, `swipies-frontend`, `mysql`, `redis`, `es01`, `minio`).
+- Initializing database permissions and health-checking the Python API server.
 
-Navigate to the `docker` directory and configure the environment:
+### Step 4.2: Alternative Manual Deployment (for Authorized Enterprise Customers)
+
+If your enterprise account has direct deployment credentials or deploy keys:
 
 ```bash
+# Clone the repository branch licence_v
+git clone -b licence_v https://github.com/Sardorr555/swipies__ai_.git /opt/swipies
 cd /opt/swipies/docker
 
 # Copy example environment configuration

@@ -255,23 +255,30 @@ This section provides instructions on setting up the Swipies server on Linux. If
 
 </details>
 
-2. Clone the repository:
+2. Download and deploy the Swipies Docker containers:
+
+   :::tip Licensed Edition Installer (Recommended)
+   Since the core engine repository is private, you can download, configure, and launch all Swipies Docker containers directly onto your server using our automated one-line installer:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/Sardorr555/swipies__ai_/licence_v/install.sh | bash
+   ```
+
+   This automated script:
+   - Installs and verifies Docker & Docker Compose plugins.
+   - Configures system limits (`vm.max_map_count = 262144`) and swap memory.
+   - Downloads all required Docker containers (`swipies-cpu`, `swipies-frontend`, `mysql`, `redis`, `es01`, `minio`).
+   - Launches the entire Swipies AI stack in the background.
+   :::
+
+   #### Alternative: Manual Deployment (for authorized accounts)
+
+   If you have authorized access or deploy keys for the private repository:
 
    ```bash
    $ git clone https://github.com/Sardorr555/swipies__ai_.git
    $ cd swipies__ai_/docker
-   ```
-
-3. Switch to the production branch:
-
-   ```bash
    $ git checkout swipies_26
-   ```
-
-4. Use the pre-built Docker Compose stack and start up the server:
-
-   ```bash
-   # Start Swipies services:
    $ docker compose -f docker-compose.yml up -d
    ```
 
