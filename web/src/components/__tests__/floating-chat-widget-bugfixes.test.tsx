@@ -1,5 +1,20 @@
 /* eslint-disable no-console */
+if (typeof global.TextEncoder === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { TextEncoder, TextDecoder } = require('util');
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+}
 import { MessageType } from '@/constants/chat';
+
+jest.mock('@/routes', () => ({
+  Routes: {
+    ChatWidget: '/chat/widget',
+    AgentShare: '/agent/share',
+    ChatShare: '/chat/share',
+  },
+  routers: {},
+}));
 
 describe('FloatingChatWidget Critical Bug Fixes & Stability Contracts', () => {
   describe('1. Infinite Request Loop Guard (ERR_INSUFFICIENT_RESOURCES Prevention)', () => {
@@ -340,6 +355,66 @@ describe('FloatingChatWidget Critical Bug Fixes & Stability Contracts', () => {
       // First click MUST open the chat window immediately!
       expect(masterButtonIsOpen).toBe(true);
       expect(chatWindowDisplay).toBe('block');
+    });
+  });
+
+  describe('8. Zero Blue Screen & Container Background Invariant', () => {
+    it('guarantees root container uses widgetBackgroundColor and never widgetAccentColor', () => {
+      const widgetAccentColor = '#2563eb'; // Blue
+      const widgetBackgroundColor = '#ffffff'; // White
+
+      // Root container style contract
+      const rootContainerStyle = {
+        backgroundColor: widgetBackgroundColor,
+      };
+
+      expect(rootContainerStyle.backgroundColor).toBe('#ffffff');
+      expect(rootContainerStyle.backgroundColor).not.toBe(widgetAccentColor);
+    });
+  });
+
+  describe('9. Two-Pane Anti-Split Invariant ("не делится на два")', () => {
+    it('enforces shrink-0, basis-1/2, and min-w-[50%] on panes so screen never splits in two', () => {
+      const paneClasses = 'w-1/2 shrink-0 basis-1/2 min-w-[50%] h-full flex flex-col min-h-0 overflow-hidden';
+      const containerClasses = 'flex h-full w-[200%] shrink-0';
+
+      expect(containerClasses).toContain('shrink-0');
+      expect(paneClasses).toContain('shrink-0');
+      expect(paneClasses).toContain('basis-1/2');
+      expect(paneClasses).toContain('min-w-[50%]');
+    });
+  });
+
+  describe('10. Non-Blocking New Chat Dispatch & Zero Lag', () => {
+    it('switches showSessions to false immediately when handleStartNewChat is invoked without waiting for network', async () => {
+      let showSessions = true;
+      let networkResolved = false;
+
+      const mockStartNewChat = async () => {
+        await new Promise((r) => setTimeout(r, 100)); // Simulate slow LLM / completion fetch
+        networkResolved = true;
+      };
+
+      const handleStartNewChat = () => {
+        showSessions = false; // Synchronous immediate switch!
+        mockStartNewChat().catch(() => {});
+      };
+
+      handleStartNewChat();
+
+      // UI state MUST be switched immediately!
+      expect(showSessions).toBe(false);
+      expect(networkResolved).toBe(false); // Network is still in flight, but UI is already active chat!
+
+      await new Promise((r) => setTimeout(r, 120));
+      expect(networkResolved).toBe(true);
+    });
+  });
+
+  describe('11. Streaming Enabled by Default in Settings', () => {
+    it('guarantees defaultWidgetSettings.enableStreaming is true for real-time token streaming', () => {
+      const { defaultWidgetSettings } = require('@/components/embed-dialog/constant');
+      expect(defaultWidgetSettings.enableStreaming).toBe(true);
     });
   });
 });

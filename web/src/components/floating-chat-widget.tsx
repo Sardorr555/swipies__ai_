@@ -231,10 +231,10 @@ const FloatingChatWidget = () => {
 
   const handleStartNewChat = useCallback(async () => {
     sessionFetchSeqRef.current++;
-    if (startNewChat) {
-      await startNewChat();
-    }
     setShowSessions(false);
+    if (startNewChat) {
+      startNewChat().catch(() => {});
+    }
   }, [startNewChat]);
 
   // Sync our local input with the hook's value when needed
@@ -985,7 +985,7 @@ const FloatingChatWidget = () => {
               : 'top-0 left-0 w-full h-full rounded-2xl z-50 transition-all duration-300 ease-out'
           } ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}
           style={{
-            backgroundColor: widgetAccentColor,
+            backgroundColor: widgetBackgroundColor,
             ...(isMobile
               ? {
                   height: visualViewportHeight ? `${visualViewportHeight}px` : '100dvh',
@@ -1155,9 +1155,12 @@ const FloatingChatWidget = () => {
           {renderStorageWarning()}
 
           {/* Sliding Two-Pane Viewport */}
-          <div className="relative flex-1 min-h-0 overflow-hidden w-full">
+          <div
+            className="relative flex-1 min-h-0 overflow-hidden w-full"
+            style={{ backgroundColor: widgetBackgroundColor }}
+          >
             <div
-              className="flex h-full w-[200%]"
+              className="flex h-full w-[200%] shrink-0"
               style={{
                 transform: showSessions ? 'translateX(0%)' : 'translateX(-50%)',
                 transition: 'transform 250ms cubic-bezier(0.16, 1, 0.3, 1)',
@@ -1166,7 +1169,7 @@ const FloatingChatWidget = () => {
             >
               {/* Left Pane: Sessions View */}
               <div
-                className={`w-1/2 h-full flex flex-col min-h-0 overflow-hidden ${
+                className={`w-1/2 shrink-0 basis-1/2 min-w-[50%] h-full flex flex-col min-h-0 overflow-hidden ${
                   showSessions ? 'pointer-events-auto' : 'pointer-events-none'
                 }`}
                 aria-hidden={!showSessions}
@@ -1176,7 +1179,7 @@ const FloatingChatWidget = () => {
 
               {/* Right Pane: Active Chat */}
               <div
-                className={`w-1/2 h-full flex flex-col min-h-0 overflow-hidden ${
+                className={`w-1/2 shrink-0 basis-1/2 min-w-[50%] h-full flex flex-col min-h-0 overflow-hidden ${
                   !showSessions ? 'pointer-events-auto' : 'pointer-events-none'
                 }`}
                 aria-hidden={showSessions}
@@ -1193,7 +1196,6 @@ const FloatingChatWidget = () => {
 
                       // Allow scroll to pass through to parent when at boundaries
                       if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
-                        e.preventDefault();
                         // Let the parent handle the scroll
                         window.parent.postMessage(
                           {
@@ -1375,7 +1377,7 @@ const FloatingChatWidget = () => {
                 } transition-all duration-300 ease-out`
           }`}
           style={{
-            backgroundColor: widgetAccentColor,
+            backgroundColor: widgetBackgroundColor,
             ...(isMobile
               ? {
                   height: visualViewportHeight ? `${visualViewportHeight}px` : '100dvh',
@@ -1570,9 +1572,12 @@ const FloatingChatWidget = () => {
 
           {/* Messages Container: Sliding Two-Pane Viewport */}
           {!isMinimized && (
-            <div className="relative flex-1 min-h-0 overflow-hidden w-full">
+            <div
+              className="relative flex-1 min-h-0 overflow-hidden w-full"
+              style={{ backgroundColor: widgetBackgroundColor }}
+            >
               <div
-                className="flex h-full w-[200%]"
+                className="flex h-full w-[200%] shrink-0"
                 style={{
                   transform: showSessions ? 'translateX(0%)' : 'translateX(-50%)',
                   transition: 'transform 250ms cubic-bezier(0.16, 1, 0.3, 1)',
@@ -1581,7 +1586,7 @@ const FloatingChatWidget = () => {
               >
                 {/* Left Pane: Sessions View */}
                 <div
-                  className={`w-1/2 h-full flex flex-col min-h-0 overflow-hidden ${
+                  className={`w-1/2 shrink-0 basis-1/2 min-w-[50%] h-full flex flex-col min-h-0 overflow-hidden ${
                     showSessions ? 'pointer-events-auto' : 'pointer-events-none'
                   }`}
                   aria-hidden={!showSessions}
@@ -1591,7 +1596,7 @@ const FloatingChatWidget = () => {
 
                 {/* Right Pane: Active Chat */}
                 <div
-                  className={`w-1/2 h-full flex flex-col min-h-0 overflow-hidden ${
+                  className={`w-1/2 shrink-0 basis-1/2 min-w-[50%] h-full flex flex-col min-h-0 overflow-hidden ${
                     !showSessions ? 'pointer-events-auto' : 'pointer-events-none'
                   }`}
                   aria-hidden={showSessions}
@@ -1611,7 +1616,6 @@ const FloatingChatWidget = () => {
                           (isAtTop && e.deltaY < 0) ||
                           (isAtBottom && e.deltaY > 0)
                         ) {
-                          e.preventDefault();
                           // Let the parent handle the scroll
                           window.parent.postMessage(
                             {

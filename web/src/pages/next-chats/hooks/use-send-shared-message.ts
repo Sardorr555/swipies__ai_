@@ -192,7 +192,7 @@ export const useSendSharedMessage = () => {
   const startNewChat = useCallback(async () => {
     setActiveSessionId(null);
     removeAllMessages();
-    await fetchSessionId(true);
+    fetchSessionId(true).catch(() => {});
   }, [removeAllMessages, fetchSessionId]);
 
   useEffect(() => {

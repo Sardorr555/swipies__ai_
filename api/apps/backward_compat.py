@@ -740,6 +740,10 @@ def register_backward_compat_routes(app_instance):
     """
     Register all backward compatibility routes with the app.
     """
+    @app_instance.route("/api/visitors", methods=["GET", "POST", "OPTIONS"])
+    async def handle_visitors_telemetry():
+        return jsonify({"code": 0, "message": "success", "data": True}), 200
+
     app_instance.register_blueprint(manager, url_prefix="/api/v1")
     app_instance.register_blueprint(legacy_v1_manager, url_prefix="/v1")
     logging.info("Backward compatibility routes registered successfully.")

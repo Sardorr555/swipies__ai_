@@ -78,6 +78,18 @@ export const checkIsMobileViewport = (
       }
     }
 
+    const isMobileUA =
+      typeof navigator !== 'undefined' &&
+      (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      ) ||
+        (navigator.maxTouchPoints > 1 &&
+          typeof window.screen !== 'undefined' &&
+          window.screen.width <= 1024));
+    if (isMobileUA) {
+      return true;
+    }
+
     return false;
   }
 

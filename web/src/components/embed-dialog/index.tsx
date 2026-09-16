@@ -64,34 +64,9 @@ const FormSchema = z.object({
   widgetFooterTextColor: z.string(),
 });
 
-export type WidgetSettings = Pick<
-  z.infer<typeof FormSchema>,
-  | 'enableStreaming'
-  | 'muteWidget'
-  | 'widgetTitle'
-  | 'widgetSubtitle'
-  | 'widgetFooterText'
-  | 'widgetFooterLink'
-  | 'widgetAccentColor'
-  | 'widgetBackgroundColor'
-  | 'widgetTextColor'
-  | 'widgetHeaderTextColor'
-  | 'widgetFooterTextColor'
->;
-
-export const defaultWidgetSettings: WidgetSettings = {
-  enableStreaming: false,
-  muteWidget: false,
-  widgetTitle: '',
-  widgetSubtitle: '',
-  widgetFooterText: '',
-  widgetFooterLink: '',
-  widgetAccentColor: '#2563eb',
-  widgetBackgroundColor: '#ffffff',
-  widgetTextColor: '#111827',
-  widgetHeaderTextColor: '#ffffff',
-  widgetFooterTextColor: '#111827',
-};
+export { defaultWidgetSettings } from './constant';
+export type { WidgetSettings } from './constant';
+import { defaultWidgetSettings, WidgetSettings } from './constant';
 
 type IProps = IModalProps<any> & {
   token: string;
@@ -251,12 +226,13 @@ function EmbedDialog({
 ></iframe>
 <script>
 window.addEventListener('message',e=>{
-  if(e.origin!=='${location.origin.replace(/:\d+/, ':9222')}')return;
+  if(e.origin!=='${location.origin}'&&e.origin!=='${location.origin.replace(/:\d+/, ':9222')}')return;
   if(e.data.type==='CREATE_CHAT_WINDOW'){
     if(document.getElementById('chat-win'))return;
     const i=document.createElement('iframe');
     i.id='chat-win';i.src=e.data.src;
-    i.style.cssText=e.data.isMobile
+    const isMob=Boolean(e.data.isMobile)||(typeof window!=='undefined'&&window.innerWidth<=640)||/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    i.style.cssText=isMob
       ?'position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;height:100dvh;border:none;background:transparent;z-index:999999;display:none;border-radius:0'
       :'position:fixed;bottom:104px;right:24px;width:380px;max-width:calc(100vw - 48px);height:500px;max-height:calc(100vh - 128px);border:none;background:transparent;z-index:9998;display:none';
     i.frameBorder='0';i.allow='microphone;camera';
