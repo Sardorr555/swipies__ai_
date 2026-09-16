@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams, useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
+import message from '@/components/ui/message';
 
 // UZS Formatter
 const formatUZS = (amount: number) => {
@@ -475,6 +476,14 @@ export default function PricingPage() {
     'free'
   ).toLowerCase();
   const expiryDate = tenantInfo?.plan_expiry_date;
+  const isPlanExpired = expiryDate ? new Date(expiryDate).getTime() < Date.now() : false;
+  const effectiveCurrentPlan = isPlanExpired ? 'free' : currentPlan;
+
+  const PLAN_RANKS: Record<string, number> = {
+    free: 0,
+    plus: 1,
+    pro: 2,
+  };
 
   const getExpiryText = (dateStr?: string) => {
     if (!dateStr) return '';
@@ -654,9 +663,37 @@ export default function PricingPage() {
         window.open('https://t.me/albakiev01', '_blank');
         return;
       }
+      if (key === 'plus' || key === 'pro') {
+        const currentRank = PLAN_RANKS[effectiveCurrentPlan] ?? 0;
+        const targetRank = PLAN_RANKS[key] ?? 0;
+        if (targetRank <= currentRank && currentRank > 0) {
+          if (targetRank === currentRank) {
+            const msg =
+              lang === 'ru'
+                ? `У вас уже действует подписка ${effectiveCurrentPlan.toUpperCase()}. Повторная покупка того же тарифа не требуется — вы можете только повысить тариф.`
+                : lang === 'uz'
+                ? `Sizda allaqachon ${effectiveCurrentPlan.toUpperCase()} tarifi faol. Tarifni faqat yuqoriroq darajaga oshirishingiz mumkin.`
+                : lang === 'zh'
+                ? `您当前已激活 ${effectiveCurrentPlan.toUpperCase()} 计划。您只能升级到更高阶计划。`
+                : `You already have an active ${effectiveCurrentPlan.toUpperCase()} subscription. You can only upgrade to a higher tier.`;
+            message.warning(msg);
+          } else {
+            const msg =
+              lang === 'ru'
+                ? `Понижение тарифа с ${effectiveCurrentPlan.toUpperCase()} до ${key.toUpperCase()} невозможно при действующей подписке.`
+                : lang === 'uz'
+                ? `${effectiveCurrentPlan.toUpperCase()} tarifidan ${key.toUpperCase()} tarifiga tushirish mumkin emas.`
+                : lang === 'zh'
+                ? `在当前订阅有效期间，不支持从 ${effectiveCurrentPlan.toUpperCase()} 降级到 ${key.toUpperCase()}。`
+                : `Downgrading from ${effectiveCurrentPlan.toUpperCase()} to ${key.toUpperCase()} is not permitted while your subscription is active.`;
+            message.error(msg);
+          }
+          return;
+        }
+      }
       navigate(`/checkout?plan=${key}&period=${selectedPeriod}`);
     },
-    [navigate, selectedPeriod],
+    [navigate, selectedPeriod, effectiveCurrentPlan, lang],
   );
 
   useEffect(() => {
@@ -914,7 +951,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
               </div>
-              {currentPlan === 'plus' ? (
+              {effectiveCurrentPlan === 'plus' ? (
                 <div className="w-full mt-auto">
                   <Button
                     className="w-full bg-emerald-600 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-default"
@@ -928,6 +965,21 @@ export default function PricingPage() {
                       {getExpiryText(expiryDate)}
                     </p>
                   )}
+                </div>
+              ) : effectiveCurrentPlan === 'pro' ? (
+                <div className="w-full mt-auto">
+                  <Button
+                    className="w-full bg-border text-text-secondary font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-not-allowed opacity-60"
+                    disabled
+                  >
+                    {lang === 'ru'
+                      ? 'Включено в тариф Pro'
+                      : lang === 'uz'
+                      ? 'Pro tarifiga kiritilgan'
+                      : lang === 'zh'
+                      ? '已包含在 Pro 计划中'
+                      : 'Included in Pro Plan'}
+                  </Button>
                 </div>
               ) : (
                 <Button
@@ -983,7 +1035,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
               </div>
-              {currentPlan === 'pro' ? (
+              {effectiveCurrentPlan === 'pro' ? (
                 <div className="w-full mt-auto">
                   <Button
                     className="w-full bg-emerald-600 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-default"
@@ -1003,7 +1055,15 @@ export default function PricingPage() {
                   className="w-full bg-gradient-to-r from-[#478AF5] to-[#42D7E7] text-white hover:from-[#3a7ae0] hover:to-[#35c5d4] shadow-md border-0 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm mt-auto"
                   onClick={() => handleOpenCheckout('pro')}
                 >
-                  {PLANS.pro.cta}
+                  {effectiveCurrentPlan === 'plus'
+                    ? lang === 'ru'
+                      ? 'Обновиться до Pro'
+                      : lang === 'uz'
+                      ? 'Pro-ga yangilash'
+                      : lang === 'zh'
+                      ? '升级到 Pro'
+                      : 'Upgrade to Pro'
+                    : PLANS.pro.cta}
                 </Button>
               )}
             </div>

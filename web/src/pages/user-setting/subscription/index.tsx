@@ -41,6 +41,7 @@ const pricingTranslations: Record<string, any> = {
     allPlansTitle: 'Available Subscription Plans & Features',
     currentPlanBadge: 'Current Plan',
     selectPlan: 'Upgrade / Select',
+    includedInPlan: 'Included in your plan',
     statusActive: 'Active',
     resources: {
       storage: 'Dataset Storage',
@@ -86,6 +87,7 @@ const pricingTranslations: Record<string, any> = {
     allPlansTitle: 'Все доступные тарифные планы и их возможности:',
     currentPlanBadge: 'Текущий тариф',
     selectPlan: 'Перейти / Выбрать',
+    includedInPlan: 'Включено в ваш тариф',
     statusActive: 'Активен',
     resources: {
       storage: 'Хранилище данных',
@@ -131,6 +133,7 @@ const pricingTranslations: Record<string, any> = {
     allPlansTitle: 'Barcha obuna tariflari va ularning imkoniyatlari:',
     currentPlanBadge: 'Joriy Tarif',
     selectPlan: 'Tanlash / Oʻtish',
+    includedInPlan: 'Tarifingizga kiritilgan',
     statusActive: 'Faol',
     resources: {
       storage: 'Dataset xotirasi',
@@ -283,6 +286,16 @@ const SubscriptionPage = () => {
     planKey = 'pro';
   }
 
+  const expiryDate = tenantInfo?.plan_expiry_date;
+  const isPlanExpired = expiryDate ? new Date(expiryDate).getTime() < Date.now() : false;
+  const effectivePlanKey = isPlanExpired ? 'free' : planKey;
+
+  const PLAN_RANKS: Record<string, number> = {
+    free: 0,
+    plus: 1,
+    pro: 2,
+  };
+
   const planInfo =
     tLocal?.planDetails?.[planKey] ||
     pricingTranslations.en?.planDetails?.[planKey] || {
@@ -345,9 +358,18 @@ const SubscriptionPage = () => {
   const handleUpgradeRedirect = (targetPlan?: string) => {
     if (targetPlan === 'license') {
       navigate('/user-setting/license');
-    } else {
-      navigate(Routes.Pricing);
+      return;
     }
+    if (targetPlan === 'plus' || targetPlan === 'pro') {
+      const currentRank = PLAN_RANKS[effectivePlanKey] ?? 0;
+      const targetRank = PLAN_RANKS[targetPlan] ?? 0;
+      if (targetRank <= currentRank && currentRank > 0) {
+        return;
+      }
+      navigate(`/checkout?plan=${targetPlan}`);
+      return;
+    }
+    navigate(Routes.Pricing);
   };
 
   return (
@@ -585,7 +607,16 @@ const SubscriptionPage = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
                 {ALL_PLAN_CARDS.map((card) => {
-                  const isCurrent = planKey === card.key;
+                  const isCurrent = effectivePlanKey === card.key;
+                  const currentRank = PLAN_RANKS[effectivePlanKey] ?? 0;
+                  const cardRank = PLAN_RANKS[card.key] ?? 0;
+                  const isDowngradeOrSame =
+                    (card.key === 'plus' || card.key === 'pro') &&
+                    cardRank <= currentRank &&
+                    currentRank > 0;
+                  const isUpgrade =
+                    (card.key === 'plus' || card.key === 'pro') &&
+                    cardRank > currentRank;
 
                   return (
                     <div
@@ -626,12 +657,28 @@ const SubscriptionPage = () => {
                             <CheckCircle size={14} />
                             {tLocal?.currentPlanBadge || 'Current Plan'}
                           </div>
+                        ) : card.key === 'free' ? (
+                          <Button
+                            disabled
+                            variant="outline"
+                            className="w-full text-xs font-bold py-2 rounded-xl border-border-default text-text-secondary opacity-50 cursor-not-allowed"
+                          >
+                            {tLocal?.planDetails?.free?.name || 'Free'}
+                          </Button>
+                        ) : isDowngradeOrSame ? (
+                          <Button
+                            disabled
+                            variant="outline"
+                            className="w-full text-xs font-bold py-2 rounded-xl border-border-default text-text-secondary opacity-50 cursor-not-allowed"
+                          >
+                            {tLocal?.includedInPlan || 'Included in your plan'}
+                          </Button>
                         ) : (
                           <Button
                             onClick={() => handleUpgradeRedirect(card.key)}
-                            variant={card.popular ? 'default' : 'outline'}
+                            variant={card.popular || isUpgrade ? 'default' : 'outline'}
                             className={`w-full text-xs font-bold py-2 rounded-xl ${
-                              card.popular
+                              card.popular || isUpgrade
                                 ? 'bg-accent-primary hover:bg-accent-primary/90 text-white'
                                 : 'border-border-default text-text-primary hover:border-accent-primary/50'
                             }`}
@@ -640,6 +687,12 @@ const SubscriptionPage = () => {
                               <span className="flex items-center gap-1.5">
                                 <Key size={14} /> License Keys
                               </span>
+                            ) : isUpgrade ? (
+                              lang === 'ru'
+                                ? `Обновиться до ${card.name}`
+                                : lang === 'uz'
+                                ? `${card.name}-ga yangilash`
+                                : `Upgrade to ${card.name}`
                             ) : (
                               tLocal?.selectPlan || 'Select Plan'
                             )}

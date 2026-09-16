@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSystemConfig } from '@/hooks/use-system-request';
-import { useFetchUserInfo } from '@/hooks/use-user-setting-request';
+import { useFetchUserInfo, useFetchTenantInfo } from '@/hooks/use-user-setting-request';
 import { 
   getUserLicensePricing,
   createLicensePay,
@@ -227,9 +227,49 @@ export default function CheckoutPage() {
         : 'en';
   const tLocal = checkoutTranslations[lang];
 
-  // User Data
+  // User Data & Subscription check
   const { data: userInfo, loading: userLoading } = useFetchUserInfo();
   const userEmail = userInfo?.email || '';
+
+  const { data: tenantInfo } = useFetchTenantInfo();
+  const currentPlan = (tenantInfo?.plan_type || 'free').toLowerCase();
+  const expiryDate = tenantInfo?.plan_expiry_date;
+  const isPlanExpired = expiryDate ? new Date(expiryDate).getTime() < Date.now() : false;
+  const effectiveCurrentPlan = isPlanExpired ? 'free' : currentPlan;
+
+  const PLAN_RANKS: Record<string, number> = {
+    free: 0,
+    plus: 1,
+    pro: 2,
+  };
+
+  const currentRank = PLAN_RANKS[effectiveCurrentPlan] ?? 0;
+  const targetRank = PLAN_RANKS[planQuery] ?? 0;
+
+  const isUpgradeBlocked =
+    (planQuery === 'plus' || planQuery === 'pro') &&
+    targetRank <= currentRank &&
+    currentRank > 0;
+
+  const upgradeBlockReason = (() => {
+    if (!isUpgradeBlocked) return '';
+    if (targetRank === currentRank) {
+      return lang === 'ru'
+        ? `У вас уже действует подписка ${effectiveCurrentPlan.toUpperCase()}. Повторная покупка того же тарифа не требуется — вы можете только повысить тариф.`
+        : lang === 'uz'
+        ? `Sizda allaqachon ${effectiveCurrentPlan.toUpperCase()} tarifi faol. Tarifni faqat yuqoriroq darajaga oshirishingiz mumkin.`
+        : lang === 'zh'
+        ? `您当前已激活 ${effectiveCurrentPlan.toUpperCase()} 计划。您只能升级到更高阶计划。`
+        : `You already have an active ${effectiveCurrentPlan.toUpperCase()} subscription. You can only upgrade to a higher tier.`;
+    }
+    return lang === 'ru'
+      ? `Понижение тарифа с ${effectiveCurrentPlan.toUpperCase()} до ${planQuery.toUpperCase()} невозможно при действующей подписке.`
+      : lang === 'uz'
+      ? `${effectiveCurrentPlan.toUpperCase()} tarifidan ${planQuery.toUpperCase()} tarifiga tushirish mumkin emas.`
+      : lang === 'zh'
+      ? `在当前订阅有效期间，不支持从 ${effectiveCurrentPlan.toUpperCase()} 降级到 ${planQuery.toUpperCase()}。`
+      : `Downgrading from ${effectiveCurrentPlan.toUpperCase()} to ${planQuery.toUpperCase()} is not permitted while your subscription is active.`;
+  })();
 
   // Pricing configs
   const { config, loading: configLoading } = useSystemConfig();
@@ -392,6 +432,11 @@ export default function CheckoutPage() {
 
   const handleCardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isUpgradeBlocked) {
+      setError(upgradeBlockReason);
+      message.error(upgradeBlockReason);
+      return;
+    }
     if (planQuery === 'license' && !licenseName.trim()) {
       setError(tLocal.licenseNameLabel + ' is required');
       return;
@@ -815,6 +860,28 @@ export default function CheckoutPage() {
                       </div>
                     )}
 
+                    {isUpgradeBlocked && (
+                      <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl flex items-start gap-2.5 text-xs">
+                        <ShieldCheck className="size-4 shrink-0 text-amber-400 mt-0.5" />
+                        <div className="space-y-2">
+                          <p className="font-semibold text-amber-300 leading-relaxed">{upgradeBlockReason}</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px] border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+                            onClick={() => navigate(Routes.Pricing)}
+                          >
+                            {lang === 'ru'
+                              ? 'Выбрать другой тариф'
+                              : lang === 'uz'
+                              ? 'Boshqa tarifni tanlash'
+                              : 'View available plans'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Dynamic Virtual Card Preview */}
                     <div className="border border-slate-800 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 shadow-xl relative overflow-hidden flex flex-col justify-between text-white h-[135px] sm:h-[155px]">
                       <div className="flex justify-between items-center z-10">
@@ -960,13 +1027,22 @@ export default function CheckoutPage() {
 
                     <Button
                       type="submit"
-                      disabled={payingLoading}
-                      className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-900 text-white font-bold py-2.5 sm:py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2"
+                      disabled={payingLoading || isUpgradeBlocked}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-900 disabled:opacity-50 text-white font-bold py-2.5 sm:py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2"
                     >
                       {payingLoading ? (
                         <>
                           <Loader2 className="animate-spin size-4" />
                           {tLocal.processing}
+                        </>
+                      ) : isUpgradeBlocked ? (
+                        <>
+                          <Lock size={14} />
+                          {lang === 'ru'
+                            ? 'Тариф недоступен для покупки'
+                            : lang === 'uz'
+                            ? 'Tarif mavjud emas'
+                            : 'Plan unavailable'}
                         </>
                       ) : (
                         <>

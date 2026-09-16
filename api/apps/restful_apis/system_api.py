@@ -786,6 +786,36 @@ async def system_payment_init():
         return get_data_error_result(message=f"User {email} not found")
 
     user = users[0]
+
+    PLAN_RANKS = {"free": 0, "plus": 1, "pro": 2, "enterprise": 3}
+    if plan in PLAN_RANKS:
+        from api.db.services.user_service import TenantService
+        success, tenant = TenantService.get_by_id(user.id)
+        if success and tenant:
+            curr_plan = (tenant.plan_type or "free").lower()
+            plan_expired = False
+            if tenant.plan_expiry_date:
+                from datetime import datetime
+                try:
+                    exp_dt = tenant.plan_expiry_date if not isinstance(tenant.plan_expiry_date, str) else datetime.fromisoformat(tenant.plan_expiry_date)
+                    plan_expired = exp_dt < datetime.now()
+                except Exception:
+                    plan_expired = False
+
+            effective_plan = "free" if plan_expired else curr_plan
+            curr_rank = PLAN_RANKS.get(effective_plan, 0)
+            target_rank = PLAN_RANKS.get(plan, 0)
+
+            if curr_rank > 0 and target_rank <= curr_rank:
+                if target_rank == curr_rank:
+                    return get_data_error_result(
+                        message=f"You already have an active {effective_plan.upper()} subscription. You can only upgrade to a higher tier."
+                    )
+                else:
+                    return get_data_error_result(
+                        message=f"Downgrading from {effective_plan.upper()} to {plan.upper()} is not permitted while your subscription is active."
+                    )
+
     expected_amount = PaymentTransactionService.calculate_expected_amount_uzs(plan, months)
 
     tx, is_created = PaymentTransactionService.create_pending(
@@ -1454,3 +1484,71 @@ async def system_subscription_expire_due():
     except Exception as ex:
         logging.exception(f"Error expiring due subscriptions: {ex}")
         return get_data_error_result(message=f"Error expiring due subscriptions: {str(ex)}")
+
+
+@manager.route("/system/subscription/check-upgrade", methods=["GET"])  # noqa: F821
+async def system_subscription_check_upgrade():
+    """
+    Check if a user is eligible to upgrade/purchase a target plan.
+    Strict hierarchy:
+    - Free -> Plus or Pro (Allowed)
+    - Plus -> Pro (Allowed)
+    - Plus -> Plus (Blocked: already active)
+    - Pro -> Plus (Blocked: downgrade not allowed)
+    - Pro -> Pro (Blocked: already on highest active tier)
+    """
+    email = str(request.args.get("email", "")).strip().lower()
+    target_plan = str(request.args.get("target_plan", "")).strip().lower()
+
+    if not email or not target_plan:
+        return get_data_error_result(message="email and target_plan are required")
+
+    PLAN_RANKS = {"free": 0, "plus": 1, "pro": 2, "enterprise": 3}
+    if target_plan not in PLAN_RANKS:
+        return get_json_result(data={"allowed": True, "target_plan": target_plan})
+
+    from api.db.services.user_service import UserService, TenantService
+    users = UserService.query(email=email)
+    if not users:
+        return get_json_result(data={"allowed": True, "target_plan": target_plan})
+
+    user = users[0]
+    success, tenant = TenantService.get_by_id(user.id)
+    if not success or not tenant:
+        return get_json_result(data={"allowed": True, "target_plan": target_plan})
+
+    curr_plan = (tenant.plan_type or "free").lower()
+    expired = False
+    if tenant.plan_expiry_date:
+        from datetime import datetime
+        try:
+            exp_dt = tenant.plan_expiry_date if not isinstance(tenant.plan_expiry_date, str) else datetime.fromisoformat(tenant.plan_expiry_date)
+            expired = exp_dt < datetime.now()
+        except Exception:
+            expired = False
+
+    effective_plan = "free" if expired else curr_plan
+    curr_rank = PLAN_RANKS.get(effective_plan, 0)
+    target_rank = PLAN_RANKS.get(target_plan, 0)
+
+    if curr_rank > 0 and target_rank <= curr_rank:
+        if target_rank == curr_rank:
+            return get_json_result(data={
+                "allowed": False,
+                "current_plan": effective_plan,
+                "target_plan": target_plan,
+                "reason": f"You already have an active {effective_plan.upper()} subscription. You can only upgrade to a higher tier."
+            })
+        else:
+            return get_json_result(data={
+                "allowed": False,
+                "current_plan": effective_plan,
+                "target_plan": target_plan,
+                "reason": f"Downgrading from {effective_plan.upper()} to {target_plan.upper()} is not permitted while your subscription is active."
+            })
+
+    return get_json_result(data={
+        "allowed": True,
+        "current_plan": effective_plan,
+        "target_plan": target_plan
+    })
