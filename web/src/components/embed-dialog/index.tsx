@@ -175,12 +175,14 @@ function EmbedDialog({
       if (!isEmpty(trim(widgetSubtitle))) {
         src.searchParams.append('widget_subtitle', widgetSubtitle ?? '');
       }
-      if (!isEmpty(trim(widgetFooterText))) {
-        src.searchParams.append('widget_footer', widgetFooterText ?? '');
-      }
-      if (!isEmpty(trim(widgetFooterLink))) {
-        src.searchParams.append('widget_footer_link', widgetFooterLink ?? '');
-      }
+      const footerText = !isEmpty(trim(widgetFooterText))
+        ? widgetFooterText
+        : 'Powered by Swipies.app';
+      const footerLink = !isEmpty(trim(widgetFooterLink))
+        ? widgetFooterLink
+        : 'https://swipies.app';
+      src.searchParams.append('widget_footer', footerText ?? '');
+      src.searchParams.append('widget_footer_link', footerLink ?? '');
       src.searchParams.append(
         'widget_accent_color',
         normalizeHexColor(widgetAccentColor, '#2563eb'),
@@ -279,6 +281,8 @@ window.addEventListener('message',e=>{
       }
     }
   }else if(e.data.type==='RESIZE_CHAT_WINDOW'){
+    const isMob=Boolean(e.data.isMobile)||(typeof window!=='undefined'&&window.innerWidth<=640)||/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if(isMob)return;
     const w=document.getElementById('chat-win');
     if(w&&window.__chat_prev_overflow===undefined){
       if(e.data.width)w.style.width=e.data.width;

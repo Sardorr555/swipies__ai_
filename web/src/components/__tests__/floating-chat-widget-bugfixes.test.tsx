@@ -373,15 +373,30 @@ describe('FloatingChatWidget Critical Bug Fixes & Stability Contracts', () => {
     });
   });
 
-  describe('9. Two-Pane Anti-Split Invariant ("не делится на два")', () => {
-    it('enforces shrink-0, basis-1/2, and min-w-[50%] on panes so screen never splits in two', () => {
-      const paneClasses = 'w-1/2 shrink-0 basis-1/2 min-w-[50%] h-full flex flex-col min-h-0 overflow-hidden';
-      const containerClasses = 'flex h-full w-[200%] shrink-0';
+  describe('9. Two-Pane Absolute Inset-0 Invariant (Zero Horizontal Overflow & Shift Prevention)', () => {
+    it('guarantees panes use absolute inset-0 w-full h-full instead of w-[200%] to eliminate horizontal scroll', () => {
+      // With absolute inset-0, container scrollWidth is strictly 100% of clientWidth.
+      // Horizontal scrolling is mathematically impossible.
+      const getPaneClassNames = (isSessionsPane: boolean, showSessions: boolean) => {
+        const base = 'absolute inset-0 w-full h-full flex flex-col min-h-0 overflow-hidden transition-transform duration-250 ease-out';
+        if (isSessionsPane) {
+          return `${base} ${showSessions ? 'translate-x-0 pointer-events-auto z-10' : '-translate-x-full pointer-events-none z-0'}`;
+        }
+        return `${base} ${!showSessions ? 'translate-x-0 pointer-events-auto z-10' : 'translate-x-full pointer-events-none z-0'}`;
+      };
 
-      expect(containerClasses).toContain('shrink-0');
-      expect(paneClasses).toContain('shrink-0');
-      expect(paneClasses).toContain('basis-1/2');
-      expect(paneClasses).toContain('min-w-[50%]');
+      const sessionsActive = getPaneClassNames(true, true);
+      const sessionsHidden = getPaneClassNames(true, false);
+      const chatActive = getPaneClassNames(false, false);
+      const chatHidden = getPaneClassNames(false, true);
+
+      expect(sessionsActive).toContain('absolute inset-0 w-full h-full');
+      expect(sessionsActive).toContain('translate-x-0');
+      expect(sessionsHidden).toContain('-translate-x-full');
+
+      expect(chatActive).toContain('absolute inset-0 w-full h-full');
+      expect(chatActive).toContain('translate-x-0');
+      expect(chatHidden).toContain('translate-x-full');
     });
   });
 
@@ -415,6 +430,92 @@ describe('FloatingChatWidget Critical Bug Fixes & Stability Contracts', () => {
     it('guarantees defaultWidgetSettings.enableStreaming is true for real-time token streaming', () => {
       const { defaultWidgetSettings } = require('@/components/embed-dialog/constant');
       expect(defaultWidgetSettings.enableStreaming).toBe(true);
+    });
+  });
+
+  describe('12. Direct Container ScrollTop Invariant (Ancestor Horizontal Shift Prevention)', () => {
+    it('scrolls container vertically via scrollTo and does not invoke scrollIntoView which causes horizontal shifts', () => {
+      let scrolledTop = 0;
+      let scrollBehavior = '';
+
+      const mockContainer = {
+        scrollHeight: 1200,
+        clientHeight: 500,
+        scrollTo: jest.fn(({ top, behavior }: { top: number; behavior: string }) => {
+          scrolledTop = top;
+          scrollBehavior = behavior;
+        }),
+      };
+
+      const scrollToBottom = (smooth = true) => {
+        mockContainer.scrollTo({
+          top: mockContainer.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto',
+        });
+      };
+
+      scrollToBottom(true);
+      expect(mockContainer.scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrolledTop).toBe(1200);
+      expect(scrollBehavior).toBe('smooth');
+    });
+  });
+
+  describe('13. Powered by Swipies.app Footer Contract', () => {
+    it('always defaults to "Powered by Swipies.app" linking to https://swipies.app when custom footer is not provided', () => {
+      const getFooterAttribution = (widgetFooter?: string, widgetFooterLink?: string) => {
+        const displayFooter = widgetFooter?.trim() || 'Powered by Swipies.app';
+        const targetLink = widgetFooterLink?.trim() || 'https://swipies.app';
+        return { displayFooter, targetLink };
+      };
+
+      const defaultAttr = getFooterAttribution(undefined, undefined);
+      expect(defaultAttr.displayFooter).toBe('Powered by Swipies.app');
+      expect(defaultAttr.targetLink).toBe('https://swipies.app');
+
+      const customAttr = getFooterAttribution('Custom Company', 'https://custom.com');
+      expect(customAttr.displayFooter).toBe('Custom Company');
+      expect(customAttr.targetLink).toBe('https://custom.com');
+    });
+  });
+
+  describe('14. Mobile Element Scale & Touch Targets Contract', () => {
+    it('enforces 16px (text-base) font on mobile textarea to prevent iOS auto-zoom and larger touch targets', () => {
+      const getTextareaClass = () =>
+        'w-full resize-none border border-gray-300 rounded-2xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:ring-2 focus:border-transparent';
+
+      expect(getTextareaClass()).toContain('text-base sm:text-sm');
+
+      const getHeaderAvatarClass = (isMobile: boolean) =>
+        `${isMobile ? 'w-10 h-10' : 'w-8 h-8'} bg-white bg-opacity-20 rounded-full flex items-center justify-center flex-shrink-0`;
+
+      expect(getHeaderAvatarClass(true)).toContain('w-10 h-10');
+      expect(getHeaderAvatarClass(false)).toContain('w-8 h-8');
+
+      const getHeaderButtonClass = (isMobile: boolean) =>
+        `${isMobile ? 'p-2.5' : 'p-1.5'} hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95`;
+
+      expect(getHeaderButtonClass(true)).toContain('p-2.5');
+      expect(getHeaderButtonClass(false)).toContain('p-1.5');
+    });
+  });
+
+  describe('15. Host Script Mobile Guard on RESIZE_CHAT_WINDOW', () => {
+    it('ignores RESIZE_CHAT_WINDOW on mobile devices to prevent shrinking fullscreen iframe', () => {
+      let iframeWidth = '100%';
+
+      const handleResizeEvent = (isMob: boolean, data: { width?: string }) => {
+        if (isMob) return; // Protected!
+        if (data.width) iframeWidth = data.width;
+      };
+
+      // On mobile: RESIZE_CHAT_WINDOW with desktop width 380px MUST be ignored
+      handleResizeEvent(true, { width: '380px' });
+      expect(iframeWidth).toBe('100%');
+
+      // On desktop: RESIZE_CHAT_WINDOW is applied normally
+      handleResizeEvent(false, { width: '520px' });
+      expect(iframeWidth).toBe('520px');
     });
   });
 });

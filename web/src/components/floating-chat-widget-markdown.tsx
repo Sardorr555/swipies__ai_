@@ -296,7 +296,7 @@ const FloatingChatWidgetMarkdown = ({
       <Markdown
         rehypePlugins={[rehypeRaw, rehypeWrapReference, rehypeKatex]}
         remarkPlugins={MarkdownRemarkPlugins}
-        className="text-sm leading-relaxed space-y-2 prose-sm max-w-full"
+        className="text-[15px] sm:text-sm leading-relaxed space-y-2 prose-sm max-w-full"
         components={
           {
             p: (props: any) => {
