@@ -255,12 +255,55 @@ window.addEventListener('message',e=>{
     if(document.getElementById('chat-win'))return;
     const i=document.createElement('iframe');
     i.id='chat-win';i.src=e.data.src;
-    i.style.cssText='position:fixed;bottom:104px;right:24px;width:380px;height:500px;border:none;background:transparent;z-index:9998;display:none';
+    i.style.cssText=e.data.isMobile
+      ?'position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;height:100dvh;border:none;background:transparent;z-index:999999;display:none;border-radius:0'
+      :'position:fixed;bottom:104px;right:24px;width:380px;max-width:calc(100vw - 48px);height:500px;max-height:calc(100vh - 128px);border:none;background:transparent;z-index:9998;display:none';
     i.frameBorder='0';i.allow='microphone;camera';
     document.body.appendChild(i);
   }else if(e.data.type==='TOGGLE_CHAT'){
     const w=document.getElementById('chat-win');
-    if(w)w.style.display=e.data.isOpen?'block':'none';
+    if(w){
+      w.style.display=e.data.isOpen?'block':'none';
+      if(!e.data.isOpen&&window.__chat_prev_overflow!==undefined){
+        document.body.style.overflow=window.__chat_prev_overflow;
+        delete window.__chat_prev_overflow;
+      }
+    }
+  }else if(e.data.type==='SET_FULLSCREEN'){
+    const w=document.getElementById('chat-win');
+    if(e.data.isFullscreen){
+      if(window.__chat_prev_overflow===undefined){
+        window.__chat_prev_overflow=document.body.style.overflow||'';
+      }
+      document.body.style.overflow='hidden';
+      if(w){
+        w.style.top='0';w.style.left='0';w.style.right='0';w.style.bottom='0';
+        w.style.width='100%';w.style.height='100%';w.style.height='100dvh';
+        w.style.maxWidth='';w.style.maxHeight='';
+        w.style.borderRadius='0';w.style.zIndex='999999';
+      }
+    }else{
+      if(window.__chat_prev_overflow!==undefined){
+        document.body.style.overflow=window.__chat_prev_overflow;
+        delete window.__chat_prev_overflow;
+      }
+      if(w){
+        w.style.top='';w.style.left='';w.style.bottom='104px';w.style.right='24px';
+        w.style.width='380px';w.style.height='500px';
+        w.style.maxWidth='calc(100vw - 48px)';w.style.maxHeight='calc(100vh - 128px)';
+        w.style.borderRadius='';w.style.zIndex='9998';
+      }
+    }
+  }else if(e.data.type==='RESIZE_CHAT_WINDOW'){
+    const w=document.getElementById('chat-win');
+    if(w&&window.__chat_prev_overflow===undefined){
+      if(e.data.width)w.style.width=e.data.width;
+      if(e.data.height)w.style.height=e.data.height;
+      if(e.data.maxWidth)w.style.maxWidth=e.data.maxWidth;
+      if(e.data.maxHeight)w.style.maxHeight=e.data.maxHeight;
+      if(e.data.bottom)w.style.bottom=e.data.bottom;
+      if(e.data.right)w.style.right=e.data.right;
+    }
   }else if(e.data.type==='SCROLL_PASSTHROUGH')window.scrollBy(0,e.data.deltaY);
 });
 </script>

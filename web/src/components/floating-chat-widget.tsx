@@ -7,12 +7,14 @@ import { useFetchExternalChatInfo } from '@/hooks/use-chat-request';
 import i18n, { changeLanguageAsync } from '@/locales/config';
 import { useSendNextSharedMessage } from '@/pages/agent/hooks/use-send-shared-message';
 import {
-  AlertTriangle,
+  ChevronDown,
   ChevronLeft,
   History,
+  Maximize2,
   MessageCircle,
   MessageSquare,
   Minimize2,
+  Minus,
   Plus,
   Send,
   X,
@@ -25,6 +27,7 @@ import {
   useSendSharedMessage,
 } from '../pages/next-chats/hooks/use-send-shared-message';
 import { isStorageAvailable } from '../utils/visitor-identity';
+import { useWidgetResponsive } from '@/hooks/use-widget-responsive';
 import FloatingChatWidgetMarkdown from './floating-chat-widget-markdown';
 
 /**
@@ -101,8 +104,23 @@ import { StorageWarningBanner } from './storage-warning-banner';
  */
 const FloatingChatWidget = () => {
   const { t } = useTranslation();
-  const [isOpen, setIsOpen] = useState(false);
+  const { isMobile, visualViewportHeight, visualViewportOffsetTop } = useWidgetResponsive();
+  const urlParams = new URLSearchParams(
+    typeof window !== 'undefined' ? window.location.search : '',
+  );
+  const mode = urlParams.get('mode') || 'full'; // 'button', 'window', or 'full'
+
+  const [isOpen, setIsOpen] = useState(() => mode === 'window');
   const [isMinimized, setIsMinimized] = useState(false);
+  // AC6: Desktop widget resize state.
+  // Per specification (Out of Scope): "Размер сбрасывается в Compact при новом визите",
+  // so this is strictly an in-memory React state with default false (Compact: 380x500).
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
+  const toggleResize = useCallback(() => {
+    if (isMobile) return; // Strict guard: never allow resize on mobile!
+    setIsExpanded((prev) => !prev);
+  }, [isMobile]);
   const [inputValue, setInputValue] = useState('');
   const [lastResponseId, setLastResponseId] = useState<string | null>(null);
   const [displayMessages, setDisplayMessages] = useState<any[]>([]);
@@ -116,10 +134,6 @@ const FloatingChatWidget = () => {
   } = useGetSharedChatSearchParams();
 
   const isFromAgent = from === SharedFrom.Agent;
-
-  // Check if we're in button-only mode or window-only mode
-  const urlParams = new URLSearchParams(window.location.search);
-  const mode = urlParams.get('mode') || 'full'; // 'button', 'window', or 'full'
   const enableStreaming = urlParams.get('streaming') === 'true'; // Only enable if explicitly set to true
   const isMuted = urlParams.get('muted') === 'true';
   const widgetTitle = urlParams.get('widget_title')?.trim();
@@ -173,23 +187,39 @@ const FloatingChatWidget = () => {
   const [storageAvailable] = useState(() => isStorageAvailable());
   const [showStorageWarning, setShowStorageWarning] = useState(true);
 
+  const sessionFetchSeqRef = useRef(0);
+
+  const handleBackFromSessions = useCallback(() => {
+    sessionFetchSeqRef.current++;
+    setLoadingSessions(false);
+    setShowSessions(false);
+  }, []);
+
   const handleOpenSessions = useCallback(async () => {
     setShowSessions(true);
     if (fetchVisitorSessions) {
+      const currentSeq = ++sessionFetchSeqRef.current;
       setLoadingSessions(true);
       try {
         const list = await fetchVisitorSessions();
-        setSessionsList(Array.isArray(list) ? list : []);
+        if (currentSeq === sessionFetchSeqRef.current) {
+          setSessionsList(Array.isArray(list) ? list : []);
+        }
       } catch (e) {
-        console.error('Failed to fetch visitor sessions:', e);
+        if (currentSeq === sessionFetchSeqRef.current) {
+          console.error('Failed to fetch visitor sessions:', e);
+        }
       } finally {
-        setLoadingSessions(false);
+        if (currentSeq === sessionFetchSeqRef.current) {
+          setLoadingSessions(false);
+        }
       }
     }
   }, [fetchVisitorSessions]);
 
   const handleSelectSession = useCallback(
     (session: any) => {
+      sessionFetchSeqRef.current++;
       if (selectSession) {
         selectSession(session);
       }
@@ -199,6 +229,7 @@ const FloatingChatWidget = () => {
   );
 
   const handleStartNewChat = useCallback(async () => {
+    sessionFetchSeqRef.current++;
     if (startNewChat) {
       await startNewChat();
     }
@@ -216,6 +247,73 @@ const FloatingChatWidget = () => {
       // Handle error state if needed
     }
   }, [hasError]);
+
+  // AC3 & AC5: Handle mobile fullscreen and scroll lock across embedded iframe and standalone modes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let isInIframe = false;
+    try {
+      isInIframe = window.self !== window.top;
+    } catch {
+      isInIframe = true;
+    }
+
+    if (!isInIframe) {
+      // Standalone / preview mode: directly manage host document.body scroll lock
+      if (isMobile && isOpen) {
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+          document.body.style.overflow = originalOverflow;
+        };
+      }
+    } else {
+      // Embedded mode: communicate fullscreen and scroll lock to parent snippet via postMessage
+      if (isMobile && isOpen) {
+        window.parent.postMessage(
+          {
+            type: 'SET_FULLSCREEN',
+            isFullscreen: true,
+          },
+          '*',
+        );
+        return () => {
+          window.parent.postMessage(
+            {
+              type: 'SET_FULLSCREEN',
+              isFullscreen: false,
+            },
+            '*',
+          );
+        };
+      }
+    }
+  }, [isMobile, isOpen]);
+
+  // AC6: Desktop resize toggle protocol communication
+  useEffect(() => {
+    if (isMobile) return; // Strict guard: never send RESIZE_CHAT_WINDOW on mobile!
+
+    let isInIframe = false;
+    try {
+      isInIframe = window.self !== window.top;
+    } catch {
+      isInIframe = true;
+    }
+
+    if (isInIframe) {
+      window.parent.postMessage(
+        {
+          type: 'RESIZE_CHAT_WINDOW',
+          width: isExpanded ? '520px' : '380px',
+          height: isExpanded ? '640px' : '500px',
+          maxWidth: 'calc(100vw - 48px)',
+          maxHeight: 'calc(100vh - 128px)',
+        },
+        '*',
+      );
+    }
+  }, [isMobile, isExpanded]);
 
   const renderStorageWarning = () => (
     <StorageWarningBanner
@@ -255,8 +353,20 @@ const FloatingChatWidget = () => {
       </div>
     );
   };
+  const headerPaddingStyle: React.CSSProperties = {
+    paddingTop: isMobile
+      ? 'calc(16px + env(safe-area-inset-top, 0px))'
+      : '16px',
+    paddingBottom: '16px',
+    paddingLeft: isMobile
+      ? 'calc(16px + env(safe-area-inset-left, 0px))'
+      : '16px',
+    paddingRight: isMobile
+      ? 'calc(16px + env(safe-area-inset-right, 0px))'
+      : '16px',
+  };
   const bodyContainerStyle: React.CSSProperties = {
-    borderRadius: '0 0 16px 16px',
+    borderRadius: isMobile ? '0' : '0 0 16px 16px',
     backgroundColor: widgetBackgroundColor,
     color: widgetTextColor,
   };
@@ -273,7 +383,7 @@ const FloatingChatWidget = () => {
         className="flex flex-col flex-1 min-h-0 overflow-hidden"
         style={bodyContainerStyle}
       >
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2">
           {loadingSessions ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2 py-10">
               <div
@@ -357,7 +467,7 @@ const FloatingChatWidget = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between space-x-1">
                       <span
-                        className="font-medium text-xs truncate max-w-[190px] block"
+                        className="font-medium text-xs truncate flex-1 min-w-0 max-w-[75%] block"
                         style={{ color: widgetTextColor }}
                       >
                         {title}
@@ -558,6 +668,7 @@ const FloatingChatWidget = () => {
         {
           type: 'CREATE_CHAT_WINDOW',
           src: window.location.href.replace('mode=master', 'mode=window'),
+          isMobile,
         },
         '*',
       );
@@ -567,29 +678,75 @@ const FloatingChatWidget = () => {
         const i = document.createElement('iframe');
         i.id = 'chat-win';
         i.src = window.location.href.replace('mode=master', 'mode=window');
-        i.style.cssText =
-          'position:fixed;bottom:104px;right:24px;width:380px;height:500px;border:none;background:transparent;z-index:9998;display:none';
+        i.style.cssText = isMobile
+          ? 'position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;height:100dvh;border:none;background:transparent;z-index:999999;display:none;border-radius:0'
+          : 'position:fixed;bottom:104px;right:24px;width:380px;max-width:calc(100vw - 48px);height:500px;max-height:calc(100vh - 128px);border:none;background:transparent;z-index:9998;display:none';
         i.frameBorder = '0';
         i.allow = 'microphone;camera';
         document.body.appendChild(i);
       }
     }
 
-    // Listen for toggle messages to show/hide the chat window iframe
+    // Listen for toggle and resize messages to control the chat window iframe in standalone preview
     const handleToggle = (e: MessageEvent) => {
+      const chatWindow = document.getElementById(
+        'chat-win',
+      ) as HTMLIFrameElement;
+      if (!chatWindow) return;
+
       if (e.data.type === 'TOGGLE_CHAT') {
-        const chatWindow = document.getElementById(
-          'chat-win',
-        ) as HTMLIFrameElement;
-        if (chatWindow) {
-          chatWindow.style.display = e.data.isOpen ? 'block' : 'none';
+        chatWindow.style.display = e.data.isOpen ? 'block' : 'none';
+        if (!e.data.isOpen && (window as any).__chat_prev_overflow !== undefined) {
+          document.body.style.overflow = (window as any).__chat_prev_overflow;
+          delete (window as any).__chat_prev_overflow;
+        }
+      } else if (e.data.type === 'SET_FULLSCREEN') {
+        if (e.data.isFullscreen) {
+          if ((window as any).__chat_prev_overflow === undefined) {
+            (window as any).__chat_prev_overflow = document.body.style.overflow || '';
+          }
+          document.body.style.overflow = 'hidden';
+          chatWindow.style.top = '0';
+          chatWindow.style.left = '0';
+          chatWindow.style.right = '0';
+          chatWindow.style.bottom = '0';
+          chatWindow.style.width = '100%';
+          chatWindow.style.height = '100%';
+          chatWindow.style.maxWidth = '';
+          chatWindow.style.maxHeight = '';
+          chatWindow.style.borderRadius = '0';
+          chatWindow.style.zIndex = '999999';
+        } else {
+          if ((window as any).__chat_prev_overflow !== undefined) {
+            document.body.style.overflow = (window as any).__chat_prev_overflow;
+            delete (window as any).__chat_prev_overflow;
+          }
+          chatWindow.style.top = '';
+          chatWindow.style.left = '';
+          chatWindow.style.bottom = '104px';
+          chatWindow.style.right = '24px';
+          chatWindow.style.width = '380px';
+          chatWindow.style.height = '500px';
+          chatWindow.style.maxWidth = 'calc(100vw - 48px)';
+          chatWindow.style.maxHeight = 'calc(100vh - 128px)';
+          chatWindow.style.borderRadius = '';
+          chatWindow.style.zIndex = '9998';
+        }
+      } else if (e.data.type === 'RESIZE_CHAT_WINDOW') {
+        if ((window as any).__chat_prev_overflow === undefined) {
+          if (e.data.width) chatWindow.style.width = e.data.width;
+          if (e.data.height) chatWindow.style.height = e.data.height;
+          if (e.data.maxWidth) chatWindow.style.maxWidth = e.data.maxWidth;
+          if (e.data.maxHeight) chatWindow.style.maxHeight = e.data.maxHeight;
+          if (e.data.bottom) chatWindow.style.bottom = e.data.bottom;
+          if (e.data.right) chatWindow.style.right = e.data.right;
         }
       }
     };
 
     window.addEventListener('message', handleToggle);
     return () => window.removeEventListener('message', handleToggle);
-  }, [mode]);
+  }, [mode, isMobile]);
 
   // Play sound only when AI response is complete (not streaming chunks)
   useEffect(() => {
@@ -635,6 +792,24 @@ const FloatingChatWidget = () => {
 
   const minimizeChat = useCallback(() => {
     setIsMinimized(true);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    // Invalidate any in-flight visitor sessions fetch
+    sessionFetchSeqRef.current++;
+    setLoadingSessions(false);
+
+    // Send TOGGLE_CHAT with isOpen: false to parent (if embedded) or self (if standalone)
+    const target = window.self !== window.top ? window.parent : window;
+    target.postMessage(
+      {
+        type: 'TOGGLE_CHAT',
+        isOpen: false,
+      },
+      '*',
+    );
+    setIsOpen(false);
+    setIsMinimized(false);
   }, []);
 
   const handleSendMessage = useCallback(() => {
@@ -758,18 +933,56 @@ const FloatingChatWidget = () => {
   }
 
   if (mode === 'window') {
-    // Only render the chat window (always open)
+    if (!isOpen) {
+      // In standalone mode, if closed, allow reopening via floating launcher button
+      return (
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="w-14 h-14 text-white rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95"
+            style={{ backgroundColor: widgetAccentColor }}
+            title={t('chat.chatSupport') || 'Open chat'}
+            aria-label="Open chat"
+          >
+            <MessageCircle size={24} />
+          </button>
+        </div>
+      );
+    }
+
+    // Render the chat window (when open)
     return (
       <>
         <div
-          className={`fixed top-0 left-0 z-50 rounded-2xl transition-all duration-300 ease-out h-[500px] w-[380px] overflow-hidden flex flex-col ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-          style={{ backgroundColor: widgetAccentColor }}
+          data-testid="chat-widget-container"
+          className={`fixed transition-all duration-300 ease-out overflow-hidden flex flex-col overscroll-contain ${
+            isMobile
+              ? 'h-screen h-[100dvh] w-full rounded-none inset-0 z-50'
+              : 'top-0 left-0 w-full h-full rounded-2xl z-50'
+          } ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          style={{
+            backgroundColor: widgetAccentColor,
+            ...(isMobile
+              ? {
+                  height: visualViewportHeight ? `${visualViewportHeight}px` : '100dvh',
+                  top: visualViewportOffsetTop ? `${visualViewportOffsetTop}px` : 0,
+                }
+              : {
+                  width: '100%',
+                  height: '100%',
+                }),
+          }}
         >
           {/* Header */}
           <div
-            className="flex items-center justify-between p-4 text-white rounded-t-2xl flex-shrink-0 relative overflow-hidden"
+            data-testid="widget-header"
+            className={`flex items-center justify-between text-white ${
+              isMobile ? 'rounded-none' : 'rounded-t-2xl'
+            } flex-shrink-0 relative overflow-hidden`}
             style={{
               background: `linear-gradient(to right, ${widgetAccentColor}, ${widgetAccentColorStrong})`,
+              ...headerPaddingStyle,
             }}
           >
             {/* Sessions Header (cross-fade) */}
@@ -777,13 +990,14 @@ const FloatingChatWidget = () => {
               className={`flex items-center justify-between w-full transition-opacity duration-200 ease-out ${
                 showSessions
                   ? 'opacity-100 pointer-events-auto'
-                  : 'opacity-0 pointer-events-none absolute inset-0 p-4'
+                  : 'opacity-0 pointer-events-none absolute inset-0'
               }`}
+              style={!showSessions ? headerPaddingStyle : undefined}
             >
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
-                  onClick={() => setShowSessions(false)}
+                  onClick={handleBackFromSessions}
                   className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
                   title={t('common.back') || 'Back'}
                   aria-label="Back"
@@ -806,6 +1020,28 @@ const FloatingChatWidget = () => {
                 >
                   <Plus size={18} />
                 </button>
+                {!isMobile && (
+                  <button
+                    type="button"
+                    onClick={toggleResize}
+                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95 flex-shrink-0"
+                    title={isExpanded ? (t('common.collapse') || 'Compact view') : (t('common.expand') || 'Expanded view')}
+                    aria-label={isExpanded ? 'Compact view' : 'Expanded view'}
+                    data-testid="sessions-resize-button"
+                  >
+                    {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95 flex-shrink-0"
+                  title={t('common.close') || 'Close'}
+                  aria-label="Close"
+                  data-testid="sessions-close-button"
+                >
+                  {isMobile ? <ChevronDown size={20} /> : <X size={18} />}
+                </button>
               </div>
             </div>
 
@@ -814,8 +1050,9 @@ const FloatingChatWidget = () => {
               className={`flex items-center justify-between w-full transition-opacity duration-200 ease-out ${
                 !showSessions
                   ? 'opacity-100 pointer-events-auto'
-                  : 'opacity-0 pointer-events-none absolute inset-0 p-4'
+                  : 'opacity-0 pointer-events-none absolute inset-0'
               }`}
+              style={showSessions ? headerPaddingStyle : undefined}
             >
               <div className="flex items-center space-x-2.5 min-w-0">
                 {!isFromAgent && (
@@ -844,26 +1081,50 @@ const FloatingChatWidget = () => {
                   </p>
                 </div>
               </div>
-              {!isFromAgent && (
-                <div className="flex items-center space-x-1 flex-shrink-0">
+              <div className="flex items-center space-x-1 flex-shrink-0">
+                {!isFromAgent && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleStartNewChat}
+                      className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                      title={t('chat.newConversation') || 'New conversation'}
+                    >
+                      <Plus size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleOpenSessions}
+                      className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                      title={t('chat.conversations') || 'Conversations'}
+                    >
+                      <History size={18} />
+                    </button>
+                  </>
+                )}
+                {!isMobile && (
                   <button
                     type="button"
-                    onClick={handleStartNewChat}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
-                    title={t('chat.newConversation') || 'New conversation'}
+                    onClick={toggleResize}
+                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95 flex-shrink-0"
+                    title={isExpanded ? (t('common.collapse') || 'Compact view') : (t('common.expand') || 'Expanded view')}
+                    aria-label={isExpanded ? 'Compact view' : 'Expanded view'}
+                    data-testid="widget-resize-button"
                   >
-                    <Plus size={18} />
+                    {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleOpenSessions}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
-                    title={t('chat.conversations') || 'Conversations'}
-                  >
-                    <History size={18} />
-                  </button>
-                </div>
-              )}
+                )}
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95 flex-shrink-0"
+                  title={t('common.close') || 'Close'}
+                  aria-label="Close"
+                  data-testid="widget-close-button"
+                >
+                  {isMobile ? <ChevronDown size={20} /> : <X size={18} />}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -899,7 +1160,7 @@ const FloatingChatWidget = () => {
               >
                 <div className="flex flex-col flex-1 min-h-0" style={bodyContainerStyle}>
                   <div
-                    className="flex-1 overflow-y-auto p-4 space-y-4"
+                    className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4"
                     onWheel={(e) => {
                       const element = e.currentTarget;
                       const isAtTop = element.scrollTop === 0;
@@ -927,7 +1188,7 @@ const FloatingChatWidget = () => {
                         className={`flex ${message.role === MessageType.User ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`group max-w-[280px] px-4 py-2 rounded-2xl ${
+                          className={`group max-w-[85%] md:max-w-[75%] px-4 py-2 rounded-2xl ${
                             message.role === MessageType.User
                               ? 'text-white rounded-br-md'
                               : 'rounded-bl-md'
@@ -1007,8 +1268,21 @@ const FloatingChatWidget = () => {
 
                   {/* Input Area */}
                   <div
-                    className="border-t border-gray-200 p-4 flex-shrink-0"
-                    style={bodyContainerStyle}
+                    data-testid="widget-input-area"
+                    className="border-t border-gray-200 flex-shrink-0"
+                    style={{
+                      ...bodyContainerStyle,
+                      paddingTop: '16px',
+                      paddingBottom: isMobile
+                        ? 'calc(16px + env(safe-area-inset-bottom, 0px))'
+                        : '16px',
+                      paddingLeft: isMobile
+                        ? 'calc(16px + env(safe-area-inset-left, 0px))'
+                        : '16px',
+                      paddingRight: isMobile
+                        ? 'calc(16px + env(safe-area-inset-right, 0px))'
+                        : '16px',
+                    }}
                   >
                     <div className="flex items-end space-x-3">
                       <div className="flex-1">
@@ -1064,16 +1338,38 @@ const FloatingChatWidget = () => {
       {/* Chat Widget Container */}
       {isOpen && (
         <div
-          className={`fixed bottom-24 right-6 z-50 rounded-2xl transition-all duration-300 ease-out ${
-            isMinimized ? 'h-16' : 'h-[500px]'
-          } w-[380px] overflow-hidden flex flex-col`}
-          style={{ backgroundColor: widgetAccentColor }}
+          data-testid="chat-widget-container"
+          className={`fixed transition-all duration-300 ease-out overflow-hidden flex flex-col overscroll-contain ${
+            isMobile
+              ? 'h-screen h-[100dvh] w-full rounded-none inset-0 z-50'
+              : `bottom-24 right-6 z-50 rounded-2xl ${
+                  isMinimized ? 'h-16' : ''
+                }`
+          }`}
+          style={{
+            backgroundColor: widgetAccentColor,
+            ...(isMobile
+              ? {
+                  height: visualViewportHeight ? `${visualViewportHeight}px` : '100dvh',
+                  top: visualViewportOffsetTop ? `${visualViewportOffsetTop}px` : undefined,
+                }
+              : {
+                  width: isExpanded ? '520px' : '380px',
+                  maxWidth: 'calc(100vw - 48px)',
+                  height: isMinimized ? '64px' : isExpanded ? '640px' : '500px',
+                  maxHeight: 'calc(100vh - 128px)',
+                }),
+          }}
         >
           {/* Header */}
           <div
-            className="flex items-center justify-between p-4 text-white rounded-t-2xl flex-shrink-0 relative overflow-hidden"
+            data-testid="full-widget-header"
+            className={`flex items-center justify-between text-white ${
+              isMobile ? 'rounded-none' : 'rounded-t-2xl'
+            } flex-shrink-0 relative overflow-hidden`}
             style={{
               background: `linear-gradient(to right, ${widgetAccentColor}, ${widgetAccentColorStrong})`,
+              ...headerPaddingStyle,
             }}
           >
             {/* Sessions Header (cross-fade) */}
@@ -1081,13 +1377,14 @@ const FloatingChatWidget = () => {
               className={`flex items-center justify-between w-full transition-opacity duration-200 ease-out ${
                 showSessions
                   ? 'opacity-100 pointer-events-auto'
-                  : 'opacity-0 pointer-events-none absolute inset-0 p-4'
+                  : 'opacity-0 pointer-events-none absolute inset-0'
               }`}
+              style={!showSessions ? headerPaddingStyle : undefined}
             >
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
-                  onClick={() => setShowSessions(false)}
+                  onClick={handleBackFromSessions}
                   className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
                   title={t('common.back') || 'Back'}
                   aria-label="Back"
@@ -1110,19 +1407,38 @@ const FloatingChatWidget = () => {
                 >
                   <Plus size={18} />
                 </button>
-                <button
-                  type="button"
-                  onClick={minimizeChat}
-                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                >
-                  <Minimize2 size={16} />
-                </button>
+                {!isMobile && (
+                  <button
+                    type="button"
+                    onClick={toggleResize}
+                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95 flex-shrink-0"
+                    title={isExpanded ? (t('common.collapse') || 'Compact view') : (t('common.expand') || 'Expanded view')}
+                    aria-label={isExpanded ? 'Compact view' : 'Expanded view'}
+                    data-testid="full-sessions-resize-button"
+                  >
+                    {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+                )}
+                {!isMobile && (
+                  <button
+                    type="button"
+                    onClick={minimizeChat}
+                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                    title={t('common.minimize') || 'Minimize'}
+                    aria-label="Minimize"
+                  >
+                    <Minus size={16} />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={toggleChat}
-                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                  title={t('common.close') || 'Close'}
+                  aria-label="Close"
+                  data-testid="full-sessions-close-button"
                 >
-                  <X size={16} />
+                  {isMobile ? <ChevronDown size={20} /> : <X size={16} />}
                 </button>
               </div>
             </div>
@@ -1132,8 +1448,9 @@ const FloatingChatWidget = () => {
               className={`flex items-center justify-between w-full transition-opacity duration-200 ease-out ${
                 !showSessions
                   ? 'opacity-100 pointer-events-auto'
-                  : 'opacity-0 pointer-events-none absolute inset-0 p-4'
+                  : 'opacity-0 pointer-events-none absolute inset-0'
               }`}
+              style={showSessions ? headerPaddingStyle : undefined}
             >
               <div className="flex items-center space-x-2.5 min-w-0">
                 {!isFromAgent && (
@@ -1183,19 +1500,38 @@ const FloatingChatWidget = () => {
                     </button>
                   </>
                 )}
-                <button
-                  type="button"
-                  onClick={minimizeChat}
-                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                >
-                  <Minimize2 size={16} />
-                </button>
+                {!isMobile && (
+                  <button
+                    type="button"
+                    onClick={toggleResize}
+                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95 flex-shrink-0"
+                    title={isExpanded ? (t('common.collapse') || 'Compact view') : (t('common.expand') || 'Expanded view')}
+                    aria-label={isExpanded ? 'Compact view' : 'Expanded view'}
+                    data-testid="full-widget-resize-button"
+                  >
+                    {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+                )}
+                {!isMobile && (
+                  <button
+                    type="button"
+                    onClick={minimizeChat}
+                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                    title={t('common.minimize') || 'Minimize'}
+                    aria-label="Minimize"
+                  >
+                    <Minus size={16} />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={toggleChat}
-                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                  title={t('common.close') || 'Close'}
+                  aria-label="Close"
+                  data-testid="full-widget-close-button"
                 >
-                  <X size={16} />
+                  {isMobile ? <ChevronDown size={20} /> : <X size={16} />}
                 </button>
               </div>
             </div>
@@ -1234,7 +1570,7 @@ const FloatingChatWidget = () => {
                 >
                   <div className="flex flex-col flex-1 min-h-0" style={bodyContainerStyle}>
                     <div
-                      className="flex-1 overflow-y-auto p-4 space-y-4"
+                      className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4"
                       onWheel={(e) => {
                         const element = e.currentTarget;
                         const isAtTop = element.scrollTop === 0;
@@ -1265,7 +1601,7 @@ const FloatingChatWidget = () => {
                           className={`flex ${message.role === MessageType.User ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`group max-w-[280px] px-4 py-2 rounded-2xl ${
+                            className={`group max-w-[85%] md:max-w-[75%] px-4 py-2 rounded-2xl ${
                               message.role === MessageType.User
                                 ? 'text-white rounded-br-md'
                                 : 'rounded-bl-md'
@@ -1337,7 +1673,22 @@ const FloatingChatWidget = () => {
                     </div>
 
                     {/* Input Area */}
-                    <div className="border-t border-gray-200 p-4 flex-shrink-0">
+                    <div
+                      data-testid="full-widget-input-area"
+                      className="border-t border-gray-200 flex-shrink-0"
+                      style={{
+                        paddingTop: '16px',
+                        paddingBottom: isMobile
+                          ? 'calc(16px + env(safe-area-inset-bottom, 0px))'
+                          : '16px',
+                        paddingLeft: isMobile
+                          ? 'calc(16px + env(safe-area-inset-left, 0px))'
+                          : '16px',
+                        paddingRight: isMobile
+                          ? 'calc(16px + env(safe-area-inset-right, 0px))'
+                          : '16px',
+                      }}
+                    >
                       <div className="flex items-end space-x-3">
                         <div className="flex-1">
                           <textarea

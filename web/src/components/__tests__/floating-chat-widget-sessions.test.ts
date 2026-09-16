@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { StorageWarningBanner } from '../storage-warning-banner';

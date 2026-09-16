@@ -7,6 +7,8 @@ const ChatWidget = () => {
         background: 'transparent',
         margin: 0,
         padding: 0,
+        width: '100%',
+        height: '100%',
       }}
     >
       <style>{`
@@ -14,9 +16,16 @@ const ChatWidget = () => {
           background: transparent !important; 
           margin: 0; 
           padding: 0; 
+          width: 100%;
+          height: 100vh;
+          height: 100dvh;
+          overscroll-behavior-y: contain;
+          -webkit-overflow-scrolling: touch;
         }
         #root {
           background: transparent !important;
+          width: 100%;
+          height: 100%;
         }
       `}</style>
       <FloatingChatWidget />
