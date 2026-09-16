@@ -98,7 +98,7 @@ async def chatbot_completions(dialog_id, tenant_id=None):
                 raise AssertionError("Session not found!")
             if conv.dialog_id != dialog_id:
                 raise AssertionError("Session does not belong to this dialog")
-            if conv.user_id and visitor_id and conv.user_id != visitor_id:
+            if conv.user_id != visitor_id:
                 raise AssertionError("Session does not belong to this visitor")
 
     if req.get("stream", True):

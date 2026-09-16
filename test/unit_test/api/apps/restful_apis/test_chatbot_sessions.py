@@ -93,7 +93,12 @@ def _load_bot_api_for_sessions(monkeypatch, *, dialog_exists=True, dialog_tenant
         args=request_args,
     )
 
-    _stub(monkeypatch, "quart", Response=lambda *a, **k: None, request=req_obj)
+    class _MockResponse:
+        def __init__(self, *a, **k):
+            self.mimetype = k.get("mimetype", "text/plain")
+            self.headers = SimpleNamespace(add_header=lambda *args, **kwargs: None)
+
+    _stub(monkeypatch, "quart", Response=_MockResponse, request=req_obj)
     _stub(monkeypatch, "api.apps", AUTH_BETA="beta", login_required=lambda *_a, **_k: (lambda func: func))
     _stub(monkeypatch, "agent.canvas", Canvas=lambda *a, **k: SimpleNamespace(get_component_input_form=lambda _n: {}, get_prologue=lambda: "", get_mode=lambda: "agent"))
     _stub(monkeypatch, "api.db.db_models", APIToken=SimpleNamespace(query=lambda **_k: []))
@@ -238,4 +243,204 @@ class TestChatbotSessions:
         result = asyncio.run(module.chatbot_completions(dialog_id="diag-1", tenant_id="tenant-1"))
         assert result["code"] == 0
         assert result["data"]["answer"] == "pong"
+
+    def test_completions_rejects_legacy_session_without_user_id(self, monkeypatch):
+        visitor_id = "c3b53f60-9884-486a-9fa5-f93ea8c772cb"
+        session_id = "sess-legacy-null-user-id"
+
+        # Legacy session created before migration where conv.user_id is None / null
+        legacy_session = SimpleNamespace(id=session_id, dialog_id="diag-1", user_id=None)
+        api4_stub = SimpleNamespace(
+            get_by_id=lambda s_id: (True, legacy_session)
+        )
+
+        headers = {"X-Visitor-Id": visitor_id}
+        payload = {"session_id": session_id, "stream": False, "question": "Access legacy history"}
+
+        module, _ = _load_bot_api_for_sessions(
+            monkeypatch,
+            request_headers=headers
+        )
+        monkeypatch.setattr(module, "API4ConversationService", api4_stub)
+
+        async def _mock_req():
+            return payload
+
+        monkeypatch.setattr(module, "get_request_json", _mock_req)
+
+        # Step-by-step tracing
+        print(f"\n[TRACE] Step 1 - Visitor: visitor_id={visitor_id}")
+        print(f"[TRACE] Step 2 - Target Session: session_id={session_id}, conv.user_id={legacy_session.user_id}")
+        print(f"[TRACE] Step 3 - Request: headers={headers}, payload={payload}")
+
+        result = asyncio.run(module.chatbot_completions(dialog_id="diag-1", tenant_id="tenant-1"))
+
+        print(f"[TRACE] Step 4 - Response: {result}")
+
+        # Verify Deny-by-Default: conv.user_id != visitor_id (None != valid UUID)
+        assert result["code"] == 102
+        assert "Authentication error" in result["message"]
+
+    def test_chatbot_sessions_strict_isolation_between_visitors(self, monkeypatch):
+        visitor_a = "c3b53f60-9884-486a-9fa5-f93ea8c772cb"
+        visitor_b = "11111111-2222-4333-8444-555555555555"
+
+        mock_db_conversations = [
+            {"id": "sess-a1", "dialog_id": "diag-1", "user_id": visitor_a, "name": "Conv A1", "message": []},
+            {"id": "sess-a2", "dialog_id": "diag-1", "user_id": visitor_a, "name": "Conv A2", "message": []},
+            {"id": "sess-b1", "dialog_id": "diag-1", "user_id": visitor_b, "name": "Conv B1", "message": []},
+            {"id": "sess-b2", "dialog_id": "diag-1", "user_id": visitor_b, "name": "Conv B2", "message": []},
+            {"id": "sess-legacy-null", "dialog_id": "diag-1", "user_id": None, "name": "Legacy Session", "message": []},
+        ]
+
+        print(f"\n[TRACE] === Setup Mock DB Records ===")
+        print(f"[TRACE] Visitor A: {visitor_a}")
+        print(f"[TRACE] Visitor B: {visitor_b}")
+        print(f"[TRACE] Total conversations in DB: {len(mock_db_conversations)}")
+        for item in mock_db_conversations:
+            print(f"[TRACE]   DB Record: id={item['id']} user_id={item['user_id']} name={item['name']}")
+
+        def _isolated_get_list(dialog_id, tenant_id, page_number, items_per_page, orderby, desc, id=None, user_id=None, **kwargs):
+            # Mirror Peewee SQL query logic: where(cls.model.dialog_id == dialog_id).where(cls.model.user_id == user_id)
+            filtered = [
+                s for s in mock_db_conversations
+                if s["dialog_id"] == dialog_id and s["user_id"] == user_id and user_id is not None
+            ]
+            return len(filtered), filtered
+
+        # -------------------------------------------------------------
+        # 1. Visitor A calls chatbot_sessions
+        # -------------------------------------------------------------
+        headers_a = {"X-Visitor-Id": visitor_a}
+        args_a = {"page": "1", "page_size": "20"}
+        module_a, _ = _load_bot_api_for_sessions(
+            monkeypatch,
+            request_headers=headers_a,
+            request_args=args_a
+        )
+        monkeypatch.setattr(module_a.API4ConversationService, "get_list", _isolated_get_list)
+
+        print(f"\n[TRACE] === Request 1: Visitor A ===")
+        print(f"[TRACE] Target: GET /api/v1/chatbots/diag-1/sessions")
+        print(f"[TRACE] Headers: {headers_a}")
+        print(f"[TRACE] Args: {args_a}")
+
+        result_a = asyncio.run(module_a.chatbot_sessions(dialog_id="diag-1", tenant_id="tenant-1"))
+        returned_ids_a = [s["id"] for s in result_a.get("data", [])]
+
+        print(f"[TRACE] Response 1: code={result_a.get('code')}, count={len(returned_ids_a)}, session_ids={returned_ids_a}")
+        print(f"[TRACE] Full Response 1 Body: {result_a}")
+
+        assert result_a["code"] == 0
+        assert returned_ids_a == ["sess-a1", "sess-a2"]
+        assert "sess-b1" not in returned_ids_a
+        assert "sess-b2" not in returned_ids_a
+        assert "sess-legacy-null" not in returned_ids_a
+
+        # -------------------------------------------------------------
+        # 2. Visitor B calls chatbot_sessions
+        # -------------------------------------------------------------
+        headers_b = {"X-Visitor-Id": visitor_b}
+        args_b = {"page": "1", "page_size": "20"}
+        module_b, _ = _load_bot_api_for_sessions(
+            monkeypatch,
+            request_headers=headers_b,
+            request_args=args_b
+        )
+        monkeypatch.setattr(module_b.API4ConversationService, "get_list", _isolated_get_list)
+
+        print(f"\n[TRACE] === Request 2: Visitor B ===")
+        print(f"[TRACE] Target: GET /api/v1/chatbots/diag-1/sessions")
+        print(f"[TRACE] Headers: {headers_b}")
+        print(f"[TRACE] Args: {args_b}")
+
+        result_b = asyncio.run(module_b.chatbot_sessions(dialog_id="diag-1", tenant_id="tenant-1"))
+        returned_ids_b = [s["id"] for s in result_b.get("data", [])]
+
+        print(f"[TRACE] Response 2: code={result_b.get('code')}, count={len(returned_ids_b)}, session_ids={returned_ids_b}")
+        print(f"[TRACE] Full Response 2 Body: {result_b}")
+
+        assert result_b["code"] == 0
+        assert returned_ids_b == ["sess-b1", "sess-b2"]
+        assert "sess-a1" not in returned_ids_b
+        assert "sess-a2" not in returned_ids_b
+        assert "sess-legacy-null" not in returned_ids_b
+
+        # -------------------------------------------------------------
+        # 3. Request without X-Visitor-Id (Unauthenticated / Legacy access attempt)
+        # -------------------------------------------------------------
+        headers_c = {}
+        module_c, calls_c = _load_bot_api_for_sessions(
+            monkeypatch,
+            request_headers=headers_c,
+            request_args={"page": "1", "page_size": "20"}
+        )
+        monkeypatch.setattr(module_c.API4ConversationService, "get_list", _isolated_get_list)
+
+        print(f"\n[TRACE] === Request 3: Missing X-Visitor-Id (Legacy/Null Protection) ===")
+        print(f"[TRACE] Target: GET /api/v1/chatbots/diag-1/sessions")
+        print(f"[TRACE] Headers: {headers_c} (no visitor ID provided)")
+
+        result_c = asyncio.run(module_c.chatbot_sessions(dialog_id="diag-1", tenant_id="tenant-1"))
+
+        print(f"[TRACE] Response 3: code={result_c.get('code')}, message={result_c.get('message')}, data={result_c.get('data')}")
+        print(f"[TRACE] Full Response 3 Body: {result_c}")
+        print(f"[TRACE] DB Query executed: {'get_list' in calls_c}")
+
+        # Strict validation asserts
+        assert result_c["code"] == 101  # RetCode.ARGUMENT_ERROR
+        assert "Valid 'X-Visitor-Id' header is required." in result_c["message"]
+        assert "get_list" not in calls_c  # Hard stop before DB query: zero records leaked!
+        print(f"[TRACE] === Strict Isolation Verified: Zero Leakage Across A, B, and Legacy Records ===\n")
+
+    def test_completions_without_visitor_id_backward_compatibility(self, monkeypatch):
+        """Verify AC4: Existing embed snippets without X-Visitor-Id continue working seamlessly.
+        POST /completions without X-Visitor-Id does NOT fail or return 400/101 error.
+        Hard validation is strictly isolated to the new /sessions endpoint.
+        """
+        async def _mock_iframe_completion(*a, **k):
+            yield {"answer": "Backward compatibility confirmed: legacy embed client responds successfully."}
+
+        # 1. Non-streaming completions without X-Visitor-Id header
+        module, _ = _load_bot_api_for_sessions(
+            monkeypatch,
+            request_headers={}  # No X-Visitor-Id header sent by legacy client
+        )
+        monkeypatch.setattr(module, "iframe_completion", _mock_iframe_completion)
+
+        async def _mock_req_json():
+            return {
+                "stream": False,
+                "question": "Question from existing production client without visitor identity"
+            }
+
+        monkeypatch.setattr(module, "get_request_json", _mock_req_json)
+
+        print("\n[TRACE] === AC4 Regression: Legacy Client Calling POST /completions without X-Visitor-Id ===")
+        print("[TRACE] Request Headers: {} (no X-Visitor-Id)")
+        print("[TRACE] Request Payload: {'stream': False, 'question': '...'}")
+
+        result = asyncio.run(module.chatbot_completions(dialog_id="diag-1", tenant_id="tenant-1"))
+        print(f"[TRACE] Response: code={result.get('code')}, data={result.get('data')}")
+
+        assert result["code"] == 0, f"Expected 0 (success) but got {result.get('code')}: {result.get('message')}"
+        assert "Backward compatibility confirmed" in result["data"]["answer"]
+
+        # 2. SSE Streaming completions without X-Visitor-Id header
+        async def _mock_req_stream():
+            return {
+                "stream": True,
+                "question": "Streaming question from existing production client"
+            }
+
+        monkeypatch.setattr(module, "get_request_json", _mock_req_stream)
+        stream_resp = asyncio.run(module.chatbot_completions(dialog_id="diag-1", tenant_id="tenant-1"))
+
+        print(f"[TRACE] Streaming Response Mimetype: {getattr(stream_resp, 'mimetype', None)}")
+        assert stream_resp is not None
+        assert stream_resp.mimetype == "text/event-stream"
+        print("[TRACE] === AC4 Verified: 100% Backward Compatibility Preserved for Legacy Embed Clients ===\n")
+
+
+
 

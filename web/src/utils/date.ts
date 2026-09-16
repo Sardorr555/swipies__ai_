@@ -62,3 +62,35 @@ export function formatSecondsToHumanReadable(seconds: number): string {
 
   return parts.join('');
 }
+
+export function formatRelativeTime(date: any): string {
+  if (!date) {
+    return '';
+  }
+  const parsed = dayjs(date);
+  if (!parsed.isValid()) {
+    return '';
+  }
+  const now = dayjs();
+  const diffSec = now.diff(parsed, 'second');
+  if (diffSec < 60) {
+    return 'Just now';
+  }
+  const diffMin = now.diff(parsed, 'minute');
+  if (diffMin < 60) {
+    return `${diffMin}m ago`;
+  }
+  const diffHours = now.diff(parsed, 'hour');
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+  const diffDays = now.diff(parsed, 'day');
+  if (diffDays === 1) {
+    return 'Yesterday';
+  }
+  if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  }
+  return parsed.format('MMM D');
+}
+

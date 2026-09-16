@@ -1,6 +1,7 @@
 import {
   _resetVisitorIdForTesting,
   getOrCreateVisitorId,
+  isStorageAvailable,
   isValidUuidV4,
 } from '../visitor-identity';
 
@@ -44,5 +45,20 @@ describe('visitor-identity', () => {
 
     window.localStorage.getItem = originalGetItem;
     window.localStorage.setItem = originalSetItem;
+  });
+
+  test('isStorageAvailable accurately detects localStorage accessibility', () => {
+    // Normal environment
+    expect(isStorageAvailable()).toBe(true);
+
+    // Blocked environment (Safari ITP / Incognito)
+    const setItemSpy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError / SecurityError: Storage blocked');
+    });
+
+    expect(isStorageAvailable()).toBe(false);
+
+    setItemSpy.mockRestore();
+    expect(isStorageAvailable()).toBe(true);
   });
 });

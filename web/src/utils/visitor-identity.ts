@@ -66,6 +66,23 @@ export const getOrCreateVisitorId = (): string => {
   return newId;
 };
 
+/**
+ * Checks whether localStorage is accessible and writable.
+ * Returns false when blocked by Safari ITP, third-party iframe restrictions,
+ * or private/incognito browsing mode.
+ */
+export const isStorageAvailable = (): boolean => {
+  try {
+    const testKey = '__swipies_storage_test__';
+    window.localStorage.setItem(testKey, testKey);
+    window.localStorage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const _resetVisitorIdForTesting = (): void => {
   inMemoryVisitorId = null;
 };
+

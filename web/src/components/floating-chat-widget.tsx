@@ -7,9 +7,11 @@ import { useFetchExternalChatInfo } from '@/hooks/use-chat-request';
 import i18n, { changeLanguageAsync } from '@/locales/config';
 import { useSendNextSharedMessage } from '@/pages/agent/hooks/use-send-shared-message';
 import {
+  AlertTriangle,
   ChevronLeft,
   History,
   MessageCircle,
+  MessageSquare,
   Minimize2,
   Plus,
   Send,
@@ -17,10 +19,12 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '@/utils/date';
 import {
   useGetSharedChatSearchParams,
   useSendSharedMessage,
 } from '../pages/next-chats/hooks/use-send-shared-message';
+import { isStorageAvailable } from '../utils/visitor-identity';
 import FloatingChatWidgetMarkdown from './floating-chat-widget-markdown';
 
 /**
@@ -88,6 +92,9 @@ const normalizeWidgetFooterLink = (value: string | null) => {
 
   return undefined;
 };
+
+export { StorageWarningBanner } from './storage-warning-banner';
+import { StorageWarningBanner } from './storage-warning-banner';
 
 /**
  * Renders the embeddable floating chat widget and applies URL-driven widget settings.
@@ -163,6 +170,8 @@ const FloatingChatWidget = () => {
   const [showSessions, setShowSessions] = useState(false);
   const [sessionsList, setSessionsList] = useState<any[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
+  const [storageAvailable] = useState(() => isStorageAvailable());
+  const [showStorageWarning, setShowStorageWarning] = useState(true);
 
   const handleOpenSessions = useCallback(async () => {
     setShowSessions(true);
@@ -198,10 +207,22 @@ const FloatingChatWidget = () => {
 
   // Sync our local input with the hook's value when needed
   useEffect(() => {
-    if (hookValue && hookValue !== inputValue) {
-      setInputValue(hookValue);
+    setInputValue(hookValue);
+  }, [hookValue]);
+
+  // If there's an error from the hook, we can show it in the UI
+  useEffect(() => {
+    if (hasError) {
+      // Handle error state if needed
     }
-  }, [hookValue, inputValue]);
+  }, [hasError]);
+
+  const renderStorageWarning = () => (
+    <StorageWarningBanner
+      visible={!storageAvailable && showStorageWarning}
+      onClose={() => setShowStorageWarning(false)}
+    />
+  );
 
   const { data } = (
     isFromAgent ? useFetchExternalAgentInputs : useFetchExternalChatInfo
@@ -210,29 +231,23 @@ const FloatingChatWidget = () => {
   const title = data.title;
   const displayTitle = widgetTitle || title || t('chat.chatSupport');
   const displaySubtitle = widgetSubtitle || t('chat.replyInstantly');
-  const displayFooter = widgetFooter || '';
-  const renderFooter = () => {
-    if (!displayFooter) {
-      return null;
-    }
 
+  const renderFooter = () => {
+    const displayFooter = widgetFooter || t('chat.powerBy');
     return (
       <div
-        className="mt-3 -mx-4 -mb-4 px-4 py-3 text-center text-xs"
-        style={{
-          backgroundColor: widgetAccentColor,
-          color: widgetFooterTextColor,
-        }}
+        className="text-center p-2 text-xs opacity-75 border-t border-gray-100 flex items-center justify-center"
+        style={{ color: widgetFooterTextColor }}
       >
         {widgetFooterLink ? (
           <a
             href={widgetFooterLink}
             target="_blank"
-            rel="noreferrer"
-            className="underline underline-offset-2 hover:opacity-90"
+            rel="noopener noreferrer"
+            className="hover:underline flex items-center space-x-1"
             style={{ color: widgetFooterTextColor }}
           >
-            {displayFooter}
+            <span>{displayFooter}</span>
           </a>
         ) : (
           displayFooter
@@ -255,14 +270,14 @@ const FloatingChatWidget = () => {
   const renderSessionsView = () => {
     return (
       <div
-        className="flex flex-col h-[436px] overflow-hidden"
+        className="flex flex-col flex-1 min-h-0 overflow-hidden"
         style={bodyContainerStyle}
       >
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {loadingSessions ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2 py-10">
               <div
-                className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+                className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin"
                 style={{
                   borderColor: widgetAccentColor,
                   borderTopColor: 'transparent',
@@ -276,15 +291,17 @@ const FloatingChatWidget = () => {
                 className="w-12 h-12 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: `${widgetAccentColor}18` }}
               >
-                <MessageCircle size={24} style={{ color: widgetAccentColor }} />
+                <MessageSquare size={22} style={{ color: widgetAccentColor }} />
               </div>
-              <p className="text-sm font-medium" style={{ color: widgetTextColor }}>
-                {t('chat.noConversations') || 'No conversations yet'}
-              </p>
-              <p className="text-xs text-gray-500">
-                {t('chat.startNewConversationTip') ||
-                  'Your previous chat sessions will appear here.'}
-              </p>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: widgetTextColor }}>
+                  {t('chat.noConversations') || 'No conversations yet'}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {t('chat.startNewConversationTip') ||
+                    'Your conversation history will appear here.'}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={handleStartNewChat}
@@ -297,42 +314,66 @@ const FloatingChatWidget = () => {
           ) : (
             sessionsList.map((sess) => {
               const isCurrent = sess.id === currentSessionId;
-              const dateStr = sess.update_time
-                ? new Date(sess.update_time).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                  })
-                : '';
+              const relativeTime = formatRelativeTime(sess.update_time || sess.create_time);
               const count = sess.messages?.length || 0;
               const title =
                 sess.name || t('chat.newConversation') || 'New conversation';
+              const lastMsg = Array.isArray(sess.messages) && sess.messages.length > 0
+                ? sess.messages[sess.messages.length - 1]
+                : null;
+              const snippet = typeof lastMsg?.content === 'string' && lastMsg.content.trim()
+                ? lastMsg.content.trim().slice(0, 75)
+                : null;
 
               return (
                 <div
                   key={sess.id}
                   onClick={() => handleSelectSession(sess)}
-                  className={`p-3 rounded-xl cursor-pointer transition-all border text-left group flex items-center justify-between ${
+                  className={`p-3 rounded-xl cursor-pointer transition-all duration-150 ease-out border text-left group flex items-start space-x-3 active:scale-[0.98] ${
                     isCurrent
-                      ? 'border-blue-300 bg-blue-50/60'
-                      : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50/80'
+                      ? 'border-blue-300 bg-blue-50/70 shadow-sm'
+                      : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50/90'
                   }`}
                   style={
                     isCurrent
                       ? {
                           borderColor: `${widgetAccentColor}60`,
-                          backgroundColor: `${widgetAccentColor}10`,
+                          backgroundColor: `${widgetAccentColor}12`,
                         }
                       : {}
                   }
                 >
-                  <div className="flex-1 min-w-0 pr-2">
-                    <div className="flex items-center space-x-1.5">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{
+                      backgroundColor: isCurrent ? `${widgetAccentColor}22` : 'rgba(148, 163, 184, 0.15)',
+                    }}
+                  >
+                    <MessageSquare
+                      size={15}
+                      style={{ color: isCurrent ? widgetAccentColor : '#64748b' }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between space-x-1">
                       <span
-                        className="font-medium text-xs truncate max-w-[210px] block"
+                        className="font-medium text-xs truncate max-w-[190px] block"
                         style={{ color: widgetTextColor }}
                       >
                         {title}
                       </span>
+                      {relativeTime && (
+                        <span className="text-[10px] text-gray-400 flex-shrink-0 font-normal">
+                          {relativeTime}
+                        </span>
+                      )}
+                    </div>
+                    {snippet && (
+                      <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                        {snippet}
+                      </p>
+                    )}
+                    <div className="flex items-center space-x-2 mt-1">
                       {isCurrent && (
                         <span
                           className="text-[10px] px-1.5 py-0.2 rounded-full font-semibold"
@@ -344,12 +385,9 @@ const FloatingChatWidget = () => {
                           {t('chat.active') || 'Active'}
                         </span>
                       )}
-                    </div>
-                    <div className="flex items-center space-x-2 mt-1 text-[11px] text-gray-400">
-                      {dateStr && <span>{dateStr}</span>}
                       {count > 0 && (
-                        <span>
-                          • {count} {count === 1 ? 'msg' : 'msgs'}
+                        <span className="text-[10px] text-gray-400">
+                          {count} {count === 1 ? 'msg' : 'msgs'}
                         </span>
                       )}
                     </div>
@@ -362,13 +400,13 @@ const FloatingChatWidget = () => {
 
         {/* Footer / New chat button */}
         <div
-          className="border-t border-gray-100 p-3"
+          className="border-t border-gray-100 p-3 flex-shrink-0"
           style={bodyContainerStyle}
         >
           <button
             type="button"
             onClick={handleStartNewChat}
-            className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 text-xs font-medium text-white rounded-xl shadow-sm hover:opacity-95 transition-opacity"
+            className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 text-xs font-medium text-white rounded-xl shadow-sm hover:opacity-95 active:scale-[0.98] transition-all duration-150"
             style={{ backgroundColor: widgetAccentColor }}
           >
             <Plus size={15} />
@@ -724,235 +762,287 @@ const FloatingChatWidget = () => {
     return (
       <>
         <div
-          className={`fixed top-0 left-0 z-50 rounded-2xl transition-all duration-300 ease-out h-[500px] w-[380px] overflow-hidden ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`fixed top-0 left-0 z-50 rounded-2xl transition-all duration-300 ease-out h-[500px] w-[380px] overflow-hidden flex flex-col ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
           style={{ backgroundColor: widgetAccentColor }}
         >
           {/* Header */}
           <div
-            className="flex items-center justify-between p-4 text-white rounded-t-2xl"
+            className="flex items-center justify-between p-4 text-white rounded-t-2xl flex-shrink-0 relative overflow-hidden"
             style={{
               background: `linear-gradient(to right, ${widgetAccentColor}, ${widgetAccentColorStrong})`,
             }}
           >
-            {showSessions ? (
-              <>
-                <div className="flex items-center space-x-2">
+            {/* Sessions Header (cross-fade) */}
+            <div
+              className={`flex items-center justify-between w-full transition-opacity duration-200 ease-out ${
+                showSessions
+                  ? 'opacity-100 pointer-events-auto'
+                  : 'opacity-0 pointer-events-none absolute inset-0 p-4'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSessions(false)}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                  title={t('common.back') || 'Back'}
+                  aria-label="Back"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <h3
+                  className="font-semibold text-sm"
+                  style={{ color: widgetHeaderTextColor }}
+                >
+                  {t('chat.conversations') || 'Messages'}
+                </h3>
+              </div>
+              <div className="flex items-center space-x-1">
+                <button
+                  type="button"
+                  onClick={handleStartNewChat}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                  title={t('chat.newConversation') || 'New conversation'}
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Active Chat Header (cross-fade) */}
+            <div
+              className={`flex items-center justify-between w-full transition-opacity duration-200 ease-out ${
+                !showSessions
+                  ? 'opacity-100 pointer-events-auto'
+                  : 'opacity-0 pointer-events-none absolute inset-0 p-4'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5 min-w-0">
+                {!isFromAgent && (
                   <button
                     type="button"
-                    onClick={() => setShowSessions(false)}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                    title={t('common.back') || 'Back'}
+                    onClick={handleOpenSessions}
+                    className="p-1.5 -ml-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors flex-shrink-0 active:scale-95"
+                    title={t('chat.conversations') || 'Messages'}
+                    aria-label="Messages"
                   >
                     <ChevronLeft size={18} />
                   </button>
+                )}
+                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <MessageCircle size={18} />
+                </div>
+                <div className="min-w-0">
                   <h3
-                    className="font-semibold text-sm"
+                    className="font-semibold text-sm truncate"
                     style={{ color: widgetHeaderTextColor }}
                   >
-                    {t('chat.conversations') || 'Conversations'}
+                    {displayTitle}
                   </h3>
+                  <p className="text-xs truncate" style={{ color: widgetHeaderTextColor }}>
+                    {displaySubtitle}
+                  </p>
                 </div>
-                <div className="flex items-center space-x-1">
+              </div>
+              {!isFromAgent && (
+                <div className="flex items-center space-x-1 flex-shrink-0">
                   <button
                     type="button"
                     onClick={handleStartNewChat}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
                     title={t('chat.newConversation') || 'New conversation'}
                   >
                     <Plus size={18} />
                   </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                    <MessageCircle size={18} />
-                  </div>
-                  <div>
-                    <h3
-                      className="font-semibold text-sm"
-                      style={{ color: widgetHeaderTextColor }}
-                    >
-                      {displayTitle}
-                    </h3>
-                    <p className="text-xs" style={{ color: widgetHeaderTextColor }}>
-                      {displaySubtitle}
-                    </p>
-                  </div>
-                </div>
-                {!isFromAgent && (
-                  <div className="flex items-center space-x-1">
-                    <button
-                      type="button"
-                      onClick={handleStartNewChat}
-                      className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                      title={t('chat.newConversation') || 'New conversation'}
-                    >
-                      <Plus size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleOpenSessions}
-                      className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                      title={t('chat.conversations') || 'Conversations'}
-                    >
-                      <History size={18} />
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Messages and Input */}
-          {showSessions ? (
-            renderSessionsView()
-          ) : (
-            <div className="flex flex-col h-[436px]" style={bodyContainerStyle}>
-              <div
-                className="flex-1 overflow-y-auto p-4 space-y-4"
-                onWheel={(e) => {
-                  const element = e.currentTarget;
-                  const isAtTop = element.scrollTop === 0;
-                  const isAtBottom =
-                    element.scrollTop + element.clientHeight >=
-                    element.scrollHeight - 1;
-
-                  // Allow scroll to pass through to parent when at boundaries
-                  if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
-                    e.preventDefault();
-                    // Let the parent handle the scroll
-                    window.parent.postMessage(
-                      {
-                        type: 'SCROLL_PASSTHROUGH',
-                        deltaY: e.deltaY,
-                      },
-                      '*',
-                    );
-                  }
-                }}
-              >
-                {displayMessages?.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.role === MessageType.User ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`group max-w-[280px] px-4 py-2 rounded-2xl ${
-                        message.role === MessageType.User
-                          ? 'text-white rounded-br-md'
-                          : 'rounded-bl-md'
-                      }`}
-                      style={
-                        message.role === MessageType.User
-                          ? { backgroundColor: widgetAccentColor }
-                          : {
-                              backgroundColor: 'rgba(148, 163, 184, 0.14)',
-                              color: widgetTextColor,
-                            }
-                      }
-                    >
-                      {message.role === MessageType.User ? (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                          {message.content}
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          <FloatingChatWidgetMarkdown
-                            loading={false}
-                            content={message.content}
-                            reference={
-                              findReferenceByMessageId?.(message.id) ||
-                              message.reference || {
-                                doc_aggs: [],
-                                chunks: [],
-                                total: 0,
-                              }
-                            }
-                            clickDocumentButton={clickDocumentButton}
-                          />
-                          <div
-                            className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100"
-                            role="toolbar"
-                          >
-                            <CopyToClipboard
-                              text={message.content}
-                              className="border-0"
-                              size="icon-xs"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Clean Typing Indicator */}
-                {sendLoading && !enableStreaming && (
-                  <div className="flex justify-start pl-4">
-                    <div className="flex space-x-1">
-                      <div
-                        className="w-2 h-2 rounded-full animate-bounce"
-                        style={{ backgroundColor: widgetAccentColor }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 rounded-full animate-bounce"
-                        style={{
-                          backgroundColor: widgetAccentColor,
-                          animationDelay: '0.1s',
-                        }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 rounded-full animate-bounce"
-                        style={{
-                          backgroundColor: widgetAccentColor,
-                          animationDelay: '0.2s',
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input Area */}
-              <div
-                className="border-t border-gray-200 p-4"
-                style={bodyContainerStyle}
-              >
-                <div className="flex items-end space-x-3">
-                  <div className="flex-1">
-                    <textarea
-                      value={inputValue}
-                      onChange={(e) => {
-                        const newValue = e.target.value;
-                        setInputValue(newValue);
-                        handleInputChange(e);
-                      }}
-                      onKeyPress={handleKeyPress}
-                      placeholder={t('chat.typeYourMessage')}
-                      rows={1}
-                      className="w-full resize-none border border-gray-300 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
-                      style={inputStyle}
-                      disabled={hasError || sendLoading}
-                    />
-                  </div>
                   <button
                     type="button"
-                    onClick={handleSendMessage}
-                    disabled={!inputValue.trim() || sendLoading}
-                    className="p-3 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    style={{ backgroundColor: widgetAccentColor }}
+                    onClick={handleOpenSessions}
+                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                    title={t('chat.conversations') || 'Conversations'}
                   >
-                    <Send size={18} />
+                    <History size={18} />
                   </button>
                 </div>
-                {renderFooter()}
+              )}
+            </div>
+          </div>
+
+          {/* Safari ITP / Incognito Warning Banner */}
+          {renderStorageWarning()}
+
+          {/* Sliding Two-Pane Viewport */}
+          <div className="relative flex-1 min-h-0 overflow-hidden w-full">
+            <div
+              className="flex h-full w-[200%]"
+              style={{
+                transform: showSessions ? 'translateX(0%)' : 'translateX(-50%)',
+                transition: 'transform 250ms cubic-bezier(0.16, 1, 0.3, 1)',
+                willChange: 'transform',
+              }}
+            >
+              {/* Left Pane: Sessions View */}
+              <div
+                className={`w-1/2 h-full flex flex-col min-h-0 overflow-hidden ${
+                  showSessions ? 'pointer-events-auto' : 'pointer-events-none'
+                }`}
+                aria-hidden={!showSessions}
+              >
+                {renderSessionsView()}
+              </div>
+
+              {/* Right Pane: Active Chat */}
+              <div
+                className={`w-1/2 h-full flex flex-col min-h-0 overflow-hidden ${
+                  !showSessions ? 'pointer-events-auto' : 'pointer-events-none'
+                }`}
+                aria-hidden={showSessions}
+              >
+                <div className="flex flex-col flex-1 min-h-0" style={bodyContainerStyle}>
+                  <div
+                    className="flex-1 overflow-y-auto p-4 space-y-4"
+                    onWheel={(e) => {
+                      const element = e.currentTarget;
+                      const isAtTop = element.scrollTop === 0;
+                      const isAtBottom =
+                        element.scrollTop + element.clientHeight >=
+                        element.scrollHeight - 1;
+
+                      // Allow scroll to pass through to parent when at boundaries
+                      if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
+                        e.preventDefault();
+                        // Let the parent handle the scroll
+                        window.parent.postMessage(
+                          {
+                            type: 'SCROLL_PASSTHROUGH',
+                            deltaY: e.deltaY,
+                          },
+                          '*',
+                        );
+                      }
+                    }}
+                  >
+                    {displayMessages?.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`flex ${message.role === MessageType.User ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`group max-w-[280px] px-4 py-2 rounded-2xl ${
+                            message.role === MessageType.User
+                              ? 'text-white rounded-br-md'
+                              : 'rounded-bl-md'
+                          }`}
+                          style={
+                            message.role === MessageType.User
+                              ? { backgroundColor: widgetAccentColor }
+                              : {
+                                  backgroundColor: 'rgba(148, 163, 184, 0.14)',
+                                  color: widgetTextColor,
+                                }
+                          }
+                        >
+                          {message.role === MessageType.User ? (
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {message.content}
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              <FloatingChatWidgetMarkdown
+                                loading={false}
+                                content={message.content}
+                                reference={
+                                  findReferenceByMessageId?.(message.id) ||
+                                  message.reference || {
+                                    doc_aggs: [],
+                                    chunks: [],
+                                    total: 0,
+                                  }
+                                }
+                                clickDocumentButton={clickDocumentButton}
+                              />
+                              <div
+                                className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100"
+                                role="toolbar"
+                              >
+                                <CopyToClipboard
+                                  text={message.content}
+                                  className="border-0"
+                                  size="icon-xs"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Clean Typing Indicator */}
+                    {sendLoading && !enableStreaming && (
+                      <div className="flex justify-start pl-4">
+                        <div className="flex space-x-1">
+                          <div
+                            className="w-2 h-2 rounded-full animate-bounce"
+                            style={{ backgroundColor: widgetAccentColor }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 rounded-full animate-bounce"
+                            style={{
+                              backgroundColor: widgetAccentColor,
+                              animationDelay: '0.1s',
+                            }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 rounded-full animate-bounce"
+                            style={{
+                              backgroundColor: widgetAccentColor,
+                              animationDelay: '0.2s',
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  {/* Input Area */}
+                  <div
+                    className="border-t border-gray-200 p-4 flex-shrink-0"
+                    style={bodyContainerStyle}
+                  >
+                    <div className="flex items-end space-x-3">
+                      <div className="flex-1">
+                        <textarea
+                          value={inputValue}
+                          onChange={(e) => {
+                            const newValue = e.target.value;
+                            setInputValue(newValue);
+                            handleInputChange(e);
+                          }}
+                          onKeyPress={handleKeyPress}
+                          placeholder={t('chat.typeYourMessage')}
+                          rows={1}
+                          className="w-full resize-none border border-gray-300 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+                          style={inputStyle}
+                          disabled={hasError || sendLoading}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSendMessage}
+                        disabled={!inputValue.trim() || sendLoading}
+                        className="p-3 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        style={{ backgroundColor: widgetAccentColor }}
+                      >
+                        <Send size={18} />
+                      </button>
+                    </div>
+                    {renderFooter()}
+                  </div>
+                </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
         {visible && (
           <PdfSheet
@@ -976,260 +1066,312 @@ const FloatingChatWidget = () => {
         <div
           className={`fixed bottom-24 right-6 z-50 rounded-2xl transition-all duration-300 ease-out ${
             isMinimized ? 'h-16' : 'h-[500px]'
-          } w-[380px] overflow-hidden`}
+          } w-[380px] overflow-hidden flex flex-col`}
           style={{ backgroundColor: widgetAccentColor }}
         >
           {/* Header */}
           <div
-            className="flex items-center justify-between p-4 text-white rounded-t-2xl"
+            className="flex items-center justify-between p-4 text-white rounded-t-2xl flex-shrink-0 relative overflow-hidden"
             style={{
               background: `linear-gradient(to right, ${widgetAccentColor}, ${widgetAccentColorStrong})`,
             }}
           >
-            {showSessions ? (
-              <>
-                <div className="flex items-center space-x-2">
+            {/* Sessions Header (cross-fade) */}
+            <div
+              className={`flex items-center justify-between w-full transition-opacity duration-200 ease-out ${
+                showSessions
+                  ? 'opacity-100 pointer-events-auto'
+                  : 'opacity-0 pointer-events-none absolute inset-0 p-4'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSessions(false)}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                  title={t('common.back') || 'Back'}
+                  aria-label="Back"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <h3
+                  className="font-semibold text-sm"
+                  style={{ color: widgetHeaderTextColor }}
+                >
+                  {t('chat.conversations') || 'Messages'}
+                </h3>
+              </div>
+              <div className="flex items-center space-x-1">
+                <button
+                  type="button"
+                  onClick={handleStartNewChat}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                  title={t('chat.newConversation') || 'New conversation'}
+                >
+                  <Plus size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={minimizeChat}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                >
+                  <Minimize2 size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleChat}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Active Chat Header (cross-fade) */}
+            <div
+              className={`flex items-center justify-between w-full transition-opacity duration-200 ease-out ${
+                !showSessions
+                  ? 'opacity-100 pointer-events-auto'
+                  : 'opacity-0 pointer-events-none absolute inset-0 p-4'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5 min-w-0">
+                {!isFromAgent && (
                   <button
                     type="button"
-                    onClick={() => setShowSessions(false)}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                    title={t('common.back') || 'Back'}
+                    onClick={handleOpenSessions}
+                    className="p-1.5 -ml-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors flex-shrink-0 active:scale-95"
+                    title={t('chat.conversations') || 'Messages'}
+                    aria-label="Messages"
                   >
                     <ChevronLeft size={18} />
                   </button>
+                )}
+                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <MessageCircle size={18} />
+                </div>
+                <div className="min-w-0">
                   <h3
-                    className="font-semibold text-sm"
+                    className="font-semibold text-sm truncate"
                     style={{ color: widgetHeaderTextColor }}
                   >
-                    {t('chat.conversations') || 'Conversations'}
+                    {displayTitle}
                   </h3>
+                  <p className="text-xs truncate" style={{ color: widgetHeaderTextColor }}>
+                    {displaySubtitle}
+                  </p>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <button
-                    type="button"
-                    onClick={handleStartNewChat}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                    title={t('chat.newConversation') || 'New conversation'}
-                  >
-                    <Plus size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={minimizeChat}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                  >
-                    <Minimize2 size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={toggleChat}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                    <MessageCircle size={18} />
-                  </div>
-                  <div>
-                    <h3
-                      className="font-semibold text-sm"
-                      style={{ color: widgetHeaderTextColor }}
+              </div>
+              <div className="flex items-center space-x-1 flex-shrink-0">
+                {!isFromAgent && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleStartNewChat}
+                      className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                      title={t('chat.newConversation') || 'New conversation'}
                     >
-                      {displayTitle}
-                    </h3>
-                    <p className="text-xs" style={{ color: widgetHeaderTextColor }}>
-                      {displaySubtitle}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-1">
-                  {!isFromAgent && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleStartNewChat}
-                        className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                        title={t('chat.newConversation') || 'New conversation'}
-                      >
-                        <Plus size={18} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleOpenSessions}
-                        className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                        title={t('chat.conversations') || 'Conversations'}
-                      >
-                        <History size={18} />
-                      </button>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={minimizeChat}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                  >
-                    <Minimize2 size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={toggleChat}
-                    className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              </>
-            )}
+                      <Plus size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleOpenSessions}
+                      className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors active:scale-95"
+                      title={t('chat.conversations') || 'Conversations'}
+                    >
+                      <History size={18} />
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={minimizeChat}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                >
+                  <Minimize2 size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleChat}
+                  className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Messages Container */}
-          {!isMinimized && (
-            showSessions ? (
-              renderSessionsView()
-            ) : (
-            <div className="flex flex-col h-[436px]" style={bodyContainerStyle}>
-              <div
-                className="flex-1 overflow-y-auto p-4 space-y-4"
-                onWheel={(e) => {
-                  const element = e.currentTarget;
-                  const isAtTop = element.scrollTop === 0;
-                  const isAtBottom =
-                    element.scrollTop + element.clientHeight >=
-                    element.scrollHeight - 1;
+          {/* Safari ITP / Incognito Warning Banner */}
+          {!isMinimized && renderStorageWarning()}
 
-                  // Allow scroll to pass through to parent when at boundaries
-                  if (
-                    (isAtTop && e.deltaY < 0) ||
-                    (isAtBottom && e.deltaY > 0)
-                  ) {
-                    e.preventDefault();
-                    // Let the parent handle the scroll
-                    window.parent.postMessage(
-                      {
-                        type: 'SCROLL_PASSTHROUGH',
-                        deltaY: e.deltaY,
-                      },
-                      '*',
-                    );
-                  }
+          {/* Messages Container: Sliding Two-Pane Viewport */}
+          {!isMinimized && (
+            <div className="relative flex-1 min-h-0 overflow-hidden w-full">
+              <div
+                className="flex h-full w-[200%]"
+                style={{
+                  transform: showSessions ? 'translateX(0%)' : 'translateX(-50%)',
+                  transition: 'transform 250ms cubic-bezier(0.16, 1, 0.3, 1)',
+                  willChange: 'transform',
                 }}
               >
-                {displayMessages?.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.role === MessageType.User ? 'justify-end' : 'justify-start'}`}
-                  >
+                {/* Left Pane: Sessions View */}
+                <div
+                  className={`w-1/2 h-full flex flex-col min-h-0 overflow-hidden ${
+                    showSessions ? 'pointer-events-auto' : 'pointer-events-none'
+                  }`}
+                  aria-hidden={!showSessions}
+                >
+                  {renderSessionsView()}
+                </div>
+
+                {/* Right Pane: Active Chat */}
+                <div
+                  className={`w-1/2 h-full flex flex-col min-h-0 overflow-hidden ${
+                    !showSessions ? 'pointer-events-auto' : 'pointer-events-none'
+                  }`}
+                  aria-hidden={showSessions}
+                >
+                  <div className="flex flex-col flex-1 min-h-0" style={bodyContainerStyle}>
                     <div
-                      className={`group max-w-[280px] px-4 py-2 rounded-2xl ${
-                        message.role === MessageType.User
-                          ? 'text-white rounded-br-md'
-                          : 'rounded-bl-md'
-                      }`}
-                      style={
-                        message.role === MessageType.User
-                          ? { backgroundColor: widgetAccentColor }
-                          : {
-                              backgroundColor: 'rgba(148, 163, 184, 0.14)',
-                              color: widgetTextColor,
-                            }
-                      }
+                      className="flex-1 overflow-y-auto p-4 space-y-4"
+                      onWheel={(e) => {
+                        const element = e.currentTarget;
+                        const isAtTop = element.scrollTop === 0;
+                        const isAtBottom =
+                          element.scrollTop + element.clientHeight >=
+                          element.scrollHeight - 1;
+
+                        // Allow scroll to pass through to parent when at boundaries
+                        if (
+                          (isAtTop && e.deltaY < 0) ||
+                          (isAtBottom && e.deltaY > 0)
+                        ) {
+                          e.preventDefault();
+                          // Let the parent handle the scroll
+                          window.parent.postMessage(
+                            {
+                              type: 'SCROLL_PASSTHROUGH',
+                              deltaY: e.deltaY,
+                            },
+                            '*',
+                          );
+                        }
+                      }}
                     >
-                      {message.role === MessageType.User ? (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                          {message.content}
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          <FloatingChatWidgetMarkdown
-                            loading={false}
-                            content={message.content}
-                            reference={
-                              findReferenceByMessageId?.(message.id) ||
-                              message.reference || {
-                                doc_aggs: [],
-                                chunks: [],
-                                total: 0,
-                              }
-                            }
-                            clickDocumentButton={clickDocumentButton}
-                          />
+                      {displayMessages?.map((message, index) => (
+                        <div
+                          key={index}
+                          className={`flex ${message.role === MessageType.User ? 'justify-end' : 'justify-start'}`}
+                        >
                           <div
-                            className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100"
-                            role="toolbar"
+                            className={`group max-w-[280px] px-4 py-2 rounded-2xl ${
+                              message.role === MessageType.User
+                                ? 'text-white rounded-br-md'
+                                : 'rounded-bl-md'
+                            }`}
+                            style={
+                              message.role === MessageType.User
+                                ? { backgroundColor: widgetAccentColor }
+                                : {
+                                    backgroundColor: 'rgba(148, 163, 184, 0.14)',
+                                    color: widgetTextColor,
+                                  }
+                            }
                           >
-                            <CopyToClipboard
-                              text={message.content}
-                              className="border-0"
-                              size="icon-xs"
-                            />
+                            {message.role === MessageType.User ? (
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                {message.content}
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                <FloatingChatWidgetMarkdown
+                                  loading={false}
+                                  content={message.content}
+                                  reference={
+                                    findReferenceByMessageId?.(message.id) ||
+                                    message.reference || {
+                                      doc_aggs: [],
+                                      chunks: [],
+                                      total: 0,
+                                    }
+                                  }
+                                  clickDocumentButton={clickDocumentButton}
+                                />
+                                <div
+                                  className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100"
+                                  role="toolbar"
+                                >
+                                  <CopyToClipboard
+                                    text={message.content}
+                                    className="border-0"
+                                    size="icon-xs"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Typing Indicator */}
+                      {sendLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: '0.1s' }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: '0.2s' }}
+                              ></div>
+                            </div>
                           </div>
                         </div>
                       )}
-                    </div>
-                  </div>
-                ))}
 
-                {/* Typing Indicator */}
-                {sendLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: '0.1s' }}
-                        ></div>
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: '0.2s' }}
-                        ></div>
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Input Area */}
+                    <div className="border-t border-gray-200 p-4 flex-shrink-0">
+                      <div className="flex items-end space-x-3">
+                        <div className="flex-1">
+                          <textarea
+                            value={inputValue}
+                            onChange={(e) => {
+                              const newValue = e.target.value;
+                              setInputValue(newValue);
+                              // Also update the hook's state
+                              handleInputChange(e);
+                            }}
+                            onKeyPress={handleKeyPress}
+                            placeholder={t('chat.typeYourMessage')}
+                            rows={1}
+                            className="w-full resize-none border border-gray-300 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+                            style={inputStyle}
+                            disabled={hasError || sendLoading}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSendMessage}
+                          disabled={!inputValue.trim() || sendLoading}
+                          className="p-3 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          style={{ backgroundColor: widgetAccentColor }}
+                        >
+                          <Send size={18} />
+                        </button>
                       </div>
+                      {renderFooter()}
                     </div>
                   </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input Area */}
-              <div className="border-t border-gray-200 p-4">
-                <div className="flex items-end space-x-3">
-                  <div className="flex-1">
-                    <textarea
-                      value={inputValue}
-                      onChange={(e) => {
-                        const newValue = e.target.value;
-                        setInputValue(newValue);
-                        // Also update the hook's state
-                        handleInputChange(e);
-                      }}
-                      onKeyPress={handleKeyPress}
-                      placeholder={t('chat.typeYourMessage')}
-                      rows={1}
-                      className="w-full resize-none border border-gray-300 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
-                      style={inputStyle}
-                      disabled={hasError || sendLoading}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSendMessage}
-                    disabled={!inputValue.trim() || sendLoading}
-                    className="p-3 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    style={{ backgroundColor: widgetAccentColor }}
-                  >
-                    <Send size={18} />
-                  </button>
                 </div>
-                {renderFooter()}
               </div>
             </div>
-            )
           )}
         </div>
       )}
