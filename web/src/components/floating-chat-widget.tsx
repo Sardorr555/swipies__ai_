@@ -134,7 +134,7 @@ const FloatingChatWidget = () => {
   } = useGetSharedChatSearchParams();
 
   const isFromAgent = from === SharedFrom.Agent;
-  const enableStreaming = urlParams.get('streaming') === 'true'; // Only enable if explicitly set to true
+  const enableStreaming = urlParams.get('streaming') !== 'false'; // Enabled by default for real-time SSE streaming
   const isMuted = urlParams.get('muted') === 'true';
   const widgetTitle = urlParams.get('widget_title')?.trim();
   const widgetSubtitle = urlParams.get('widget_subtitle')?.trim();
@@ -171,6 +171,7 @@ const FloatingChatWidget = () => {
     handlePressEnter,
     handleInputChange,
     value: hookValue,
+    setValue,
     sendLoading,
     derivedMessages,
     hasError,
@@ -639,9 +640,13 @@ const FloatingChatWidget = () => {
         // Always show user messages immediately
         if (msg.role === MessageType.User) return true;
 
-        // For AI messages, only show when response is complete (not loading)
+        // For AI messages, only hide in-flight generation (when loading and actively responding to previous user msg)
         if (msg.role === MessageType.Assistant) {
-          return !sendLoading || index < derivedMessages.length - 1;
+          const isCurrentPendingResponse =
+            sendLoading &&
+            index === derivedMessages.length - 1 &&
+            derivedMessages[index - 1]?.role === MessageType.User;
+          return !isCurrentPendingResponse;
         }
 
         return true;
@@ -696,6 +701,7 @@ const FloatingChatWidget = () => {
 
       if (e.data.type === 'TOGGLE_CHAT') {
         chatWindow.style.display = e.data.isOpen ? 'block' : 'none';
+        setIsOpen(e.data.isOpen);
         if (!e.data.isOpen && (window as any).__chat_prev_overflow !== undefined) {
           document.body.style.overflow = (window as any).__chat_prev_overflow;
           delete (window as any).__chat_prev_overflow;
@@ -748,6 +754,17 @@ const FloatingChatWidget = () => {
     return () => window.removeEventListener('message', handleToggle);
   }, [mode, isMobile]);
 
+  // Synchronize isOpen state when TOGGLE_CHAT is received from host or parent window
+  useEffect(() => {
+    const handleToggleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'TOGGLE_CHAT' && typeof e.data.isOpen === 'boolean') {
+        setIsOpen(e.data.isOpen);
+      }
+    };
+    window.addEventListener('message', handleToggleMessage);
+    return () => window.removeEventListener('message', handleToggleMessage);
+  }, []);
+
   // Play sound only when AI response is complete (not streaming chunks)
   useEffect(() => {
     if (derivedMessages && derivedMessages.length > 0 && !sendLoading) {
@@ -799,8 +816,15 @@ const FloatingChatWidget = () => {
     sessionFetchSeqRef.current++;
     setLoadingSessions(false);
 
+    let isInIframe = false;
+    try {
+      isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+    } catch {
+      isInIframe = true;
+    }
+
     // Send TOGGLE_CHAT with isOpen: false to parent (if embedded) or self (if standalone)
-    const target = window.self !== window.top ? window.parent : window;
+    const target = isInIframe ? window.parent : window;
     target.postMessage(
       {
         type: 'TOGGLE_CHAT',
@@ -813,24 +837,19 @@ const FloatingChatWidget = () => {
   }, []);
 
   const handleSendMessage = useCallback(() => {
-    if (!inputValue.trim() || sendLoading) return;
+    const textToSend = inputValue.trim();
+    if (!textToSend || sendLoading) return;
 
-    // Update the hook's internal state first
-    const syntheticEvent = {
-      target: { value: inputValue },
-      currentTarget: { value: inputValue },
-      preventDefault: () => {},
-    } as any;
-
-    handleInputChange(syntheticEvent);
-
-    // Wait for state to update, then send
-    setTimeout(() => {
-      handlePressEnter({ enableThinking: false, enableInternet: false });
-      // Clear our local input after sending
-      setInputValue('');
-    }, 50);
-  }, [inputValue, sendLoading, handleInputChange, handlePressEnter]);
+    setInputValue('');
+    if (setValue) {
+      setValue('');
+    }
+    handlePressEnter({
+      enableThinking: false,
+      enableInternet: false,
+      messageText: textToSend,
+    } as any);
+  }, [inputValue, sendLoading, handlePressEnter, setValue]);
 
   const handleKeyPress = useCallback(
     (e: React.KeyboardEvent) => {
@@ -858,6 +877,7 @@ const FloatingChatWidget = () => {
 
   // Show just the button in master mode
   if (mode === 'master') {
+    // Only render the floating button in the master iframe
     return (
       <div
         className={`fixed bottom-6 right-6 z-50 transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
@@ -879,14 +899,12 @@ const FloatingChatWidget = () => {
               '*',
             );
           }}
-          className={`w-14 h-14 text-white rounded-full transition-all duration-300 flex items-center justify-center group ${
-            isOpen ? 'scale-95' : 'scale-100 hover:scale-105'
-          }`}
+          className="w-14 h-14 text-white rounded-full shadow-lg transition-transform duration-200 active:scale-95 hover:scale-105 flex items-center justify-center group"
           style={{ backgroundColor: widgetAccentColor }}
+          title={isOpen ? (t('common.close') || 'Close') : (t('chat.chatSupport') || 'Open chat')}
+          aria-label={isOpen ? 'Close' : 'Open chat'}
         >
-          <div
-            className={`transition-transform duration-300 ${isOpen ? 'rotate-45' : 'rotate-0'}`}
-          >
+          <div className="flex items-center justify-center transition-transform duration-200">
             {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
           </div>
         </button>
@@ -910,14 +928,12 @@ const FloatingChatWidget = () => {
         <button
           type="button"
           onClick={toggleChat}
-          className={`w-14 h-14 text-white rounded-full transition-all duration-300 flex items-center justify-center group ${
-            isOpen ? 'scale-95' : 'scale-100 hover:scale-105'
-          }`}
+          className="w-14 h-14 text-white rounded-full shadow-lg transition-transform duration-200 active:scale-95 hover:scale-105 flex items-center justify-center group"
           style={{ backgroundColor: widgetAccentColor }}
+          title={isOpen ? (t('common.close') || 'Close') : (t('chat.chatSupport') || 'Open chat')}
+          aria-label={isOpen ? 'Close' : 'Open chat'}
         >
-          <div
-            className={`transition-transform duration-300 ${isOpen ? 'rotate-45' : 'rotate-0'}`}
-          >
+          <div className="flex items-center justify-center transition-transform duration-200">
             {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
           </div>
         </button>
@@ -933,7 +949,14 @@ const FloatingChatWidget = () => {
   }
 
   if (mode === 'window') {
-    if (!isOpen) {
+    let isInIframe = false;
+    try {
+      isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+    } catch {
+      isInIframe = true;
+    }
+
+    if (!isOpen && !isInIframe) {
       // In standalone mode, if closed, allow reopening via floating launcher button
       return (
         <div className="fixed bottom-6 right-6 z-50">
@@ -956,11 +979,11 @@ const FloatingChatWidget = () => {
       <>
         <div
           data-testid="chat-widget-container"
-          className={`fixed transition-all duration-300 ease-out overflow-hidden flex flex-col overscroll-contain ${
+          className={`fixed overflow-hidden flex flex-col overscroll-contain ${
             isMobile
               ? 'h-screen h-[100dvh] w-full rounded-none inset-0 z-50'
-              : 'top-0 left-0 w-full h-full rounded-2xl z-50'
-          } ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              : 'top-0 left-0 w-full h-full rounded-2xl z-50 transition-all duration-300 ease-out'
+          } ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}
           style={{
             backgroundColor: widgetAccentColor,
             ...(isMobile
@@ -1238,7 +1261,12 @@ const FloatingChatWidget = () => {
                     ))}
 
                     {/* Clean Typing Indicator */}
-                    {sendLoading && !enableStreaming && (
+                    {sendLoading &&
+                      (!enableStreaming ||
+                        displayMessages.length === 0 ||
+                        displayMessages[displayMessages.length - 1]?.role ===
+                          MessageType.User ||
+                        !displayMessages[displayMessages.length - 1]?.content) && (
                       <div className="flex justify-start pl-4">
                         <div className="flex space-x-1">
                           <div
@@ -1339,12 +1367,12 @@ const FloatingChatWidget = () => {
       {isOpen && (
         <div
           data-testid="chat-widget-container"
-          className={`fixed transition-all duration-300 ease-out overflow-hidden flex flex-col overscroll-contain ${
+          className={`fixed overflow-hidden flex flex-col overscroll-contain ${
             isMobile
               ? 'h-screen h-[100dvh] w-full rounded-none inset-0 z-50'
               : `bottom-24 right-6 z-50 rounded-2xl ${
                   isMinimized ? 'h-16' : ''
-                }`
+                } transition-all duration-300 ease-out`
           }`}
           style={{
             backgroundColor: widgetAccentColor,
@@ -1728,29 +1756,29 @@ const FloatingChatWidget = () => {
       )}
 
       {/* Floating Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <button
-          type="button"
-          onClick={toggleChat}
-          className={`w-14 h-14 text-white rounded-full transition-all duration-300 flex items-center justify-center group ${
-            isOpen ? 'scale-95' : 'scale-100 hover:scale-105'
-          }`}
-          style={{ backgroundColor: widgetAccentColor }}
-        >
-          <div
-            className={`transition-transform duration-300 ${isOpen ? 'rotate-45' : 'rotate-0'}`}
+      {(!isMobile || !isOpen) && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            type="button"
+            onClick={toggleChat}
+            className="w-14 h-14 text-white rounded-full shadow-lg transition-transform duration-200 active:scale-95 hover:scale-105 flex items-center justify-center group"
+            style={{ backgroundColor: widgetAccentColor }}
+            title={isOpen ? (t('common.close') || 'Close') : (t('chat.chatSupport') || 'Open chat')}
+            aria-label={isOpen ? 'Close' : 'Open chat'}
           >
-            {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
-          </div>
-        </button>
+            <div className="flex items-center justify-center transition-transform duration-200">
+              {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
+            </div>
+          </button>
 
-        {/* Unread Badge */}
-        {!isOpen && messageCount > 0 && (
-          <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
-            {messageCount > 9 ? '9+' : messageCount}
-          </div>
-        )}
-      </div>
+          {/* Unread Badge */}
+          {!isOpen && messageCount > 0 && (
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+              {messageCount > 9 ? '9+' : messageCount}
+            </div>
+          )}
+        </div>
+      )}
       <PdfSheet
         visible={visible}
         hideModal={hideModal}

@@ -12,7 +12,7 @@ import { getAuthorization } from '@/utils/authorization-util';
 import { getOrCreateVisitorId } from '@/utils/visitor-identity';
 import { get } from 'lodash';
 import trim from 'lodash/trim';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { v4 as uuid } from 'uuid';
 
@@ -25,22 +25,28 @@ export const useSendButtonDisabled = (value: string) => {
 
 export const useGetSharedChatSearchParams = () => {
   const [searchParams] = useSearchParams();
-  const data_prefix = 'data_';
-  const data = Object.fromEntries(
-    Array.from(searchParams.entries())
-      .filter(([key]) => key.startsWith(data_prefix))
-      .map(([key, value]) => [key.replace(data_prefix, ''), value]),
+  const searchParamsStr = searchParams.toString();
+  const data = useMemo(() => {
+    const data_prefix = 'data_';
+    return Object.fromEntries(
+      Array.from(searchParams.entries())
+        .filter(([key]) => key.startsWith(data_prefix))
+        .map(([key, value]) => [key.replace(data_prefix, ''), value]),
+    );
+  }, [searchParamsStr]);
+  return useMemo(
+    () => ({
+      from: searchParams.get('from') as SharedFrom,
+      sharedId: searchParams.get('shared_id'),
+      locale: searchParams.get('locale'),
+      theme: searchParams.get('theme'),
+      data,
+      visibleAvatar: searchParams.get('visible_avatar')
+        ? searchParams.get('visible_avatar') !== '1'
+        : true,
+    }),
+    [searchParams, searchParamsStr, data],
   );
-  return {
-    from: searchParams.get('from') as SharedFrom,
-    sharedId: searchParams.get('shared_id'),
-    locale: searchParams.get('locale'),
-    theme: searchParams.get('theme'),
-    data: data,
-    visibleAvatar: searchParams.get('visible_avatar')
-      ? searchParams.get('visible_avatar') !== '1'
-      : true,
-  };
 };
 
 export const useSendSharedMessage = () => {
@@ -67,6 +73,7 @@ export const useSendSharedMessage = () => {
   } = useSelectDerivedMessages();
   const [hasError, setHasError] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const hasFetchedSessionIdRef = useRef<string | null>(null);
 
   const sendMessage = useCallback(
     async (
@@ -122,20 +129,28 @@ export const useSendSharedMessage = () => {
     [sendMessage],
   );
 
-  const fetchSessionId = useCallback(async () => {
-    const payload = { question: '', user_id: visitorId };
-    const visitorHeaders = { 'X-Visitor-Id': visitorId };
-    const ret = await send(
-      completionUrl,
-      { ...payload, ...data },
-      undefined,
-      visitorHeaders,
-    );
-    if (isCompletionError(ret)) {
-      message.error(ret?.data.message ?? 'Unknown error');
-      setHasError(true);
-    }
-  }, [send, completionUrl, visitorId, data]);
+  const fetchSessionId = useCallback(
+    async (force = false) => {
+      if (!conversationId) return;
+      if (!force && hasFetchedSessionIdRef.current === conversationId) {
+        return;
+      }
+      hasFetchedSessionIdRef.current = conversationId;
+      const payload = { question: '', user_id: visitorId };
+      const visitorHeaders = { 'X-Visitor-Id': visitorId };
+      const ret = await send(
+        completionUrl,
+        { ...payload, ...data },
+        undefined,
+        visitorHeaders,
+      );
+      if (isCompletionError(ret)) {
+        message.error(ret?.data.message ?? 'Unknown error');
+        setHasError(true);
+      }
+    },
+    [send, completionUrl, conversationId, visitorId, data],
+  );
 
   const fetchVisitorSessions = useCallback(async () => {
     if (from === SharedFrom.Agent || !conversationId) return [];
@@ -177,12 +192,14 @@ export const useSendSharedMessage = () => {
   const startNewChat = useCallback(async () => {
     setActiveSessionId(null);
     removeAllMessages();
-    await fetchSessionId();
+    await fetchSessionId(true);
   }, [removeAllMessages, fetchSessionId]);
 
   useEffect(() => {
-    fetchSessionId();
-  }, [fetchSessionId]);
+    if (conversationId) {
+      fetchSessionId();
+    }
+  }, [conversationId, fetchSessionId]);
 
   useEffect(() => {
     if (answer.answer) {
@@ -194,20 +211,22 @@ export const useSendSharedMessage = () => {
     ({
       enableThinking,
       enableInternet,
-    }: NextMessageInputOnPressEnterParameter) => {
-      if (trim(value) === '') return;
+      messageText,
+    }: NextMessageInputOnPressEnterParameter & { messageText?: string } = {}) => {
+      const text = messageText !== undefined ? messageText : value;
+      if (trim(text) === '') return;
       const id = uuid();
       if (done) {
         setValue('');
         addNewestQuestion({
-          content: value,
+          content: text,
           doc_ids: [],
           id,
           role: MessageType.User,
         });
         handleSendMessage(
           {
-            content: value.trim(),
+            content: text.trim(),
             id,
             role: MessageType.User,
           },
@@ -223,6 +242,7 @@ export const useSendSharedMessage = () => {
     handlePressEnter,
     handleInputChange,
     value,
+    setValue,
     sendLoading: !done,
     loading: false,
     derivedMessages,

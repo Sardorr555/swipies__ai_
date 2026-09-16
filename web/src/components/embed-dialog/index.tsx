@@ -243,6 +243,7 @@ function EmbedDialog({
 
     if (embedType === 'widget') {
       return `<iframe
+  id="chat-btn"
   src="${iframeSrc}"
   style="position:fixed;bottom:0;right:0;width:100px;height:100px;border:none;background:transparent;z-index:9999"
   frameborder="0"
@@ -268,6 +269,13 @@ window.addEventListener('message',e=>{
         document.body.style.overflow=window.__chat_prev_overflow;
         delete window.__chat_prev_overflow;
       }
+    }
+    const b=document.getElementById('chat-btn')||document.querySelector('iframe[src*="mode=master"]');
+    if(b&&b.contentWindow&&b.contentWindow!==e.source){
+      b.contentWindow.postMessage(e.data,'*');
+    }
+    if(w&&w.contentWindow&&w.contentWindow!==e.source){
+      w.contentWindow.postMessage(e.data,'*');
     }
   }else if(e.data.type==='SET_FULLSCREEN'){
     const w=document.getElementById('chat-win');

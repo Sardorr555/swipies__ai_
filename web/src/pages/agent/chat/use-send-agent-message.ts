@@ -410,9 +410,13 @@ export const useSendAgentMessage = ({
   ]);
 
   const handlePressEnter = useCallback(
-    ({ exploreSessionId }: { exploreSessionId?: string } = {}) => {
-      if (trim(value) === '') return;
-      const msgBody = buildRequestBody(value);
+    ({
+      exploreSessionId,
+      messageText,
+    }: { exploreSessionId?: string; messageText?: string } = {}) => {
+      const text = messageText !== undefined ? messageText : value;
+      if (trim(text) === '') return;
+      const msgBody = buildRequestBody(text);
       if (done) {
         setValue('');
         sendMessage({
@@ -522,6 +526,7 @@ export const useSendAgentMessage = ({
 
   return {
     value,
+    setValue,
     sendLoading: !done,
     derivedMessages,
     scrollRef,

@@ -99,9 +99,12 @@ export const useSendNextSharedMessage = (
     [hideParameterDialog, isTaskMode, ret],
   );
 
-  const onPressEnter = useCallback(() => {
-    handlePressEnter();
-  }, [handlePressEnter]);
+  const onPressEnter = useCallback(
+    (params?: any) => {
+      handlePressEnter(params);
+    },
+    [handlePressEnter],
+  );
 
   const runTask = useCallback(() => {
     if (
