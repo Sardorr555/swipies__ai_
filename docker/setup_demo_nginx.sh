@@ -72,6 +72,13 @@ server {
 
     client_max_body_size 128M;
 
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 1000;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+
     location /.well-known/acme-challenge/ {
         root /var/www/html;
         try_files $uri =404;
@@ -87,6 +94,9 @@ server {
 
         proxy_set_header   Upgrade $http_upgrade;
         proxy_set_header   Connection $http_connection;
+        proxy_buffering    off;
+        proxy_cache        off;
+        chunked_transfer_encoding on;
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
 
@@ -108,6 +118,13 @@ server {
 
     client_max_body_size 128M;
 
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 1000;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+
     location /.well-known/acme-challenge/ {
         root /var/www/html;
         try_files $uri =404;
@@ -123,6 +140,9 @@ server {
 
         proxy_set_header   Upgrade $http_upgrade;
         proxy_set_header   Connection $http_connection;
+        proxy_buffering    off;
+        proxy_cache        off;
+        chunked_transfer_encoding on;
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
 
@@ -158,6 +178,13 @@ server {
 
     client_max_body_size 128M;
 
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 1000;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+
     location / {
         proxy_pass         http://127.0.0.1:9222;
         proxy_http_version 1.1;
@@ -168,6 +195,9 @@ server {
 
         proxy_set_header   Upgrade \$http_upgrade;
         proxy_set_header   Connection \$http_connection;
+        proxy_buffering    off;
+        proxy_cache        off;
+        chunked_transfer_encoding on;
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
 
@@ -204,6 +234,13 @@ server {
 
     client_max_body_size 128M;
 
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 1000;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+
     location / {
         proxy_pass         http://127.0.0.1:9222;
         proxy_http_version 1.1;
@@ -214,6 +251,9 @@ server {
 
         proxy_set_header   Upgrade \$http_upgrade;
         proxy_set_header   Connection \$http_connection;
+        proxy_buffering    off;
+        proxy_cache        off;
+        chunked_transfer_encoding on;
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;
 

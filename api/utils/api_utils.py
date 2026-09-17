@@ -72,7 +72,15 @@ async def _coerce_request_data() -> dict:
     if not has_body:
         payload = {}
     elif is_json:
-        payload = await request.get_json(force=False, silent=False)
+        try:
+            payload = await request.get_json(force=False, silent=False)
+        except Exception:
+            try:
+                raw_text = body_bytes.decode("utf-8", errors="replace")
+                import json
+                payload = json.loads(raw_text, strict=False)
+            except Exception:
+                payload = {}
         if isinstance(payload, dict):
             payload = payload or {}
         elif isinstance(payload, str):

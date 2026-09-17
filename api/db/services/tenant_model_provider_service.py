@@ -15,6 +15,7 @@
 #
 import os
 import logging
+import peewee
 from api.db.db_models import DB, TenantModelProvider
 from api.db.services.common_service import CommonService
 
@@ -35,7 +36,7 @@ class TenantModelProviderService(CommonService):
         try:
             from api.db.db_models import User
             admin_email = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io").strip().lower()
-            admin_user = User.get_or_none(User.email.fn.LOWER() == admin_email)
+            admin_user = User.get_or_none(peewee.fn.LOWER(User.email) == admin_email)
             if not admin_user:
                 admin_user = User.get_or_none(User.is_superuser == True)
             if admin_user:

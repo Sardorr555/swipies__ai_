@@ -116,13 +116,16 @@ except ImportError:
 
     class UserOnboarding(DataBaseModel):
         id = CharField(max_length=32, primary_key=True)
-        user_id = CharField(max_length=32, null=False, unique=True, index=True)
-        tenant_id = CharField(max_length=32, null=False, index=True)
-        department = CharField(max_length=128, null=True)
-        role_description = TextField(null=True)
-        expertise_tags = JSONField(null=True, default=list)
-        primary_projects = JSONField(null=True, default=list)
-        is_completed = IntegerField(default=0)
+        user_id = CharField(max_length=32, null=False, index=True)
+        tenant_id = CharField(max_length=32, null=True, index=True)
+        purpose = CharField(max_length=255, null=True)
+        intended_use = TextField(null=True)
+        company_name = CharField(max_length=255, null=True)
+        company_size = CharField(max_length=64, null=True)
+        industry = CharField(max_length=128, null=True)
+        role = CharField(max_length=128, null=True)
+        platform_goals = TextField(null=True)
+        completed = BooleanField(default=False)
 
         class Meta:
             db_table = "user_onboarding"
