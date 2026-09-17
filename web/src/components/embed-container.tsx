@@ -10,6 +10,7 @@ type EmbedContainerProps = {
   avatar?: string;
   subtitle?: string;
   handleReset?(): void;
+  hideReset?: boolean;
 } & PropsWithChildren;
 
 const normalizeHexColor = (value: string | null | undefined, fallback: string) => {
@@ -25,6 +26,7 @@ export function EmbedContainer({
   subtitle,
   children,
   handleReset,
+  hideReset = false,
 }: EmbedContainerProps) {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();

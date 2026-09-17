@@ -1,5 +1,5 @@
 import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog';
-import { IconFontFill } from '@/components/icon-font-base';
+import { IconFontFill } from '@/components/icon-font';
 import { RAGFlowAvatar } from '@/components/ragflow-avatar';
 import ThemeSwitch from '@/components/theme-switch';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,8 @@ import { TFunction } from 'i18next';
 import {
   LucideBox,
   LucideGift,
-  LucideMessagesSquare,
   LucideLogOut,
+  LucideMessagesSquare,
   LucideServer,
   LucideUnplug,
   LucideUser,
@@ -89,7 +89,6 @@ const menuItems = (t: TFunction) => {
       key: Routes.License,
     },
   ];
-
 
   return items;
 };

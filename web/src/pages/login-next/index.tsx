@@ -589,7 +589,8 @@ const Login = () => {
     channelsLoading ||
     loginWithChannelLoading;
   const { config } = useSystemConfig();
-  const registerEnabled = config?.registerEnabled !== 0;
+  const registerEnabled =
+    config?.registerEnabled === 1 || config?.registerEnabled === true;
 
   const redirectUrl = searchParams.get('redirect');
   const isAdsSubdomain =

@@ -79,7 +79,7 @@ export const useSendSharedMessage = () => {
     async (
       message: Message,
       id?: string,
-      enableThinking?: boolean,
+      enableThinking?: string,
       enableInternet?: boolean,
     ) => {
       const visitorHeaders = { 'X-Visitor-Id': visitorId };
@@ -90,7 +90,7 @@ export const useSendSharedMessage = () => {
           quote: true,
           question: message.content,
           session_id: activeSessionId || get(derivedMessages, '0.session_id'),
-          reasoning: enableThinking,
+          reasoning: Number(enableThinking || 0),
           internet: enableInternet,
           user_id: visitorId,
           ...(chatInfo?.llm_id ? { model_name: chatInfo.llm_id } : {}),
@@ -121,7 +121,7 @@ export const useSendSharedMessage = () => {
   const handleSendMessage = useCallback(
     async (
       message: Message,
-      enableThinking?: boolean,
+      enableThinking?: string,
       enableInternet?: boolean,
     ) => {
       sendMessage(message, undefined, enableThinking, enableInternet);
@@ -214,7 +214,7 @@ export const useSendSharedMessage = () => {
       messageText,
     }: NextMessageInputOnPressEnterParameter & { messageText?: string } = {}) => {
       const text = messageText !== undefined ? messageText : value;
-      if (trim(text) === '') return;
+      if (trim(text) === '' || !done) return;
       const id = uuid();
       if (done) {
         setValue('');

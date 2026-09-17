@@ -57,6 +57,9 @@ JSON_RESPONSE = True
 
 class RAGFlowConnector:
     _MAX_DATASET_CACHE = 32
+    # Independent from _MAX_DATASET_CACHE: the document cache holds per-dataset
+    # document lists (far heavier payloads), so its bound is tuned separately.
+    _MAX_DOCUMENT_CACHE = 32
     _CACHE_TTL = 300
     # Keep in sync with api.utils.pagination_utils.REST_API_MAX_PAGE_SIZE.
     _REST_API_MAX_PAGE_SIZE = 100
@@ -123,11 +126,14 @@ class RAGFlowConnector:
             if self._is_cache_valid(ts):
                 self._document_metadata_cache.move_to_end(dataset_id)
                 return {doc_id: doc_meta for doc_id, doc_meta in data_list}
+            del self._document_metadata_cache[dataset_id]
         return None
 
     def _set_cached_document_metadata_by_dataset(self, dataset_id, doc_id_meta_list):
         self._document_metadata_cache[dataset_id] = (doc_id_meta_list, self._get_expiry_timestamp())
         self._document_metadata_cache.move_to_end(dataset_id)
+        if len(self._document_metadata_cache) > self._MAX_DOCUMENT_CACHE:
+            self._document_metadata_cache.popitem(last=False)
 
     async def _fetch_datasets_page(
         self,
@@ -182,10 +188,13 @@ class RAGFlowConnector:
         if res_json.get("code") != 0:
             logging.warning("list_chats API error: code=%s message=%s", res_json.get("code"), res_json.get("message"))
             raise Exception([types.TextContent(type="text", text=res_json.get("message", "Cannot list chats."))])
-        chat_count = len(res_json.get("data", []))
+        _chats_data = res_json.get("data", [])
+        if isinstance(_chats_data, dict):
+            _chats_data = _chats_data.get("chats", [])
+        chat_count = len(_chats_data)
         logging.info("list_chats returned %d chat(s)", chat_count)
         result_list = []
-        for data in res_json.get("data", []):
+        for data in _chats_data:
             d = {"id": data.get("id"), "name": data.get("name"), "description": data.get("description", "")}
             result_list.append(json.dumps(d, ensure_ascii=False))
         return "\n".join(result_list)
@@ -220,7 +229,9 @@ class RAGFlowConnector:
                 break
 
             datasets.extend(page_datasets)
-            total = res_json.get("total")
+            # The REST API reports the dataset total under "total_datasets"
+            # (see api/utils/api_utils.py get_result).
+            total = res_json.get("total_datasets", res_json.get("total"))
             if total is not None and len(datasets) >= total:
                 break
 
@@ -239,7 +250,7 @@ class RAGFlowConnector:
 
         result_list = []
         for data in datasets:
-            d = {"description": data["description"], "id": data["id"]}
+            d = {"id": data["id"], "name": data.get("name"), "description": data.get("description")}
             result_list.append(json.dumps(d, ensure_ascii=False))
         return "\n".join(result_list)
 
@@ -361,14 +372,15 @@ class RAGFlowConnector:
                     page_size = 30
                     doc_id_meta_list = []
                     docs = {}
+                    pagination_succeeded = True
                     while True:
                         docs_res = await self._get(f"/datasets/{dataset_id}/documents?page={page}&page_size={page_size}", api_key=api_key)
-                        if not docs_res:
-                            # Transport-level failure: stop without caching a partial result.
+                        if not docs_res or docs_res.status_code != 200:
+                            pagination_succeeded = False
                             break
                         docs_data = docs_res.json()
                         if docs_data.get("code") != 0:
-                            # API error: stop instead of re-requesting the same page forever.
+                            pagination_succeeded = False
                             break
                         page_docs = docs_data.get("data", {}).get("docs") or []
                         for doc in page_docs:
@@ -392,8 +404,6 @@ class RAGFlowConnector:
                             doc_id_meta_list.append((doc_id, doc_meta))
                             docs[doc_id] = doc_meta
 
-                        self._set_cached_document_metadata_by_dataset(dataset_id, doc_id_meta_list)
-
                         # A page smaller than page_size (including an empty one) is the
                         # last page. This terminates empty/exhausted result sets, which
                         # previously looped forever re-requesting the same page (#16248),
@@ -402,6 +412,10 @@ class RAGFlowConnector:
                         if len(page_docs) < page_size:
                             break
                         page += 1
+                    if pagination_succeeded:
+                        self._set_cached_document_metadata_by_dataset(dataset_id, doc_id_meta_list)
+                    else:
+                        docs = {}
                 if docs:
                     document_cache.update(docs)
 

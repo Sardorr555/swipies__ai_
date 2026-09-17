@@ -48,17 +48,19 @@ except ImportError:
     def _naive_qie_fn(txt):
         return [txt]
 
-class RagTokenizer(_BaseRagTokenizer):
 
+class RagTokenizer(_BaseRagTokenizer):
     def tokenize(self, line: str) -> str:
-        from common import settings # moved from the top of the file to avoid circular import
+        from common import settings  # moved from the top of the file to avoid circular import
+
         if settings.DOC_ENGINE_INFINITY:
             return line
         else:
             return super().tokenize(line)
 
     def fine_grained_tokenize(self, tks: str) -> str:
-        from common import settings # moved from the top of the file to avoid circular import
+        from common import settings  # moved from the top of the file to avoid circular import
+
         if settings.DOC_ENGINE_INFINITY:
             return tks
         else:

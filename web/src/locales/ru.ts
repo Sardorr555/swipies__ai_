@@ -56,7 +56,7 @@ export default {
       submit: 'Отправить',
       clear: 'Очистить',
       embedIntoSite: 'Встроить на веб-страницу',
-      openInNewTab: 'Чат в новой вкладке',
+      openInNewTab: 'Открыть в новой вкладке',
       previousPage: 'Назад',
       nextPage: 'Вперед',
       add: 'Добавить',
@@ -385,6 +385,7 @@ export default {
       runningStatus2: 'ОТМЕНЕНО',
       runningStatus3: 'УСПЕХ',
       runningStatus4: 'НЕУДАЧА',
+      runningStatusQueued: 'В очереди',
       pageRanges: 'Диапазон страниц',
       pageRangesTip:
         'Диапазон страниц для парсинга; страницы вне этого диапазона обрабатываться не будут.',
@@ -464,7 +465,7 @@ export default {
       datasetDescription: 'Опишите ваш датасет',
       overlappedPercentTip: 'Процент перекрытия между соседними чанками',
       globalIndexModelTip:
-        'Используется для графа знаний, RAPTOR, авто-метаданных, авто-ключевых слов и авто-вопросов. Качество модели влияет на качество генерации.',
+        'Используется для авто-метаданных, авто-ключевых слов и авто-вопросов. Качество модели влияет на качество генерации.',
       globalIndexModel: 'Индексирующая модель',
       settings: 'Настройки',
       autoMetadataTip: `Автоматическая генерация метаданных. Применяется к новым файлам во время парсинга. Существующие файлы требуют повторного разбора для обновления (фрагменты остаются сохраненными). Имейте в виду, что дополнительные токены будут использоваться моделью индексации, указанной в разделе "Конфигурация".`,
@@ -508,9 +509,6 @@ export default {
       linkSourceSetTip:
         'Управление связью источника данных с этим набором данных',
       linkDataSource: 'Связать источник данных',
-      tocExtraction: 'Улучшение оглавлением',
-      tocExtractionTip:
-        'Для существующих чанков генерируется иерархическое оглавление (одна директория на файл). При запросах, когда активировано улучшение по оглавлению, система использует большую модель, чтобы определить релевантные пункты оглавления вопросу пользователя и выделить нужные чанки.',
       deleteGenerateModalContent: `
         <p>Удаление сгенерированных результатов <strong class='text-text-primary'>{{type}}</strong>
         удалит все производные сущности и отношения из этого набора данных.
@@ -593,6 +591,12 @@ export default {
       dialogueExamplesTitle: 'просмотр',
       methodEmpty:
         'Здесь будет отображено визуальное объяснение категорий базы знаний',
+      audio: `<p>Поддерживаемые форматы файлов: <b>WAV, MP3, AAC, FLAC, OGG</b> и другие распространённые аудиоформаты.</p>
+<p>Этот метод транскрибирует аудиофайлы в текст с помощью модели преобразования речи в текст.</p>`,
+      email: `<p>Поддерживаемые форматы файлов: <b>EML</b> и <b>MSG</b>.</p>
+<p>Этот метод разбирает файлы электронной почты, извлекая поля заголовков (такие как От, Кому, Копия, Тема и Дата), тело письма и вложения.</p>`,
+      knowledgeCompiler: `<p>Этот конвейер разбирает файлы и разбивает их на чанки, а затем компилирует чанки в структурированные единицы знаний (граф знаний, вики, RAPTOR, интеллект-карту или навигацию по набору данных) с помощью компонента Knowledge Compiler.</p>
+<p>Скомпилированные единицы знаний выдаются в виде чанков, объединённых в поток чанков, что идеально подходит для построения извлекаемого слоя знаний поверх разбитых документов.</p>`,
       book: `<p>Поддерживаемые форматы файлов: <b>DOCX</b>, <b>PDF</b>, <b>TXT</b>.</p><p>
       Для каждой книги в PDF, пожалуйста, установите <i>диапазон страниц</i>, чтобы удалить нежелательную информацию и сократить время анализа.</p>`,
       laws: `<p>Поддерживаемые форматы файлов: <b>DOCX</b>, <b>PDF</b>, <b>TXT</b>.</p><p>
@@ -913,7 +917,7 @@ export default {
       preview: 'Предпросмотр',
       embedded: 'Встроенный',
       serviceApiEndpoint: 'Конечная точка сервисного API',
-      apiKey: 'API KEY',
+      apiKey: 'API Key',
       apiReference: 'Документация API',
       dateRange: 'Диапазон дат:',
       backendServiceApi: 'API Сервер',
@@ -925,6 +929,9 @@ export default {
       created: 'Создано',
       action: 'Действие',
       embedModalTitle: 'Встроить на веб-страницу',
+      embedUserIdPlaceholder: 'например: user-001',
+      embedUserIdTooltip:
+        'Строка (до 255 символов), идентифицирующая конечного пользователя встроенной страницы. Она добавляется в URL встраивания как параметр userId.',
       published: 'Опубликовано',
       publishedTooltip:
         'Использовать опубликованную версию для встраивания. В URL будет release=true.',
@@ -1011,12 +1018,12 @@ export default {
       keyInvalid: 'Ваш API ключ недействителен.',
       deleteModel: 'Удалить модель',
       bedrockCredentialsHint:
-        'Подсказка: оставьте Access Key / Secret Key пустыми для аутентификации AWS IAM.',
-      awsAuthModeAccessKeySecret: 'Ключ доступа (Access Key)',
+        'Подсказка: оставьте ACCESS KEY / SECRET KEY пустыми для аутентификации AWS IAM.',
+      awsAuthModeAccessKeySecret: 'Ключ доступа (ACCESS KEY)',
       awsAuthModeIamRole: 'Роль IAM',
       awsAuthModeAssumeRole: 'Assume role',
-      awsAccessKeyId: 'AWS Access Key ID',
-      awsSecretAccessKey: 'AWS Secret Access Key',
+      awsAccessKeyId: 'AWS ACCESS KEY ID',
+      awsSecretAccessKey: 'AWS SECRET ACCESS KEY',
       awsRoleArn: 'AWS Role ARN',
       awsRoleArnMessage: 'Введите AWS Role ARN',
       awsAssumeRoleTip:
@@ -1096,6 +1103,10 @@ export default {
         'Загрузите OAuth JSON, сгенерированный в Google Console. Если он содержит только учетные данные клиента, выполните одноразовое подтверждение в браузере, чтобы получить долгоживущие токены обновления.',
       dropboxDescription:
         'Подключите ваш Dropbox для синхронизации файлов и папок из выбранного аккаунта.',
+      sitemapDescription:
+        'Подключите публичный sitemap.xml, чтобы синхронизировать перечисленные веб-страницы и PDF-документы с базой знаний.',
+      azure_devopsDescription:
+        "Подключите Azure DevOps для синхронизации файлов репозитория и pull request'ов.",
       bitbucketDescription:
         'Подключите Bitbucket для синхронизации содержимого PR.',
       bitbucketTopWorkspaceTip:
@@ -1313,13 +1324,13 @@ export default {
       addedModels: 'Добавленные модели',
       modelsToBeAdded: 'Модели для добавления',
       addTheModel: 'Добавить',
-      apiKey: 'API-Ключ',
+      apiKey: 'API Key',
       apiKeyMessage: 'Пожалуйста, введите API ключ',
       apiKeyTip:
         'API ключ можно получить, зарегистрировавшись у соответствующего поставщика LLM.',
       showMoreModels: 'Показать модели',
       hideModels: 'Скрыть модели',
-      baseUrl: 'Базовый-Url',
+      baseUrl: 'Base URL',
       baseUrlTip:
         'Если ваш API ключ от OpenAI, просто проигнорируйте это. Любые другие промежуточные провайдеры дадут этот базовый url вместе с API ключом.',
       tongyiBaseUrlTip:
@@ -1361,8 +1372,14 @@ export default {
       modelNameMessage: 'Пожалуйста, введите название вашей модели!',
       modelType: 'Тип модели',
       modelTypeMessage: 'Пожалуйста, введите тип вашей модели!',
-      addLlmBaseUrl: 'Базовый url',
-      baseUrlNameMessage: 'Пожалуйста, введите ваш базовый url!',
+      addLlmBaseUrl: 'Базовый URL',
+      baseUrlNameMessage: 'Пожалуйста, введите ваш базовый URL',
+      mwsApiUrl: 'URL API',
+      mwsApiUrlMessage: 'Введите URL API проекта MWS',
+      mwsApiUrlPlaceholder: 'https://gpt.mwsapis.ru/projects/<project>',
+      mwsToken: 'Токен',
+      mwsTokenMessage: 'Введите токен MWS',
+      mwsTokenPlaceholder: 'API-ключ сервисного аккаунта MWS',
       paddleocr: {
         apiUrl: 'URL API PaddleOCR',
         apiUrlPlaceholder:
@@ -1384,13 +1401,13 @@ export default {
       endpointIDMessage: 'Пожалуйста, введите Model ID модели',
       addArkApiKey: 'VOLC ARK_API_KEY',
       ArkApiKeyMessage: 'Пожалуйста, введите ваш ARK_API_KEY',
-      bedrockModelNameMessage: 'Пожалуйста, введите название вашей модели!',
+      bedrockModelNameMessage: 'Пожалуйста, введите название вашей модели',
       addBedrockEngineAK: 'ACCESS KEY',
       bedrockAKMessage: 'Пожалуйста, введите ваш ACCESS KEY',
       addBedrockSK: 'SECRET KEY',
       bedrockSKMessage: 'Пожалуйста, введите ваш SECRET KEY',
       bedrockRegion: 'AWS Регион',
-      bedrockRegionMessage: 'Пожалуйста, выберите!',
+      bedrockRegionMessage: 'Пожалуйста, выберите',
       'us-east-2': 'US East (Огайо)',
       'us-east-1': 'US East (Северная Вирджиния)',
       'us-west-1': 'US West (Северная Калифорния)',
@@ -1428,26 +1445,26 @@ export default {
       'us-gov-west-1': 'AWS GovCloud (US-West)',
       addTencentCloudSID: 'TencentCloud Secret ID',
       TencentCloudSIDMessage: 'Пожалуйста, введите ваш Secret ID',
-      addTencentCloudSK: 'TencentCloud Secret Key',
-      TencentCloudSKMessage: 'Пожалуйста, введите ваш Secret Key',
+      addTencentCloudSK: 'TencentCloud SECRET KEY',
+      TencentCloudSKMessage: 'Пожалуйста, введите ваш SECRET KEY',
       SparkModelNameMessage: 'Пожалуйста, выберите модель Spark',
       addSparkAPIPassword: 'Spark APIPassword',
       SparkAPIPasswordMessage: 'Пожалуйста, введите ваш APIPassword',
       addSparkAPPID: 'Spark APP ID',
       SparkAPPIDMessage: 'Пожалуйста, введите ваш APP ID',
-      addSparkAPISecret: 'Spark APISecret',
-      SparkAPISecretMessage: 'Пожалуйста, введите ваш APISecret',
+      addSparkAPISecret: 'Spark API SECRET',
+      SparkAPISecretMessage: 'Пожалуйста, введите ваш API SECRET',
       addSparkAPIKey: 'Spark APIKey',
       SparkAPIKeyMessage: 'Пожалуйста, введите ваш APIKey',
       yiyanModelNameMessage: 'Пожалуйста, введите название модели',
-      addyiyanAK: 'yiyan API KEY',
-      yiyanAKMessage: 'Пожалуйста, введите ваш API KEY',
-      addyiyanSK: 'yiyan Secret KEY',
-      yiyanSKMessage: 'Пожалуйста, введите ваш Secret KEY',
+      addyiyanAK: 'yiyan API Key',
+      yiyanAKMessage: 'Пожалуйста, введите ваш API Key',
+      addyiyanSK: 'yiyan SECRET KEY',
+      yiyanSKMessage: 'Пожалуйста, введите ваш SECRET KEY',
       FishAudioModelNameMessage:
         'Пожалуйста, дайте вашей модели синтеза речи название',
-      addFishAudioAK: 'Fish Audio API KEY',
-      addFishAudioAKMessage: 'Пожалуйста, введите ваш API KEY',
+      addFishAudioAK: 'Fish Audio API Key',
+      addFishAudioAKMessage: 'Пожалуйста, введите ваш API Key',
       addFishAudioRefID: 'FishAudio Reference ID',
       addFishAudioRefIDMessage:
         'Пожалуйста, введите Reference ID (оставьте пустым для использования модели по умолчанию).',
@@ -1515,7 +1532,7 @@ export default {
         chat: 'Чат',
         embedding: 'Эмбеддинг',
         rerank: 'Rerank',
-        sequence2text: 'sequence2text',
+        sequence2text: 'ASR',
         tts: 'TTS',
         image2text: 'OCR',
         speech2text: 'ASR',
@@ -1661,6 +1678,9 @@ export default {
       maxRounds: 'Максимальное количество раундов рефлексии',
       delayAfterError: 'Задержка после ошибки',
       maxRetries: 'Максимальное количество попыток повтора',
+      toolTimeout: 'Таймаут вызова инструмента',
+      toolTimeoutTip:
+        'Таймаут в секундах для одного вызова инструмента (включая MCP). Увеличьте для длительно выполняющихся инструментов.',
       advancedSettings: 'Расширенные настройки',
       addTools: 'Добавить инструменты',
       sysPromptDefaultValue: `
@@ -1808,7 +1828,7 @@ export default {
       bing: 'Microsoft Bing',
       bingDescription:
         'Компонент, который выполняет поиск на https://www.bing.com/, позволяя вам указать количество результатов поиска с помощью TopN. Он дополняет существующие базы знаний. Обратите внимание, что для этого требуется API ключ от microsoft.com.',
-      apiKey: 'API KEY',
+      apiKey: 'API Key',
       country: 'Страна и регион',
       language: 'Язык',
       googleScholar: 'Google Scholar',
@@ -2505,7 +2525,7 @@ export default {
         bodyTemplate: 'Шаблон тела',
         basic: 'Basic',
         bearer: 'Bearer',
-        apiKey: 'API-ключ',
+        apiKey: 'API Key',
         queryParameters: 'Параметры запроса',
         headerParameters: 'Параметры заголовка',
         requestBodyParameters: 'Параметры тела запроса',

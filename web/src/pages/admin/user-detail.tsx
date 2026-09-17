@@ -9,6 +9,7 @@ import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
@@ -224,6 +225,7 @@ function UserDatasetTable(props: {
 
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
 
     enableSorting: false,
   });
@@ -331,6 +333,7 @@ function UserAgentTable(props: { data?: AdminService.ListUserAgentItem[] }) {
 
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
 
     enableSorting: false,
   });
