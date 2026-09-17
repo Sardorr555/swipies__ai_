@@ -95,7 +95,7 @@ MODELS = [
 for model in MODELS:
     model._meta.database = test_db
 
-from api import settings
+from common import settings
 from api.db.services.document_service import DocumentService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from crawler.preview import WebsitePreviewAnalyzer
@@ -309,6 +309,43 @@ class TestWebsiteImportAndDatasetCreation(unittest.TestCase):
             job_config={"url": target_url, "max_pages": 25},
         )
         self.assertEqual(pipeline.kb_id, created_kb.id)
+
+    def test_html_cleaner_recovers_script_templates_and_data(self):
+        """Test HTMLCleaner recovers template literals in scripts and JSON-LD when body is sparse."""
+        from crawler.cleaner import HTMLCleaner
+        from crawler.markdown import MarkdownConverter
+
+        # HTML with sparse body and content inside script template literal
+        sparse_html = (
+            "<!DOCTYPE html><html><head><title>Test Terms</title></head><body>"
+            "<h1>Terms</h1><div id='content'></div>"
+            "<script>"
+            "const data = {"
+            "  text: `<h2>1. Terms of Service</h2><p>This is the full comprehensive terms agreement.</p>`"
+            "};"
+            "</script>"
+            "</body></html>"
+        )
+        cleaner = HTMLCleaner()
+        cleaned = cleaner.clean(sparse_html)
+        self.assertIn("Terms of Service", cleaned)
+        self.assertIn("comprehensive terms agreement", cleaned)
+
+        converter = MarkdownConverter()
+        md = converter.convert(cleaned)
+        self.assertFalse(md.startswith("html"))
+        self.assertIn("## 1. Terms of Service", md)
+        self.assertIn("This is the full comprehensive terms agreement.", md)
+
+    def test_markdown_converter_no_doctype_or_html_leak(self):
+        """Verify markdown output doesn't start with raw html doctype artifacts."""
+        from crawler.markdown import MarkdownConverter
+        html = "<!DOCTYPE html><html><body><h1>Header</h1><p>Body paragraph</p></body></html>"
+        converter = MarkdownConverter()
+        md = converter.convert(html)
+        self.assertFalse(md.startswith("html"))
+        self.assertIn("# Header", md)
+        self.assertIn("Body paragraph", md)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 import re
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment, Doctype
 
 class MarkdownConverter:
     def __init__(self, extract_images: bool = True):
@@ -13,14 +13,17 @@ class MarkdownConverter:
         lines = []
 
         def process_node(node):
+            if isinstance(node, (Comment, Doctype)):
+                return
+
             if isinstance(node, str):
                 text = node.strip()
-                if text:
+                if text and text.lower() != 'html':
                     lines.append(text)
                 return
 
-            tag = node.name
-            if not tag:
+            tag = getattr(node, 'name', None)
+            if not tag or tag in ['style', 'script', 'head', 'meta', 'link']:
                 return
 
             if tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
@@ -61,11 +64,15 @@ class MarkdownConverter:
                 alt = node.get('alt', 'image')
                 if src:
                     lines.append(f"\n![{alt}]({src})\n")
+            elif tag == 'hr':
+                lines.append("\n---\n")
             elif tag == 'a':
                 href = node.get('href', '')
                 text = node.get_text(strip=True)
                 if href and text:
                     lines.append(f"[{text}]({href})")
+                elif text:
+                    lines.append(text)
             else:
                 for child in node.children:
                     process_node(child)

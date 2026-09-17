@@ -5,11 +5,72 @@ class HTMLCleaner:
     def __init__(self, options: dict = None):
         self.options = options or {}
 
+    def _extract_script_templates_and_data(self, soup: BeautifulSoup) -> None:
+        """
+        Extract content from scripts if the static body text is sparse.
+        Recovers template literals (e.g. `<h2>...</h2>`), JSON-LD article bodies,
+        and structured copy before script tags are stripped.
+        """
+        body_text_len = len(soup.body.get_text(strip=True)) if soup.body else 0
+        if body_text_len >= 800:
+            return
+
+        recovered_fragments = []
+        bt = chr(96)
+        for s in soup.find_all('script'):
+            stext = s.get_text()
+            if not stext:
+                continue
+
+            # JSON-LD structured data
+            s_type = s.get('type', '').lower()
+            if 'ld+json' in s_type:
+                try:
+                    import json
+                    data = json.loads(stext)
+                    def extract_ld(obj):
+                        if isinstance(obj, dict):
+                            for k in ['articleBody', 'text', 'description', 'answer']:
+                                if k in obj and isinstance(obj[k], str) and len(obj[k].strip()) > 30:
+                                    recovered_fragments.append(f"<p>{obj[k]}</p>")
+                            for v in obj.values():
+                                extract_ld(v)
+                        elif isinstance(obj, list):
+                            for item in obj:
+                                extract_ld(item)
+                    extract_ld(data)
+                except Exception:
+                    pass
+
+            # JS template literals: `...`
+            if bt in stext:
+                parts = stext.split(bt)
+                for p in parts:
+                    val = p.strip()
+                    if len(val) > 80 and any(tag in val for tag in ('<h1', '<h2', '<h3', '<h4', '<p', '<ul', '<ol', '<div', '<li', '<table', '<article', '<section')):
+                        recovered_fragments.append(val)
+
+        if recovered_fragments:
+            container = soup.new_tag('div', attrs={'class': 'recovered-script-content'})
+            for frag in recovered_fragments:
+                try:
+                    frag_soup = BeautifulSoup(frag, 'html.parser')
+                    container.append(frag_soup)
+                except Exception:
+                    pass
+            if soup.body:
+                soup.body.append(container)
+            elif soup:
+                soup.append(container)
+
     def clean(self, html_content: str) -> str:
         if not html_content:
             return ""
 
         soup = BeautifulSoup(html_content, 'html.parser')
+
+        # 0. Recover embedded templates / JSON-LD if body text is sparse
+        self._extract_script_templates_and_data(soup)
 
         # 1. Remove comments
         for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):

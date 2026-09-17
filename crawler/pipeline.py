@@ -12,8 +12,8 @@ from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.db_models import Document
 from api.db import FileType
 from common.constants import TaskStatus, StatusEnum, ParserType
+from common import settings
 from common.time_utils import get_format_time
-from api import settings
 
 logger = logging.getLogger(__name__)
 
@@ -86,12 +86,25 @@ class WebsiteImportPipeline:
                 blob = md_content.encode("utf-8")
                 location = f"{doc_id}.md"
 
-                # Store file blob in object storage
-                if hasattr(settings, "STORAGE_IMPL") and settings.STORAGE_IMPL:
+                # Ensure storage is initialized
+                if not getattr(settings, "STORAGE_IMPL", None):
                     try:
-                        settings.STORAGE_IMPL.put(self.kb_id, location, blob)
-                    except Exception as st_err:
-                        logger.warning(f"STORAGE_IMPL put error for {doc_id}: {st_err}")
+                        settings.init_settings()
+                    except Exception as _init_err:
+                        logger.error(f"settings.init_settings failed in pipeline: {_init_err}")
+
+                storage = getattr(settings, "STORAGE_IMPL", None)
+                if not storage:
+                    logger.error("STORAGE_IMPL is None! Cannot save crawled document to storage.")
+                    raise RuntimeError("Object storage is not initialized.")
+
+                # Store file blob in object storage
+                try:
+                    storage.put(self.kb_id, location, blob)
+                    logger.info(f"Stored document blob {location} in bucket {self.kb_id} ({len(blob)} bytes)")
+                except Exception as st_err:
+                    logger.exception(f"STORAGE_IMPL.put failed for doc {doc_id} in {self.kb_id}/{location}: {st_err}")
+                    raise RuntimeError(f"Storage upload failed: {st_err}")
 
                 # Create RAGFlow Document entry
                 doc = {
@@ -118,14 +131,17 @@ class WebsiteImportPipeline:
                 # Register with FileService if available
                 try:
                     from api.db.services.file_service import FileService
-                    kb_root_folder = FileService.get_kb_folder(self.tenant_id)
-                    if kb_root_folder:
-                        kb_name = getattr(kb, "name", "Website") if kb else "Website"
-                        kb_folder = FileService.new_a_file_from_kb(self.tenant_id, kb_name, kb_root_folder["id"])
-                        if kb_folder:
-                            FileService.add_file_from_kb(doc, kb_folder["id"], self.tenant_id)
+                    root_folder = FileService.get_root_folder(self.tenant_id)
+                    if root_folder:
+                        FileService.init_knowledgebase_docs(root_folder["id"], self.tenant_id)
+                        kb_root_folder = FileService.get_kb_folder(self.tenant_id)
+                        if kb_root_folder:
+                            kb_name = getattr(kb, "name", "Website") if kb else "Website"
+                            kb_folder = FileService.new_a_file_from_kb(self.tenant_id, kb_name, kb_root_folder["id"])
+                            if kb_folder:
+                                FileService.add_file_from_kb(doc, kb_folder["id"], self.tenant_id)
                 except Exception as _fe:
-                    logger.debug(f"FileService registration skipped: {_fe}")
+                    logger.warning(f"FileService registration warning: {_fe}")
 
                 # Automatically queue chunking/embedding task
                 try:
@@ -133,7 +149,7 @@ class WebsiteImportPipeline:
                     queue_tasks(doc, self.kb_id, location, 0)
                     DocumentService.update_by_id(doc["id"], {"run": TaskStatus.RUNNING.value})
                 except Exception as _qe:
-                    logger.debug(f"Auto queue_tasks skipped: {_qe}")
+                    logger.warning(f"Auto queue_tasks warning: {_qe}")
 
                 self.tracker.chunks_created += 1
                 self.tracker.log(f"Created Document record for {doc_name}")
