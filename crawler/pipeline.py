@@ -115,6 +115,26 @@ class WebsiteImportPipeline:
                 
                 DocumentService.insert(doc)
 
+                # Register with FileService if available
+                try:
+                    from api.db.services.file_service import FileService
+                    kb_root_folder = FileService.get_kb_folder(self.tenant_id)
+                    if kb_root_folder:
+                        kb_name = getattr(kb, "name", "Website") if kb else "Website"
+                        kb_folder = FileService.new_a_file_from_kb(self.tenant_id, kb_name, kb_root_folder["id"])
+                        if kb_folder:
+                            FileService.add_file_from_kb(doc, kb_folder["id"], self.tenant_id)
+                except Exception as _fe:
+                    logger.debug(f"FileService registration skipped: {_fe}")
+
+                # Automatically queue chunking/embedding task
+                try:
+                    from api.db.services.task_service import queue_tasks
+                    queue_tasks(doc, self.kb_id, location, 0)
+                    DocumentService.update_by_id(doc["id"], {"run": TaskStatus.RUNNING.value})
+                except Exception as _qe:
+                    logger.debug(f"Auto queue_tasks skipped: {_qe}")
+
                 self.tracker.chunks_created += 1
                 self.tracker.log(f"Created Document record for {doc_name}")
 

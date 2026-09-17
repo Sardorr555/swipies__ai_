@@ -203,7 +203,7 @@ export function WebsiteInputForm({
   const [maxPages, setMaxPages] = useState(50);
   const [maxDepth, setMaxDepth] = useState(2);
   const [delay, setDelay] = useState(0.5);
-  const [respectRobots, setRespectRobots] = useState(true);
+  const [respectRobots, setRespectRobots] = useState(false);
 
   // Advanced toggles
   const [extractMarkdown, setExtractMarkdown] = useState(true);
@@ -280,12 +280,15 @@ export function WebsiteInputForm({
       message.warning('Введите URL веб-сайта');
       return;
     }
+    const cleanUrl = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`;
     setAnalyzing(true);
     try {
       const res = await request.post(api.websiteImportPreview, {
-        url: url.trim(),
-        crawl_mode: crawlMode,
-        max_pages: maxPages,
+        data: {
+          url: cleanUrl,
+          crawl_mode: crawlMode,
+          max_pages: maxPages,
+        },
       });
       const preview = res?.data?.data || res?.data;
       if (preview) {
@@ -296,7 +299,7 @@ export function WebsiteInputForm({
             form.setValue('name', preview.title.slice(0, 60));
           } else {
             try {
-              form.setValue('name', new URL(url.trim()).hostname);
+              form.setValue('name', new URL(cleanUrl).hostname);
             } catch {
               form.setValue('name', 'Website Dataset');
             }
@@ -327,23 +330,26 @@ export function WebsiteInputForm({
       message.error('Пожалуйста, укажите URL веб-сайта');
       return;
     }
+    const cleanUrl = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`;
     setSubmitting(true);
     try {
       const res = await request.post(api.websiteImportStart, {
-        url: url.trim(),
-        name: data.name.trim(),
-        dataset_name: data.name.trim(),
-        embedding_model: data.embedding_model,
-        crawl_mode: crawlMode,
-        max_pages: maxPages,
-        max_depth: maxDepth,
-        delay,
-        respect_robots: respectRobots,
-        extract_markdown: extractMarkdown,
-        extract_images: extractImages,
-        extract_tables: extractTables,
-        remove_nav: cleanNavAndAds,
-        remove_ads: cleanNavAndAds,
+        data: {
+          url: cleanUrl,
+          name: data.name.trim(),
+          dataset_name: data.name.trim(),
+          embedding_model: data.embedding_model,
+          crawl_mode: crawlMode,
+          max_pages: maxPages,
+          max_depth: maxDepth,
+          delay,
+          respect_robots: respectRobots,
+          extract_markdown: extractMarkdown,
+          extract_images: extractImages,
+          extract_tables: extractTables,
+          remove_nav: cleanNavAndAds,
+          remove_ads: cleanNavAndAds,
+        },
       });
 
       const responsePayload = res?.data?.data || res?.data;

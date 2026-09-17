@@ -97,6 +97,37 @@ const request: RequestMethod = extend({
 let isRedirecting = false;
 
 request.interceptors.request.use((url: string, options: any) => {
+  // Defensive guard: if post/put/patch request was passed payload directly without wrapping in { data }
+  if (
+    options &&
+    options.data === undefined &&
+    typeof options === 'object' &&
+    options.method &&
+    ['post', 'put', 'patch'].includes(String(options.method).toLowerCase())
+  ) {
+    const {
+      headers,
+      params,
+      getResponse,
+      skipToken,
+      errorHandler,
+      responseType,
+      method,
+      requestType,
+      timeout,
+      prefix,
+      suffix,
+      useCache,
+      ttl,
+      credentials,
+      interceptors,
+      ...bodyData
+    } = options;
+    if (Object.keys(bodyData).length > 0) {
+      options.data = bodyData;
+    }
+  }
+
   const data = convertTheKeysOfTheObjectToSnake(options.data);
   const params = convertTheKeysOfTheObjectToSnake(options.params);
 

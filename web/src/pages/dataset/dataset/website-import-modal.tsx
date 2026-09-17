@@ -47,7 +47,7 @@ export function WebsiteImportModal({
   const [excludePaths, setExcludePaths] = useState('');
   const [delay, setDelay] = useState(0.5);
   const [userAgent, setUserAgent] = useState('RAGFlow-WebCrawler/1.0');
-  const [respectRobots, setRespectRobots] = useState(true);
+  const [respectRobots, setRespectRobots] = useState(false);
 
   // Advanced Toggles
   const [extractMarkdown, setExtractMarkdown] = useState(true);
@@ -99,13 +99,16 @@ export function WebsiteImportModal({
   }, [activeJobId, importing]);
 
   const handleAnalyze = async () => {
-    if (!url) return;
+    if (!url.trim()) return;
+    const cleanUrl = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`;
     setAnalyzing(true);
     try {
       const res = await request.post(api.websiteImportPreview, {
-        url,
-        crawl_mode: crawlMode,
-        max_pages: maxPages,
+        data: {
+          url: cleanUrl,
+          crawl_mode: crawlMode,
+          max_pages: maxPages,
+        },
       });
       if (res?.data) {
         setPreviewData(res.data);
@@ -118,28 +121,31 @@ export function WebsiteImportModal({
   };
 
   const handleStartImport = async () => {
-    if (!url) return;
+    if (!url.trim()) return;
+    const cleanUrl = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`;
     setImporting(true);
     setJobProgress(null);
     try {
       const res = await request.post(api.websiteImportStart, {
-        dataset_id: datasetId,
-        url,
-        crawl_mode: crawlMode,
-        max_pages: maxPages,
-        max_depth: maxDepth,
-        delay,
-        user_agent: userAgent,
-        respect_robots: respectRobots,
-        js_rendering: jsRendering,
-        ignore_nav: ignoreNav,
-        ignore_footer: ignoreFooter,
-        ignore_header: ignoreHeader,
-        ignore_sidebar: ignoreSidebar,
-        remove_cookie_banner: removeCookieBanner,
-        remove_ads: removeAds,
-        extract_images: extractImages,
-        extract_pdfs: extractPdfs,
+        data: {
+          dataset_id: datasetId,
+          url: cleanUrl,
+          crawl_mode: crawlMode,
+          max_pages: maxPages,
+          max_depth: maxDepth,
+          delay,
+          user_agent: userAgent,
+          respect_robots: respectRobots,
+          js_rendering: jsRendering,
+          ignore_nav: ignoreNav,
+          ignore_footer: ignoreFooter,
+          ignore_header: ignoreHeader,
+          ignore_sidebar: ignoreSidebar,
+          remove_cookie_banner: removeCookieBanner,
+          remove_ads: removeAds,
+          extract_images: extractImages,
+          extract_pdfs: extractPdfs,
+        },
       });
       if (res?.data?.job_id) {
         setActiveJobId(res.data.job_id);

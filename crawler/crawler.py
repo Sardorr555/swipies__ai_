@@ -36,13 +36,16 @@ def is_private_ip(hostname: str) -> bool:
 class AsyncWebCrawler:
     def __init__(self, config: dict = None):
         self.config = config or {}
-        self.user_agent = self.config.get("user_agent", "RAGFlow-WebCrawler/1.0")
+        default_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        self.user_agent = self.config.get("user_agent") or default_ua
+        if "RAGFlow" in self.user_agent:
+            self.user_agent = default_ua
         self.crawl_mode = self.config.get("crawl_mode", "website")
-        self.max_pages = self.config.get("max_pages", 100)
-        self.max_depth = self.config.get("max_depth", 3)
-        self.delay = self.config.get("delay", 0.5)
-        self.respect_robots = self.config.get("respect_robots", True)
-        self.use_js = self.config.get("js_rendering", False)
+        self.max_pages = min(int(self.config.get("max_pages", 100)), 500)
+        self.max_depth = min(int(self.config.get("max_depth", 3)), 10)
+        self.delay = float(self.config.get("delay", 0.3))
+        self.respect_robots = bool(self.config.get("respect_robots", False))
+        self.use_js = bool(self.config.get("js_rendering", False))
 
         self.robots_checker = RobotsChecker(self.user_agent)
         self.cleaner = HTMLCleaner(self.config)
@@ -55,33 +58,76 @@ class AsyncWebCrawler:
     def cancel(self):
         self.cancelled = True
 
+    def _clean_url(self, u: str) -> str:
+        if not u or not isinstance(u, str):
+            return ""
+        u = u.strip()
+        if not u:
+            return ""
+        if not (u.startswith("http://") or u.startswith("https://")):
+            u = "https://" + u
+        # Strip trailing fragment and unwanted trailing slash
+        u = u.split("#")[0].strip()
+        return u
+
     async def crawl(self, start_urls: list, progress_callback=None) -> list:
         results = []
         queue = []
-        for url in start_urls:
-            queue.append({"url": url, "depth": 0, "parent": ""})
-
         visited = set()
-        headers = {"User-Agent": self.user_agent}
+
+        for raw_url in start_urls:
+            cleaned = self._clean_url(raw_url)
+            if cleaned:
+                queue.append({"url": cleaned, "depth": 0, "parent": ""})
+
+        headers = {
+            "User-Agent": self.user_agent,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
+            "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+        }
         headers.update(self.auth_handler.get_headers())
         cookies = self.auth_handler.get_cookies()
 
-        async with aiohttp.ClientSession(headers=headers, cookies=cookies) as session:
+        conn = aiohttp.TCPConnector(ssl=False)
+        timeout = aiohttp.ClientTimeout(total=20, connect=10)
+
+        async with aiohttp.ClientSession(headers=headers, cookies=cookies, connector=conn, timeout=timeout) as session:
+            # If sitemap mode, inspect first URL for sitemap xml
+            if self.crawl_mode == "sitemap" and queue:
+                sitemap_item = queue[0]
+                s_url = sitemap_item["url"]
+                if not s_url.endswith(".xml") and "sitemap" not in s_url.lower():
+                    s_url = urljoin(s_url, "/sitemap.xml")
+                try:
+                    async with session.get(s_url) as s_resp:
+                        if s_resp.status == 200:
+                            s_text = await s_resp.text()
+                            locs = re.findall(r'<loc>\s*(https?://[^<\s]+)\s*</loc>', s_text, re.I)
+                            for loc in locs[:self.max_pages]:
+                                c_loc = self._clean_url(loc)
+                                if c_loc and c_loc not in visited:
+                                    queue.append({"url": c_loc, "depth": 1, "parent": s_url})
+                except Exception as s_err:
+                    logger.warning(f"Failed to fetch sitemap from {s_url}: {s_err}")
+
             while queue and len(results) < self.max_pages and not self.cancelled:
                 item = queue.pop(0)
-                url = item["url"]
+                url = self._clean_url(item["url"])
                 depth = item["depth"]
 
-                if url in visited or depth > self.max_depth:
+                if not url or url in visited or depth > self.max_depth:
                     continue
                 visited.add(url)
 
                 parsed = urlparse(url)
-                if is_private_ip(parsed.hostname or ""):
-                    logger.warning(f"Blocked SSRF attempt to private IP: {url}")
+                if not parsed.hostname or is_private_ip(parsed.hostname):
+                    logger.warning(f"Blocked invalid or SSRF hostname: {url}")
                     continue
 
-                if not await self.robots_checker.can_fetch(url, self.respect_robots):
+                if self.respect_robots and not await self.robots_checker.can_fetch(url, self.respect_robots):
                     logger.info(f"Skipping {url} due to robots.txt restriction")
                     continue
 
@@ -97,18 +143,22 @@ class AsyncWebCrawler:
 
                     if self.use_js:
                         html_content, status_code = await self._fetch_with_playwright(url)
-                    
+
                     if not html_content:
-                        async with session.get(url, timeout=15) as resp:
+                        async with session.get(url, allow_redirects=True) as resp:
                             status_code = resp.status
                             if resp.status != 200:
                                 continue
-                            content_type = resp.headers.get("Content-Type", "")
-                            if "text/html" not in content_type:
+                            content_type = resp.headers.get("Content-Type", "").lower()
+                            if "text/html" not in content_type and "application/xhtml" not in content_type:
                                 continue
-                            html_content = await resp.text()
+                            try:
+                                html_content = await resp.text()
+                            except UnicodeDecodeError:
+                                raw_bytes = await resp.read()
+                                html_content = raw_bytes.decode("utf-8", errors="replace")
 
-                    if not html_content:
+                    if not html_content or len(html_content.strip()) < 50:
                         continue
 
                     # Extract metadata
@@ -119,14 +169,17 @@ class AsyncWebCrawler:
                     cleaned_html = self.cleaner.clean(html_content)
                     markdown_text = self.markdown_converter.convert(cleaned_html)
 
+                    if not markdown_text.strip():
+                        continue
+
                     # Deduplication check
                     if self.deduplicator.is_duplicate_content(markdown_text):
                         continue
 
                     page_result = {
                         "url": url,
-                        "canonical_url": extracted_meta["canonical_url"],
-                        "title": extracted_meta["title"],
+                        "canonical_url": extracted_meta.get("canonical_url") or url,
+                        "title": extracted_meta.get("title") or parsed.path or url,
                         "html": cleaned_html,
                         "markdown": markdown_text,
                         "metadata": extracted_meta,
@@ -138,10 +191,15 @@ class AsyncWebCrawler:
                     # Discover next links if allowed by crawl_mode
                     if self.crawl_mode in ["website", "recursive"] and depth < self.max_depth:
                         soup = BeautifulSoup(html_content, 'html.parser')
+                        base_domain = parsed.netloc.lower().removeprefix("www.")
                         for a in soup.find_all('a', href=True):
-                            next_url = urljoin(url, a['href'])
+                            href = a['href'].strip()
+                            if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#', 'data:')):
+                                continue
+                            next_url = self._clean_url(urljoin(url, href))
                             p_next = urlparse(next_url)
-                            if p_next.netloc == parsed.netloc and next_url not in visited:
+                            next_domain = p_next.netloc.lower().removeprefix("www.")
+                            if next_domain == base_domain and next_url not in visited:
                                 queue.append({"url": next_url, "depth": depth + 1, "parent": url})
 
                     if self.delay > 0:

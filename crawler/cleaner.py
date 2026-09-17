@@ -12,7 +12,7 @@ class HTMLCleaner:
         soup = BeautifulSoup(html_content, 'html.parser')
 
         # 1. Remove comments
-        for comment in soup.find_all(text=lambda text: isinstance(text, Comment)):
+        for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
             comment.extract()
 
         # 2. Always remove script, style, svg, iframe, noscript, tracking

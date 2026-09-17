@@ -26,6 +26,36 @@ except Exception as _crawler_import_err:
 
 # manager is injected dynamically by api.apps.register_page() before this module is exec'd.
 
+def _normalize_url(u: str) -> str:
+    if not u or not isinstance(u, str):
+        return ""
+    u = u.strip()
+    if not u:
+        return ""
+    if not (u.startswith("http://") or u.startswith("https://")):
+        u = "https://" + u
+    return u
+
+async def _extract_payload():
+    req = None
+    try:
+        req = await request.get_json(silent=True)
+    except Exception:
+        pass
+    if not req or not isinstance(req, dict):
+        try:
+            form = await request.form
+            if form:
+                req = form.to_dict()
+        except Exception:
+            pass
+    if not req or not isinstance(req, dict):
+        try:
+            req = request.args.to_dict() if request.args else {}
+        except Exception:
+            req = {}
+    return req or {}
+
 @manager.route("/datasets/import/website/preview", methods=["POST"])  # noqa: F821
 @login_required
 async def preview_website_import():
@@ -33,11 +63,15 @@ async def preview_website_import():
     Analyze website preview before import.
     """
     try:
-        req = await request.get_json() or {}
-        start_url = req.get("url")
+        req = await _extract_payload()
+        raw_url = req.get("url") or req.get("start_url") or req.get("urls")
+        if isinstance(raw_url, list) and raw_url:
+            raw_url = raw_url[0]
+        start_url = _normalize_url(raw_url)
         if not start_url:
             return get_error_data_result(message="Missing required parameter: url")
 
+        req["url"] = start_url
         crawl_mode = req.get("crawl_mode", "website")
         max_pages = req.get("max_pages", 50)
         auth_config = req.get("auth")
@@ -59,13 +93,28 @@ async def start_website_import():
     based on the website and starts importing pages into it.
     """
     try:
-        req = await request.get_json() or {}
-        url = req.get("url")
-        urls = req.get("urls", [])
-        if not url and not urls:
+        req = await _extract_payload()
+        raw_url = req.get("url") or req.get("start_url")
+        raw_urls = req.get("urls", [])
+        if isinstance(raw_urls, str):
+            raw_urls = [u.strip() for u in raw_urls.split(",") if u.strip()]
+        elif not isinstance(raw_urls, list):
+            raw_urls = []
+
+        normalized_urls = [_normalize_url(u) for u in raw_urls if _normalize_url(u)]
+        normalized_url = _normalize_url(raw_url) if raw_url else (normalized_urls[0] if normalized_urls else "")
+
+        if not normalized_url and not normalized_urls:
             return get_error_data_result(message="Missing required parameter: url or urls")
 
-        target_url = url or (urls[0] if urls else "")
+        if normalized_url and normalized_url not in normalized_urls:
+            normalized_urls.insert(0, normalized_url)
+
+        req["url"] = normalized_url
+        req["urls"] = normalized_urls
+        target_url = normalized_url
+        url = normalized_url
+        urls = normalized_urls
         tenant_id = getattr(current_user, "tenant_id", None) or getattr(current_user, "id", "system")
 
         kb_id = req.get("kb_id") or req.get("dataset_id")

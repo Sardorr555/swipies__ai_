@@ -23,8 +23,10 @@ class RobotsChecker:
             robots_url = f"{domain}/robots.txt"
             rp = urllib.robotparser.RobotFileParser()
             try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(robots_url, timeout=10) as resp:
+                conn = aiohttp.TCPConnector(ssl=False)
+                timeout = aiohttp.ClientTimeout(total=5)
+                async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
+                    async with session.get(robots_url) as resp:
                         if resp.status == 200:
                             content = await resp.text()
                             rp.parse(content.splitlines())
