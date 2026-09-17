@@ -767,7 +767,11 @@ func (h *DatasetsHandler) AggregateTags(c *gin.Context) {
 		return
 	}
 
-	rawIDs := strings.Split(c.Query("dataset_ids"), ",")
+	rawQuery := c.Query("dataset_ids")
+	if rawQuery == "" {
+		rawQuery = c.Query("kb_ids")
+	}
+	rawIDs := strings.Split(rawQuery, ",")
 	datasetIDs := make([]string, 0, len(rawIDs))
 
 	for _, rawID := range rawIDs {
@@ -777,7 +781,7 @@ func (h *DatasetsHandler) AggregateTags(c *gin.Context) {
 		}
 	}
 	if len(datasetIDs) == 0 {
-		jsonError(c, common.CodeDataError, "Lack of dataset_ids in query parameters")
+		jsonResponse(c, common.CodeSuccess, []map[string]interface{}{}, "success")
 		return
 	}
 

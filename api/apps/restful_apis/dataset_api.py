@@ -38,10 +38,16 @@ from api.apps.services import dataset_api_service
 @login_required
 @add_tenant_id_to_kwargs
 def aggregate_tags(tenant_id):
-    dataset_ids = request.args.get("dataset_ids", "").split(",")
-    dataset_ids = [d for d in dataset_ids if d]
+    raw_ids = (
+        request.args.get("dataset_ids")
+        or request.args.get("kb_ids")
+        or request.args.get("dataset_id")
+        or request.args.get("kb_id")
+        or ""
+    )
+    dataset_ids = [d.strip() for d in raw_ids.split(",") if d.strip()]
     if not dataset_ids:
-        return get_error_data_result(message="Lack of dataset_ids in query parameters")
+        return get_result(data=[])
 
     try:
         success, result = dataset_api_service.aggregate_tags(dataset_ids, tenant_id)
@@ -60,10 +66,16 @@ def aggregate_tags(tenant_id):
 @login_required
 @add_tenant_id_to_kwargs
 def get_flattened_metadata(tenant_id):
-    dataset_ids = request.args.get("dataset_ids", "").split(",")
-    dataset_ids = [d for d in dataset_ids if d]
+    raw_ids = (
+        request.args.get("dataset_ids")
+        or request.args.get("kb_ids")
+        or request.args.get("dataset_id")
+        or request.args.get("kb_id")
+        or ""
+    )
+    dataset_ids = [d.strip() for d in raw_ids.split(",") if d.strip()]
     if not dataset_ids:
-        return get_error_data_result(message="Lack of dataset_ids in query parameters")
+        return get_result(data={})
 
     try:
         success, result = dataset_api_service.get_flattened_metadata(dataset_ids, tenant_id)

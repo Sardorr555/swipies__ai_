@@ -595,7 +595,7 @@ def aggregate_tags(dataset_ids: list[str], tenant_id: str):
     :return: (success, result) or (success, error_message)
     """
     if not dataset_ids:
-        return False, 'Lack of "dataset_ids"'
+        return True, []
 
     for dataset_id in dataset_ids:
         if not KnowledgebaseService.accessible(dataset_id, tenant_id):
@@ -625,7 +625,7 @@ def get_flattened_metadata(dataset_ids: list[str], tenant_id: str):
     :return: (success, result) or (success, error_message)
     """
     if not dataset_ids:
-        return False, 'Lack of "dataset_ids"'
+        return True, {}
 
     for dataset_id in dataset_ids:
         if not KnowledgebaseService.accessible(dataset_id, tenant_id):

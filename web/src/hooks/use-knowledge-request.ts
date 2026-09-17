@@ -352,6 +352,7 @@ export function useFetchKnowledgeMetadata(kbIds: string[] = []) {
     queryFn: async () => {
       const { data } = await kbService.getMeta({
         dataset_ids: kbIds.join(','),
+        kb_ids: kbIds.join(','),
       });
       return data?.data ?? {};
     },
@@ -369,6 +370,7 @@ export function useFetchKnowledgeMetadataKeys(kbIds: string[] = []) {
     gcTime: 0,
     queryFn: async () => {
       const { data } = await kbService.getMetaKeys({
+        dataset_ids: sortedKbIds.join(','),
         kb_ids: sortedKbIds.join(','),
       });
       return data?.data ?? [];
@@ -490,6 +492,7 @@ export const useFetchTagListByKnowledgeIds = () => {
     queryFn: async () => {
       const { data } = await kbService.listTagByKnowledgeIds({
         dataset_ids: knowledgeIds.join(','),
+        kb_ids: knowledgeIds.join(','),
       });
       const list = (data?.data || []) as Array<
         [string, number] | { value?: string; count?: number }
