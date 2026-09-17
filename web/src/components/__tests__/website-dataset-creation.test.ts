@@ -131,5 +131,46 @@ describe('Website Dataset Creation & Crawling Frontend Test Suite', () => {
       expect(isTerminal('cancelled')).toBe(true);
       expect(isTerminal('failed')).toBe(true);
     });
+
+    it('guarantees 100% progress when crawl job status is completed, even if fewer pages found than maxPages', () => {
+      const getProgressAndDisplay = (status: string, pagesProcessed: number, maxPages: number) => {
+        const isCompleted = status === 'completed';
+        const progressPercent = isCompleted
+          ? 100
+          : Math.min(99, pagesProcessed ? Math.round((pagesProcessed / maxPages) * 100) : 10);
+        const displayTotal = isCompleted
+          ? (pagesProcessed > 0 ? pagesProcessed : maxPages)
+          : maxPages;
+        const displayProcessed = isCompleted
+          ? displayTotal
+          : pagesProcessed;
+
+        return {
+          progressPercent,
+          displayProcessed,
+          displayTotal,
+          text: `${displayProcessed} / ${displayTotal} стр. (${progressPercent}%)`,
+        };
+      };
+
+      // When crawling is in progress: 5 / 10 is 50%
+      const running = getProgressAndDisplay('running', 5, 10);
+      expect(running.progressPercent).toBe(50);
+      expect(running.text).toBe('5 / 10 стр. (50%)');
+
+      // When collection finishes (e.g. only 5 pages exist on the website): MUST BE 100%
+      const completed = getProgressAndDisplay('completed', 5, 10);
+      expect(completed.progressPercent).toBe(100);
+      expect(completed.displayProcessed).toBe(5);
+      expect(completed.displayTotal).toBe(5);
+      expect(completed.text).toBe('5 / 5 стр. (100%)');
+
+      // When requested 10 and found 10: MUST BE 100%
+      const completedAll = getProgressAndDisplay('completed', 10, 10);
+      expect(completedAll.progressPercent).toBe(100);
+      expect(completedAll.displayProcessed).toBe(10);
+      expect(completedAll.displayTotal).toBe(10);
+      expect(completedAll.text).toBe('10 / 10 стр. (100%)');
+    });
   });
 });

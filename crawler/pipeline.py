@@ -51,6 +51,8 @@ class WebsiteImportPipeline:
         try:
             crawled_pages = await crawler.crawl(start_urls, progress_callback=on_progress)
             self.tracker.pages_processed = len(crawled_pages)
+            if len(crawled_pages) < self.tracker.total_target:
+                self.tracker.total_target = max(len(crawled_pages), 1)
             self.tracker.log(f"Crawl completed. {len(crawled_pages)} pages fetched successfully.")
 
             # Retrieve KB settings if available

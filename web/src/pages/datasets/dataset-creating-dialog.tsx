@@ -376,12 +376,27 @@ export function WebsiteInputForm({
     const isCompleted = jobProgress?.status === 'completed';
     const isFailed = jobProgress?.status === 'failed';
     const isCancelled = jobProgress?.status === 'cancelled';
-    const progressPercent = Math.min(
-      100,
-      jobProgress?.pages_processed
-        ? Math.round((jobProgress.pages_processed / maxPages) * 100)
-        : 10,
-    );
+    const pagesProcessed = jobProgress?.pages_processed ?? 0;
+
+    // When completed, progress percentage is ALWAYS 100%!
+    const progressPercent = isCompleted
+      ? 100
+      : (typeof jobProgress?.progress_percent === 'number'
+          ? Math.min(99, jobProgress.progress_percent)
+          : Math.min(
+              99,
+              pagesProcessed
+                ? Math.round((pagesProcessed / maxPages) * 100)
+                : 10,
+            ));
+
+    // When completed, display target matches collected pages so it displays 100% (e.g. 5 / 5 стр. (100%) or 10 / 10 стр. (100%))
+    const displayTotal = isCompleted
+      ? (pagesProcessed > 0 ? pagesProcessed : maxPages)
+      : (jobProgress?.total_target || maxPages);
+    const displayProcessed = isCompleted
+      ? displayTotal
+      : pagesProcessed;
 
     return (
       <div className="space-y-4 py-2">
@@ -425,7 +440,14 @@ export function WebsiteInputForm({
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs font-medium text-muted-foreground">
             <span>Прогресс сбора страниц</span>
-            <span>{jobProgress?.pages_processed || 0} / {maxPages} стр. ({progressPercent}%)</span>
+            <span>
+              {displayProcessed} / {displayTotal} стр. ({progressPercent}%)
+              {isCompleted && pagesProcessed < maxPages && pagesProcessed > 0 && (
+                <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
+                  (все доступные)
+                </span>
+              )}
+            </span>
           </div>
           <Progress value={progressPercent} className="h-2" />
         </div>

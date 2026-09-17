@@ -29,15 +29,24 @@ class JobProgressTracker:
     def to_dict(self) -> dict:
         elapsed = time.time() - self.start_time
         remaining = 0
-        if self.pages_processed > 0 and self.total_target > self.pages_processed:
-            avg_per_page = elapsed / self.pages_processed
-            remaining = int((self.total_target - self.pages_processed) * avg_per_page)
+        if self.status == "completed":
+            progress_percent = 100
+            total_target = self.pages_processed if self.pages_processed > 0 else max(1, self.total_target)
+            remaining = 0
+        else:
+            total_target = max(1, self.total_target)
+            if self.pages_processed > 0 and self.total_target > self.pages_processed:
+                avg_per_page = elapsed / self.pages_processed
+                remaining = int((self.total_target - self.pages_processed) * avg_per_page)
+            progress_percent = min(99, int((self.pages_processed / total_target) * 100)) if self.pages_processed > 0 else 5
 
         return {
             "job_id": self.job_id,
             "status": self.status,
             "pages_discovered": self.pages_discovered,
             "pages_processed": self.pages_processed,
+            "total_target": total_target,
+            "progress_percent": progress_percent,
             "pages_failed": self.pages_failed,
             "chunks_created": self.chunks_created,
             "embeddings_completed": self.embeddings_completed,

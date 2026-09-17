@@ -353,13 +353,30 @@ export function WebsiteImportModal({
                   </Badge>
                 </div>
 
-                <Progress
-                  value={
-                    jobProgress?.pages_processed
-                      ? Math.min(100, (jobProgress.pages_processed / maxPages) * 100)
-                      : 10
-                  }
-                />
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                    <span>Crawl Progress</span>
+                    <span>
+                      {jobProgress?.status === 'completed'
+                        ? (jobProgress?.pages_processed || 0)
+                        : (jobProgress?.pages_processed || 0)}{' '}
+                      /{' '}
+                      {jobProgress?.status === 'completed'
+                        ? (jobProgress?.pages_processed || maxPages)
+                        : maxPages}{' '}
+                      pages ({jobProgress?.status === 'completed' ? 100 : Math.min(99, Math.round(((jobProgress?.pages_processed || 0) / maxPages) * 100))}%)
+                    </span>
+                  </div>
+                  <Progress
+                    value={
+                      jobProgress?.status === 'completed'
+                        ? 100
+                        : jobProgress?.pages_processed
+                        ? Math.min(99, (jobProgress.pages_processed / maxPages) * 100)
+                        : 10
+                    }
+                  />
+                </div>
 
                 <div className="grid grid-cols-4 gap-2 text-sm bg-muted p-3 rounded">
                   <div>Pages Processed: <b>{jobProgress?.pages_processed || 0}</b></div>
