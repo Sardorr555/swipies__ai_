@@ -10,6 +10,10 @@ export interface WidgetSettings {
   widgetTextColor: string;
   widgetHeaderTextColor: string;
   widgetFooterTextColor: string;
+  iframeWidth?: string;
+  iframeHeight?: string;
+  iframeRadius?: string;
+  widgetSizePreset?: string;
 }
 
 export const defaultWidgetSettings: WidgetSettings = {
@@ -23,5 +27,9 @@ export const defaultWidgetSettings: WidgetSettings = {
   widgetBackgroundColor: '#ffffff',
   widgetTextColor: '#111827',
   widgetHeaderTextColor: '#ffffff',
-  widgetFooterTextColor: '#111827',
+  widgetFooterTextColor: '#6b7280',
+  iframeWidth: '100%',
+  iframeHeight: '650px',
+  iframeRadius: '12px',
+  widgetSizePreset: 'standard',
 };

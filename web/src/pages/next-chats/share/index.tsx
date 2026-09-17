@@ -61,11 +61,9 @@ const ChatContainer = () => {
         avatar={chatInfo.avatar}
         handleReset={removeAllMessagesExceptFirst}
       >
-        <div className="flex flex-1 flex-col p-2.5 h-[90vh] m-3">
+        <div className="flex flex-1 min-h-0 flex-col w-full h-full max-w-4xl mx-auto px-3 sm:px-6">
           <div
-            className={
-              'flex flex-1 flex-col overflow-auto scrollbar-auto m-auto w-full md:w-5/6'
-            }
+            className="flex-1 min-h-0 overflow-y-auto scrollbar-auto py-4 space-y-4"
             ref={messageContainerRef}
           >
             <div>
@@ -99,25 +97,23 @@ const ChatContainer = () => {
             </div>
             <div ref={scrollRef} />
           </div>
-          <div className="flex w-full justify-center md:mb-8">
-            <div className="w-full md:w-5/6">
-              <NextMessageInput
-                isShared
-                value={value}
-                disabled={hasError}
-                sendDisabled={sendDisabled}
-                resize="vertical"
-                conversationId={conversationId}
-                onInputChange={handleInputChange}
-                onPressEnter={handlePressEnter}
-                sendLoading={sendLoading}
-                uploadMethod="external_upload_and_parse"
-                showUploadIcon={false}
-                stopOutputMessage={stopOutputMessage}
-                showReasoning
-                showInternet={chatInfo?.has_tavily_key}
-              ></NextMessageInput>
-            </div>
+          <div className="flex-shrink-0 pt-2 pb-3 sm:pb-4">
+            <NextMessageInput
+              isShared
+              value={value}
+              disabled={hasError}
+              sendDisabled={sendDisabled}
+              resize="none"
+              conversationId={conversationId}
+              onInputChange={handleInputChange}
+              onPressEnter={handlePressEnter}
+              sendLoading={sendLoading}
+              uploadMethod="external_upload_and_parse"
+              showUploadIcon={false}
+              stopOutputMessage={stopOutputMessage}
+              showReasoning
+              showInternet={chatInfo?.has_tavily_key}
+            ></NextMessageInput>
           </div>
         </div>
       </EmbedContainer>

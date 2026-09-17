@@ -122,10 +122,10 @@ const ChatContainer = () => {
         avatar={inputsData.avatar}
         handleReset={handleReset}
       >
-        <div className="flex flex-1 flex-col p-2.5  h-[90vh] m-3">
+        <div className="flex flex-1 min-h-0 flex-col w-full h-full max-w-4xl mx-auto px-3 sm:px-6">
           <div
             className={cn(
-              'flex flex-1 flex-col overflow-auto scrollbar-auto m-auto md:w-5/6',
+              'flex-1 min-h-0 overflow-y-auto scrollbar-auto py-4 space-y-4',
             )}
             ref={messageContainerRef}
           >
@@ -185,23 +185,21 @@ const ChatContainer = () => {
             <div ref={scrollRef} />
           </div>
           {isTaskMode || (
-            <div className="flex w-full justify-center md:mb-8">
-              <div className="w-full md:w-5/6">
-                <NextMessageInput
-                  isShared
-                  value={value}
-                  disabled={hasError || isWaiting}
-                  sendDisabled={sendDisabled || isWaiting}
-                  resize="vertical"
-                  conversationId={conversationId}
-                  onInputChange={handleInputChange}
-                  onPressEnter={handlePressEnter}
-                  sendLoading={sendLoading}
-                  stopOutputMessage={stopOutputMessage}
-                  onUpload={handleUploadFile}
-                  isUploading={loading || isWaiting}
-                ></NextMessageInput>
-              </div>
+            <div className="flex-shrink-0 pt-2 pb-3 sm:pb-4">
+              <NextMessageInput
+                isShared
+                value={value}
+                disabled={hasError || isWaiting}
+                sendDisabled={sendDisabled || isWaiting}
+                resize="none"
+                conversationId={conversationId}
+                onInputChange={handleInputChange}
+                onPressEnter={handlePressEnter}
+                sendLoading={sendLoading}
+                stopOutputMessage={stopOutputMessage}
+                onUpload={handleUploadFile}
+                isUploading={loading || isWaiting}
+              ></NextMessageInput>
             </div>
           )}
         </div>

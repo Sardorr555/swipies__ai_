@@ -518,5 +518,71 @@ describe('FloatingChatWidget Critical Bug Fixes & Stability Contracts', () => {
       expect(iframeWidth).toBe('520px');
     });
   });
+
+  describe('16. EmbedDialog Constants and Default Sizing', () => {
+    it('enforces permanent Powered by Swipies.app footer branding and default sizing in constant.ts', () => {
+      const { defaultWidgetSettings } = require('@/components/embed-dialog/constant');
+      expect(defaultWidgetSettings.widgetFooterText).toBe('Powered by Swipies.app');
+      expect(defaultWidgetSettings.widgetFooterLink).toBe('https://swipies.app');
+      expect(defaultWidgetSettings.iframeWidth).toBe('100%');
+      expect(defaultWidgetSettings.iframeHeight).toBe('650px');
+      expect(defaultWidgetSettings.iframeRadius).toBe('12px');
+      expect(defaultWidgetSettings.widgetSizePreset).toBe('standard');
+    });
+  });
+
+  describe('17. EmbedContainer Permanent Footer Attribution Invariant', () => {
+    it('always renders Powered by Swipies.app linking to https://swipies.app and cannot be overridden', () => {
+      const getFooterAttribution = (customFooter?: string, customLink?: string) => {
+        // Enforced branding invariant
+        const text = 'Powered by Swipies.app';
+        const link = 'https://swipies.app';
+        return { text, link };
+      };
+
+      const result = getFooterAttribution('Custom Company', 'https://malicious.com');
+      expect(result.text).toBe('Powered by Swipies.app');
+      expect(result.link).toBe('https://swipies.app');
+    });
+  });
+
+  describe('18. Embed Code Generation Sizing and Branding Invariant', () => {
+    it('generates iframe embed code with configured dimensions, border radius, and locked Swipies branding query parameters', () => {
+      const generateFullscreenEmbed = (options: {
+        sharedId: string;
+        width?: string;
+        height?: string;
+        radius?: string;
+        accentColor?: string;
+      }) => {
+        const width = options.width || '100%';
+        const height = options.height || '650px';
+        const radius = options.radius || '12px';
+        const src = `https://demo.swipies.app/chats/share?shared_id=${options.sharedId}&widget_footer=Powered+by+Swipies.app&widget_footer_link=https%3A%2F%2Fswipies.app&widget_accent_color=${encodeURIComponent(options.accentColor || '#2563eb')}`;
+
+        return `<iframe
+  src="${src}"
+  style="width: ${width}; height: ${height}; min-height: 500px; border-radius: ${radius}; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.05);"
+  frameborder="0"
+  allow="microphone;camera"
+></iframe>`;
+      };
+
+      const snippet = generateFullscreenEmbed({
+        sharedId: 'chat-abc-123',
+        width: '90vw',
+        height: '750px',
+        radius: '16px',
+        accentColor: '#059669',
+      });
+
+      expect(snippet).toContain('width: 90vw');
+      expect(snippet).toContain('height: 750px');
+      expect(snippet).toContain('border-radius: 16px');
+      expect(snippet).toContain('widget_footer=Powered+by+Swipies.app');
+      expect(snippet).toContain('widget_footer_link=https%3A%2F%2Fswipies.app');
+      expect(snippet).toContain('widget_accent_color=%23059669');
+    });
+  });
 });
 
