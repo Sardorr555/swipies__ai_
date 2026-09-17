@@ -356,7 +356,6 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
                         if model_obj.status == ActiveStatusEnum.UNSUPPORTED.value:
                             raise LookupError(f"Model {model_name} cannot be used as {model_type_val} model.")
 
-<<<<<<< HEAD
                         model_extra = json.loads(model_obj.extra) if model_obj.extra else {}
                         llm_info = _lookup_factory_llm_info(provider_obj.provider_name, pure_model_name, extra_fields)
                         max_tokens = model_extra.get("max_tokens", (llm_info or {}).get("max_tokens", 8192))
@@ -490,22 +489,6 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
             "model_type": LLMType.EMBEDDING.value,
             "is_tools": False,
             "max_tokens": 512,
-=======
-        model_extra = json.loads(model_obj.extra) if model_obj.extra else {}
-        llm_info = _lookup_factory_llm_info(provider_obj.provider_name, pure_model_name, extra_fields)
-        if "max_tokens" in model_extra:
-            max_tokens = model_extra["max_tokens"]
-        else:
-            max_tokens = (llm_info or {}).get("max_tokens", 8192)
-        model_config = {
-            "llm_factory": provider_obj.provider_name,
-            "api_key": api_key,
-            "llm_name": model_obj.model_name,
-            "api_base": extra_fields.get("base_url", ""),
-            "model_type": model_type_val,
-            "is_tools": model_extra.get("is_tools", is_tool),
-            "max_tokens": max_tokens,
->>>>>>> v0.27.2
         }
 
     # 5. Ultimate Fallback to ANY active platform model for this type

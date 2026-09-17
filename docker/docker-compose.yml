@@ -16,9 +16,9 @@ services:
     profiles:
       - cpu
     image: ${RAGFLOW_IMAGE}
-    build:
-      context: ..
-      dockerfile: Dockerfile
+    # build:
+    #   context: ..
+    #   dockerfile: Dockerfile
     ulimits:
       nofile:
         soft: 65535
@@ -103,9 +103,9 @@ services:
       nproc:
         soft: 65535
         hard: 65535
-    build:
-      context: ..
-      dockerfile: Dockerfile
+    # build:
+    #   context: ..
+    #   dockerfile: Dockerfile
     # Example configuration to set up an MCP server:
     # command:
     #   - --enable-mcpserver
