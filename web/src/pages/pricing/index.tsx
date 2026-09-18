@@ -40,35 +40,51 @@ const generateUUID = () => {
   });
 };
 
-const safeFetchJson = async (url: string, options?: RequestInit) => {
-  let res: Response;
-  try {
-    res = await fetch(url, options);
-  } catch (err: any) {
-    throw new Error(`Не удалось подключиться к серверу (${err.message || 'Network Error'}). Проверьте подключение.`);
-  }
-
-  const text = await res.text();
-  let data: any = null;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (!res.ok) {
-      if (res.status === 502 || res.status === 503 || res.status === 504) {
-        throw new Error(`Платежный шлюз временно перезапускается (Код ${res.status}). Сервис автоматически восстанавливается, повторите попытку через несколько секунд.`);
+const safeFetchJson = async (url: string, options?: RequestInit, maxRetries = 1) => {
+  let attempt = 0;
+  while (true) {
+    attempt++;
+    let res: Response;
+    try {
+      res = await fetch(url, options);
+    } catch (err: any) {
+      if (attempt <= maxRetries) {
+        await new Promise((r) => setTimeout(r, 1500));
+        continue;
       }
-      throw new Error(`Ошибка сервиса оплаты (${res.status}): ${text.slice(0, 120)}`);
+      throw new Error(`Не удалось подключиться к серверу (${err.message || 'Network Error'}). Проверьте подключение к интернету.`);
     }
-  }
 
-  if (!res.ok) {
-    const errorMsg = data?.error || data?.detail || data?.result?.description || data?.message;
-    if (errorMsg) {
-      throw new Error(errorMsg);
+    const text = await res.text();
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      if (!res.ok) {
+        if (attempt <= maxRetries && (res.status === 502 || res.status === 503 || res.status === 504)) {
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+        if (res.status === 502 || res.status === 503 || res.status === 504) {
+          throw new Error(`Платежный шлюз временно перегружен (Код ${res.status}). Пожалуйста, нажмите кнопку оплаты еще раз.`);
+        }
+        throw new Error(`Ошибка сервиса оплаты (${res.status}): ${text.slice(0, 120)}`);
+      }
     }
-    throw new Error(`Ошибка запроса к платежному шлюзу (${res.status})`);
+
+    if (!res.ok) {
+      if (attempt <= maxRetries && (res.status === 502 || res.status === 503 || res.status === 504)) {
+        await new Promise((r) => setTimeout(r, 1500));
+        continue;
+      }
+      const errorMsg = data?.error || data?.detail || data?.result?.description || data?.message;
+      if (errorMsg) {
+        throw new Error(errorMsg);
+      }
+      throw new Error(`Ошибка запроса к платежному шлюзу (${res.status})`);
+    }
+    return data;
   }
-  return data;
 };
 
 const pricingTranslations = {
