@@ -955,24 +955,25 @@ class AdEngineService:
         """Credit funds to advertiser balance."""
         if amount <= 0:
             return False
-        adv = Advertiser.get_or_none(Advertiser.id == advertiser_id)
-        if not adv:
-            return False
+        with DB.atomic():
+            adv = Advertiser.select().where(Advertiser.id == advertiser_id).for_update().get_or_none()
+            if not adv:
+                return False
 
-        adv.balance += amount
-        adv.update_time = current_timestamp()
-        adv.save()
+            adv.balance = round(float(adv.balance or 0.0) + float(amount), 2)
+            adv.update_time = current_timestamp()
+            adv.save()
 
-        AdTransaction.create(
-            id=uuid.uuid4().hex[:32],
-            advertiser_id=adv.id,
-            amount=amount,
-            type="deposit",
-            description=description,
-            reference_id="",
-            create_time=current_timestamp(),
-        )
-        return True
+            AdTransaction.create(
+                id=uuid.uuid4().hex[:32],
+                advertiser_id=adv.id,
+                amount=amount,
+                type="deposit",
+                description=description,
+                reference_id="",
+                create_time=current_timestamp(),
+            )
+            return True
 
     @classmethod
     @DB.connection_context()
@@ -1564,26 +1565,13 @@ class ConversionTrackingService(CommonService):
                 return adv.pixel_id
             pid = "px_" + uuid.uuid4().hex[:16]
             if adv:
-                try:
-                    adv.pixel_id = pid
-                    adv.save()
-                    return pid
-                except Exception:
-                    try:
-                        DB.execute_sql("ALTER TABLE advertisers ADD COLUMN pixel_id VARCHAR(32) NULL;")
-                        DB.execute_sql("ALTER TABLE advertisers ADD UNIQUE INDEX idx_advertisers_pixel_id (pixel_id);")
-                        adv.pixel_id = pid
-                        adv.save()
-                        return pid
-                    except Exception:
-                        return f"px_{advertiser_id[:16]}"
-        except Exception:
-            try:
-                DB.execute_sql("ALTER TABLE advertisers ADD COLUMN pixel_id VARCHAR(32) NULL;")
-            except Exception:
-                pass
+                adv.pixel_id = pid
+                adv.save()
+                return pid
             return f"px_{advertiser_id[:16]}"
-        return f"px_{advertiser_id[:16]}"
+        except Exception as e:
+            logger.warning(f"Error getting/creating pixel_id for advertiser {advertiser_id}: {e}")
+            return f"px_{advertiser_id[:16]}"
 
     @classmethod
     def generate_pixel_snippet(cls, pixel_id: str, host: str = "https://swipies.app") -> dict:

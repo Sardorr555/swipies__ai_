@@ -48,7 +48,11 @@ export const ChangePasswordForm = ({
           <Input
             value={email}
             readOnly
-            className="mt-2 px-3 h-10 bg-bg-input border-border-button"
+            disabled
+            autoComplete="off"
+            data-lpignore="true"
+            data-1p-ignore="true"
+            className="mt-2 px-3 h-10 bg-bg-input border-border-button opacity-80 cursor-not-allowed"
           />
         </div>
 
@@ -67,6 +71,8 @@ export const ChangePasswordForm = ({
                   type="password"
                   placeholder={t('admin.newPassword')}
                   autoComplete="new-password"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
                   className="mt-2 px-3 h-10 bg-bg-input border-border-button"
                   {...field}
                 />
@@ -90,6 +96,8 @@ export const ChangePasswordForm = ({
                   type="password"
                   placeholder={t('admin.confirmNewPassword')}
                   autoComplete="new-password"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
                   className="mt-2 px-3 h-10 bg-bg-input border-border-button"
                   {...field}
                 />
@@ -130,6 +138,7 @@ function useChangePasswordForm() {
       confirmPassword: '',
     },
     resolver: zodResolver(schema),
+    mode: 'onChange',
   });
 
   const FormComponent = useCallback(

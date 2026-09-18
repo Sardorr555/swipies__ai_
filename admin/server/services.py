@@ -24,18 +24,9 @@ from typing import Any
 from werkzeug.security import check_password_hash
 from common.constants import ActiveEnum
 from api.db.services import UserService
-from api.db.joint_services.user_account_service import create_new_user, delete_user_data
-from api.db.services.canvas_service import UserCanvasService
-from api.db.services.user_service import TenantService, UserTenantService
-from api.db.services.knowledgebase_service import KnowledgebaseService
-from api.db.services.system_settings_service import SystemSettingsService
-from api.db.services.api_service import APITokenService
-from api.db.db_models import APIToken, User
 from api.utils.crypt import decrypt
-from api.utils import health_utils
 
 from api.common.exceptions import AdminException, UserAlreadyExistsError, UserNotFoundError
-from config import SERVICE_CONFIGS
 
 
 class UserMgr:
@@ -203,27 +194,46 @@ class UserMgr:
             "login_channel": "password",
             "is_superuser": role == "admin",
         }
+        from api.db.joint_services.user_account_service import create_new_user
         return create_new_user(user_info_dict)
 
     @staticmethod
-    def delete_user(username):
-        # use email to delete
-        user_list = UserService.query_user_by_email(username)
+    def _find_user_by_identifier(identifier: str):
+        clean_id = str(identifier or "").strip()
+        user_list = UserService.query_user_by_email(clean_id)
         if not user_list:
-            raise UserNotFoundError(username)
+            import peewee
+            user_list = list(UserService.model.select().where(
+                peewee.fn.LOWER(UserService.model.email) == clean_id.lower()
+            ))
+        if not user_list:
+            usr = UserService.filter_by_id(clean_id)
+            if usr:
+                user_list = [usr]
+        return user_list
+
+    @staticmethod
+    def delete_user(username):
+        # use email or id to delete
+        clean_username = str(username or "").strip()
+        user_list = UserMgr._find_user_by_identifier(clean_username)
+        if not user_list:
+            raise UserNotFoundError(clean_username)
         if len(user_list) > 1:
-            raise AdminException(f"Exist more than 1 user: {username}!")
+            raise AdminException(f"Exist more than 1 user: {clean_username}!")
         usr = user_list[0]
+        from api.db.joint_services.user_account_service import delete_user_data
         return delete_user_data(usr.id)
 
     @staticmethod
     def update_user_password(username, new_password) -> str:
-        # use email to find user. check exist and unique.
-        user_list = UserService.query_user_by_email(username)
+        # use email or id to find user. check exist and unique.
+        clean_username = str(username or "").strip()
+        user_list = UserMgr._find_user_by_identifier(clean_username)
         if not user_list:
-            raise UserNotFoundError(username)
+            raise UserNotFoundError(clean_username)
         elif len(user_list) > 1:
-            raise AdminException(f"Exist more than 1 user: {username}!")
+            raise AdminException(f"Exist more than 1 user: {clean_username}!")
         # check new_password different from old.
         usr = user_list[0]
         psw = decrypt(new_password)
@@ -237,12 +247,13 @@ class UserMgr:
 
     @staticmethod
     def update_user_activate_status(username, activate_status: str):
-        # use email to find user. check exist and unique.
-        user_list = UserService.query_user_by_email(username)
+        # use email or id to find user. check exist and unique.
+        clean_username = str(username or "").strip()
+        user_list = UserMgr._find_user_by_identifier(clean_username)
         if not user_list:
-            raise UserNotFoundError(username)
+            raise UserNotFoundError(clean_username)
         elif len(user_list) > 1:
-            raise AdminException(f"Exist more than 1 user: {username}!")
+            raise AdminException(f"Exist more than 1 user: {clean_username}!")
         # check activate status different from new
         usr = user_list[0]
         # format activate_status before handle

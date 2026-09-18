@@ -101,9 +101,15 @@ async def login():
         logging.warning("Login failed: invalid or empty JSON body")
         return get_json_result(data=False, code=RetCode.AUTHENTICATION_ERROR, message="Unauthorized!")
 
-    email = json_body.get("email", "")
+    email = str(json_body.get("email", "")).strip()
 
     users = UserService.query(email=email)
+    if not users:
+        import peewee
+        users = list(UserService.model.select().where(
+            peewee.fn.LOWER(UserService.model.email) == email.lower(),
+            UserService.model.status == StatusEnum.VALID.value
+        ))
     if not users:
         logging.warning("Login failed: email not registered")
         return get_json_result(

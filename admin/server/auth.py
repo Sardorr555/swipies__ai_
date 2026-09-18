@@ -336,7 +336,7 @@ def check_admin_auth(func):
 
         if not is_super:
             import os
-            admin_emails = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io,albakiev.sardorbek@gmail.com")
+            admin_emails = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io")
             super_emails = [e.strip().lower() for e in admin_emails.split(",") if e.strip()]
             if user_email.lower() in super_emails:
                 is_super = True
@@ -361,9 +361,15 @@ def login_admin(email: str, password: str):
     :param email: admin email
     :param password: string before decrypt (RSA encrypted + base64 encoded)
     """
-    users = UserService.query(email=email)
+    clean_email = str(email or "").strip()
+    users = UserService.query(email=clean_email)
     if not users:
-        raise UserNotFoundError(email)
+        import peewee
+        users = list(UserService.model.select().where(
+            peewee.fn.LOWER(UserService.model.email) == clean_email.lower()
+        ))
+    if not users:
+        raise UserNotFoundError(clean_email)
     try:
         decrypted = decrypt(password)
     except CryptPayloadError:
@@ -373,7 +379,7 @@ def login_admin(email: str, password: str):
         # (missing/invalid private key) propagate to the caller instead.
         logging.info("Admin login with undecryptable password payload.")
         raise AdminException("Email and password do not match!")
-    user = UserService.query_user(email, decrypted)
+    user = UserService.query_user(clean_email, decrypted)
     if not user:
         raise AdminException("Email and password do not match!")
     if not user.is_superuser:

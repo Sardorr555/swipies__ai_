@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import { rsaPsw } from '@/utils';
+import message from '@/components/ui/message';
 
 import Spotlight from '@/components/spotlight';
 import { TableEmpty } from '@/components/table-skeleton';
@@ -325,9 +326,21 @@ function AdminUserManagement() {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       updateUserPassword(email, rsaPsw(password) as string),
     onSuccess: () => {
-      // message.success(t('admin.passwordChangedSuccessfully'));
+      message.success(t('admin.passwordChangedSuccessfully') || 'Password updated successfully!');
       setPasswordModalOpen(false);
       setUserToMakeAction(null);
+      changePasswordForm.form.reset({
+        newPassword: '',
+        confirmPassword: '',
+      });
+    },
+    onError: (err: any) => {
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        t('admin.changePasswordFailed') ||
+        'Failed to change password';
+      message.error(errMsg);
     },
     retry: false,
   });
@@ -580,6 +593,10 @@ function AdminUserManagement() {
                     className="border-0"
                     onClick={() => {
                       setUserToMakeAction(row.original);
+                      changePasswordForm.form.reset({
+                        newPassword: '',
+                        confirmPassword: '',
+                      });
                       setPasswordModalOpen(true);
                     }}
                   >
@@ -893,21 +910,27 @@ function AdminUserManagement() {
       </Dialog>
 
       {/* Change Password Modal */}
-      <Dialog open={passwordModalOpen} onOpenChange={setPasswordModalOpen}>
-        <DialogContent
-          onAnimationEnd={() => {
-            if (!passwordModalOpen) {
-              changePasswordForm.form.reset();
-            }
-          }}
-        >
+      <Dialog
+        open={passwordModalOpen}
+        onOpenChange={(open) => {
+          setPasswordModalOpen(open);
+          if (!open) {
+            setUserToMakeAction(null);
+            changePasswordForm.form.reset({
+              newPassword: '',
+              confirmPassword: '',
+            });
+          }
+        }}
+      >
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('admin.changePassword')}</DialogTitle>
           </DialogHeader>
 
           <section className="px-6">
             <changePasswordForm.FormComponent
-              key="changePasswordForm"
+              key={userToMakeAction?.email || 'changePasswordForm'}
               email={userToMakeAction?.email || ''}
               onSubmit={({ newPassword }) => {
                 if (userToMakeAction) {
@@ -927,6 +950,10 @@ function AdminUserManagement() {
               onClick={() => {
                 setPasswordModalOpen(false);
                 setUserToMakeAction(null);
+                changePasswordForm.form.reset({
+                  newPassword: '',
+                  confirmPassword: '',
+                });
               }}
               disabled={changePasswordMutation.isPending}
             >
@@ -934,10 +961,19 @@ function AdminUserManagement() {
             </Button>
 
             <Button
-              form={changePasswordForm.id}
               className="px-4 h-10"
               variant="default"
-              type="submit"
+              type="button"
+              onClick={() => {
+                changePasswordForm.form.handleSubmit(({ newPassword }) => {
+                  if (userToMakeAction) {
+                    changePasswordMutation.mutate({
+                      email: userToMakeAction.email,
+                      password: newPassword,
+                    });
+                  }
+                })();
+              }}
               disabled={changePasswordMutation.isPending}
               loading={changePasswordMutation.isPending}
             >

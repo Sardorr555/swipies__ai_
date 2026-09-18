@@ -473,28 +473,29 @@ export default {
   adminListUsers: `${restAPIv1}/admin/users`,
   adminCreateUser: `${restAPIv1}/admin/users`,
   adminSetSuperuser: (username: string) =>
-    `${restAPIv1}/admin/users/${username}/admin`,
+    `${restAPIv1}/admin/users/${encodeURIComponent(username)}/admin`,
   adminGetUserDetails: (username: string) =>
-    `${restAPIv1}/admin/users/${username}`,
+    `${restAPIv1}/admin/users/${encodeURIComponent(username)}`,
   adminUpdateUserDetails: (username: string) =>
-    `${restAPIv1}/admin/users/${username}/details`,
+    `${restAPIv1}/admin/users/${encodeURIComponent(username)}/details`,
   adminUpdateUserStatus: (username: string) =>
-    `${restAPIv1}/admin/users/${username}/activate`,
+    `${restAPIv1}/admin/users/${encodeURIComponent(username)}/activate`,
   adminUpdateUserPassword: (username: string) =>
-    `${restAPIv1}/admin/users/${username}/password`,
+    `${restAPIv1}/admin/users/${encodeURIComponent(username)}/password`,
   adminUpdateUserSubscription: (username: string) =>
-    `${restAPIv1}/admin/users/${username}/subscription`,
+    `${restAPIv1}/admin/users/${encodeURIComponent(username)}/subscription`,
   adminGetVariables: `${restAPIv1}/admin/variables`,
   adminUpdateVariable: `${restAPIv1}/admin/variables`,
   adminListReferrals: `${restAPIv1}/admin/referrals`,
   adminListPaymentTransactions: `${restAPIv1}/admin/payments/transactions`,
   adminGetPaymentAnalytics: `${restAPIv1}/admin/payments/summary`,
   adminReconcilePayment: `${restAPIv1}/admin/payments/reconcile`,
-  adminDeleteUser: (username: string) => `${restAPIv1}/admin/users/${username}`,
+  adminDeleteUser: (username: string) =>
+    `${restAPIv1}/admin/users/${encodeURIComponent(username)}`,
   adminListUserDatasets: (username: string) =>
-    `${restAPIv1}/admin/users/${username}/datasets`,
+    `${restAPIv1}/admin/users/${encodeURIComponent(username)}/datasets`,
   adminListUserAgents: (username: string) =>
-    `${restAPIv1}/admin/users/${username}/agents`,
+    `${restAPIv1}/admin/users/${encodeURIComponent(username)}/agents`,
 
   adminListServices: `${restAPIv1}/admin/services`,
   adminShowServiceDetails: (serviceId: string) =>

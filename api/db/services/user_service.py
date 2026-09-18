@@ -95,7 +95,10 @@ class UserService(CommonService):
         Returns:
             User object if authentication successful, None otherwise.
         """
-        user = cls.model.select().where((cls.model.email == email), (cls.model.status == StatusEnum.VALID.value)).first()
+        clean_email = str(email or "").strip()
+        user = cls.model.select().where((cls.model.email == clean_email), (cls.model.status == StatusEnum.VALID.value)).first()
+        if not user:
+            user = cls.model.select().where((peewee.fn.LOWER(cls.model.email) == clean_email.lower()), (cls.model.status == StatusEnum.VALID.value)).first()
         if user and check_password_hash(str(user.password), password):
             return user
         else:
@@ -104,8 +107,11 @@ class UserService(CommonService):
     @classmethod
     @DB.connection_context()
     def query_user_by_email(cls, email):
-        users = cls.model.select().where((cls.model.email == email))
-        return list(users)
+        clean_email = str(email or "").strip()
+        users = list(cls.model.select().where((cls.model.email == clean_email)))
+        if not users:
+            users = list(cls.model.select().where(peewee.fn.LOWER(cls.model.email) == clean_email.lower()))
+        return users
 
     @classmethod
     @DB.connection_context()

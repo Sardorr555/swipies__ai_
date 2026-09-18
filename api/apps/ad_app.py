@@ -534,6 +534,14 @@ async def get_advertiser_insights():
 @login_required
 async def get_campaign_insights(campaign_id):
     try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            return get_json_result(data=False, message="Campaign not found", code=RetCode.NOT_FOUND)
+
         from api.db.services.ad_engine_service import AdOptimizerService
         insights = AdOptimizerService.generate_campaign_insights(campaign_id=campaign_id)
         return get_json_result(data=insights)
@@ -549,6 +557,11 @@ async def apply_campaign_insight(campaign_id):
         user_id = current_user.id
         tenant_id = getattr(current_user, "tenant_id", "") or user_id
         adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            return get_json_result(data=False, message="Campaign not found", code=RetCode.NOT_FOUND)
+
         req = await get_request_json() or {}
         insight_type = req.get("insight_type", "").strip()
         action_payload = req.get("action_payload", {})
@@ -627,35 +640,6 @@ async def get_campaign_analytics_detailed(campaign_id):
 # ==========================================
 # 2. Billing & Wallet Endpoints
 # ==========================================
-
-@manager.route("/billing/deposit", methods=["POST"])
-@login_required
-async def deposit_funds():
-    req = await get_request_json()
-    if not req:
-        return get_json_result(data=False, message="Empty payload", code=RetCode.ARGUMENT_ERROR)
-
-    amount = float(req.get("amount", 0.0))
-    if amount <= 0:
-        return get_json_result(data=False, message="Deposit amount must be greater than 0.", code=RetCode.ARGUMENT_ERROR)
-
-    try:
-        user_id = current_user.id
-        tenant_id = getattr(current_user, "tenant_id", "") or user_id
-        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
-
-        success = AdEngineService.deposit_balance(
-            advertiser_id=adv.id,
-            amount=amount,
-            description=req.get("description", "Top-Up Deposit"),
-        )
-        if success:
-            adv.reload()
-            return get_json_result(data={"balance": round(adv.balance, 2), "currency": adv.currency})
-        return get_data_error_result(message="Deposit failed")
-    except Exception as e:
-        logger.exception(f"Error depositing funds: {e}")
-        return get_data_error_result(message=str(e))
 
 
 @manager.route("/billing/transactions", methods=["GET"])
@@ -1188,6 +1172,20 @@ async def delete_audience(segment_id):
 async def add_audience_member(segment_id):
     req = await get_request_json() or {}
     try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+        if not adv:
+            return get_data_error_result(message="Advertiser profile not found")
+
+        seg = AdAudienceSegment.get_or_none(
+            AdAudienceSegment.id == segment_id,
+            AdAudienceSegment.advertiser_id == adv.id,
+            AdAudienceSegment.status != "deleted",
+        )
+        if not seg:
+            return get_json_result(data=False, message="Audience segment not found", code=RetCode.NOT_FOUND)
+
         from api.db.services.ad_engine_service import AdAudienceService
         member = AdAudienceService.add_member(
             segment_id=segment_id,
@@ -2002,6 +2000,9 @@ def delete_user_payment_method(card_id):
 @manager.route("/admin/subscriptions/process-renewals", methods=["POST"])
 @login_required
 def admin_process_subscription_renewals():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
     try:
         from api.db.services.recurring_subscription_service import RecurringSubscriptionService
         res = RecurringSubscriptionService.process_subscription_renewals()
@@ -2787,6 +2788,7 @@ async def single_product_feed(feed_id):
         return get_data_error_result(message=str(e))
 
 
+@manager.route("/feeds/<feed_id>/items", methods=["GET", "POST"])
 @manager.route("/v1/ads/feeds/<feed_id>/items", methods=["GET", "POST"])
 @login_required
 async def feed_items_management(feed_id):
@@ -2796,6 +2798,10 @@ async def feed_items_management(feed_id):
         adv = AdvertiserService.get_or_create_for_user(user_id)
         if not adv:
             return get_data_error_result(message="Advertiser profile not found")
+
+        feed = AdProductFeedService.get_feed(feed_id=feed_id, advertiser_id=adv.id)
+        if not feed:
+            return get_json_result(data=False, message="Feed not found", code=RetCode.NOT_FOUND)
 
         if request.method == "GET":
             category = request.args.get("category")
