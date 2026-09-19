@@ -83,6 +83,9 @@ export const useLogin = () => {
     mutationFn: async (params: { email: string; password: string }) => {
       const { data: res = {}, response } = await userService.login(params);
       if (res.code === 0) {
+        if (res.data?.requires_2fa || res.data?.requires_activation) {
+          return res;
+        }
         saveSetting({ language: storage.getLanguage() });
         const { data } = res;
         const authorization = response.headers.get(Authorization);

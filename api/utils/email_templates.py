@@ -61,9 +61,37 @@ ACTIVATION_CODE_EMAIL_TMPL = """<!DOCTYPE html>
 </body>
 </html>"""
 
+# Login 2FA verification code template
+LOGIN_CODE_EMAIL_TMPL = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 40px 20px; }
+  .card { max-width: 500px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 40px; border: 1px solid #334155; text-align: center; }
+  .logo { font-size: 24px; font-weight: bold; color: #00beb4; margin-bottom: 24px; }
+  .title { font-size: 20px; font-weight: 600; color: #ffffff; margin-bottom: 12px; }
+  .text { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px; }
+  .code-box { background: #0f172a; border: 2px dashed #00beb4; border-radius: 12px; padding: 18px; font-size: 32px; font-weight: 800; letter-spacing: 10px; color: #00beb4; margin: 24px 0; }
+  .footer { font-size: 12px; color: #64748b; margin-top: 32px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Swipies AI</div>
+    <div class="title">Security Verification Code</div>
+    <div class="text">Hello {{ nickname or email }},<br>A login request was made for your Swipies AI account. Use the 6-digit verification code below to complete your login:</div>
+    <div class="code-box">{{ code }}</div>
+    <div class="text">This verification code will expire in {{ ttl_min }} minutes.</div>
+    <div class="footer">If you did not initiate this login request, please change your password immediately.</div>
+  </div>
+</body>
+</html>"""
+
 # Template registry
 EMAIL_TEMPLATES = {
     "invite": INVITE_EMAIL_TMPL,
     "reset_code": RESET_CODE_EMAIL_TMPL,
     "activation_code": ACTIVATION_CODE_EMAIL_TMPL,
+    "login_code": LOGIN_CODE_EMAIL_TMPL,
 }

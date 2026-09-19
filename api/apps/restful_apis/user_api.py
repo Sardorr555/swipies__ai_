@@ -121,49 +121,65 @@ async def login():
 
     user = UserService.query_user(email, password)
 
-    if user and hasattr(user, "is_active") and user.is_active == "0":
-        email_verification_enabled = os.environ.get("EMAIL_VERIFICATION_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
-        if not email_verification_enabled:
-            UserService.update_by_id(user.id, {"is_active": "1", "status": "1"})
-            user.is_active = "1"
-            user.status = "1"
-            user.save()
-            user.access_token = get_uuid()
-            login_user(user)
-            user.last_login_time = get_format_time()
-            user.update_time = current_timestamp()
-            user.update_date = datetime_format(datetime.now())
-            user.save()
-            return await construct_response(
-                data=user.to_safe_dict(for_self=True),
-                auth=user.get_id(),
-                message=f"Welcome {user.nickname}!",
-            )
-        else:
-            logging.warning("Login failed: unactivated or disabled account for user_id=%s", user.id)
-            return get_json_result(
-                data={"email": email, "requires_activation": True},
-                code=RetCode.FORBIDDEN,
-                message="Your account is not activated yet. Please enter the 6-digit code sent to your email.",
-            )
-    elif user:
-        user.access_token = get_uuid()
-        login_user(user)
-        user.last_login_time = get_format_time()
-        user.update_time = current_timestamp()
-        user.update_date = datetime_format(datetime.now())
-        user.save()
-        logging.info("Login successful: user_id=%s", user.id)
-        msg = "Welcome back!"
-
-        return await construct_response(data=user.to_safe_dict(for_self=True), auth=user.get_id(), message=msg)
-    else:
+    if not user:
         logging.warning("Login failed: wrong credentials")
         return get_json_result(
             data=False,
             code=RetCode.AUTHENTICATION_ERROR,
             message="Email and password do not match!",
         )
+
+    email_verification_enabled = os.environ.get("EMAIL_VERIFICATION_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
+    login_2fa_enabled = os.environ.get("LOGIN_2FA_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
+
+    if email_verification_enabled and login_2fa_enabled:
+        # Generate 6-digit numeric verification code
+        code = "".join(secrets.choice(string.digits) for _ in range(6))
+        salt = os.urandom(16)
+        code_hash = hash_code(code, salt)
+
+        k_code, k_attempts, k_last, k_lock = activation_keys(email)
+        now = int(time.time())
+        REDIS_CONN.set(k_code, f"{code_hash}:{salt.hex()}", OTP_TTL_SECONDS)
+        REDIS_CONN.set(k_attempts, 0, OTP_TTL_SECONDS)
+        REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
+        REDIS_CONN.delete(k_lock)
+
+        is_unactivated = hasattr(user, "is_active") and user.is_active == "0"
+        template_key = "activation_code" if is_unactivated else "login_code"
+        subject = "Activate Your Swipies AI Account" if is_unactivated else "Your Swipies AI Login Code"
+
+        dispatch_email_bg(
+            to_email=email,
+            subject=subject,
+            template_key=template_key,
+            code=code,
+            nickname=user.nickname,
+            ttl_min=OTP_TTL_SECONDS // 60,
+        )
+
+        return get_json_result(
+            data={"email": email, "requires_2fa": True, "requires_activation": True},
+            code=RetCode.SUCCESS,
+            message="A verification code has been sent to your email address.",
+        )
+
+    if hasattr(user, "is_active") and user.is_active == "0":
+        UserService.update_by_id(user.id, {"is_active": "1", "status": "1"})
+        user.is_active = "1"
+        user.status = "1"
+        user.save()
+
+    user.access_token = get_uuid()
+    login_user(user)
+    user.last_login_time = get_format_time()
+    user.update_time = current_timestamp()
+    user.update_date = datetime_format(datetime.now())
+    user.save()
+    logging.info("Login successful: user_id=%s", user.id)
+    msg = "Welcome back!"
+
+    return await construct_response(data=user.to_safe_dict(for_self=True), auth=user.get_id(), message=msg)
 
 
 def get_oauth_config(channel: str, host_url: str = ""):
@@ -887,22 +903,20 @@ async def user_add():
 async def activate_account():
     """
     POST /auth/activate
-    Activate account using email and 6-digit activation code sent via email.
+    Activate account or complete login 2FA using email and 6-digit code sent via email.
     """
     req = await get_request_json()
     email = (req.get("email") or "").strip().lower()
     code = (req.get("code") or "").strip()
 
     if not email or not code:
-        return get_json_result(data=False, code=RetCode.ARGUMENT_ERROR, message="Email and activation code are required")
+        return get_json_result(data=False, code=RetCode.ARGUMENT_ERROR, message="Email and verification code are required")
 
     users = UserService.query(email=email)
     if not users:
         return get_json_result(data=False, code=RetCode.DATA_ERROR, message="Account with this email does not exist")
 
     user = users[0]
-    if hasattr(user, "is_active") and user.is_active == "1" and getattr(user, "status", "1") == "1":
-        return get_json_result(data=True, code=RetCode.SUCCESS, message="Account is already activated! Please log in.")
 
     k_code, k_attempts, k_last, k_lock = activation_keys(email)
     if REDIS_CONN.get(k_lock):
@@ -910,13 +924,13 @@ async def activate_account():
 
     stored = REDIS_CONN.get(k_code)
     if not stored:
-        return get_json_result(data=False, code=RetCode.NOT_EFFECTIVE, message="Activation code has expired or is invalid. Please request a new code.")
+        return get_json_result(data=False, code=RetCode.NOT_EFFECTIVE, message="Verification code has expired or is invalid. Please request a new code.")
 
     try:
         stored_hash, salt_hex = str(stored).split(":", 1)
         salt = bytes.fromhex(salt_hex)
     except Exception:
-        return get_json_result(data=False, code=RetCode.EXCEPTION_ERROR, message="Activation code verification failed")
+        return get_json_result(data=False, code=RetCode.EXCEPTION_ERROR, message="Verification code verification failed")
 
     calc = hash_code(code, salt)
     if calc != stored_hash:
@@ -927,16 +941,16 @@ async def activate_account():
         REDIS_CONN.set(k_attempts, attempts, OTP_TTL_SECONDS)
         if attempts >= ATTEMPT_LIMIT:
             REDIS_CONN.set(k_lock, int(time.time()), ATTEMPT_LOCK_SECONDS)
-        return get_json_result(data=False, code=RetCode.AUTHENTICATION_ERROR, message="Invalid activation code.")
+        return get_json_result(data=False, code=RetCode.AUTHENTICATION_ERROR, message="Invalid verification code.")
 
-    # Success: consume activation keys & activate user
+    # Success: consume activation keys & activate/login user
     REDIS_CONN.delete(k_code)
     REDIS_CONN.delete(k_attempts)
     REDIS_CONN.delete(k_last)
     REDIS_CONN.delete(k_lock)
 
     admin_email = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io")
-    is_super = True if email.lower() == admin_email.lower() else False
+    is_super = True if email.lower() == admin_email.lower() else getattr(user, "is_superuser", False)
     UserService.update_by_id(user.id, {"is_active": "1", "status": "1", "is_superuser": is_super})
 
     updated_users = UserService.query(email=email)
@@ -950,11 +964,11 @@ async def activate_account():
     user.update_date = datetime_format(datetime.now())
     user.save()
 
-    logging.info("Account activated successfully for user_id=%s, email=%s", user.id, email)
+    logging.info("Login / Account verification successful for user_id=%s, email=%s", user.id, email)
     return await construct_response(
         data=user.to_safe_dict(for_self=True),
         auth=user.get_id(),
-        message="Account activated successfully! Welcome to Swipies AI.",
+        message="Welcome to Swipies AI!",
     )
 
 
@@ -962,7 +976,7 @@ async def activate_account():
 async def resend_activation_code():
     """
     POST /auth/activate/resend
-    Resend 6-digit activation code to user's email.
+    Resend 6-digit verification code to user's email.
     """
     req = await get_request_json()
     email = (req.get("email") or "").strip().lower()
@@ -975,8 +989,6 @@ async def resend_activation_code():
         return get_json_result(data=False, code=RetCode.DATA_ERROR, message="Account with this email does not exist")
 
     user = users[0]
-    if hasattr(user, "is_active") and user.is_active == "1" and getattr(user, "status", "1") == "1":
-        return get_json_result(data=True, code=RetCode.SUCCESS, message="Account is already activated!")
 
     k_code, k_attempts, k_last, k_lock = activation_keys(email)
     now = int(time.time())
@@ -999,17 +1011,21 @@ async def resend_activation_code():
     REDIS_CONN.set(k_last, now, OTP_TTL_SECONDS)
     REDIS_CONN.delete(k_lock)
 
-    # Dispatch activation email in non-blocking background thread
+    is_unactivated = hasattr(user, "is_active") and user.is_active == "0"
+    template_key = "activation_code" if is_unactivated else "login_code"
+    subject = "Activate Your Swipies AI Account" if is_unactivated else "Your Swipies AI Login Code"
+
+    # Dispatch verification email in non-blocking background thread
     dispatch_email_bg(
         to_email=email,
-        subject="Activate Your Swipies AI Account",
-        template_key="activation_code",
+        subject=subject,
+        template_key=template_key,
         code=code,
         nickname=user.nickname,
         ttl_min=OTP_TTL_SECONDS // 60,
     )
 
-    return get_json_result(data=True, code=RetCode.SUCCESS, message="New activation code sent to your email.")
+    return get_json_result(data=True, code=RetCode.SUCCESS, message="New verification code sent to your email.")
 
 
 @manager.route("/users/me/models", methods=["GET"])  # noqa: F821

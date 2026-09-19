@@ -452,12 +452,14 @@ function LoginFormContent({
 
 type ActivationFormContentProps = {
   email: string;
+  isLogin?: boolean;
   onSuccess: () => void;
   onCancel: () => void;
 };
 
 function ActivationFormContent({
   email,
+  isLogin,
   onSuccess,
   onCancel,
 }: ActivationFormContentProps) {
@@ -479,7 +481,7 @@ function ActivationFormContent({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || code.length < 6) {
-      message.error('Please enter a 6-digit activation code.');
+      message.error('Please enter a 6-digit verification code.');
       return;
     }
     const res = await activateAccount({ email, code });
@@ -500,10 +502,10 @@ function ActivationFormContent({
     <div className="flex flex-col items-center justify-center w-full">
       <div className="text-center mb-8">
         <h2 className="text-xl font-semibold text-text-primary">
-          Verify Your Email
+          {isLogin ? 'Security Verification' : 'Verify Your Email'}
         </h2>
         <p className="text-sm text-text-secondary mt-1 max-w-sm mx-auto">
-          We sent a 6-digit activation code to{' '}
+          We sent a 6-digit {isLogin ? 'verification' : 'activation'} code to{' '}
           <span className="font-semibold text-accent-primary">{email}</span>
         </p>
       </div>
@@ -511,7 +513,7 @@ function ActivationFormContent({
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 text-text-primary">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-text-primary">
-              Activation Code
+              {isLogin ? 'Verification Code' : 'Activation Code'}
             </label>
             <Input
               type="text"
@@ -529,7 +531,7 @@ function ActivationFormContent({
             loading={activating}
             className="bg-metallic-gradient border-b-[#00BEB4] border-b-2 hover:bg-metallic-gradient hover:border-b-[#02bcdd] w-full h-11"
           >
-            Activate Account & Continue
+            {isLogin ? 'Verify & Continue' : 'Activate Account & Continue'}
           </ButtonLoading>
 
           <div className="flex items-center justify-between text-sm pt-2">
@@ -572,6 +574,7 @@ const Login = () => {
   }, [refFromQuery]);
   const ref = refFromQuery || (typeof window !== 'undefined' ? localStorage.getItem('swipies_referrer') || '' : '');
   const [activationEmail, setActivationEmail] = useState<string | null>(null);
+  const [isLoginVerification, setIsLoginVerification] = useState(false);
   const { login, loading: signLoading } = useLogin();
   const { register, loading: registerLoading } = useRegister();
   const { channels, loading: channelsLoading } = useLoginChannels();
@@ -744,8 +747,14 @@ const Login = () => {
           password: rsaPassWord,
         });
         if (res?.code === 0) {
-          handleRedirect();
+          if (res?.data?.requires_2fa || res?.data?.requires_activation) {
+            setIsLoginVerification(true);
+            setActivationEmail(`${params.email}`.trim());
+          } else {
+            handleRedirect();
+          }
         } else if (res?.code === 403 && (res?.data?.requires_activation || res?.message?.includes('not activated'))) {
+          setIsLoginVerification(false);
           setActivationEmail(`${params.email}`.trim());
         }
       } else {
@@ -758,6 +767,7 @@ const Login = () => {
           marketing_consent: params.marketingConsent ?? true,
         });
         if (res?.code === 0 && res?.data?.requires_activation) {
+          setIsLoginVerification(false);
           setActivationEmail(params.email);
         } else if (res?.code === 0) {
           setTitle('login');
@@ -804,10 +814,14 @@ const Login = () => {
           {activationEmail ? (
             <ActivationFormContent
               email={activationEmail}
+              isLogin={isLoginVerification}
               onSuccess={() => {
                 handleRedirect();
               }}
-              onCancel={() => setActivationEmail(null)}
+              onCancel={() => {
+                setActivationEmail(null);
+                setIsLoginVerification(false);
+              }}
             />
           ) : (
             <FlipCard3D isLoginPage={isLoginPage}>
