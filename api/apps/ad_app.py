@@ -628,35 +628,6 @@ async def get_campaign_analytics_detailed(campaign_id):
 # 2. Billing & Wallet Endpoints
 # ==========================================
 
-@manager.route("/billing/deposit", methods=["POST"])
-@login_required
-async def deposit_funds():
-    req = await get_request_json()
-    if not req:
-        return get_json_result(data=False, message="Empty payload", code=RetCode.ARGUMENT_ERROR)
-
-    amount = float(req.get("amount", 0.0))
-    if amount <= 0:
-        return get_json_result(data=False, message="Deposit amount must be greater than 0.", code=RetCode.ARGUMENT_ERROR)
-
-    try:
-        user_id = current_user.id
-        tenant_id = getattr(current_user, "tenant_id", "") or user_id
-        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
-
-        success = AdEngineService.deposit_balance(
-            advertiser_id=adv.id,
-            amount=amount,
-            description=req.get("description", "Top-Up Deposit"),
-        )
-        if success:
-            adv.reload()
-            return get_json_result(data={"balance": round(adv.balance, 2), "currency": adv.currency})
-        return get_data_error_result(message="Deposit failed")
-    except Exception as e:
-        logger.exception(f"Error depositing funds: {e}")
-        return get_data_error_result(message=str(e))
-
 
 @manager.route("/billing/transactions", methods=["GET"])
 @login_required

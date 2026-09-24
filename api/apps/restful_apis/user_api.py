@@ -647,11 +647,11 @@ def user_register(user_id, user):
     user["is_superuser"] = False
 
     # Retrieve current active global defaults from GlobalRagflowInstance if available
-    llm_id = settings.CHAT_MDL
-    embd_id = settings.EMBEDDING_MDL
-    asr_id = settings.ASR_MDL
-    img2txt_id = settings.IMAGE2TEXT_MDL
-    rerank_id = settings.RERANK_MDL
+    llm_id = getattr(settings, "CHAT_MDL", "")
+    embd_id = getattr(settings, "EMBEDDING_MDL", "")
+    asr_id = getattr(settings, "ASR_MDL", "")
+    img2txt_id = getattr(settings, "IMAGE2TEXT_MDL", getattr(settings, "VISION_MDL", ""))
+    rerank_id = getattr(settings, "RERANK_MDL", "")
     tts_id = getattr(settings, "TTS_MDL", "")
 
     try:
@@ -665,11 +665,11 @@ def user_register(user_id, user):
             return f"{m}@{inst or 'default'}@{p}" if (m and p) else val
 
         g_stats = GlobalInstanceService.get_instance_stats()
-        raw_chat = g_stats.get("default_chat_model") or g_stats.get("default_free_model_id") or settings.CHAT_MDL
-        raw_embd = g_stats.get("default_embd_id") or settings.EMBEDDING_MDL
-        raw_rerank = g_stats.get("default_rerank_id") or settings.RERANK_MDL
-        raw_img = g_stats.get("default_image2text_model") or settings.IMAGE2TEXT_MDL
-        raw_asr = g_stats.get("default_asr_model") or settings.ASR_MDL
+        raw_chat = g_stats.get("default_chat_model") or g_stats.get("default_free_model_id") or getattr(settings, "CHAT_MDL", "")
+        raw_embd = g_stats.get("default_embd_id") or getattr(settings, "EMBEDDING_MDL", "")
+        raw_rerank = g_stats.get("default_rerank_id") or getattr(settings, "RERANK_MDL", "")
+        raw_img = g_stats.get("default_image2text_model") or getattr(settings, "IMAGE2TEXT_MDL", getattr(settings, "VISION_MDL", ""))
+        raw_asr = g_stats.get("default_asr_model") or getattr(settings, "ASR_MDL", "")
         raw_tts = g_stats.get("default_tts_model") or getattr(settings, "TTS_MDL", "")
 
         if raw_chat:
@@ -685,7 +685,7 @@ def user_register(user_id, user):
         if raw_tts:
             tts_id = _to_canonical_str(raw_tts, "tts")
     except Exception as e:
-        logger.warning(f"user_register get_instance_stats fallback error: {e}")
+        logging.warning(f"user_register get_instance_stats fallback error: {e}")
 
     tenant = {
         "id": user_id,

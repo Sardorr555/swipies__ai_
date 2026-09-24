@@ -198,13 +198,21 @@ class AtmosService:
         conf = cls._get_config()
         rate = conf["usd_to_uzs_rate"]
 
-        # Calculate amounts
-        if amount_uzs is not None and amount_uzs > 0:
+        # Calculate amounts securely (prevent currency arbitrage SEC-02)
+        MIN_DEPOSIT_UZS = 1000  # Minimum payment threshold: 1,000 UZS
+        MIN_DEPOSIT_USD = 0.10
+
+        if amount_uzs is not None and int(amount_uzs) > 0:
             final_uzs = int(amount_uzs)
-            final_usd = round(float(amount_uzs) / rate, 2) if amount_usd is None else float(amount_usd)
-        elif amount_usd is not None and amount_usd > 0:
-            final_usd = float(amount_usd)
-            final_uzs = int(round(float(amount_usd) * rate))
+            if final_uzs < MIN_DEPOSIT_UZS:
+                return False, f"Минимальная сумма пополнения — {MIN_DEPOSIT_UZS:,} сум.", None
+            # Server-side conversion strictly derived from exchange rate; client amount_usd is completely ignored
+            final_usd = round(float(final_uzs) / rate, 2)
+        elif amount_usd is not None and float(amount_usd) > 0:
+            final_usd = round(float(amount_usd), 2)
+            if final_usd < MIN_DEPOSIT_USD:
+                return False, f"Минимальная сумма пополнения — ${MIN_DEPOSIT_USD:.2f}.", None
+            final_uzs = int(round(final_usd * rate))
         else:
             # If subscription upgrade, check predefined plan pricing
             if purpose == "subscription_upgrade" and plan_id:

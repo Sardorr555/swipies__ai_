@@ -114,6 +114,8 @@ EMBEDDING_MDL = ""
 RERANK_MDL = ""
 ASR_MDL = ""
 VISION_MDL = ""
+IMAGE2TEXT_MDL = ""
+TTS_MDL = ""
 
 
 CHAT_CFG = ""
@@ -448,7 +450,7 @@ def init_settings():
         "parsers", "naive:General,qa:Q&A,resume:Resume,manual:Manual,table:Table,paper:Paper,book:Book,laws:Laws,presentation:Presentation,picture:Picture,one:One,audio:Audio,email:Email,tag:Tag"
     )
 
-    global CHAT_MDL, EMBEDDING_MDL, RERANK_MDL, ASR_MDL, VISION_MDL
+    global CHAT_MDL, EMBEDDING_MDL, RERANK_MDL, ASR_MDL, VISION_MDL, IMAGE2TEXT_MDL, TTS_MDL
     chat_entry = _parse_model_entry(llm_default_models.get("chat_model", CHAT_MDL))
     embedding_entry = _parse_model_entry(llm_default_models.get("embedding_model", EMBEDDING_MDL))
     rerank_entry = _parse_model_entry(llm_default_models.get("rerank_model", RERANK_MDL))
@@ -470,6 +472,8 @@ def init_settings():
     RERANK_MDL = RERANK_CFG.get("model", "") or ""
     ASR_MDL = ASR_CFG.get("model", "") or ""
     VISION_MDL = VISION_CFG.get("model", "") or ""
+    IMAGE2TEXT_MDL = VISION_MDL
+    TTS_MDL = os.getenv("TTS_MODEL", "")
 
     global HOST_IP, HOST_PORT
     HOST_IP = get_base_config(RAG_FLOW_SERVICE_NAME, {}).get("host", "127.0.0.1")

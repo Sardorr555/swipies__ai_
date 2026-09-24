@@ -119,13 +119,14 @@ def setup_auth(login_manager):
         from itsdangerous.url_safe import URLSafeTimedSerializer as Serializer
         from common import settings
 
+        authorization = web_request.headers.get("Authorization") or web_request.headers.get("authorization")
         if not authorization:
             return None
 
         try:
             # Strip "Bearer " prefix if present
             jwt_token = authorization.strip()
-            if jwt_token.startswith("Bearer "):
+            if jwt_token[:7].lower() == "bearer ":
                 jwt_token = jwt_token[7:].strip()
 
             if not jwt_token:
@@ -384,8 +385,8 @@ def login_admin(email: str, password: str):
     resp = user.to_json()
     user.access_token = get_uuid()
     login_user(user)
-    user.update_time = (current_timestamp(),)
-    user.update_date = (datetime_format(datetime.now()),)
+    user.update_time = current_timestamp()
+    user.update_date = datetime_format(datetime.now())
     user.last_login_time = get_format_time()
     user.save()
     msg = "Welcome back!"

@@ -172,6 +172,7 @@ class GlobalInstanceService(CommonService):
                 canonical_img = _to_canonical_str(img_m, "image2text")
                 tenant_updates["img2txt_id"] = canonical_img
                 settings.IMAGE2TEXT_MDL = canonical_img
+                settings.VISION_MDL = canonical_img
 
             asr_m = extra_data.get("default_asr_model")
             if asr_m:
