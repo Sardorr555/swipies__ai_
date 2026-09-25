@@ -337,7 +337,8 @@ def check_admin_auth(func):
 
         if not is_super:
             import os
-            admin_emails = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io,albakiev.sardorbek@gmail.com")
+            # SEC-07: Configured via environment variable; no hardcoded personal email.
+            admin_emails = os.getenv("DEFAULT_SUPERUSER_EMAIL", "").strip()
             super_emails = [e.strip().lower() for e in admin_emails.split(",") if e.strip()]
             if user_email.lower() in super_emails:
                 is_super = True

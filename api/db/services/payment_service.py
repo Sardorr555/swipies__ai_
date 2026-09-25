@@ -512,11 +512,14 @@ class AtmosService:
                 order.save()
                 return False, error_msg, {"detail": data}
 
-            order.status = "paid"
-            order.update_time = current_timestamp()
-            order.save()
+            with DB.atomic():
+                order.status = "paid"
+                order.update_time = current_timestamp()
+                order.save()
 
-            fulfillment_res = cls._fulfill_paid_order(order)
+                fulfillment_res = cls._fulfill_paid_order(order)
+                if not fulfillment_res.get("success", True):
+                    raise RuntimeError(fulfillment_res.get("error", "Fulfillment error"))
 
             return True, "Оплата успешно подтверждена и обработана.", {
                 "order_id": order.id,
@@ -620,11 +623,18 @@ class AtmosService:
             if adv_id:
                 deposit_usd = float(order.amount_usd or 0.0)
                 desc = f"Пополнение через Atmos (Заказ #{order.id[:8]}, {order.amount_uzs:,} UZS)"
-                deposit_ok = AdEngineService.deposit_balance(adv_id, deposit_usd, desc)
-                result["advertiser_id"] = adv_id
-                result["deposit_amount_usd"] = deposit_usd
-                result["deposit_success"] = deposit_ok
-                logger.info(f"[Advertiser Deposit Completed] adv={adv_id} +${deposit_usd}")
+                deposit_ok = AdEngineService.deposit_balance(adv_id, deposit_usd, desc, reference_id=order.id)
+                if not deposit_ok:
+                    result["success"] = False
+                    result["error"] = "Deposit failed"
+                else:
+                    # AC7 (BUG-09): Fetch fresh advertiser object without nonexistent reload()
+                    fresh_adv = Advertiser.get_by_id(adv_id)
+                    result["advertiser_id"] = adv_id
+                    result["deposit_amount_usd"] = deposit_usd
+                    result["deposit_success"] = deposit_ok
+                    result["new_balance"] = round(fresh_adv.balance, 2)
+                    logger.info(f"[Advertiser Deposit Completed] adv={adv_id} +${deposit_usd} balance={fresh_adv.balance}")
             else:
                 logger.error(f"[Fulfill Error] Advertiser account not found for order {order.id}")
                 result["success"] = False
@@ -651,7 +661,7 @@ class AtmosService:
                     adv_id = result.get("advertiser_id")
                     if adv_id:
                         bonus_desc = f"Бонус по промокоду {promo_info.get('code', '')} (+${bonus_usd:.2f})"
-                        AdEngineService.deposit_balance(adv_id, bonus_usd, bonus_desc)
+                        AdEngineService.deposit_balance(adv_id, bonus_usd, bonus_desc, reference_id=order.id)
                         logger.info(f"[Promo Bonus Credited] adv={adv_id} +${bonus_usd}")
             except Exception as e:
                 logger.warning(f"Error executing promo code fulfillment: {e}")

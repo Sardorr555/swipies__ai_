@@ -69,6 +69,16 @@ from api.db.services.common_service import CommonService
 logger = logging.getLogger(__name__)
 
 
+def _lock_for_update(query, model):
+    """
+    Applies row-level FOR UPDATE lock if supported by the underlying database engine (MySQL/PostgreSQL).
+    Safely no-ops on engines without row-level lock support (SQLite).
+    """
+    if getattr(getattr(model, "_meta", None), "database", None) and getattr(model._meta.database, "for_update", False):
+        return query.for_update()
+    return query
+
+
 class GeoIPService:
     """Geo IP and Regional Resolution Service for Uzbekistan regions and global traffic."""
 
@@ -631,50 +641,58 @@ class AdEngineService:
         # Record Impression
         impression_id = uuid.uuid4().hex[:32]
         try:
-            AdImpression.create(
-                id=impression_id,
-                campaign_id=winner_campaign.id,
-                variant_id=(selected_variant.id if selected_variant else None),
-                advertiser_id=winner_campaign.advertiser_id,
-                user_id=user_id or "",
-                tenant_id=tenant_id or "",
-                conversation_id=conversation_id or "",
-                message_id=message_id or "",
-                cost=(cost if winner_campaign.pricing_model == "cpm" else 0.0),
-                query_intent=clean_query[:250],
-                language=effective_lang or "ru",
-                model_name=model_name or "gpt-4o",
-                device_type="desktop",
-                platform="web",
-                region=effective_region or "tashkent",
-                city=effective_city or "Tashkent",
-                country=effective_country or "UZ",
-                create_time=now_ts,
-            )
-
-            if selected_variant:
-                selected_variant.impressions += 1
-                selected_variant.save()
-
-            # Deduct balance if CPM model
-            if winner_campaign.pricing_model == "cpm":
-                winner_campaign.spent_today += cost
-                winner_campaign.total_spent += cost
-                winner_campaign.save()
-
-                adv = winner_campaign.advertiser
-                adv.balance = max(0.0, adv.balance - cost)
-                adv.save()
-
-                AdTransaction.create(
-                    id=uuid.uuid4().hex[:32],
-                    advertiser_id=adv.id,
-                    amount=-cost,
-                    type="spend_cpm",
-                    description=f"CPM Impression on campaign {winner_campaign.name}",
-                    reference_id=impression_id,
+            with DB.atomic():
+                AdImpression.create(
+                    id=impression_id,
+                    campaign_id=winner_campaign.id,
+                    variant_id=(selected_variant.id if selected_variant else None),
+                    advertiser_id=winner_campaign.advertiser_id,
+                    user_id=user_id or "",
+                    tenant_id=tenant_id or "",
+                    conversation_id=conversation_id or "",
+                    message_id=message_id or "",
+                    cost=(cost if winner_campaign.pricing_model == "cpm" else 0.0),
+                    query_intent=clean_query[:250],
+                    language=effective_lang or "ru",
+                    model_name=model_name or "gpt-4o",
+                    device_type="desktop",
+                    platform="web",
+                    region=effective_region or "tashkent",
+                    city=effective_city or "Tashkent",
+                    country=effective_country or "UZ",
                     create_time=now_ts,
                 )
+
+                if selected_variant:
+                    selected_variant.impressions += 1
+                    selected_variant.save()
+
+                # Deduct balance if CPM model (BUG-08: atomic with row lock on Campaign and Advertiser)
+                if winner_campaign.pricing_model == "cpm":
+                    cmp_query = _lock_for_update(AdCampaign.select().where(AdCampaign.id == winner_campaign.id), AdCampaign)
+                    cmp_locked = cmp_query.first()
+                    adv_query = _lock_for_update(Advertiser.select().where(Advertiser.id == winner_campaign.advertiser_id), Advertiser)
+                    adv = adv_query.first()
+                    if cmp_locked and adv:
+                        cmp_locked.spent_today = float(getattr(cmp_locked, "spent_today", 0.0) or 0.0) + cost
+                        cmp_locked.total_spent = float(getattr(cmp_locked, "total_spent", 0.0) or 0.0) + cost
+                        cmp_locked.save()
+                        winner_campaign.spent_today = cmp_locked.spent_today
+                        winner_campaign.total_spent = cmp_locked.total_spent
+
+                        adv.balance = max(0.0, adv.balance - cost)
+                        adv.update_time = now_ts
+                        adv.save()
+
+                        AdTransaction.create(
+                            id=uuid.uuid4().hex[:32],
+                            advertiser_id=adv.id,
+                            amount=-cost,
+                            type="spend_cpm",
+                            description=f"CPM Impression on campaign {cmp_locked.name}",
+                            reference_id=impression_id,
+                            create_time=now_ts,
+                        )
         except Exception as e:
             logger.warning(f"Failed to record AdImpression: {e}")
 
@@ -798,58 +816,66 @@ class AdEngineService:
                 return variant_obj.landing_url
             return campaign.landing_url or "https://swipies.app"
 
-        # Check deduplication within 1 hour
+        # Check deduplication within 1 hour and record click atomically (BUG-08)
         one_hour_ago = now_ts - (3600 * 1000)
-        recent_click = AdClick.select().where(
-            AdClick.campaign_id == campaign.id,
-            AdClick.impression_id == impression_id,
-            AdClick.create_time >= one_hour_ago,
-        ).first()
+        click_id = uuid.uuid4().hex[:32]
+        with DB.atomic():
+            recent_click = AdClick.select().where(
+                AdClick.campaign_id == campaign.id,
+                AdClick.impression_id == impression_id,
+                AdClick.create_time >= one_hour_ago,
+            ).first()
 
-        if not recent_click:
-            click_id = uuid.uuid4().hex[:32]
-            AdClick.create(
-                id=click_id,
-                campaign_id=campaign.id,
-                variant_id=variant_obj.id if variant_obj else None,
-                impression_id=impression_id,
-                advertiser_id=campaign.advertiser_id,
-                user_id=token_user_id or "",
-                cost=cost,
-                ip_hash=ip_hash[:64] if ip_hash else "",
-                language=imp_lang,
-                model_name=imp_model,
-                device_type=imp_device,
-                platform=imp_platform,
-                region=imp_region,
-                city=imp_city,
-                country=imp_country,
-                create_time=now_ts,
-            )
+            if not recent_click:
+                AdClick.create(
+                    id=click_id,
+                    campaign_id=campaign.id,
+                    variant_id=variant_obj.id if variant_obj else None,
+                    impression_id=impression_id,
+                    advertiser_id=campaign.advertiser_id,
+                    user_id=token_user_id or "",
+                    cost=cost,
+                    user_agent=user_agent[:500] if user_agent else "",
+                    ip_hash=ip_hash[:64] if ip_hash else "",
+                    language=imp_lang,
+                    model_name=imp_model,
+                    device_type=imp_device,
+                    platform=imp_platform,
+                    region=imp_region,
+                    city=imp_city,
+                    country=imp_country,
+                    create_time=now_ts,
+                )
 
-            if variant_obj:
-                variant_obj.clicks += 1
-                variant_obj.save()
+                if variant_obj:
+                    variant_obj.clicks += 1
+                    variant_obj.save()
 
-            if cost > 0:
-                campaign.spent_today += cost
-                campaign.total_spent += cost
-                campaign.save()
+                if cost > 0:
+                    cmp_query = _lock_for_update(AdCampaign.select().where(AdCampaign.id == campaign.id), AdCampaign)
+                    cmp_locked = cmp_query.first()
+                    adv_query = _lock_for_update(Advertiser.select().where(Advertiser.id == campaign.advertiser_id), Advertiser)
+                    adv = adv_query.first()
+                    if cmp_locked and adv:
+                        cmp_locked.spent_today = float(getattr(cmp_locked, "spent_today", 0.0) or 0.0) + cost
+                        cmp_locked.total_spent = float(getattr(cmp_locked, "total_spent", 0.0) or 0.0) + cost
+                        cmp_locked.save()
+                        campaign.spent_today = cmp_locked.spent_today
+                        campaign.total_spent = cmp_locked.total_spent
 
-                adv = Advertiser.get_or_none(Advertiser.id == campaign.advertiser_id)
-                if adv:
-                    adv.balance = max(0.0, adv.balance - cost)
-                    adv.save()
+                        adv.balance = max(0.0, adv.balance - cost)
+                        adv.update_time = now_ts
+                        adv.save()
 
-                    AdTransaction.create(
-                        id=uuid.uuid4().hex[:32],
-                        advertiser_id=adv.id,
-                        amount=-cost,
-                        type="spend_cpc",
-                        description=f"CPC Click on campaign '{campaign.name}'",
-                        reference_id=click_id,
-                        create_time=now_ts,
-                    )
+                        AdTransaction.create(
+                            id=uuid.uuid4().hex[:32],
+                            advertiser_id=adv.id,
+                            amount=-cost,
+                            type="spend_cpc",
+                            description=f"CPC Click on campaign '{cmp_locked.name}'",
+                            reference_id=click_id,
+                            create_time=now_ts,
+                        )
 
             # Auto record Multi-Touch Journey touchpoint
             try:
@@ -951,28 +977,30 @@ class AdEngineService:
 
     @classmethod
     @DB.connection_context()
-    def deposit_balance(cls, advertiser_id: str, amount: float, description: str = "Balance Top-Up") -> bool:
-        """Credit funds to advertiser balance."""
+    def deposit_balance(cls, advertiser_id: str, amount: float, description: str = "Balance Top-Up", reference_id: str = "") -> bool:
+        """Credit funds to advertiser balance atomically with row lock (BUG-08)."""
         if amount <= 0:
             return False
-        adv = Advertiser.get_or_none(Advertiser.id == advertiser_id)
-        if not adv:
-            return False
+        with DB.atomic():
+            query = _lock_for_update(Advertiser.select().where(Advertiser.id == advertiser_id), Advertiser)
+            adv = query.first()
+            if not adv:
+                return False
 
-        adv.balance += amount
-        adv.update_time = current_timestamp()
-        adv.save()
+            adv.balance += amount
+            adv.update_time = current_timestamp()
+            adv.save()
 
-        AdTransaction.create(
-            id=uuid.uuid4().hex[:32],
-            advertiser_id=adv.id,
-            amount=amount,
-            type="deposit",
-            description=description,
-            reference_id="",
-            create_time=current_timestamp(),
-        )
-        return True
+            AdTransaction.create(
+                id=uuid.uuid4().hex[:32],
+                advertiser_id=adv.id,
+                amount=amount,
+                type="deposit",
+                description=description,
+                reference_id=reference_id,
+                create_time=current_timestamp(),
+            )
+            return True
 
     @classmethod
     @DB.connection_context()
@@ -1558,32 +1586,25 @@ class ConversionTrackingService(CommonService):
     @classmethod
     @DB.connection_context()
     def get_or_create_pixel_id(cls, advertiser_id: str) -> str:
+        """
+        Retrieves or generates a unique pixel_id for advertiser.
+        ARCH-03: No runtime DDL (ALTER TABLE) is executed in the request path;
+        schema additions are handled strictly during startup initialization.
+        """
         try:
             adv = Advertiser.get_or_none(Advertiser.id == advertiser_id)
-            if adv and getattr(adv, "pixel_id", None):
+            if not adv:
+                return f"px_{advertiser_id[:16]}"
+            if getattr(adv, "pixel_id", None):
                 return adv.pixel_id
             pid = "px_" + uuid.uuid4().hex[:16]
-            if adv:
-                try:
-                    adv.pixel_id = pid
-                    adv.save()
-                    return pid
-                except Exception:
-                    try:
-                        DB.execute_sql("ALTER TABLE advertisers ADD COLUMN pixel_id VARCHAR(32) NULL;")
-                        DB.execute_sql("ALTER TABLE advertisers ADD UNIQUE INDEX idx_advertisers_pixel_id (pixel_id);")
-                        adv.pixel_id = pid
-                        adv.save()
-                        return pid
-                    except Exception:
-                        return f"px_{advertiser_id[:16]}"
-        except Exception:
-            try:
-                DB.execute_sql("ALTER TABLE advertisers ADD COLUMN pixel_id VARCHAR(32) NULL;")
-            except Exception:
-                pass
+            adv.pixel_id = pid
+            adv.update_time = current_timestamp()
+            adv.save()
+            return pid
+        except Exception as e:
+            logger.warning(f"Failed to get_or_create_pixel_id for advertiser {advertiser_id}: {e}")
             return f"px_{advertiser_id[:16]}"
-        return f"px_{advertiser_id[:16]}"
 
     @classmethod
     def generate_pixel_snippet(cls, pixel_id: str, host: str = "https://swipies.app") -> dict:
@@ -1717,24 +1738,35 @@ class ConversionTrackingService(CommonService):
             if dup:
                 return {"success": True, "conversion_id": dup.id, "duplicate": True}
 
-        # Calculate billable CPA cost if campaign is CPA pricing model
+        # Calculate billable CPA cost if campaign is CPA pricing model (BUG-08: atomic with row lock on Campaign and Advertiser)
         cpa_cost = 0.0
         if getattr(target_cmp, "pricing_model", "cpc") == "cpa":
             cpa_cost = float(getattr(target_cmp, "target_cpa", 0.0) or target_cmp.bid_amount or 1.0)
-            if adv.balance >= cpa_cost:
-                adv.balance = max(0.0, adv.balance - cpa_cost)
-                adv.save()
-                target_cmp.spent_today += cpa_cost
-                target_cmp.total_spent += cpa_cost
-                AdTransaction.create(
-                    id=uuid.uuid4().hex[:32],
-                    advertiser_id=adv.id,
-                    amount=-cpa_cost,
-                    type="spend_cpa",
-                    description=f"CPA Conversion fee for order {order_id or target_cmp.name}",
-                    reference_id=order_id or target_cmp.id,
-                    create_time=now_ts,
-                )
+            with DB.atomic():
+                cmp_query = _lock_for_update(AdCampaign.select().where(AdCampaign.id == target_cmp.id), AdCampaign)
+                cmp_locked = cmp_query.first()
+                adv_query = _lock_for_update(Advertiser.select().where(Advertiser.id == adv.id), Advertiser)
+                adv_locked = adv_query.first()
+                if cmp_locked and adv_locked and adv_locked.balance >= cpa_cost:
+                    cmp_locked.spent_today = float(getattr(cmp_locked, "spent_today", 0.0) or 0.0) + cpa_cost
+                    cmp_locked.total_spent = float(getattr(cmp_locked, "total_spent", 0.0) or 0.0) + cpa_cost
+                    cmp_locked.save()
+                    target_cmp.spent_today = cmp_locked.spent_today
+                    target_cmp.total_spent = cmp_locked.total_spent
+
+                    adv_locked.balance = max(0.0, adv_locked.balance - cpa_cost)
+                    adv_locked.update_time = now_ts
+                    adv_locked.save()
+
+                    AdTransaction.create(
+                        id=uuid.uuid4().hex[:32],
+                        advertiser_id=adv_locked.id,
+                        amount=-cpa_cost,
+                        type="spend_cpa",
+                        description=f"CPA Conversion fee for order {order_id or cmp_locked.name}",
+                        reference_id=order_id or cmp_locked.id,
+                        create_time=now_ts,
+                    )
 
         conversion_id = uuid.uuid4().hex[:32]
         conv = AdConversion.create(
@@ -2917,43 +2949,45 @@ class AdPublisherService:
         destination_card: str,
         destination_holder: str = "",
     ) -> dict:
-        pub = AdPublisher.get_or_none(AdPublisher.id == publisher_id)
-        if not pub:
-            raise ValueError("Publisher not found")
-        if amount <= 0:
-            raise ValueError("Сумма выплаты должна быть больше 0")
-        if pub.balance < amount:
-            raise ValueError(f"Недостаточно средств на балансе. Доступно: ${pub.balance:.2f}")
+        with DB.atomic():
+            query = _lock_for_update(AdPublisher.select().where(AdPublisher.id == publisher_id), AdPublisher)
+            pub = query.first()
+            if not pub:
+                raise ValueError("Publisher not found")
+            if amount <= 0:
+                raise ValueError("Сумма выплаты должна быть больше 0")
+            if pub.balance < amount:
+                raise ValueError(f"Недостаточно средств на балансе. Доступно: ${pub.balance:.2f}")
 
-        now_ts = current_timestamp()
-        pub.balance = max(0.0, pub.balance - amount)
-        pub.total_withdrawn += amount
-        pub.payout_card = destination_card
-        pub.payout_holder = destination_holder
-        pub.update_time = now_ts
-        pub.save()
+            now_ts = current_timestamp()
+            pub.balance = max(0.0, pub.balance - amount)
+            pub.total_withdrawn += amount
+            pub.payout_card = destination_card
+            pub.payout_holder = destination_holder
+            pub.update_time = now_ts
+            pub.save()
 
-        payout = AdPublisherPayout.create(
-            id=uuid.uuid4().hex[:32],
-            publisher_id=publisher_id,
-            amount=amount,
-            currency="USD",
-            destination_card=destination_card,
-            destination_holder=destination_holder or "",
-            status="pending",
-            create_time=now_ts,
-            update_time=now_ts,
-        )
-        return {
-            "id": payout.id,
-            "publisher_id": payout.publisher_id,
-            "amount": payout.amount,
-            "currency": payout.currency,
-            "destination_card": payout.destination_card,
-            "status": payout.status,
-            "new_balance": round(pub.balance, 4),
-            "create_time": payout.create_time,
-        }
+            payout = AdPublisherPayout.create(
+                id=uuid.uuid4().hex[:32],
+                publisher_id=publisher_id,
+                amount=amount,
+                currency="USD",
+                destination_card=destination_card,
+                destination_holder=destination_holder or "",
+                status="pending",
+                create_time=now_ts,
+                update_time=now_ts,
+            )
+            return {
+                "id": payout.id,
+                "publisher_id": payout.publisher_id,
+                "amount": payout.amount,
+                "currency": payout.currency,
+                "destination_card": payout.destination_card,
+                "status": payout.status,
+                "new_balance": round(pub.balance, 4),
+                "create_time": payout.create_time,
+            }
 
     @classmethod
     @DB.connection_context()
@@ -3026,16 +3060,20 @@ class AdPublisherService:
         pub_earnings = round(cost_event * rev_share_rate, 4)
 
         if pub_earnings > 0:
-            pub.balance = round(pub.balance + pub_earnings, 4)
-            pub.total_earned = round(pub.total_earned + pub_earnings, 4)
-            pub.update_time = current_timestamp()
-            pub.save()
+            with DB.atomic():
+                query = _lock_for_update(AdPublisher.select().where(AdPublisher.id == pub.id), AdPublisher)
+                pub_locked = query.first()
+                if pub_locked:
+                    pub_locked.balance = round(pub_locked.balance + pub_earnings, 4)
+                    pub_locked.total_earned = round(pub_locked.total_earned + pub_earnings, 4)
+                    pub_locked.update_time = current_timestamp()
+                    pub_locked.save()
 
-            if placement:
-                placement.impressions += 1
-                placement.earnings = round(placement.earnings + pub_earnings, 4)
-                placement.update_time = current_timestamp()
-                placement.save()
+                    if placement:
+                        placement.impressions += 1
+                        placement.earnings = round(placement.earnings + pub_earnings, 4)
+                        placement.update_time = current_timestamp()
+                        placement.save()
 
         return {
             "matched": True,

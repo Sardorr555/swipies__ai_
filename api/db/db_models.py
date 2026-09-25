@@ -3642,11 +3642,14 @@ def migrate_db():
     except Exception:
         pass
     try:
-        admin_emails = os.getenv("DEFAULT_SUPERUSER_EMAIL", "admin@ragflow.io,albakiev.sardorbek@gmail.com")
-        if not admin_emails or not admin_emails.strip():
-            admin_emails = "admin@ragflow.io,albakiev.sardorbek@gmail.com"
-        for em in [e.strip().lower() for e in admin_emails.split(",") if e.strip()]:
-            DB.execute_sql(f"UPDATE user SET is_superuser = 1 WHERE LOWER(email) = '{em}';")
+        # SEC-07: Bootstrap superuser email configured strictly via environment variable.
+        # Empty DEFAULT_SUPERUSER_EMAIL creates no automatic superuser by default.
+        # Note: Historical git commits containing PII were retained by conscious architectural decision
+        # (see Specify-1 AC6). Review before transitioning to open-source or transferring repository.
+        admin_emails = os.getenv("DEFAULT_SUPERUSER_EMAIL", "").strip()
+        if admin_emails:
+            for em in [e.strip().lower() for e in admin_emails.split(",") if e.strip()]:
+                DB.execute_sql(f"UPDATE user SET is_superuser = 1 WHERE LOWER(email) = '{em}';")
         DB.execute_sql("UPDATE user_tenant SET role = 'owner' WHERE tenant_id = user_id AND role = 'normal';")
     except Exception:
         pass
