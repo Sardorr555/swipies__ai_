@@ -116,18 +116,18 @@ export interface AdminAdsSettings {
 
 const adService = {
   // Advertiser Portal
-  getDashboard: () => request.get<ResponseData<AdvertiserDashboardData>>('/ads/dashboard'),
-  listCampaigns: () => request.get<ResponseData<AdCampaignItem[]>>('/ads/campaigns'),
+  getDashboard: () => request.get<ResponseData<AdvertiserDashboardData>>('/v1/ads/dashboard'),
+  listCampaigns: () => request.get<ResponseData<AdCampaignItem[]>>('/v1/ads/campaigns'),
   createCampaign: (data: Partial<AdCampaignItem>) =>
-    request.post<ResponseData<{ id: string; name: string; status: string }>>('/ads/campaigns', { data }),
+    request.post<ResponseData<{ id: string; name: string; status: string }>>('/v1/ads/campaigns', { data }),
   updateCampaign: (id: string, data: Partial<AdCampaignItem>) =>
-    request.put<ResponseData<{ id: string; name: string; status: string }>>(`/ads/campaigns/${id}`, { data }),
+    request.put<ResponseData<{ id: string; name: string; status: string }>>(`/v1/ads/campaigns/${id}`, { data }),
   toggleCampaignStatus: (id: string) =>
-    request.post<ResponseData<{ id: string; status: string }>>(`/ads/campaigns/${id}/toggle_status`),
+    request.post<ResponseData<{ id: string; status: string }>>(`/v1/ads/campaigns/${id}/toggle_status`),
   deleteCampaign: (id: string) =>
-    request.delete<ResponseData<boolean>>(`/ads/campaigns/${id}`),
+    request.delete<ResponseData<boolean>>(`/v1/ads/campaigns/${id}`),
   getCampaignAnalytics: (id: string) =>
-    request.get<ResponseData<any>>(`/ads/campaigns/${id}/analytics`),
+    request.get<ResponseData<any>>(`/v1/ads/campaigns/${id}/analytics`),
 
   // AI Ad Creator Assistant
   generateCopy: (data: { product_name: string; landing_url?: string; description?: string; lang?: string }) =>
@@ -137,15 +137,15 @@ const adService = {
       recommended_negative_keywords: string[];
       recommended_categories: string[];
       recommended_bid: number;
-    }>>('/ads/campaigns/generate-copy', { data }),
+    }>>('/v1/ads/campaigns/generate-copy', { data }),
 
   // Billing
   depositFunds: (amount: number, description: string = 'Top-Up') =>
-    request.post<ResponseData<{ balance: number; currency: string }>>('/ads/billing/deposit', {
+    request.post<ResponseData<{ balance: number; currency: string }>>('/v1/ads/billing/deposit', {
       data: { amount, description },
     }),
   listTransactions: () =>
-    request.get<ResponseData<AdTransactionItem[]>>('/ads/billing/transactions'),
+    request.get<ResponseData<AdTransactionItem[]>>('/v1/ads/billing/transactions'),
 
   // Promo Codes
   validatePromo: (data: { code: string; purpose: string; amount_usd: number; plan_id?: string }) =>
@@ -158,249 +158,249 @@ const adService = {
       bonus_usd: number;
       original_amount_usd: number;
       final_amount_usd: number;
-    }>>('/ads/promo/validate', { data }),
-  adminListPromoCodes: () => request.get<ResponseData<PromoCodeItem[]>>('/ads/admin/promo-codes'),
+    }>>('/v1/ads/promo/validate', { data }),
+  adminListPromoCodes: () => request.get<ResponseData<PromoCodeItem[]>>('/v1/ads/admin/promo-codes'),
   adminCreatePromoCode: (data: Partial<PromoCodeItem> & { expires_days?: number }) =>
-    request.post<ResponseData<{ id: string; code: string }>>('/ads/admin/promo-codes', { data }),
-  adminTogglePromoCode: (id: string) => request.put<ResponseData<{ id: string; is_active: boolean }>>(`/ads/admin/promo-codes/${id}/toggle`),
-  adminDeletePromoCode: (id: string) => request.delete<ResponseData<boolean>>(`/ads/admin/promo-codes/${id}`),
+    request.post<ResponseData<{ id: string; code: string }>>('/v1/ads/admin/promo-codes', { data }),
+  adminTogglePromoCode: (id: string) => request.put<ResponseData<{ id: string; is_active: boolean }>>(`/v1/ads/admin/promo-codes/${id}/toggle`),
+  adminDeletePromoCode: (id: string) => request.delete<ResponseData<boolean>>(`/v1/ads/admin/promo-codes/${id}`),
 
   // A/B Testing & Variants
   getCampaignVariants: (campaignId: string) =>
-    request.get<ResponseData<AdVariantItem[]>>(`/ads/campaigns/${campaignId}/variants`),
+    request.get<ResponseData<AdVariantItem[]>>(`/v1/ads/campaigns/${campaignId}/variants`),
   createCampaignVariant: (campaignId: string, data: { name: string; advertisement_text: string; landing_url?: string; weight?: number; is_active?: boolean }) =>
-    request.post<ResponseData<AdVariantItem>>(`/ads/campaigns/${campaignId}/variants`, { data }),
+    request.post<ResponseData<AdVariantItem>>(`/v1/ads/campaigns/${campaignId}/variants`, { data }),
   updateCampaignVariant: (campaignId: string, variantId: string, data: Partial<AdVariantItem>) =>
-    request.put<ResponseData<AdVariantItem>>(`/ads/campaigns/${campaignId}/variants/${variantId}`, { data }),
+    request.put<ResponseData<AdVariantItem>>(`/v1/ads/campaigns/${campaignId}/variants/${variantId}`, { data }),
   toggleCampaignVariant: (campaignId: string, variantId: string) =>
-    request.put<ResponseData<{ id: string; is_active: boolean }>>(`/ads/campaigns/${campaignId}/variants/${variantId}/toggle`),
+    request.put<ResponseData<{ id: string; is_active: boolean }>>(`/v1/ads/campaigns/${campaignId}/variants/${variantId}/toggle`),
   deleteCampaignVariant: (campaignId: string, variantId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/campaigns/${campaignId}/variants/${variantId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/campaigns/${campaignId}/variants/${variantId}`),
 
   // Analytics & Charts
   getAdvertiserTimeline: (days: number = 14) =>
-    request.get<ResponseData<TimelineAnalyticsData>>(`/ads/analytics/timeline?days=${days}`),
+    request.get<ResponseData<TimelineAnalyticsData>>(`/v1/ads/analytics/timeline?days=${days}`),
   getCampaignAnalyticsDetailed: (campaignId: string, days: number = 14) =>
-    request.get<ResponseData<CampaignDetailedAnalyticsData>>(`/ads/campaigns/${campaignId}/analytics/detailed?days=${days}`),
+    request.get<ResponseData<CampaignDetailedAnalyticsData>>(`/v1/ads/campaigns/${campaignId}/analytics/detailed?days=${days}`),
   getAdminOverviewTimeline: (days: number = 14) =>
-    request.get<ResponseData<AdminTimelineData>>(`/ads/admin/analytics/overview-timeline?days=${days}`),
+    request.get<ResponseData<AdminTimelineData>>(`/v1/ads/admin/analytics/overview-timeline?days=${days}`),
 
   // Admin Controls
-  getAdminOverview: () => request.get<ResponseData<AdminAdsOverview>>('/ads/admin/overview'),
-  getAdminModerationQueue: () => request.get<ResponseData<any[]>>('/ads/admin/moderation'),
-  approveCampaign: (id: string) => request.post<ResponseData<any>>(`/ads/admin/moderation/${id}/approve`),
+  getAdminOverview: () => request.get<ResponseData<AdminAdsOverview>>('/v1/ads/admin/overview'),
+  getAdminModerationQueue: () => request.get<ResponseData<any[]>>('/v1/ads/admin/moderation'),
+  approveCampaign: (id: string) => request.post<ResponseData<any>>(`/v1/ads/admin/moderation/${id}/approve`),
   rejectCampaign: (id: string, note?: string) =>
-    request.post<ResponseData<any>>(`/ads/admin/moderation/${id}/reject`, { data: { note } }),
-  getAdminSettings: () => request.get<ResponseData<AdminAdsSettings>>('/ads/admin/settings'),
+    request.post<ResponseData<any>>(`/v1/ads/admin/moderation/${id}/reject`, { data: { note } }),
+  getAdminSettings: () => request.get<ResponseData<AdminAdsSettings>>('/v1/ads/admin/settings'),
   updateAdminSettings: (data: Partial<AdminAdsSettings>) =>
-    request.post<ResponseData<boolean>>('/ads/admin/settings', { data }),
+    request.post<ResponseData<boolean>>('/v1/ads/admin/settings', { data }),
 
   // AI Campaign Optimizer & Copilot
   getAdvertiserInsights: () =>
-    request.get<ResponseData<AdvertiserInsightsData>>('/ads/insights'),
+    request.get<ResponseData<AdvertiserInsightsData>>('/v1/ads/insights'),
   getCampaignInsights: (campaignId: string) =>
-    request.get<ResponseData<CampaignInsightItem[]>>(`/ads/campaigns/${campaignId}/insights`),
+    request.get<ResponseData<CampaignInsightItem[]>>(`/v1/ads/campaigns/${campaignId}/insights`),
   applyCampaignInsight: (campaignId: string, insightType: string, actionPayload: any) =>
-    request.post<ResponseData<{ success: boolean; message: string }>>(`/ads/campaigns/${campaignId}/apply-insight`, {
+    request.post<ResponseData<{ success: boolean; message: string }>>(`/v1/ads/campaigns/${campaignId}/apply-insight`, {
       data: { insight_type: insightType, action_payload: actionPayload },
     }),
 
   // Conversion Pixel & Smart Bidding
-  getPixelSnippet: () => request.get<ResponseData<PixelSnippetData>>('/ads/pixel/snippet'),
+  getPixelSnippet: () => request.get<ResponseData<PixelSnippetData>>('/v1/ads/pixel/snippet'),
   testPixelTrack: (data: { pixel_id: string; event: string; value?: number; order_id?: string }) =>
-    request.post<ResponseData<any>>('/ads/pixel/track', { data }),
+    request.post<ResponseData<any>>('/v1/ads/pixel/track', { data }),
 
   // Attribution & Watermark Analytics
-  getAttributionStats: () => request.get<ResponseData<AttributionStatsData>>('/ads/attribution/stats'),
+  getAttributionStats: () => request.get<ResponseData<AttributionStatsData>>('/v1/ads/attribution/stats'),
 
   // Geo Targeting
-  getGeoRegions: () => request.get<ResponseData<GeoRegionItem[]>>('/ads/geo/regions'),
+  getGeoRegions: () => request.get<ResponseData<GeoRegionItem[]>>('/v1/ads/geo/regions'),
 
   // Recurring Subscriptions & Saved Cards
   getUserSubscription: () =>
-    request.get<ResponseData<UserSubscriptionData>>('/ads/billing/subscription'),
+    request.get<ResponseData<UserSubscriptionData>>('/v1/ads/billing/subscription'),
   cancelSubscription: (immediate: boolean = false) =>
-    request.post<ResponseData<{ success: boolean; status: string; cancel_at_period_end?: boolean; valid_until?: number }>>('/ads/billing/subscription/cancel', { data: { immediate } }),
+    request.post<ResponseData<{ success: boolean; status: string; cancel_at_period_end?: boolean; valid_until?: number }>>('/v1/ads/billing/subscription/cancel', { data: { immediate } }),
   resumeSubscription: () =>
-    request.post<ResponseData<{ success: boolean; status: string; auto_renew: boolean; next_billing_time: number }>>('/ads/billing/subscription/resume'),
+    request.post<ResponseData<{ success: boolean; status: string; auto_renew: boolean; next_billing_time: number }>>('/v1/ads/billing/subscription/resume'),
   getSavedPaymentMethods: () =>
-    request.get<ResponseData<SavedPaymentMethodItem[]>>('/ads/billing/payment-methods'),
+    request.get<ResponseData<SavedPaymentMethodItem[]>>('/v1/ads/billing/payment-methods'),
   deleteSavedPaymentMethod: (cardId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/billing/payment-methods/${cardId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/billing/payment-methods/${cardId}`),
   adminProcessRenewals: () =>
-    request.post<ResponseData<{ processed: number; renewed: number; failed: number }>>('/ads/admin/subscriptions/process-renewals'),
+    request.post<ResponseData<{ processed: number; renewed: number; failed: number }>>('/v1/ads/admin/subscriptions/process-renewals'),
   // Team Collaboration & Granular Permissions
   getTeamMembers: () =>
-    request.get<ResponseData<TeamMemberItem[]>>('/ads/team'),
+    request.get<ResponseData<TeamMemberItem[]>>('/v1/ads/team'),
   inviteTeamMember: (data: { email: string; role: string }) =>
-    request.post<ResponseData<TeamMemberItem>>('/ads/team/invite', { data }),
+    request.post<ResponseData<TeamMemberItem>>('/v1/ads/team/invite', { data }),
   updateTeamMemberRole: (memberId: string, role: string) =>
-    request.put<ResponseData<TeamMemberItem>>(`/ads/team/${memberId}/role`, { data: { role } }),
+    request.put<ResponseData<TeamMemberItem>>(`/v1/ads/team/${memberId}/role`, { data: { role } }),
   deleteTeamMember: (memberId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/team/${memberId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/team/${memberId}`),
 
   // Notification Center & Multi-Channel Alerts
   getNotifications: (params?: { limit?: number; unread_only?: boolean }) =>
-    request.get<ResponseData<NotificationData>>('/ads/notifications', { params }),
+    request.get<ResponseData<NotificationData>>('/v1/ads/notifications', { params }),
   markNotificationsRead: (data?: { notification_id?: string; all?: boolean }) =>
-    request.post<ResponseData<{ updated_count: number }>>('/ads/notifications/read', { data }),
+    request.post<ResponseData<{ updated_count: number }>>('/v1/ads/notifications/read', { data }),
   getNotificationSettings: () =>
-    request.get<ResponseData<NotificationSettingsData>>('/ads/notifications/settings'),
+    request.get<ResponseData<NotificationSettingsData>>('/v1/ads/notifications/settings'),
   updateNotificationSettings: (data: Partial<NotificationSettingsData>) =>
-    request.post<ResponseData<NotificationSettingsData>>('/ads/notifications/settings', { data }),
+    request.post<ResponseData<NotificationSettingsData>>('/v1/ads/notifications/settings', { data }),
   sendTestNotification: (channel: string = 'all') =>
-    request.post<ResponseData<NotificationItem>>('/ads/notifications/test', { data: { channel } }),
+    request.post<ResponseData<NotificationItem>>('/v1/ads/notifications/test', { data: { channel } }),
 
   // Advertiser General Settings & Defaults
   getAdvertiserSettings: () =>
-    request.get<ResponseData<AdvertiserSettingsData>>('/ads/settings'),
+    request.get<ResponseData<AdvertiserSettingsData>>('/v1/ads/settings'),
   updateAdvertiserSettings: (data: Partial<AdvertiserSettingsData>) =>
-    request.post<ResponseData<AdvertiserSettingsData>>('/ads/settings', { data }),
+    request.post<ResponseData<AdvertiserSettingsData>>('/v1/ads/settings', { data }),
 
   // Audience Retargeting & Segments
   getAudienceSegments: () =>
-    request.get<ResponseData<AudienceSegmentItem[]>>('/ads/audiences'),
+    request.get<ResponseData<AudienceSegmentItem[]>>('/v1/ads/audiences'),
   createAudienceSegment: (data: { name: string; description?: string; rule_type: string; rule_config?: any }) =>
-    request.post<ResponseData<AudienceSegmentItem>>('/ads/audiences', { data }),
+    request.post<ResponseData<AudienceSegmentItem>>('/v1/ads/audiences', { data }),
   deleteAudienceSegment: (segmentId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/audiences/${segmentId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/audiences/${segmentId}`),
   addAudienceMember: (segmentId: string, data: { user_id?: string; anonymous_id?: string; source_event?: string }) =>
-    request.post<ResponseData<any>>(`/ads/audiences/${segmentId}/members`, { data }),
+    request.post<ResponseData<any>>(`/v1/ads/audiences/${segmentId}/members`, { data }),
 
   // Publisher Monetization & Partner SDK
   getPublisherProfile: () =>
-    request.get<ResponseData<PublisherProfileData>>('/ads/publisher'),
+    request.get<ResponseData<PublisherProfileData>>('/v1/ads/publisher'),
   regeneratePublisherKey: () =>
-    request.post<ResponseData<{ api_key: string }>>('/ads/publisher/key/regenerate'),
+    request.post<ResponseData<{ api_key: string }>>('/v1/ads/publisher/key/regenerate'),
   getPublisherPlacements: () =>
-    request.get<ResponseData<PlacementItem[]>>('/ads/publisher/placements'),
+    request.get<ResponseData<PlacementItem[]>>('/v1/ads/publisher/placements'),
   createPublisherPlacement: (data: { name: string; placement_type: string; domain_or_bot?: string; rev_share_rate?: number }) =>
-    request.post<ResponseData<PlacementItem>>('/ads/publisher/placements', { data }),
+    request.post<ResponseData<PlacementItem>>('/v1/ads/publisher/placements', { data }),
   deletePublisherPlacement: (placementId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/publisher/placements/${placementId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/publisher/placements/${placementId}`),
   getPublisherPayouts: () =>
-    request.get<ResponseData<PublisherPayoutItem[]>>('/ads/publisher/payouts'),
+    request.get<ResponseData<PublisherPayoutItem[]>>('/v1/ads/publisher/payouts'),
   requestPublisherPayout: (data: { amount: number; destination_card: string; destination_holder?: string }) =>
-    request.post<ResponseData<PublisherPayoutItem>>('/ads/publisher/payouts', { data }),
+    request.post<ResponseData<PublisherPayoutItem>>('/v1/ads/publisher/payouts', { data }),
   // Anti-Fraud & IVT Protection
   getFraudOverview: () =>
-    request.get<ResponseData<FraudOverviewData>>('/ads/fraud/overview'),
+    request.get<ResponseData<FraudOverviewData>>('/v1/ads/fraud/overview'),
   getFraudBlacklist: () =>
-    request.get<ResponseData<BlacklistEntryItem[]>>('/ads/fraud/blacklist'),
+    request.get<ResponseData<BlacklistEntryItem[]>>('/v1/ads/fraud/blacklist'),
   addFraudBlacklist: (data: { ip_address: string; reason?: string; duration_hours?: number }) =>
-    request.post<ResponseData<BlacklistEntryItem>>('/ads/fraud/blacklist', { data }),
+    request.post<ResponseData<BlacklistEntryItem>>('/v1/ads/fraud/blacklist', { data }),
   removeFraudBlacklist: (blacklistId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/fraud/blacklist/${blacklistId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/fraud/blacklist/${blacklistId}`),
 
   // Smart Bidding & Dayparting
   getBiddingStrategies: () =>
-    request.get<ResponseData<BiddingStrategyItem[]>>('/ads/bidding/strategies'),
+    request.get<ResponseData<BiddingStrategyItem[]>>('/v1/ads/bidding/strategies'),
   getCampaignBidding: (campaignId: string) =>
-    request.get<ResponseData<CampaignBiddingInfo>>(`/ads/campaigns/${campaignId}/bidding`),
+    request.get<ResponseData<CampaignBiddingInfo>>(`/v1/ads/campaigns/${campaignId}/bidding`),
   updateCampaignBidding: (campaignId: string, data: Partial<CampaignBiddingInfo>) =>
-    request.put<ResponseData<CampaignBiddingInfo>>(`/ads/campaigns/${campaignId}/bidding`, { data }),
+    request.put<ResponseData<CampaignBiddingInfo>>(`/v1/ads/campaigns/${campaignId}/bidding`, { data }),
 
   // Dynamic Creative Optimization (DCO) & Real-time Contextual Ad Insertion
   getCampaignDco: (campaignId: string) =>
-    request.get<ResponseData<CampaignDcoInfo>>(`/ads/campaigns/${campaignId}/dco`),
+    request.get<ResponseData<CampaignDcoInfo>>(`/v1/ads/campaigns/${campaignId}/dco`),
   updateCampaignDco: (campaignId: string, data: { dco_enabled: boolean; dco_config: DcoConfig }) =>
-    request.put<ResponseData<CampaignDcoInfo>>(`/ads/campaigns/${campaignId}/dco`, { data }),
+    request.put<ResponseData<CampaignDcoInfo>>(`/v1/ads/campaigns/${campaignId}/dco`, { data }),
   previewCampaignDco: (campaignId: string, data: DcoPreviewRequest) =>
-    request.post<ResponseData<DcoPreviewResponse>>(`/ads/campaigns/${campaignId}/dco/preview`, { data }),
+    request.post<ResponseData<DcoPreviewResponse>>(`/v1/ads/campaigns/${campaignId}/dco/preview`, { data }),
 
   // Automated Rules (Auto-Pilot) & Predictive Budget Pacing (Phase 24)
   getRuleTemplates: () =>
-    request.get<ResponseData<RuleTemplateItem[]>>('/ads/rules/templates'),
+    request.get<ResponseData<RuleTemplateItem[]>>('/v1/ads/rules/templates'),
   getAutomatedRules: (campaignId?: string) =>
-    request.get<ResponseData<AutomatedRuleItem[]>>('/ads/rules', { params: { campaign_id: campaignId } }),
+    request.get<ResponseData<AutomatedRuleItem[]>>('/v1/ads/rules', { params: { campaign_id: campaignId } }),
   createAutomatedRule: (data: Partial<AutomatedRuleItem>) =>
-    request.post<ResponseData<AutomatedRuleItem>>('/ads/rules', { data }),
+    request.post<ResponseData<AutomatedRuleItem>>('/v1/ads/rules', { data }),
   updateAutomatedRule: (ruleId: string, data: Partial<AutomatedRuleItem>) =>
-    request.put<ResponseData<AutomatedRuleItem>>(`/ads/rules/${ruleId}`, { data }),
+    request.put<ResponseData<AutomatedRuleItem>>(`/v1/ads/rules/${ruleId}`, { data }),
   deleteAutomatedRule: (ruleId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/rules/${ruleId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/rules/${ruleId}`),
   toggleAutomatedRule: (ruleId: string) =>
-    request.post<ResponseData<AutomatedRuleItem>>(`/ads/rules/${ruleId}/toggle`),
+    request.post<ResponseData<AutomatedRuleItem>>(`/v1/ads/rules/${ruleId}/toggle`),
   evaluateAutomatedRules: (data?: { campaign_id?: string; rule_id?: string }) =>
-    request.post<ResponseData<{ rules_evaluated: number; actions_triggered: number; actions: any[] }>>('/ads/rules/evaluate', { data }),
+    request.post<ResponseData<{ rules_evaluated: number; actions_triggered: number; actions: any[] }>>('/v1/ads/rules/evaluate', { data }),
   getRuleExecutionLogs: (params?: { campaign_id?: string; limit?: number }) =>
-    request.get<ResponseData<RuleExecutionLogItem[]>>('/ads/rules/logs', { params }),
+    request.get<ResponseData<RuleExecutionLogItem[]>>('/v1/ads/rules/logs', { params }),
   getCampaignPacing: (campaignId: string) =>
-    request.get<ResponseData<CampaignPacingInfo>>(`/ads/campaigns/${campaignId}/pacing`),
+    request.get<ResponseData<CampaignPacingInfo>>(`/v1/ads/campaigns/${campaignId}/pacing`),
   updateCampaignPacing: (campaignId: string, data: { pacing_mode: string }) =>
-    request.put<ResponseData<CampaignPacingInfo>>(`/ads/campaigns/${campaignId}/pacing`, { data }),
+    request.put<ResponseData<CampaignPacingInfo>>(`/v1/ads/campaigns/${campaignId}/pacing`, { data }),
   getAttributionSummary: (params?: { model?: string; days?: number }) =>
-    request.get<ResponseData<AttributionSummaryResponse>>('/ads/attribution/summary', { params }),
+    request.get<ResponseData<AttributionSummaryResponse>>('/v1/ads/attribution/summary', { params }),
   getAttributionPaths: (params?: { limit?: number }) =>
-    request.get<ResponseData<ConversionJourneyPath[]>>('/ads/attribution/paths', { params }),
+    request.get<ResponseData<ConversionJourneyPath[]>>('/v1/ads/attribution/paths', { params }),
   getAttributionFunnel: (params?: { days?: number }) =>
-    request.get<ResponseData<FunnelAnalyticsResponse>>('/ads/attribution/funnel', { params }),
+    request.get<ResponseData<FunnelAnalyticsResponse>>('/v1/ads/attribution/funnel', { params }),
   // Phase 26: Lookalikes & Predictive LTV Methods
   getLookalikes: () =>
-    request.get<ResponseData<LookalikeAudienceItem[]>>('/ads/audiences/lookalikes'),
+    request.get<ResponseData<LookalikeAudienceItem[]>>('/v1/ads/audiences/lookalikes'),
   createLookalike: (data: CreateLookalikeRequest) =>
-    request.post<ResponseData<LookalikeAudienceItem>>('/ads/audiences/lookalikes', { data }),
+    request.post<ResponseData<LookalikeAudienceItem>>('/v1/ads/audiences/lookalikes', { data }),
   deleteLookalike: (lookalikeId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/audiences/lookalikes/${lookalikeId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/audiences/lookalikes/${lookalikeId}`),
   getLtvOverview: () =>
-    request.get<ResponseData<CustomerLtvOverviewResponse>>('/ads/audiences/ltv-overview'),
+    request.get<ResponseData<CustomerLtvOverviewResponse>>('/v1/ads/audiences/ltv-overview'),
   syncCustomerLtv: (data: SyncCustomerLtvRequest) =>
-    request.post<ResponseData<any>>('/ads/audiences/ltv-sync', { data }),
+    request.post<ResponseData<any>>('/v1/ads/audiences/ltv-sync', { data }),
   // Phase 27: Multi-Format Creative Studio & Product Feeds (DPA) Methods
   generateCreativeMatrix: (data: GenerateCreativeMatrixRequest) =>
-    request.post<ResponseData<CreativeMatrixResponse>>('/ads/creatives/generate-matrix', { data }),
+    request.post<ResponseData<CreativeMatrixResponse>>('/v1/ads/creatives/generate-matrix', { data }),
   getCreativeHealthScore: (campaignId: string) =>
-    request.get<ResponseData<CreativeHealthScoreResponse>>(`/ads/creatives/health-score/${campaignId}`),
+    request.get<ResponseData<CreativeHealthScoreResponse>>(`/v1/ads/creatives/health-score/${campaignId}`),
   getProductFeeds: () =>
-    request.get<ResponseData<ProductFeedItem[]>>('/ads/feeds'),
+    request.get<ResponseData<ProductFeedItem[]>>('/v1/ads/feeds'),
   createProductFeed: (data: CreateProductFeedRequest) =>
-    request.post<ResponseData<ProductFeedItem>>('/ads/feeds', { data }),
+    request.post<ResponseData<ProductFeedItem>>('/v1/ads/feeds', { data }),
   deleteProductFeed: (feedId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/feeds/${feedId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/feeds/${feedId}`),
   getFeedItems: (feedId: string, params?: { category?: string; search?: string; limit?: number }) =>
-    request.get<ResponseData<ProductSkuItem[]>>(`/ads/feeds/${feedId}/items`, { params }),
+    request.get<ResponseData<ProductSkuItem[]>>(`/v1/ads/feeds/${feedId}/items`, { params }),
   addFeedItem: (feedId: string, data: any) =>
-    request.post<ResponseData<ProductSkuItem>>(`/ads/feeds/${feedId}/items`, { data }),
+    request.post<ResponseData<ProductSkuItem>>(`/v1/ads/feeds/${feedId}/items`, { data }),
   // Phase 28: Enterprise Agency Hub, Sub-Accounts & White-Label Reporting Methods
   getAgencyWorkspace: () =>
-    request.get<ResponseData<AgencyWorkspace>>('/ads/agency/workspace'),
+    request.get<ResponseData<AgencyWorkspace>>('/v1/ads/agency/workspace'),
   updateAgencyWorkspace: (data: UpdateAgencyWorkspaceRequest) =>
-    request.put<ResponseData<AgencyWorkspace>>('/ads/agency/workspace', { data }),
+    request.put<ResponseData<AgencyWorkspace>>('/v1/ads/agency/workspace', { data }),
   getAgencyClients: () =>
-    request.get<ResponseData<AgencyClient[]>>('/ads/agency/clients'),
+    request.get<ResponseData<AgencyClient[]>>('/v1/ads/agency/clients'),
   createAgencyClient: (data: CreateAgencyClientRequest) =>
-    request.post<ResponseData<AgencyClient>>('/ads/agency/clients', { data }),
+    request.post<ResponseData<AgencyClient>>('/v1/ads/agency/clients', { data }),
   deleteAgencyClient: (clientId: string) =>
-    request.delete<ResponseData<{ deleted: boolean }>>(`/ads/agency/clients/${clientId}`),
+    request.delete<ResponseData<{ deleted: boolean }>>(`/v1/ads/agency/clients/${clientId}`),
   getAgencyMembers: () =>
-    request.get<ResponseData<AgencyMember[]>>('/ads/agency/members'),
+    request.get<ResponseData<AgencyMember[]>>('/v1/ads/agency/members'),
   inviteAgencyMember: (data: InviteAgencyMemberRequest) =>
-    request.post<ResponseData<AgencyMember>>('/ads/agency/members/invite', { data }),
+    request.post<ResponseData<AgencyMember>>('/v1/ads/agency/members/invite', { data }),
   removeAgencyMember: (memberId: string) =>
-    request.delete<ResponseData<{ removed: boolean }>>(`/ads/agency/members/${memberId}`),
+    request.delete<ResponseData<{ removed: boolean }>>(`/v1/ads/agency/members/${memberId}`),
   getExecutiveReport: (params?: { client_id?: string; days?: number; custom_title?: string }) =>
-    request.get<ResponseData<ExecutiveReportData>>('/ads/agency/reports/executive', { params }),
+    request.get<ResponseData<ExecutiveReportData>>('/v1/ads/agency/reports/executive', { params }),
   shareAgencyReport: (data: { client_id?: string; report_title?: string; days?: number }) =>
-    request.post<ResponseData<ShareReportResponse>>('/ads/agency/reports/share', { data }),
+    request.post<ResponseData<ShareReportResponse>>('/v1/ads/agency/reports/share', { data }),
   getPublicSharedReport: (shareToken: string) =>
-    request.get<ResponseData<ExecutiveReportData>>(`/ads/agency/reports/shared/${shareToken}`),
+    request.get<ResponseData<ExecutiveReportData>>(`/v1/ads/agency/reports/shared/${shareToken}`),
   // Phase 36: Cross-Platform Omni-Channel Ads Bridge
   getOmniAccounts: () =>
-    request.get<ResponseData<OmniAccountItem[]>>('/ads/omnichannel/accounts'),
+    request.get<ResponseData<OmniAccountItem[]>>('/v1/ads/omnichannel/accounts'),
   connectOmniAccount: (data: ConnectOmniAccountRequest) =>
-    request.post<ResponseData<any>>('/ads/omnichannel/accounts', { data }),
+    request.post<ResponseData<any>>('/v1/ads/omnichannel/accounts', { data }),
   disconnectOmniAccount: (accountId: string) =>
-    request.delete<ResponseData<{ success: boolean }>>(`/ads/omnichannel/accounts/${accountId}`),
+    request.delete<ResponseData<{ success: boolean }>>(`/v1/ads/omnichannel/accounts/${accountId}`),
   testOmniAccount: (accountId: string) =>
-    request.post<ResponseData<any>>(`/ads/omnichannel/accounts/${accountId}/test`),
+    request.post<ResponseData<any>>(`/v1/ads/omnichannel/accounts/${accountId}/test`),
   exportOmniCampaign: (data: ExportOmniCampaignRequest) =>
-    request.post<ResponseData<ExportOmniCampaignResponse>>('/ads/omnichannel/export-campaign', { data }),
+    request.post<ResponseData<ExportOmniCampaignResponse>>('/v1/ads/omnichannel/export-campaign', { data }),
   syncOmniAudience: (data: SyncOmniAudienceRequest) =>
-    request.post<ResponseData<any>>('/ads/omnichannel/sync-audience', { data }),
+    request.post<ResponseData<any>>('/v1/ads/omnichannel/sync-audience', { data }),
   getCrossPlatformAnalytics: (params?: { days?: number }) =>
-    request.get<ResponseData<CrossPlatformAnalyticsResponse>>('/ads/omnichannel/cross-platform-analytics', { params }),
+    request.get<ResponseData<CrossPlatformAnalyticsResponse>>('/v1/ads/omnichannel/cross-platform-analytics', { params }),
   getOmniSyncJobs: (params?: { limit?: number }) =>
-    request.get<ResponseData<OmniSyncJobItem[]>>('/ads/omnichannel/sync-jobs', { params }),
+    request.get<ResponseData<OmniSyncJobItem[]>>('/v1/ads/omnichannel/sync-jobs', { params }),
 };
 
 export interface DcoConfig {
