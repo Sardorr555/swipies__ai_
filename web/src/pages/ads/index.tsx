@@ -2169,7 +2169,7 @@ export default function SwipiesAdsPage({
     setIsAnalyticsModalOpen(true);
     try {
       const res = await adService.getCampaignAnalyticsDetailed(cmp.id, 14);
-      setAnalyticsData(res.data?.data || null);
+      setAnalyticsData(res?.data || null);
     } catch (err: any) {
       message.error('Failed to load campaign analytics');
     }
@@ -2179,8 +2179,8 @@ export default function SwipiesAdsPage({
     setLoadingVariants(true);
     try {
       const res = await adService.getCampaignVariants(campaignId);
-      if (res.data?.data) {
-        setVariantsList(res.data.data);
+      if (res?.data) {
+        setVariantsList(res.data);
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка загрузки вариантов объявления');
@@ -2256,9 +2256,9 @@ export default function SwipiesAdsPage({
         description: `Альтернативный продающий оффер для A/B тестирования: ${variantsCampaign.name}`,
         lang: 'ru',
       });
-      if (res.data?.data?.ad_copy_variations && res.data.data.ad_copy_variations.length > 0) {
-        const altIndex = Math.min(1, res.data.data.ad_copy_variations.length - 1);
-        setNewVariantText(res.data.data.ad_copy_variations[altIndex] || res.data.data.ad_copy_variations[0]);
+      if (res?.data?.ad_copy_variations && res.data.ad_copy_variations.length > 0) {
+        const altIndex = Math.min(1, res.data.ad_copy_variations.length - 1);
+        setNewVariantText(res.data.ad_copy_variations[altIndex] || res.data.ad_copy_variations[0]);
         if (!newVariantName) {
           setNewVariantName(`Вариант ${variantsList.length + 1} (AI Оффер)`);
         }
@@ -2276,8 +2276,8 @@ export default function SwipiesAdsPage({
     setLoadingPixel(true);
     try {
       const res = await adService.getPixelSnippet();
-      if (res.data?.data && res.data.data.snippet) {
-        setPixelData(res.data.data);
+      if (res?.data && res.data.snippet) {
+        setPixelData(res.data);
       } else {
         const pid = advSettings.pixel_id || `px_${dashboard?.advertiser_id?.slice(0, 16) || 'live_swipies'}`;
         setPixelData({
@@ -2318,7 +2318,7 @@ export default function SwipiesAdsPage({
         value: val,
         order_id: 'TEST-' + Math.floor(100000 + Math.random() * 900000),
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success(`Тестовая конверсия ($${val}) успешно зарегистрирована!`);
         fetchDashboard();
       }
@@ -2365,14 +2365,14 @@ export default function SwipiesAdsPage({
         adService.getCrossPlatformAnalytics({ days: 30 }),
         adService.getOmniSyncJobs({ limit: 50 }),
       ]);
-      if (accsRes.data?.data) {
-        setOmniAccounts(accsRes.data.data);
+      if (accsRes?.data) {
+        setOmniAccounts(accsRes.data);
       }
-      if (statsRes.data?.data) {
-        setCrossPlatformAnalytics(statsRes.data.data);
+      if (statsRes?.data) {
+        setCrossPlatformAnalytics(statsRes.data);
       }
-      if (jobsRes.data?.data) {
-        setOmniSyncJobs(jobsRes.data.data);
+      if (jobsRes?.data) {
+        setOmniSyncJobs(jobsRes.data);
       }
     } catch (err: any) {
       console.error('Failed to load omni-channel data', err);
@@ -2428,7 +2428,7 @@ export default function SwipiesAdsPage({
     if (!confirm('Отключить интеграцию с этим рекламным кабинетом?')) return;
     try {
       const res = await adService.disconnectOmniAccount(accountId);
-      if (res.data?.data?.success) {
+      if (res?.data?.success) {
         message.success('Аккаунт отключен');
         fetchOmniChannelData();
       }
@@ -2441,8 +2441,8 @@ export default function SwipiesAdsPage({
     setTestingOmniAccountId(accountId);
     try {
       const res = await adService.testOmniAccount(accountId);
-      if (res.data?.data?.status === 'connected') {
-        message.success(`✅ Пинг успешен: ${res.data.data.latency_ms}ms, API статус: Active`);
+      if (res?.data?.status === 'connected') {
+        message.success(`✅ Пинг успешен: ${res.data.latency_ms}ms, API статус: Active`);
         fetchOmniChannelData();
       } else {
         message.error('Ошибка проверки связи с API');
@@ -2487,9 +2487,9 @@ export default function SwipiesAdsPage({
         },
       });
 
-      if (res.data?.data) {
-        setExportResult(res.data.data);
-        message.success(res.data.data.message || 'Кампания успешно экспортирована!');
+      if (res?.data) {
+        setExportResult(res.data);
+        message.success(res.data.message || 'Кампания успешно экспортирована!');
         fetchOmniChannelData();
       }
     } catch (err: any) {
