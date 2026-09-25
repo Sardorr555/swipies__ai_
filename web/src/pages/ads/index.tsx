@@ -1209,8 +1209,8 @@ export default function SwipiesAdsPage({
     setLoadingAudiences(true);
     try {
       const res = await adService.getAudienceSegments();
-      if (res.data?.data) {
-        setAudiences(res.data.data);
+      if (res?.data) {
+        setAudiences(res.data);
       }
     } catch (err: any) {
       // silent
@@ -1232,7 +1232,7 @@ export default function SwipiesAdsPage({
         rule_type: audienceRuleType,
         rule_config: audienceRuleType === 'pixel_event' ? { event_type: audienceEvent } : {},
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Сегмент аудитории создан!');
         setIsAudienceModalOpen(false);
         setAudienceName('');
@@ -1249,7 +1249,7 @@ export default function SwipiesAdsPage({
   const handleDeleteAudience = async (id: string) => {
     try {
       const res = await adService.deleteAudienceSegment(id);
-      if (res.data?.data?.deleted) {
+      if (res?.data?.deleted) {
         message.success('Сегмент аудитории удален');
         fetchAudiences();
       }
@@ -1266,9 +1266,9 @@ export default function SwipiesAdsPage({
         adService.getPublisherPlacements(),
         adService.getPublisherPayouts(),
       ]);
-      if (pubRes.data?.data) setPublisher(pubRes.data.data);
-      if (plcRes.data?.data) setPlacements(plcRes.data.data);
-      if (payRes.data?.data) setPayouts(payRes.data.data);
+      if (pubRes?.data) setPublisher(pubRes.data);
+      if (plcRes?.data) setPlacements(plcRes.data);
+      if (payRes?.data) setPayouts(payRes.data);
     } catch (err: any) {
       // silent
     } finally {
@@ -1279,8 +1279,8 @@ export default function SwipiesAdsPage({
   const handleRegenerateKey = async () => {
     try {
       const res = await adService.regeneratePublisherKey();
-      if (res.data?.data?.api_key) {
-        setPublisher((prev) => (prev ? { ...prev, api_key: res.data.data.api_key } : null));
+      if (res?.data?.api_key) {
+        setPublisher((prev) => (prev ? { ...prev, api_key: res.data.api_key } : null));
         message.success('Новый API-ключ паблишера сгенерирован!');
       }
     } catch (err: any) {
@@ -1301,7 +1301,7 @@ export default function SwipiesAdsPage({
         domain_or_bot: newPlacementDomain.trim(),
         rev_share_rate: parseFloat(newPlacementRevShare) || 0.70,
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Рекламное место успешно создано!');
         setIsPlacementModalOpen(false);
         setNewPlacementName('');
@@ -1318,7 +1318,7 @@ export default function SwipiesAdsPage({
   const handleDeletePlacement = async (id: string) => {
     try {
       const res = await adService.deletePublisherPlacement(id);
-      if (res.data?.data?.deleted) {
+      if (res?.data?.deleted) {
         message.success('Размещение удалено');
         fetchPublisher();
       }
@@ -1344,7 +1344,7 @@ export default function SwipiesAdsPage({
         destination_card: payoutCard.trim(),
         destination_holder: payoutHolder.trim(),
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Заявка на выплату успешно создана и передана в обработку!');
         setIsPayoutModalOpen(false);
         setPayoutCard('');
@@ -1362,9 +1362,9 @@ export default function SwipiesAdsPage({
     setLoadingNotifs(true);
     try {
       const res = await adService.getNotifications();
-      if (res.data?.data) {
-        setNotifications(res.data.data.notifications || []);
-        setUnreadNotifCount(res.data.data.unread_count || 0);
+      if (res?.data) {
+        setNotifications(res.data.notifications || []);
+        setUnreadNotifCount(res.data.unread_count || 0);
       }
     } catch (err: any) {
       // silent
@@ -1397,8 +1397,8 @@ export default function SwipiesAdsPage({
   const fetchNotificationSettings = async () => {
     try {
       const res = await adService.getNotificationSettings();
-      if (res.data?.data) {
-        setNotifSettings(res.data.data);
+      if (res?.data) {
+        setNotifSettings(res.data);
       }
     } catch (err: any) {
       // silent
@@ -1410,8 +1410,8 @@ export default function SwipiesAdsPage({
     setSavingNotifSettings(true);
     try {
       const res = await adService.updateNotificationSettings(notifSettings);
-      if (res.data?.data) {
-        setNotifSettings(res.data.data);
+      if (res?.data) {
+        setNotifSettings(res.data);
       }
       message.success('Настройки оповещений сохранены');
       setIsNotifSettingsModalOpen(false);
@@ -1439,8 +1439,8 @@ export default function SwipiesAdsPage({
     setLoadingInsights(true);
     try {
       const res = await adService.getAdvertiserInsights();
-      if (res.data?.data) {
-        setInsightsData(res.data.data);
+      if (res?.data) {
+        setInsightsData(res.data);
       }
     } catch (err: any) {
       // silently handle
@@ -1457,8 +1457,8 @@ export default function SwipiesAdsPage({
         insight.type,
         insight.action_payload
       );
-      if (res.data?.data?.success) {
-        message.success(res.data.data.message || 'Рекомендация успешно применена!');
+      if (res?.data?.success) {
+        message.success(res.data.message || 'Рекомендация успешно применена!');
         fetchInsights();
         fetchDashboard();
       }
@@ -1473,8 +1473,8 @@ export default function SwipiesAdsPage({
     setLoadingTimeline(true);
     try {
       const res = await adService.getAdvertiserTimeline(days);
-      if (res.data?.data) {
-        setTimelineData(res.data.data);
+      if (res?.data) {
+        setTimelineData(res.data);
       }
     } catch (err: any) {
       console.error('Failed to load timeline analytics', err);
@@ -1486,8 +1486,8 @@ export default function SwipiesAdsPage({
   const fetchTransactions = async () => {
     try {
       const res = await adService.listTransactions();
-      if (res.data?.data) {
-        setTransactions(res.data.data);
+      if (res?.data) {
+        setTransactions(res.data);
       }
     } catch (err: any) {
       console.error(err);
@@ -1497,8 +1497,8 @@ export default function SwipiesAdsPage({
   const fetchSubscription = async () => {
     try {
       const res = await adService.getUserSubscription();
-      if (res.data?.data) {
-        setSubscription(res.data.data);
+      if (res?.data) {
+        setSubscription(res.data);
       }
     } catch (err: any) {
       console.error('Failed to load subscription info', err);
@@ -1508,8 +1508,8 @@ export default function SwipiesAdsPage({
   const fetchSavedCards = async () => {
     try {
       const res = await adService.getSavedPaymentMethods();
-      if (res.data?.data) {
-        setSavedCards(res.data.data);
+      if (res?.data) {
+        setSavedCards(res.data);
       }
     } catch (err: any) {
       console.error('Failed to load saved cards', err);
