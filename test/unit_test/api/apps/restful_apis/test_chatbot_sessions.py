@@ -109,11 +109,11 @@ def _load_bot_api_for_sessions(monkeypatch, *, dialog_exists=True, dialog_tenant
     _stub(monkeypatch, "api.db.services.dialog_service", DialogService=dialog_service, async_ask=lambda *_a, **_k: None, gen_mindmap=lambda *_a, **_k: None)
     _stub(monkeypatch, "api.db.services.doc_metadata_service", DocMetadataService=SimpleNamespace())
     _stub(monkeypatch, "api.db.services.knowledgebase_service", KnowledgebaseService=SimpleNamespace())
-    _stub(monkeypatch, "api.db.services.llm_service", LLMBundle=SimpleNamespace())
+    _stub(monkeypatch, "api.db.services.llm_service", LLMBundle=SimpleNamespace(), resolve_llm_setting=lambda *_a, **_k: {})
     _stub(monkeypatch, "common.metadata_utils", apply_meta_data_filter=lambda *_a, **_k: None)
     _stub(monkeypatch, "api.db.services.search_service", SearchService=SimpleNamespace())
     _stub(monkeypatch, "api.db.services.user_service", TenantService=SimpleNamespace(), UserTenantService=SimpleNamespace())
-    _stub(monkeypatch, "api.db.joint_services.tenant_model_service", get_tenant_default_model_by_type=lambda *_a, **_k: None, get_model_config_from_provider_instance=lambda *_a, **_k: None)
+    _stub(monkeypatch, "api.db.joint_services.tenant_model_service", get_tenant_default_model_by_type=lambda *_a, **_k: None, get_model_config_from_provider_instance=lambda *_a, **_k: None, resolve_model_config=lambda *_a, **_k: None)
     _stub(monkeypatch, "common.misc_utils", get_uuid=lambda: "uuid", thread_pool_exec=_passthrough_thread_pool_exec)
     _stub(
         monkeypatch,
@@ -127,7 +127,7 @@ def _load_bot_api_for_sessions(monkeypatch, *, dialog_exists=True, dialog_tenant
         server_error_response=lambda exc: {"code": 500, "message": str(exc)},
         validate_request=lambda *_a, **_k: lambda func: func,
     )
-    _stub(monkeypatch, "api.utils.pagination_utils", validate_rest_api_page_size=lambda size: min(max(size, 1), 100))
+    _stub(monkeypatch, "api.utils.pagination_utils", DEFAULT_PAGE=1, DEFAULT_PAGE_SIZE=30, validate_rest_api_page=lambda p: max(p, 1), validate_rest_api_page_size=lambda size: min(max(size, 1), 100))
     _stub(monkeypatch, "rag.app.tag", label_question=lambda *_a, **_k: None)
     _stub(monkeypatch, "rag.prompts.template", load_prompt=lambda *_a, **_k: "")
     _stub(monkeypatch, "rag.prompts.generator", cross_languages=lambda *_a, **_k: None, keyword_extraction=lambda *_a, **_k: None)
@@ -135,6 +135,7 @@ def _load_bot_api_for_sessions(monkeypatch, *, dialog_exists=True, dialog_tenant
     _stub(monkeypatch, "common", settings=SimpleNamespace())
     _stub(monkeypatch, "common.settings", retriever=SimpleNamespace(), kg_retriever=SimpleNamespace())
     _stub(monkeypatch, "api.utils.reference_metadata_utils", enrich_chunks_with_document_metadata=lambda *_a, **_k: None, resolve_reference_metadata_preferences=lambda *_a, **_k: None)
+    _stub(monkeypatch, "rag.utils.web_search_conn", has_web_search_provider=lambda *_a, **_k: False)
 
     repo_root = Path(__file__).resolve().parents[5]
     module_path = repo_root / "api" / "apps" / "restful_apis" / "bot_api.py"
