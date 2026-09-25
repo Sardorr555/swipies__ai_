@@ -274,3 +274,7 @@ ragflow_deps/*.zip
 # external DeepDoc testdata, fetched on demand via scripts/fetch_deepdoc_testdata.sh
 # (symlinked into place from ~/.cache/ragflow-testdata; never committed)
 internal/deepdoc/native/testdata
+
+# Local generated secret keys
+.secret_key
+**/.secret_key

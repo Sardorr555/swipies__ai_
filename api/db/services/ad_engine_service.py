@@ -127,14 +127,14 @@ class AdvertiserService(CommonService):
 
     @classmethod
     @DB.connection_context()
-    def get_or_create_for_user(cls, user_id: str, tenant_id: str, company_name: str = "", contact_email: str = "") -> Advertiser:
+    def get_or_create_for_user(cls, user_id: str, tenant_id: str = "", company_name: str = "", contact_email: str = "") -> Advertiser:
         adv = cls.model.get_or_none(cls.model.user_id == user_id)
         if not adv:
             adv_id = uuid.uuid4().hex[:32]
             pixel_id = "px_" + uuid.uuid4().hex[:16]
             adv = cls.model.create(
                 id=adv_id,
-                tenant_id=tenant_id,
+                tenant_id=tenant_id or user_id,
                 user_id=user_id,
                 company_name=company_name or f"Advertiser {user_id[:6]}",
                 contact_email=contact_email,

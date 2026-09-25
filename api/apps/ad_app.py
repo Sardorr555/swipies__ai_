@@ -37,6 +37,7 @@ from api.db.db_models import (
     PromoCode,
     PromoCodeUsage,
     User,
+    AdAudienceSegment,
 )
 from api.db.services.ad_engine_service import (
     AdvertiserService,
@@ -79,11 +80,14 @@ page_name = "ads"
 
 def require_superuser():
     if not getattr(current_user, "is_superuser", False):
-        return get_json_result(
+        resp = get_json_result(
             data=False,
             message="Superuser authorization required.",
             code=RetCode.AUTHENTICATION_ERROR,
         )
+        if hasattr(resp, "status_code"):
+            resp.status_code = 403
+        return resp
     return None
 
 
@@ -534,6 +538,17 @@ async def get_advertiser_insights():
 @login_required
 async def get_campaign_insights(campaign_id):
     try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            resp = get_json_result(data=False, message="Campaign not found", code=RetCode.NOT_FOUND)
+            if hasattr(resp, "status_code"):
+                resp.status_code = 404
+            return resp
+
         from api.db.services.ad_engine_service import AdOptimizerService
         insights = AdOptimizerService.generate_campaign_insights(campaign_id=campaign_id)
         return get_json_result(data=insights)
@@ -549,6 +564,14 @@ async def apply_campaign_insight(campaign_id):
         user_id = current_user.id
         tenant_id = getattr(current_user, "tenant_id", "") or user_id
         adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
+        if not cmp:
+            resp = get_json_result(data=False, message="Campaign not found", code=RetCode.NOT_FOUND)
+            if hasattr(resp, "status_code"):
+                resp.status_code = 404
+            return resp
+
         req = await get_request_json() or {}
         insight_type = req.get("insight_type", "").strip()
         action_payload = req.get("action_payload", {})
@@ -1159,6 +1182,21 @@ async def delete_audience(segment_id):
 async def add_audience_member(segment_id):
     req = await get_request_json() or {}
     try:
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+
+        seg = AdAudienceSegment.get_or_none(
+            AdAudienceSegment.id == segment_id,
+            AdAudienceSegment.advertiser_id == adv.id,
+            AdAudienceSegment.status != "deleted",
+        )
+        if not seg:
+            resp = get_json_result(data=False, message="Audience segment not found", code=RetCode.NOT_FOUND)
+            if hasattr(resp, "status_code"):
+                resp.status_code = 404
+            return resp
+
         from api.db.services.ad_engine_service import AdAudienceService
         member = AdAudienceService.add_member(
             segment_id=segment_id,
@@ -1973,6 +2011,9 @@ def delete_user_payment_method(card_id):
 @manager.route("/admin/subscriptions/process-renewals", methods=["POST"])
 @login_required
 def admin_process_subscription_renewals():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
     try:
         from api.db.services.recurring_subscription_service import RecurringSubscriptionService
         res = RecurringSubscriptionService.process_subscription_renewals()
@@ -2690,7 +2731,8 @@ async def get_creative_health_score(campaign_id):
     """Computes asset diversity and creative quality score with actionable optimization recommendations."""
     try:
         user_id = current_user.id
-        adv = AdvertiserService.get_or_create_for_user(user_id)
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         if not adv:
             return get_data_error_result(message="Advertiser profile not found")
 
@@ -2701,13 +2743,15 @@ async def get_creative_health_score(campaign_id):
         return get_data_error_result(message=str(e))
 
 
+@manager.route("/feeds", methods=["GET", "POST"])
 @manager.route("/v1/ads/feeds", methods=["GET", "POST"])
 @login_required
 async def manage_product_feeds():
     """List or create product feeds/catalogs for Dynamic Product Ads (DPA)."""
     try:
         user_id = current_user.id
-        adv = AdvertiserService.get_or_create_for_user(user_id)
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         if not adv:
             return get_data_error_result(message="Advertiser profile not found")
 
@@ -2735,20 +2779,25 @@ async def manage_product_feeds():
         return get_data_error_result(message=str(e))
 
 
+@manager.route("/feeds/<feed_id>", methods=["GET", "DELETE"])
 @manager.route("/v1/ads/feeds/<feed_id>", methods=["GET", "DELETE"])
 @login_required
 async def single_product_feed(feed_id):
     """Get feed details or delete catalog feed."""
     try:
         user_id = current_user.id
-        adv = AdvertiserService.get_or_create_for_user(user_id)
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         if not adv:
             return get_data_error_result(message="Advertiser profile not found")
 
         if request.method == "GET":
             feed = AdProductFeedService.get_feed(feed_id=feed_id, advertiser_id=adv.id)
             if not feed:
-                return get_data_error_result(message="Feed not found")
+                resp = get_json_result(data=False, message="Feed not found", code=RetCode.NOT_FOUND)
+                if hasattr(resp, "status_code"):
+                    resp.status_code = 404
+                return resp
             return get_json_result(data=feed)
 
         deleted = AdProductFeedService.delete_feed(feed_id=feed_id, advertiser_id=adv.id)
@@ -2758,15 +2807,25 @@ async def single_product_feed(feed_id):
         return get_data_error_result(message=str(e))
 
 
+@manager.route("/feeds/<feed_id>/items", methods=["GET", "POST"])
 @manager.route("/v1/ads/feeds/<feed_id>/items", methods=["GET", "POST"])
 @login_required
 async def feed_items_management(feed_id):
     """List or add/update SKUs in a product feed."""
     try:
         user_id = current_user.id
-        adv = AdvertiserService.get_or_create_for_user(user_id)
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         if not adv:
             return get_data_error_result(message="Advertiser profile not found")
+
+        # IDOR check: ensure feed exists and belongs to the authenticated advertiser
+        feed = AdProductFeedService.get_feed(feed_id=feed_id, advertiser_id=adv.id)
+        if not feed:
+            resp = get_json_result(data=False, message="Feed not found", code=RetCode.NOT_FOUND)
+            if hasattr(resp, "status_code"):
+                resp.status_code = 404
+            return resp
 
         if request.method == "GET":
             category = request.args.get("category")
