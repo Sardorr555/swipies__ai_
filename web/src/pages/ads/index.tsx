@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   Activity,
   AlertCircle,
+  AlertTriangle,
   BarChart3,
+  CheckCircle,
   CheckCircle2,
   Coins,
   CreditCard,
@@ -11,6 +13,7 @@ import {
   Edit3,
   ExternalLink,
   HelpCircle,
+  Info,
   Layers,
   Megaphone,
   MousePointer,
@@ -28,6 +31,7 @@ import {
   Globe,
   Smartphone,
   Laptop,
+  Monitor,
   Cpu,
   FlaskConical,
   Shuffle,
@@ -180,6 +184,9 @@ import adService, {
   CrossPlatformAnalyticsResponse,
   OmniSyncJobItem,
   AdvertiserSettingsData,
+  PixelSnippetData,
+  AdvertiserInsightsData,
+  CampaignInsightItem,
 } from '@/services/ad-service';
 import storage from '@/utils/authorization-util';
 import { changeLanguageAsync } from '@/locales/config';
@@ -293,7 +300,7 @@ export default function SwipiesAdsPage({
         const d = res.data.data;
         setAdvSettings(d);
         if (d.language && ['ru', 'en', 'uz'].includes(d.language)) {
-          setCurrentLang(d.language as AdLanguage);
+          setInternalLang(d.language as AdLanguage);
         }
       }
     } catch (e) {
