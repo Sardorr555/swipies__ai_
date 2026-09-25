@@ -296,8 +296,8 @@ export default function SwipiesAdsPage({
     setLoadingAdvSettings(true);
     try {
       const res = await adService.getAdvertiserSettings();
-      if (res.data?.data) {
-        const d = res.data.data;
+      if (res?.data) {
+        const d = res.data;
         setAdvSettings(d);
         if (d.language && ['ru', 'en', 'uz'].includes(d.language)) {
           setInternalLang(d.language as AdLanguage);
@@ -317,13 +317,13 @@ export default function SwipiesAdsPage({
         ...advSettings,
         language: currentLang,
       });
-      if (res.data?.code === 0) {
+      if (res?.code === 0) {
         message.success(t('settingsSavedSuccess'));
-        if (res.data.data) {
-          setAdvSettings(res.data.data);
+        if (res?.data) {
+          setAdvSettings(res.data);
         }
       } else {
-        message.error(res.data?.message || t('settingsSaveError'));
+        message.error(res?.message || t('settingsSaveError'));
       }
     } catch (e: any) {
       message.error(e.message || t('settingsSaveError'));
@@ -559,11 +559,11 @@ export default function SwipiesAdsPage({
         adService.getAttributionSummary({ model, days }),
         adService.getAttributionPaths({ limit: 20 }),
       ]);
-      if (sumRes.data?.data) {
-        setMtaSummary(sumRes.data.data);
+      if (sumRes?.data) {
+        setMtaSummary(sumRes.data);
       }
-      if (pathsRes.data?.data) {
-        setMtaPaths(pathsRes.data.data);
+      if (pathsRes?.data) {
+        setMtaPaths(pathsRes.data);
       }
     } catch (err: any) {
       console.error('Failed to load attribution data', err);
@@ -576,8 +576,8 @@ export default function SwipiesAdsPage({
     setLoadingFunnel(true);
     try {
       const res = await adService.getAttributionFunnel({ days });
-      if (res.data?.data) {
-        setFunnelData(res.data.data);
+      if (res?.data) {
+        setFunnelData(res.data);
       }
     } catch (err: any) {
       console.error('Failed to load funnel data', err);
@@ -621,8 +621,8 @@ export default function SwipiesAdsPage({
     setLoadingLookalikes(true);
     try {
       const res = await adService.getLookalikes();
-      if (res.data?.data) {
-        setLookalikes(res.data.data);
+      if (res?.data) {
+        setLookalikes(res.data);
       }
     } catch (err: any) {
       console.error('Failed to load lookalikes', err);
@@ -635,8 +635,8 @@ export default function SwipiesAdsPage({
     setLoadingLtv(true);
     try {
       const res = await adService.getLtvOverview();
-      if (res.data?.data) {
-        setLtvOverview(res.data.data);
+      if (res?.data) {
+        setLtvOverview(res.data);
       }
     } catch (err: any) {
       console.error('Failed to load LTV overview', err);
@@ -662,7 +662,7 @@ export default function SwipiesAdsPage({
         similarity_ratio: lookalikeSimilarity,
         country: lookalikeCountry,
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Lookalike аудитория успешно сгенерирована!');
         setIsCreateLookalikeModalOpen(false);
         setLookalikeName('');
@@ -678,7 +678,7 @@ export default function SwipiesAdsPage({
   const handleDeleteLookalike = async (id: string) => {
     try {
       const res = await adService.deleteLookalike(id);
-      if (res.data?.data?.deleted) {
+      if (res?.data?.deleted) {
         message.success('Lookalike аудитория удалена');
         fetchLookalikes();
       }
@@ -761,11 +761,11 @@ export default function SwipiesAdsPage({
     setLoadingFeeds(true);
     try {
       const res = await adService.getProductFeeds();
-      if (res.data?.data) {
-        setProductFeeds(res.data.data);
-        if (res.data.data.length > 0 && !selectedFeedId) {
-          setSelectedFeedId(res.data.data[0].id);
-          fetchFeedItems(res.data.data[0].id);
+      if (res?.data) {
+        setProductFeeds(res.data);
+        if (res.data.length > 0 && !selectedFeedId) {
+          setSelectedFeedId(res.data[0].id);
+          fetchFeedItems(res.data[0].id);
         }
       }
     } catch (err: any) {
@@ -779,8 +779,8 @@ export default function SwipiesAdsPage({
     setLoadingFeedItems(true);
     try {
       const res = await adService.getFeedItems(feedId);
-      if (res.data?.data) {
-        setFeedItems(res.data.data);
+      if (res?.data) {
+        setFeedItems(res.data);
       }
     } catch (err: any) {
       console.error('Failed to load feed items', err);
@@ -802,7 +802,7 @@ export default function SwipiesAdsPage({
         feed_url: feedUrl.trim() || undefined,
         currency: feedCurrency,
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Товарный каталог успешно создан!');
         setIsCreateFeedModalOpen(false);
         setFeedName('');
@@ -819,7 +819,7 @@ export default function SwipiesAdsPage({
   const handleDeleteProductFeed = async (feedId: string) => {
     try {
       const res = await adService.deleteProductFeed(feedId);
-      if (res.data?.data?.deleted) {
+      if (res?.data?.deleted) {
         message.success('Каталог товаров удален');
         if (selectedFeedId === feedId) {
           setSelectedFeedId(null);
@@ -853,7 +853,7 @@ export default function SwipiesAdsPage({
         category: skuCategory.trim() || undefined,
         brand: skuBrand.trim() || undefined,
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Товар добавлен в каталог!');
         setIsAddSkuModalOpen(false);
         setSkuCode('');
