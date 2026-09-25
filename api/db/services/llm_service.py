@@ -570,10 +570,10 @@ class LLMBundle(LLM4Tenant):
             resolved_user_id = getattr(self, "user_id", None)
             if not resolved_user_id:
                 try:
-                    run_attrs = langfuse_run_attrs.get() if "langfuse_run_attrs" in globals() else None
+                    run_attrs = langfuse_run_attrs.get()
                     if run_attrs and isinstance(run_attrs, dict):
                         resolved_user_id = run_attrs.get("user_id")
-                except Exception:
+                except (NameError, AttributeError):
                     pass
             if not resolved_user_id:
                 resolved_user_id = getattr(self, "tenant_id", "")
