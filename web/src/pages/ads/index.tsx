@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -21,7 +21,6 @@ import {
   Play,
   Plus,
   RefreshCw,
-  Search,
   Sparkles,
   Target,
   Trash2,
@@ -52,7 +51,6 @@ import {
   Users,
   UserPlus,
   ShieldAlert,
-  KeyRound,
   Bell,
   BellRing,
   Settings,
@@ -62,20 +60,16 @@ import {
   Radio,
   Webhook,
   Fingerprint,
-  Crosshair,
   UserCheck,
   Bot,
   ArrowUpRight,
   Key,
   Code,
-  Globe2,
   Ban,
   ShieldX,
   Clock,
   Timer,
   Route,
-  GitMerge,
-  Network,
   GitBranch,
   Compass,
   Footprints,
@@ -90,7 +84,6 @@ import {
   Briefcase,
   FileSpreadsheet,
   Lock,
-  Crown,
   LayoutDashboard,
 } from 'lucide-react';
 import {
@@ -140,14 +133,9 @@ import adService, {
   PlacementItem,
   PublisherPayoutItem,
   FraudOverviewData,
-  FraudIncidentLogItem,
   BlacklistEntryItem,
-  BiddingStrategyItem,
-  BiddingDecisionLogItem,
   CampaignBiddingInfo,
   ScheduleConfig,
-  DcoConfig,
-  DcoLogItem,
   CampaignDcoInfo,
   DcoPreviewRequest,
   DcoPreviewResponse,
@@ -162,9 +150,7 @@ import adService, {
   FunnelAnalyticsResponse,
   FunnelStageItem,
   LookalikeAudienceItem,
-  CustomerLtvProfileItem,
   CustomerLtvOverviewResponse,
-  RfmSegmentType,
   ProductFeedItem,
   ProductSkuItem,
   CreativeMatrixResponse,
@@ -176,11 +162,7 @@ import adService, {
   ShareReportResponse,
   OmniPlatformType,
   OmniAccountItem,
-  ConnectOmniAccountRequest,
-  ExportOmniCampaignRequest,
   ExportOmniCampaignResponse,
-  SyncOmniAudienceRequest,
-  CrossPlatformNetworkStat,
   CrossPlatformAnalyticsResponse,
   OmniSyncJobItem,
   AdvertiserSettingsData,
@@ -188,7 +170,6 @@ import adService, {
   AdvertiserInsightsData,
   CampaignInsightItem,
 } from '@/services/ad-service';
-import storage from '@/utils/authorization-util';
 import { changeLanguageAsync } from '@/locales/config';
 import { AD_TRANSLATIONS, AdLanguage, translateAdText, getActiveAdLanguage, setActiveAdLanguage } from './translations';
 export { AD_TRANSLATIONS, AdLanguage, translateAdText, getActiveAdLanguage, setActiveAdLanguage };
@@ -206,23 +187,9 @@ export default function SwipiesAdsPage({
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null);
   const [transactions, setTransactions] = useState<AdTransactionItem[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
-  const [subAnalyticsTab, setSubAnalyticsTab] = useState<'charts' | 'attribution' | 'insights' | 'fraud'>('charts');
-  const [subAutopilotTab, setSubAutopilotTab] = useState<'pixel' | 'rules' | 'bidding'>('pixel');
-  const [subSettingsTab, setSubSettingsTab] = useState<'profile' | 'team' | 'omnichannel' | 'agency' | 'publisher' | 'guide'>('profile');
 
   const handleTabChange = (val: string) => {
-    if (['charts', 'attribution', 'insights', 'fraud'].includes(val)) {
-      setActiveTab('analytics');
-      setSubAnalyticsTab(val as any);
-    } else if (['pixel', 'rules', 'bidding'].includes(val)) {
-      setActiveTab('autopilot');
-      setSubAutopilotTab(val as any);
-    } else if (['profile', 'team', 'omnichannel', 'agency', 'publisher', 'guide'].includes(val)) {
-      setActiveTab('settings');
-      setSubSettingsTab(val as any);
-    } else {
-      setActiveTab(val);
-    }
+    setActiveTab(val);
   };
 
   // Localization & Multi-Language State (synchronized with prop or persistent storage)
@@ -288,12 +255,10 @@ export default function SwipiesAdsPage({
     low_ctr_threshold: 0.5,
     timezone: 'Asia/Tashkent',
   });
-  const [loadingAdvSettings, setLoadingAdvSettings] = useState(false);
   const [isSavingAdvSettings, setIsSavingAdvSettings] = useState(false);
   const [copiedPixelSuccess, setCopiedPixelSuccess] = useState(false);
 
   const fetchAdvSettings = async () => {
-    setLoadingAdvSettings(true);
     try {
       const res = await adService.getAdvertiserSettings();
       if (res?.data) {
@@ -305,8 +270,6 @@ export default function SwipiesAdsPage({
       }
     } catch (e) {
       console.error('Failed to fetch advertiser settings', e);
-    } finally {
-      setLoadingAdvSettings(false);
     }
   };
 
@@ -459,7 +422,7 @@ export default function SwipiesAdsPage({
   const [newPlacementName, setNewPlacementName] = useState('');
   const [newPlacementType, setNewPlacementType] = useState<'telegram_bot' | 'web_widget' | 'mobile_app' | 'api_agent'>('telegram_bot');
   const [newPlacementDomain, setNewPlacementDomain] = useState('');
-  const [newPlacementRevShare, setNewPlacementRevShare] = useState('0.70');
+  const [newPlacementRevShare] = useState('0.70');
   const [creatingPlacement, setCreatingPlacement] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState('50');
   const [payoutCard, setPayoutCard] = useState('');
@@ -482,7 +445,6 @@ export default function SwipiesAdsPage({
   const [biddingInfo, setBiddingInfo] = useState<CampaignBiddingInfo | null>(null);
   const [loadingBidding, setLoadingBidding] = useState(false);
   const [savingBidding, setSavingBidding] = useState(false);
-  const [biddingStrategies, setBiddingStrategies] = useState<BiddingStrategyItem[]>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<'manual_cpc' | 'enhanced_cpc' | 'target_cpa' | 'maximize_conversions'>('manual_cpc');
   const [targetCpaValue, setTargetCpaValue] = useState<number>(5.0);
   const [biddingTz, setBiddingTz] = useState<string>('Asia/Tashkent');
@@ -513,7 +475,7 @@ export default function SwipiesAdsPage({
   const [previewQuery, setPreviewQuery] = useState('посоветуй надежную CRM систему для отдела продаж в Ташкенте');
   const [previewModel, setPreviewModel] = useState('gpt-4o');
   const [previewRegion, setPreviewRegion] = useState('tashkent');
-  const [previewLang, setPreviewLang] = useState('ru');
+  const [previewLang] = useState('ru');
   const [previewResult, setPreviewResult] = useState<DcoPreviewResponse | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
@@ -521,14 +483,12 @@ export default function SwipiesAdsPage({
   const [rulesList, setRulesList] = useState<AutomatedRuleItem[]>([]);
   const [ruleTemplates, setRuleTemplates] = useState<RuleTemplateItem[]>([]);
   const [ruleExecutionLogs, setRuleExecutionLogs] = useState<RuleExecutionLogItem[]>([]);
-  const [loadingRules, setLoadingRules] = useState(false);
   const [evaluatingRules, setEvaluatingRules] = useState(false);
   const [isCreateRuleModalOpen, setIsCreateRuleModalOpen] = useState(false);
   const [isPacingModalOpen, setIsPacingModalOpen] = useState(false);
   const [pacingCampaign, setPacingCampaign] = useState<AdCampaignItem | null>(null);
   const [pacingInfo, setPacingInfo] = useState<CampaignPacingInfo | null>(null);
   const [loadingPacing, setLoadingPacing] = useState(false);
-  const [savingPacing, setSavingPacing] = useState(false);
 
   // Form State for creating a Rule
   const [ruleName, setRuleName] = useState('');
@@ -608,7 +568,6 @@ export default function SwipiesAdsPage({
   const [creatingLookalike, setCreatingLookalike] = useState(false);
 
   const [ltvOverview, setLtvOverview] = useState<CustomerLtvOverviewResponse | null>(null);
-  const [loadingLtv, setLoadingLtv] = useState(false);
   const [isLtvSyncModalOpen, setIsLtvSyncModalOpen] = useState(false);
   const [syncVisitorId, setSyncVisitorId] = useState('');
   const [syncIdentifier, setSyncIdentifier] = useState('');
@@ -632,7 +591,6 @@ export default function SwipiesAdsPage({
   };
 
   const fetchLtvOverview = async () => {
-    setLoadingLtv(true);
     try {
       const res = await adService.getLtvOverview();
       if (res?.data) {
@@ -640,8 +598,6 @@ export default function SwipiesAdsPage({
       }
     } catch (err: any) {
       console.error('Failed to load LTV overview', err);
-    } finally {
-      setLoadingLtv(false);
     }
   };
 
@@ -742,7 +698,6 @@ export default function SwipiesAdsPage({
   const [matrixResult, setMatrixResult] = useState<CreativeMatrixResponse | null>(null);
   const [generatingMatrix, setGeneratingMatrix] = useState(false);
 
-  const [selectedHealthCampaignId, setSelectedHealthCampaignId] = useState<string | null>(null);
   const [campaignHealth, setCampaignHealth] = useState<CreativeHealthScoreResponse | null>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
@@ -750,7 +705,6 @@ export default function SwipiesAdsPage({
   // Notification & Alert Settings State
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
-  const [loadingNotifs, setLoadingNotifs] = useState<boolean>(false);
   const [isNotifModalOpen, setIsNotifModalOpen] = useState<boolean>(false);
   const [isNotifSettingsModalOpen, setIsNotifSettingsModalOpen] = useState<boolean>(false);
   const [notifSettings, setNotifSettings] = useState<NotificationSettingsData | null>(null);
@@ -897,7 +851,6 @@ export default function SwipiesAdsPage({
   };
 
   const handleViewCampaignHealth = async (campaignId: string) => {
-    setSelectedHealthCampaignId(campaignId);
     setLoadingHealth(true);
     setIsHealthModalOpen(true);
     try {
@@ -916,7 +869,6 @@ export default function SwipiesAdsPage({
   const [agencyWorkspace, setAgencyWorkspace] = useState<AgencyWorkspace | null>(null);
   const [agencyClients, setAgencyClients] = useState<AgencyClient[]>([]);
   const [agencyMembers, setAgencyMembers] = useState<AgencyMember[]>([]);
-  const [loadingAgency, setLoadingAgency] = useState(false);
 
   const [isAgencyClientModalOpen, setIsAgencyClientModalOpen] = useState(false);
   const [clientName, setClientName] = useState('');
@@ -948,7 +900,6 @@ export default function SwipiesAdsPage({
   const [creatingShareLink, setCreatingShareLink] = useState(false);
 
   const fetchAgencyData = async () => {
-    setLoadingAgency(true);
     try {
       const [wsRes, clientsRes, membersRes] = await Promise.all([
         adService.getAgencyWorkspace(),
@@ -971,8 +922,6 @@ export default function SwipiesAdsPage({
       }
     } catch (err: any) {
       // silent
-    } finally {
-      setLoadingAgency(false);
     }
   };
 
@@ -1359,7 +1308,6 @@ export default function SwipiesAdsPage({
   };
 
   const fetchNotifications = async () => {
-    setLoadingNotifs(true);
     try {
       const res = await adService.getNotifications();
       if (res?.data) {
@@ -1368,8 +1316,6 @@ export default function SwipiesAdsPage({
       }
     } catch (err: any) {
       // silent
-    } finally {
-      setLoadingNotifs(false);
     }
   };
 
@@ -1546,15 +1492,6 @@ export default function SwipiesAdsPage({
     }
   };
 
-  const handleTriggerRenewals = async () => {
-    try {
-      const res = await adService.adminProcessRenewals();
-      message.info(`Шедулер продления: обработано ${res?.data?.processed || 0}, продлено ${res?.data?.renewed || 0}`);
-      fetchSubscription();
-    } catch (err: any) {
-      message.error('Ошибка запуска шедулера');
-    }
-  };
 
   const fetchFraudData = async () => {
     setLoadingFraud(true);
@@ -1841,13 +1778,7 @@ export default function SwipiesAdsPage({
     setIsBiddingModalOpen(true);
     setLoadingBidding(true);
     try {
-      const [stratRes, infoRes] = await Promise.all([
-        adService.getBiddingStrategies(),
-        adService.getCampaignBidding(cmp.id),
-      ]);
-      if (stratRes?.data) {
-        setBiddingStrategies(stratRes.data);
-      }
+      const infoRes = await adService.getCampaignBidding(cmp.id);
       if (infoRes?.data) {
         const info = infoRes.data;
         setBiddingInfo(info);
@@ -2000,7 +1931,6 @@ export default function SwipiesAdsPage({
   };
 
   const fetchRulesAndLogs = async () => {
-    setLoadingRules(true);
     try {
       const [rulesRes, tmplRes, logsRes] = await Promise.all([
         adService.getAutomatedRules(),
@@ -2012,8 +1942,6 @@ export default function SwipiesAdsPage({
       if (logsRes?.data) setRuleExecutionLogs(logsRes.data);
     } catch (err: any) {
       // silent
-    } finally {
-      setLoadingRules(false);
     }
   };
 
@@ -2137,7 +2065,6 @@ export default function SwipiesAdsPage({
 
   const handleSavePacingMode = async (pacingMode: string) => {
     if (!pacingCampaign) return;
-    setSavingPacing(true);
     try {
       const res = await adService.updateCampaignPacing(pacingCampaign.id, { pacing_mode: pacingMode });
       if (res?.data) {
@@ -2147,8 +2074,6 @@ export default function SwipiesAdsPage({
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка обновления режима');
-    } finally {
-      setSavingPacing(false);
     }
   };
 
@@ -2333,7 +2258,6 @@ export default function SwipiesAdsPage({
   const [omniAccounts, setOmniAccounts] = useState<OmniAccountItem[]>([]);
   const [crossPlatformAnalytics, setCrossPlatformAnalytics] = useState<CrossPlatformAnalyticsResponse | null>(null);
   const [omniSyncJobs, setOmniSyncJobs] = useState<OmniSyncJobItem[]>([]);
-  const [loadingOmni, setLoadingOmni] = useState(false);
 
   // Connect Account Modal
   const [isConnectAccountModalOpen, setIsConnectAccountModalOpen] = useState(false);
@@ -2349,8 +2273,8 @@ export default function SwipiesAdsPage({
   const [exportSelectedCampaignId, setExportSelectedCampaignId] = useState<string>('');
   const [exportSelectedAccountId, setExportSelectedAccountId] = useState<string>('');
   const [exportTargetChannels, setExportTargetChannels] = useState('@business_uz, @tech_insights');
-  const [exportKeywords, setExportKeywords] = useState('купить crm, ai ассистент, чат бот');
-  const [exportInterests, setExportInterests] = useState('Artificial Intelligence, SaaS, E-commerce');
+  const [exportKeywords] = useState('купить crm, ai ассистент, чат бот');
+  const [exportInterests] = useState('Artificial Intelligence, SaaS, E-commerce');
   const [exportingCampaign, setExportingCampaign] = useState(false);
   const [exportResult, setExportResult] = useState<ExportOmniCampaignResponse | null>(null);
 
@@ -2358,7 +2282,6 @@ export default function SwipiesAdsPage({
   const [testingOmniAccountId, setTestingOmniAccountId] = useState<string | null>(null);
 
   const fetchOmniChannelData = async () => {
-    setLoadingOmni(true);
     try {
       const [accsRes, statsRes, jobsRes] = await Promise.all([
         adService.getOmniAccounts(),
@@ -2376,8 +2299,6 @@ export default function SwipiesAdsPage({
       }
     } catch (err: any) {
       console.error('Failed to load omni-channel data', err);
-    } finally {
-      setLoadingOmni(false);
     }
   };
 
@@ -2496,24 +2417,6 @@ export default function SwipiesAdsPage({
       message.error(err.message || 'Ошибка экспорта кампании');
     } finally {
       setExportingCampaign(false);
-    }
-  };
-
-  const handleTopUp = async () => {
-    const num = parseFloat(topUpAmount);
-    if (isNaN(num) || num <= 0) {
-      message.error('Please enter a valid deposit amount');
-      return;
-    }
-
-    try {
-      await adService.depositFunds(num, 'Advertiser Wallet Top-Up');
-      message.success(`Successfully deposited $${num.toFixed(2)} to your balance!`);
-      setIsTopUpModalOpen(false);
-      fetchDashboard();
-      fetchTransactions();
-    } catch (err: any) {
-      message.error(err.message || 'Top-up failed');
     }
   };
 
