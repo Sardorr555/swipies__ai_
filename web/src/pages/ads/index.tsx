@@ -748,12 +748,12 @@ export default function SwipiesAdsPage({
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
 
   // Notification & Alert Settings State
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
   const [loadingNotifs, setLoadingNotifs] = useState<boolean>(false);
   const [isNotifModalOpen, setIsNotifModalOpen] = useState<boolean>(false);
   const [isNotifSettingsModalOpen, setIsNotifSettingsModalOpen] = useState<boolean>(false);
-  const [notifSettings, setNotifSettings] = useState<any>(null);
+  const [notifSettings, setNotifSettings] = useState<NotificationSettingsData | null>(null);
   const [savingNotifSettings, setSavingNotifSettings] = useState<boolean>(false);
   const [testingNotifChannel, setTestingNotifChannel] = useState<string | null>(null);
 
@@ -3102,11 +3102,11 @@ export default function SwipiesAdsPage({
                     </thead>
                     <tbody className="divide-y divide-border">
                       {dashboard.campaigns.slice(0, 4).map((c) => (
-                        <tr key={c.campaign_id} className="hover:bg-muted/40 transition-colors">
+                        <tr key={c.id} className="hover:bg-muted/40 transition-colors">
                           <td className="py-2.5 px-3">
                             <div className="font-semibold text-foreground">{c.name}</div>
                             <div className="text-[11px] text-muted-foreground truncate max-w-[220px]">
-                              {c.product_url || 'URL не указан'}
+                              {c.landing_url || 'URL не указан'}
                             </div>
                           </td>
                           <td className="py-2.5 px-3">
@@ -3122,7 +3122,7 @@ export default function SwipiesAdsPage({
                             </Badge>
                           </td>
                           <td className="py-2.5 px-3">
-                            <div className="font-medium">${c.spent?.toFixed(2) || '0.00'}</div>
+                            <div className="font-medium">${c.total_spent?.toFixed(2) || '0.00'}</div>
                             <div className="text-[10px] text-muted-foreground">из ${c.total_budget?.toFixed(2) || '0.00'}</div>
                           </td>
                           <td className="py-2.5 px-3 font-medium">
@@ -4043,7 +4043,7 @@ export default function SwipiesAdsPage({
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {insightsData.insights.map((insight) => (
+              {insightsData.insights.map((insight: CampaignInsightItem) => (
                 <Card key={insight.id} className="relative flex flex-col justify-between border shadow-sm hover:border-amber-500/40 transition-colors">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between gap-2 mb-1.5">
