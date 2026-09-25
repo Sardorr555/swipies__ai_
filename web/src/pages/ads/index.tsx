@@ -1549,7 +1549,7 @@ export default function SwipiesAdsPage({
   const handleTriggerRenewals = async () => {
     try {
       const res = await adService.adminProcessRenewals();
-      message.info(`Шедулер продления: обработано ${res.data?.data?.processed || 0}, продлено ${res.data?.data?.renewed || 0}`);
+      message.info(`Шедулер продления: обработано ${res?.data?.processed || 0}, продлено ${res?.data?.renewed || 0}`);
       fetchSubscription();
     } catch (err: any) {
       message.error('Ошибка запуска шедулера');
@@ -1563,11 +1563,11 @@ export default function SwipiesAdsPage({
         adService.getFraudOverview(),
         adService.getFraudBlacklist(),
       ]);
-      if (ovRes.data?.data) {
-        setFraudOverview(ovRes.data.data);
+      if (ovRes?.data) {
+        setFraudOverview(ovRes.data);
       }
-      if (blRes.data?.data) {
-        setFraudBlacklist(blRes.data.data);
+      if (blRes?.data) {
+        setFraudBlacklist(blRes.data);
       }
     } catch (err: any) {
       // silent
@@ -1588,7 +1588,7 @@ export default function SwipiesAdsPage({
         reason: newBlockedReason.trim(),
         duration_hours: parseInt(newBlockedDuration) || 72,
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('IP-адрес успешно добавлен в черный список!');
         setIsBlacklistModalOpen(false);
         setNewBlockedIp('');
@@ -1604,7 +1604,7 @@ export default function SwipiesAdsPage({
   const handleRemoveBlacklist = async (id: string) => {
     try {
       const res = await adService.removeFraudBlacklist(id);
-      if (res.data?.data?.deleted) {
+      if (res?.data?.deleted) {
         message.success('IP-адрес разблокирован');
         fetchFraudData();
       }
@@ -1697,8 +1697,8 @@ export default function SwipiesAdsPage({
         description: campaignForm.description,
         lang: selectedLang,
       });
-      if (res.data?.data) {
-        const data = res.data.data;
+      if (res?.data) {
+        const data = res.data;
         if (data.ad_copy_variations && data.ad_copy_variations.length > 0) {
           setCampaignForm((prev) => ({
             ...prev,
@@ -1845,11 +1845,11 @@ export default function SwipiesAdsPage({
         adService.getBiddingStrategies(),
         adService.getCampaignBidding(cmp.id),
       ]);
-      if (stratRes.data?.data) {
-        setBiddingStrategies(stratRes.data.data);
+      if (stratRes?.data) {
+        setBiddingStrategies(stratRes.data);
       }
-      if (infoRes.data?.data) {
-        const info = infoRes.data.data;
+      if (infoRes?.data) {
+        const info = infoRes.data;
         setBiddingInfo(info);
         setSelectedStrategy(info.bidding_strategy || 'manual_cpc');
         setTargetCpaValue(info.target_cpa || 5.0);
@@ -1885,8 +1885,8 @@ export default function SwipiesAdsPage({
         schedule_timezone: biddingTz,
         schedule_config: schedConfig,
       });
-      if (res.data?.data) {
-        setBiddingInfo(res.data.data);
+      if (res?.data) {
+        setBiddingInfo(res.data);
         message.success('Стратегия ставок и расписание успешно сохранены!');
         fetchDashboard();
         setIsBiddingModalOpen(false);
@@ -1905,8 +1905,8 @@ export default function SwipiesAdsPage({
     setPreviewResult(null);
     try {
       const res = await adService.getCampaignDco(cmp.id);
-      if (res.data?.data) {
-        const info = res.data.data;
+      if (res?.data) {
+        const info = res.data;
         setDcoInfo(info);
         setDcoEnabled(info.dco_enabled || false);
         const cfg = info.dco_config || {};
@@ -1959,8 +1959,8 @@ export default function SwipiesAdsPage({
         custom_tone: dcoToneStyle,
       };
       const res = await adService.previewCampaignDco(targetId, reqData);
-      if (res.data?.data) {
-        setPreviewResult(res.data.data);
+      if (res?.data) {
+        setPreviewResult(res.data);
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка генерации предпросмотра DCO');
@@ -1987,7 +1987,7 @@ export default function SwipiesAdsPage({
           tone_style: dcoToneStyle,
         },
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Настройки динамической оптимизации (DCO) сохранены!');
         setIsDcoModalOpen(false);
         fetchDashboard();
@@ -2007,9 +2007,9 @@ export default function SwipiesAdsPage({
         adService.getRuleTemplates(),
         adService.getRuleExecutionLogs(),
       ]);
-      if (rulesRes.data?.data) setRulesList(rulesRes.data.data);
-      if (tmplRes.data?.data) setRuleTemplates(tmplRes.data.data);
-      if (logsRes.data?.data) setRuleExecutionLogs(logsRes.data.data);
+      if (rulesRes?.data) setRulesList(rulesRes.data);
+      if (tmplRes?.data) setRuleTemplates(tmplRes.data);
+      if (logsRes?.data) setRuleExecutionLogs(logsRes.data);
     } catch (err: any) {
       // silent
     } finally {
@@ -2064,7 +2064,7 @@ export default function SwipiesAdsPage({
         action_value: parseFloat(ruleActionValue) || 0.0,
         is_active: true,
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Авто-правило успешно создано!');
         setIsCreateRuleModalOpen(false);
         resetRuleForm();
@@ -2080,8 +2080,8 @@ export default function SwipiesAdsPage({
   const handleToggleRule = async (ruleId: string) => {
     try {
       const res = await adService.toggleAutomatedRule(ruleId);
-      if (res.data?.data) {
-        message.success(`Правило ${res.data.data.is_active ? 'активировано' : 'приостановлено'}`);
+      if (res?.data) {
+        message.success(`Правило ${res.data.is_active ? 'активировано' : 'приостановлено'}`);
         fetchRulesAndLogs();
       }
     } catch (err: any) {
@@ -2093,7 +2093,7 @@ export default function SwipiesAdsPage({
     if (!confirm('Вы уверены, что хотите удалить это авто-правило?')) return;
     try {
       const res = await adService.deleteAutomatedRule(ruleId);
-      if (res.data?.data?.deleted) {
+      if (res?.data?.deleted) {
         message.success('Правило удалено');
         fetchRulesAndLogs();
       }
@@ -2106,8 +2106,8 @@ export default function SwipiesAdsPage({
     setEvaluatingRules(true);
     try {
       const res = await adService.evaluateAutomatedRules();
-      if (res.data?.data) {
-        const d = res.data.data;
+      if (res?.data) {
+        const d = res.data;
         message.success(`Проверка завершена: проверено ${d.rules_evaluated} правил, выполнено ${d.actions_triggered} действий`);
         fetchRulesAndLogs();
         fetchDashboard();
@@ -2125,8 +2125,8 @@ export default function SwipiesAdsPage({
     setLoadingPacing(true);
     try {
       const res = await adService.getCampaignPacing(cmp.id);
-      if (res.data?.data) {
-        setPacingInfo(res.data.data);
+      if (res?.data) {
+        setPacingInfo(res.data);
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка загрузки данных распределения бюджета');
@@ -2140,8 +2140,8 @@ export default function SwipiesAdsPage({
     setSavingPacing(true);
     try {
       const res = await adService.updateCampaignPacing(pacingCampaign.id, { pacing_mode: pacingMode });
-      if (res.data?.data) {
-        setPacingInfo(res.data.data);
+      if (res?.data) {
+        setPacingInfo(res.data);
         message.success('Режим распределения бюджета (Pacing) обновлен!');
         fetchDashboard();
       }
