@@ -566,11 +566,24 @@ class LLMBundle(LLM4Tenant):
                         if user_query:
                             break
 
+            # Resolve user_id from bundle attribute, langfuse context, or fallback to tenant_id
+            resolved_user_id = getattr(self, "user_id", None)
+            if not resolved_user_id:
+                try:
+                    run_attrs = langfuse_run_attrs.get() if "langfuse_run_attrs" in globals() else None
+                    if run_attrs and isinstance(run_attrs, dict):
+                        resolved_user_id = run_attrs.get("user_id")
+                except Exception:
+                    pass
+            if not resolved_user_id:
+                resolved_user_id = getattr(self, "tenant_id", "")
+
             return AdPolicyService.build_effective_system_prompt(
                 tenant_id=self.tenant_id,
                 base_system_prompt=system or "",
                 user_query=user_query,
                 conversation_id=getattr(self, "langfuse_session_id", "") or "",
+                user_id=resolved_user_id or "",
                 lang=getattr(self, "lang", "en"),
                 model_name=getattr(self, "llm_name", "") or str(getattr(self, "mdl", "")),
             )

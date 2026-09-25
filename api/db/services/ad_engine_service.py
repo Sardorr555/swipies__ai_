@@ -529,7 +529,6 @@ class AdEngineService:
                 user_impressions_today = (
                     AdImpression.select()
                     .where(
-                        AdImpression.campaign_id == cmp.id,
                         AdImpression.user_id == user_id,
                         AdImpression.create_time >= day_start_ts,
                     )
@@ -820,11 +819,26 @@ class AdEngineService:
         one_hour_ago = now_ts - (3600 * 1000)
         click_id = uuid.uuid4().hex[:32]
         with DB.atomic():
-            recent_click = AdClick.select().where(
-                AdClick.campaign_id == campaign.id,
-                AdClick.impression_id == impression_id,
-                AdClick.create_time >= one_hour_ago,
-            ).first()
+            if impression_id:
+                recent_click = AdClick.select().where(
+                    AdClick.campaign_id == campaign.id,
+                    AdClick.impression_id == impression_id,
+                    AdClick.create_time >= one_hour_ago,
+                ).first()
+            elif token_user_id:
+                recent_click = AdClick.select().where(
+                    AdClick.campaign_id == campaign.id,
+                    AdClick.user_id == token_user_id,
+                    AdClick.create_time >= one_hour_ago,
+                ).first()
+            elif ip_hash:
+                recent_click = AdClick.select().where(
+                    AdClick.campaign_id == campaign.id,
+                    AdClick.ip_hash == ip_hash,
+                    AdClick.create_time >= one_hour_ago,
+                ).first()
+            else:
+                recent_click = None
 
             if not recent_click:
                 AdClick.create(
