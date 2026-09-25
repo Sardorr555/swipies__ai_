@@ -2552,7 +2552,7 @@ async def record_attribution_conversion():
 # Phase 26: Lookalike Audiences & Predictive LTV Endpoints
 # ---------------------------------------------------------
 
-@manager.route("/v1/ads/audiences/lookalikes", methods=["GET"])
+@manager.route("/audiences/lookalikes", methods=["GET"])
 @login_required
 async def list_lookalike_audiences():
     """List all Lookalike audiences for current advertiser."""
@@ -2569,7 +2569,7 @@ async def list_lookalike_audiences():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/audiences/lookalikes", methods=["POST"])
+@manager.route("/audiences/lookalikes", methods=["POST"])
 @login_required
 async def create_lookalike_audience():
     """Create a new Lookalike audience derived from a seed segment."""
@@ -2603,7 +2603,7 @@ async def create_lookalike_audience():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/audiences/lookalikes/<lookalike_id>", methods=["DELETE"])
+@manager.route("/audiences/lookalikes/<lookalike_id>", methods=["DELETE"])
 @login_required
 async def delete_lookalike_audience(lookalike_id: str):
     """Delete a Lookalike audience."""
@@ -2620,7 +2620,7 @@ async def delete_lookalike_audience(lookalike_id: str):
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/audiences/ltv-overview", methods=["GET"])
+@manager.route("/audiences/ltv-overview", methods=["GET"])
 @login_required
 async def get_ltv_overview():
     """Get aggregated customer RFM segmentation, pLTV projections and top VIP profiles."""
@@ -2637,7 +2637,7 @@ async def get_ltv_overview():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/audiences/ltv-sync", methods=["POST"])
+@manager.route("/audiences/ltv-sync", methods=["POST"])
 @login_required
 async def sync_customer_ltv_profiles():
     """Ingest or batch sync customer transaction history for RFM & pLTV calculation."""
@@ -2668,7 +2668,7 @@ async def sync_customer_ltv_profiles():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/creatives/generate-matrix", methods=["POST"])
+@manager.route("/creatives/generate-matrix", methods=["POST"])
 @login_required
 async def generate_creative_matrix():
     """
@@ -2702,7 +2702,7 @@ async def generate_creative_matrix():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/creatives/matrix-assets", methods=["GET"])
+@manager.route("/creatives/matrix-assets", methods=["GET"])
 @login_required
 async def list_matrix_assets():
     """List saved creative matrix assets for advertiser/campaign."""
@@ -2725,7 +2725,7 @@ async def list_matrix_assets():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/creatives/health-score/<campaign_id>", methods=["GET"])
+@manager.route("/creatives/health-score/<campaign_id>", methods=["GET"])
 @login_required
 async def get_creative_health_score(campaign_id):
     """Computes asset diversity and creative quality score with actionable optimization recommendations."""
@@ -2744,7 +2744,6 @@ async def get_creative_health_score(campaign_id):
 
 
 @manager.route("/feeds", methods=["GET", "POST"])
-@manager.route("/v1/ads/feeds", methods=["GET", "POST"])
 @login_required
 async def manage_product_feeds():
     """List or create product feeds/catalogs for Dynamic Product Ads (DPA)."""
@@ -2780,7 +2779,6 @@ async def manage_product_feeds():
 
 
 @manager.route("/feeds/<feed_id>", methods=["GET", "DELETE"])
-@manager.route("/v1/ads/feeds/<feed_id>", methods=["GET", "DELETE"])
 @login_required
 async def single_product_feed(feed_id):
     """Get feed details or delete catalog feed."""
@@ -2808,7 +2806,6 @@ async def single_product_feed(feed_id):
 
 
 @manager.route("/feeds/<feed_id>/items", methods=["GET", "POST"])
-@manager.route("/v1/ads/feeds/<feed_id>/items", methods=["GET", "POST"])
 @login_required
 async def feed_items_management(feed_id):
     """List or add/update SKUs in a product feed."""
@@ -2868,7 +2865,7 @@ async def feed_items_management(feed_id):
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/workspace", methods=["GET", "PUT"])
+@manager.route("/agency/workspace", methods=["GET", "PUT"])
 @login_required
 async def agency_workspace():
     """
@@ -2906,7 +2903,7 @@ async def agency_workspace():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/clients", methods=["GET", "POST"])
+@manager.route("/agency/clients", methods=["GET", "POST"])
 @login_required
 async def agency_clients():
     """List or create client sub-accounts in agency workspace."""
@@ -2940,7 +2937,7 @@ async def agency_clients():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/clients/<client_id>", methods=["DELETE"])
+@manager.route("/agency/clients/<client_id>", methods=["DELETE"])
 @login_required
 async def delete_agency_client(client_id):
     """Archives a client sub-account."""
@@ -2958,7 +2955,7 @@ async def delete_agency_client(client_id):
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/members", methods=["GET"])
+@manager.route("/agency/members", methods=["GET"])
 @login_required
 async def list_agency_members():
     """List collaborators with RBAC permissions."""
@@ -2976,7 +2973,7 @@ async def list_agency_members():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/members/invite", methods=["POST"])
+@manager.route("/agency/members/invite", methods=["POST"])
 @login_required
 async def invite_agency_member():
     """Invite collaborator to agency workspace with granular role."""
@@ -3004,7 +3001,7 @@ async def invite_agency_member():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/members/<member_id>", methods=["DELETE"])
+@manager.route("/agency/members/<member_id>", methods=["DELETE"])
 @login_required
 async def remove_agency_member(member_id):
     """Remove member from agency workspace."""
@@ -3022,7 +3019,7 @@ async def remove_agency_member(member_id):
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/reports/executive", methods=["GET"])
+@manager.route("/agency/reports/executive", methods=["GET"])
 @login_required
 async def get_executive_report():
     """Generates White-Label Executive Report for agency clients."""
@@ -3049,7 +3046,7 @@ async def get_executive_report():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/reports/export/csv", methods=["GET"])
+@manager.route("/agency/reports/export/csv", methods=["GET"])
 @login_required
 async def export_agency_csv():
     """Exports raw report timeline metrics to CSV format."""
@@ -3079,7 +3076,7 @@ async def export_agency_csv():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/reports/share", methods=["POST"])
+@manager.route("/agency/reports/share", methods=["POST"])
 @login_required
 async def share_agency_report():
     """Generates public signed share link for client dashboard viewing."""
@@ -3103,7 +3100,7 @@ async def share_agency_report():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/agency/reports/shared/<share_token>", methods=["GET"])
+@manager.route("/agency/reports/shared/<share_token>", methods=["GET"])
 async def get_public_shared_report(share_token):
     """Public read-only executive report resolution (No login required)."""
     try:
@@ -3119,7 +3116,7 @@ async def get_public_shared_report(share_token):
 # ---------------------------------------------------------------------------
 
 
-@manager.route("/v1/ads/omnichannel/accounts", methods=["GET"])
+@manager.route("/omnichannel/accounts", methods=["GET"])
 @login_required
 async def list_omni_accounts():
     """List connected external ad accounts for the current advertiser."""
@@ -3132,7 +3129,7 @@ async def list_omni_accounts():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/omnichannel/accounts", methods=["POST"])
+@manager.route("/omnichannel/accounts", methods=["POST"])
 @login_required
 async def connect_omni_account():
     """Connect a new external ad platform account."""
@@ -3146,7 +3143,7 @@ async def connect_omni_account():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/omnichannel/accounts/<account_id>", methods=["DELETE"])
+@manager.route("/omnichannel/accounts/<account_id>", methods=["DELETE"])
 @login_required
 async def disconnect_omni_account(account_id):
     """Disconnect an external ad platform account."""
@@ -3159,7 +3156,7 @@ async def disconnect_omni_account(account_id):
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/omnichannel/accounts/<account_id>/test", methods=["POST"])
+@manager.route("/omnichannel/accounts/<account_id>/test", methods=["POST"])
 @login_required
 async def test_omni_account_connection(account_id):
     """Test API connection to external ad network."""
@@ -3172,7 +3169,7 @@ async def test_omni_account_connection(account_id):
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/omnichannel/export-campaign", methods=["POST"])
+@manager.route("/omnichannel/export-campaign", methods=["POST"])
 @login_required
 async def export_campaign_to_omnichannel():
     """1-Click export of an AI campaign into Telegram Ads, Meta Ads, Google Ads or TikTok format."""
@@ -3198,7 +3195,7 @@ async def export_campaign_to_omnichannel():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/omnichannel/sync-audience", methods=["POST"])
+@manager.route("/omnichannel/sync-audience", methods=["POST"])
 @login_required
 async def sync_audience_to_omnichannel():
     """Sync audience segment to external ad network."""
@@ -3222,7 +3219,7 @@ async def sync_audience_to_omnichannel():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/omnichannel/cross-platform-analytics", methods=["GET"])
+@manager.route("/omnichannel/cross-platform-analytics", methods=["GET"])
 @login_required
 async def get_cross_platform_analytics():
     """Consolidated cross-platform analytics and Blended ROAS."""
@@ -3236,7 +3233,7 @@ async def get_cross_platform_analytics():
         return get_data_error_result(message=str(e))
 
 
-@manager.route("/v1/ads/omnichannel/sync-jobs", methods=["GET"])
+@manager.route("/omnichannel/sync-jobs", methods=["GET"])
 @login_required
 async def get_omni_sync_jobs():
     """List recent synchronization jobs."""
