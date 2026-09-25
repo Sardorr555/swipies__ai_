@@ -697,7 +697,7 @@ export default function SwipiesAdsPage({
         total_orders: parseInt(syncOrdersCount) || 1,
         recency_days: parseInt(syncRecencyDays) || 0,
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Профиль клиента обновлен и pLTV пересчитан!');
         setIsLtvSyncModalOpen(false);
         setSyncVisitorId('');
@@ -885,8 +885,8 @@ export default function SwipiesAdsPage({
         target_audience: matrixTargetAudience.trim(),
         save_assets: true,
       });
-      if (res.data?.data) {
-        setMatrixResult(res.data.data);
+      if (res?.data) {
+        setMatrixResult(res.data);
         message.success('Мульти-форматный пакет креативов сгенерирован!');
       }
     } catch (err: any) {
@@ -902,8 +902,8 @@ export default function SwipiesAdsPage({
     setIsHealthModalOpen(true);
     try {
       const res = await adService.getCreativeHealthScore(campaignId);
-      if (res.data?.data) {
-        setCampaignHealth(res.data.data);
+      if (res?.data) {
+        setCampaignHealth(res.data);
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка анализа качества креативов');
@@ -955,19 +955,19 @@ export default function SwipiesAdsPage({
         adService.getAgencyClients(),
         adService.getAgencyMembers(),
       ]);
-      if (wsRes.data?.data) {
-        setAgencyWorkspace(wsRes.data.data);
-        setWsName(wsRes.data.data.name);
-        setWsLogoUrl(wsRes.data.data.logo_url || '');
-        setWsBrandColor(wsRes.data.data.brand_color || '#6366f1');
-        setWsFooterText(wsRes.data.data.report_footer_text || '');
-        setWsBillingMode(wsRes.data.data.billing_mode || 'consolidated');
+      if (wsRes?.data) {
+        setAgencyWorkspace(wsRes.data);
+        setWsName(wsRes.data.name);
+        setWsLogoUrl(wsRes.data.logo_url || '');
+        setWsBrandColor(wsRes.data.brand_color || '#6366f1');
+        setWsFooterText(wsRes.data.report_footer_text || '');
+        setWsBillingMode(wsRes.data.billing_mode || 'consolidated');
       }
-      if (clientsRes.data?.data) {
-        setAgencyClients(clientsRes.data.data);
+      if (clientsRes?.data) {
+        setAgencyClients(clientsRes.data);
       }
-      if (membersRes.data?.data) {
-        setAgencyMembers(membersRes.data.data);
+      if (membersRes?.data) {
+        setAgencyMembers(membersRes.data);
       }
     } catch (err: any) {
       // silent
@@ -990,8 +990,8 @@ export default function SwipiesAdsPage({
         report_footer_text: wsFooterText.trim() || undefined,
         billing_mode: wsBillingMode,
       });
-      if (res.data?.data) {
-        setAgencyWorkspace(res.data.data);
+      if (res?.data) {
+        setAgencyWorkspace(res.data);
         message.success('Настройки агентства и брендинга сохранены!');
         setIsAgencySettingsModalOpen(false);
       }
@@ -1015,7 +1015,7 @@ export default function SwipiesAdsPage({
         monthly_budget_cap: parseFloat(clientBudgetCap) || 0,
         currency: clientCurrency,
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success(`Клиентский субаккаунт "${clientName}" создан!`);
         setIsAgencyClientModalOpen(false);
         setClientName('');
@@ -1033,7 +1033,7 @@ export default function SwipiesAdsPage({
     if (!confirm(`Вы уверены, что хотите архивировать субаккаунт "${clientNameStr}"?`)) return;
     try {
       const res = await adService.deleteAgencyClient(clientId);
-      if (res.data?.data?.deleted) {
+      if (res?.data?.deleted) {
         message.success('Клиентский субаккаунт архивирован');
         fetchAgencyData();
       }
@@ -1054,7 +1054,7 @@ export default function SwipiesAdsPage({
         role: memberRole,
         assigned_client_ids: memberAssignedClients,
       });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Сотрудник успешно добавлен в агентство!');
         setIsAgencyMemberModalOpen(false);
         setMemberEmail('');
@@ -1072,7 +1072,7 @@ export default function SwipiesAdsPage({
     if (!confirm('Отозвать доступ данного сотрудника из агентства?')) return;
     try {
       const res = await adService.removeAgencyMember(memberId);
-      if (res.data?.data?.removed) {
+      if (res?.data?.removed) {
         message.success('Доступ сотрудника отозван');
         fetchAgencyData();
       }
@@ -1091,8 +1091,8 @@ export default function SwipiesAdsPage({
         client_id: targetClientId,
         days: reportPeriodDays,
       });
-      if (res.data?.data) {
-        setExecutiveReport(res.data.data);
+      if (res?.data) {
+        setExecutiveReport(res.data);
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка генерации сводного отчета');
@@ -1109,9 +1109,9 @@ export default function SwipiesAdsPage({
         report_title: executiveReport?.report_title,
         days: reportPeriodDays,
       });
-      if (res.data?.data) {
-        setShareLinkData(res.data.data);
-        const fullUrl = `${window.location.origin}${res.data.data.share_url}`;
+      if (res?.data) {
+        setShareLinkData(res.data);
+        const fullUrl = `${window.location.origin}${res.data.share_url}`;
         navigator.clipboard.writeText(fullUrl);
         message.success('Публичная ссылка на отчет создана и скопирована в буфер!');
       }
@@ -1133,8 +1133,8 @@ export default function SwipiesAdsPage({
     setLoading(true);
     try {
       const res = await adService.getDashboard();
-      if (res.data?.data) {
-        setDashboard(res.data.data);
+      if (res?.data) {
+        setDashboard(res.data);
       }
     } catch (err: any) {
       message.error(err.message || 'Failed to load advertiser dashboard');
@@ -1147,8 +1147,8 @@ export default function SwipiesAdsPage({
     setLoadingTeam(true);
     try {
       const res = await adService.getTeamMembers();
-      if (res.data?.data) {
-        setTeamMembers(res.data.data);
+      if (res?.data) {
+        setTeamMembers(res.data);
       }
     } catch (err: any) {
       // silent
@@ -1165,7 +1165,7 @@ export default function SwipiesAdsPage({
     setInvitingMember(true);
     try {
       const res = await adService.inviteTeamMember({ email: inviteEmail, role: inviteRole });
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Участник успешно добавлен в команду!');
         setIsInviteModalOpen(false);
         setInviteEmail('');
@@ -1182,7 +1182,7 @@ export default function SwipiesAdsPage({
     setUpdatingMemberId(memberId);
     try {
       const res = await adService.updateTeamMemberRole(memberId, role);
-      if (res.data?.data) {
+      if (res?.data) {
         message.success('Роль участника успешно обновлена!');
         fetchTeam();
       }
@@ -1196,7 +1196,7 @@ export default function SwipiesAdsPage({
   const handleDeleteMember = async (memberId: string) => {
     try {
       const res = await adService.deleteTeamMember(memberId);
-      if (res.data?.data?.deleted) {
+      if (res?.data?.deleted) {
         message.success('Доступ участника отозван');
         fetchTeam();
       }
