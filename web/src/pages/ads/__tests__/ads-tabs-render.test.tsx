@@ -1,7 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { GuideTab } from '../tabs/GuideTab';
 import { PublisherTab } from '../tabs/PublisherTab';
-import { PlacementItem, PublisherPayoutItem, PublisherProfileData } from '@/services/ad-service';
+import { FraudTab } from '../tabs/FraudTab';
+import {
+  BlacklistEntryItem,
+  FraudOverviewData,
+  PlacementItem,
+  PublisherPayoutItem,
+  PublisherProfileData,
+} from '@/services/ad-service';
 
 describe('Ads Tabs Render Suite', () => {
   describe('GuideTab', () => {
@@ -215,6 +222,215 @@ describe('Ads Tabs Render Suite', () => {
       expect(screen.getByText('0%')).toBeInTheDocument();
       expect(screen.getByText('$0.0000')).toBeInTheDocument();
       expect(screen.getByText('$0.00 USD')).toBeInTheDocument();
+    });
+  });
+
+  describe('FraudTab', () => {
+    const mockFraudOverview: FraudOverviewData = {
+      total_blocked_clicks: 142,
+      total_cost_saved: 78.45,
+      bot_detections: 95,
+      active_blacklist_count: 3,
+      recent_logs: [
+        {
+          id: 'log-1',
+          campaign_name: 'Summer AI Promo',
+          reason: 'bot_user_agent',
+          ip_hash: 'abc123def4567890abcdef',
+          user_agent: 'Scrapy/2.11.0',
+          cost_saved: 0.55,
+          create_time: 1700000000000,
+        },
+        {
+          id: 'log-2',
+          campaign_name: 'Telegram Bot Ads',
+          reason: 'blacklist_ip',
+          ip_hash: 'deadbeef12345678cafe',
+          user_agent: 'Mozilla/5.0',
+          cost_saved: 1.2,
+          create_time: 1700000000000,
+        },
+        {
+          id: 'log-3',
+          campaign_name: 'Search Boost',
+          reason: 'rapid_repeat_clicks',
+          ip_hash: '99887766554433221100',
+          user_agent: 'HeadlessChrome',
+          cost_saved: 0.8,
+          create_time: 1700000000000,
+        },
+      ],
+    };
+
+    const mockFraudBlacklist: BlacklistEntryItem[] = [
+      {
+        id: 'bl-1',
+        ip_address: '192.168.1.100',
+        is_system: false,
+        reason: 'Manual block by admin',
+        auto_expires_at: '2026-09-25T15:00:00Z',
+      },
+      {
+        id: 'bl-2',
+        ip_address: '10.0.0.1/24',
+        is_system: true,
+        reason: 'Known DC datacenter range',
+        auto_expires_at: null,
+      },
+    ];
+
+    it('renders empty state without crashing', () => {
+      const { container } = render(
+        <FraudTab
+          fraudOverview={null}
+          fraudBlacklist={[]}
+          onRefresh={jest.fn()}
+          onOpenBlacklistModal={jest.fn()}
+          onRemoveBlacklist={jest.fn()}
+        />,
+      );
+
+      expect(container).toBeDefined();
+      expect(screen.getByText('Anti-Fraud Shield & Защита от скликивания')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Многоуровневая система фильтрации ботов, повторных кликов и датацентровых прокси/i),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Подозрительной активности не зафиксировано/i)).toBeInTheDocument();
+      expect(screen.getByText(/Черный список пуст/i)).toBeInTheDocument();
+    });
+
+    it('renders populated KPI metrics, live fraud incident logs and blacklist items', () => {
+      render(
+        <FraudTab
+          fraudOverview={mockFraudOverview}
+          fraudBlacklist={mockFraudBlacklist}
+          onRefresh={jest.fn()}
+          onOpenBlacklistModal={jest.fn()}
+          onRemoveBlacklist={jest.fn()}
+        />,
+      );
+
+      // KPI checks
+      expect(screen.getByText('142')).toBeInTheDocument();
+      expect(screen.getByText('$78.45')).toBeInTheDocument();
+      expect(screen.getByText('95')).toBeInTheDocument();
+      expect(screen.getByText('3')).toBeInTheDocument();
+
+      // Incident logs checks
+      expect(screen.getByText('Summer AI Promo')).toBeInTheDocument();
+      expect(screen.getByText('🤖 Бот / Web Scraper')).toBeInTheDocument();
+      expect(screen.getByText('+$0.55')).toBeInTheDocument();
+
+      expect(screen.getByText('Telegram Bot Ads')).toBeInTheDocument();
+      expect(screen.getByText('🚫 Заблокированный IP')).toBeInTheDocument();
+      expect(screen.getByText('+$1.20')).toBeInTheDocument();
+
+      expect(screen.getByText('Search Boost')).toBeInTheDocument();
+      expect(screen.getByText('⚡ Скликивание (>2 в мин)')).toBeInTheDocument();
+      expect(screen.getByText('+$0.80')).toBeInTheDocument();
+
+      // Blacklist table checks
+      expect(screen.getByText('192.168.1.100')).toBeInTheDocument();
+      expect(screen.getByText('👤 Персональный')).toBeInTheDocument();
+      expect(screen.getByText('Manual block by admin')).toBeInTheDocument();
+
+      expect(screen.getByText('10.0.0.1/24')).toBeInTheDocument();
+      expect(screen.getByText('🌐 Системный глобальный')).toBeInTheDocument();
+      expect(screen.getByText('Known DC datacenter range')).toBeInTheDocument();
+      expect(screen.getByText('Бессрочно')).toBeInTheDocument();
+    });
+
+    it('wires action buttons to corresponding callback props', () => {
+      const onOpenBlacklistModal = jest.fn();
+      const onRefresh = jest.fn();
+      const onRemoveBlacklist = jest.fn();
+
+      render(
+        <FraudTab
+          fraudOverview={mockFraudOverview}
+          fraudBlacklist={mockFraudBlacklist}
+          onRefresh={onRefresh}
+          onOpenBlacklistModal={onOpenBlacklistModal}
+          onRemoveBlacklist={onRemoveBlacklist}
+        />,
+      );
+
+      // Header "Заблокировать IP" button
+      fireEvent.click(screen.getByRole('button', { name: /заблокировать ip/i }));
+      expect(onOpenBlacklistModal).toHaveBeenCalledTimes(1);
+
+      // Blacklist table "Добавить IP" button
+      fireEvent.click(screen.getByRole('button', { name: /добавить ip/i }));
+      expect(onOpenBlacklistModal).toHaveBeenCalledTimes(2);
+
+      // Refresh button
+      fireEvent.click(screen.getByRole('button', { name: /обновить данные антифрода/i }));
+      expect(onRefresh).toHaveBeenCalledTimes(1);
+
+      // Unblock button for personal rule (semantic role test per user guidance)
+      const unblockBtn = screen.getByRole('button', { name: /разблокировать/i });
+      expect(unblockBtn).toBeInTheDocument();
+      fireEvent.click(unblockBtn);
+      expect(onRemoveBlacklist).toHaveBeenCalledWith('bl-1');
+    });
+
+    it('renders gracefully when recent_logs or fraudBlacklist are null or non-array', () => {
+      const corruptOverview: any = {
+        total_blocked_clicks: 0,
+        total_cost_saved: 0,
+        bot_detections: 0,
+        active_blacklist_count: 0,
+        recent_logs: null,
+      };
+
+      render(
+        <FraudTab
+          fraudOverview={corruptOverview}
+          fraudBlacklist={null as any}
+          onRefresh={jest.fn()}
+          onOpenBlacklistModal={jest.fn()}
+          onRemoveBlacklist={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText(/Подозрительной активности не зафиксировано/i)).toBeInTheDocument();
+      expect(screen.getByText(/Черный список пуст/i)).toBeInTheDocument();
+    });
+
+    it('renders without throwing when numeric fields are undefined, null, or invalid', () => {
+      const undefinedFraudOverview: any = {
+        total_blocked_clicks: undefined,
+        total_cost_saved: undefined,
+        bot_detections: null,
+        active_blacklist_count: undefined,
+        recent_logs: [
+          {
+            id: 'log-undef',
+            campaign_name: 'Undef Promo',
+            reason: 'bot_user_agent',
+            ip_hash: null,
+            user_agent: 'Curl',
+            cost_saved: undefined,
+            create_time: null,
+          },
+        ],
+      };
+
+      expect(() =>
+        render(
+          <FraudTab
+            fraudOverview={undefinedFraudOverview}
+            fraudBlacklist={[]}
+            onRefresh={jest.fn()}
+            onOpenBlacklistModal={jest.fn()}
+            onRemoveBlacklist={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+
+      expect(screen.getByText('$0.00')).toBeInTheDocument();
+      expect(screen.getByText('+$0.00')).toBeInTheDocument();
+      expect(screen.getByText('Undef Promo')).toBeInTheDocument();
     });
   });
 
