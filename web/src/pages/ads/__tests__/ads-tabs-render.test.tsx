@@ -4,14 +4,18 @@ import { PublisherTab } from '../tabs/PublisherTab';
 import { FraudTab } from '../tabs/FraudTab';
 import { TeamTab } from '../tabs/TeamTab';
 import { InsightsTab } from '../tabs/InsightsTab';
+import { BillingTab } from '../tabs/BillingTab';
 import {
+  AdTransactionItem,
   AdvertiserInsightsData,
   BlacklistEntryItem,
   FraudOverviewData,
   PlacementItem,
   PublisherPayoutItem,
   PublisherProfileData,
+  SavedPaymentMethodItem,
   TeamMemberItem,
+  UserSubscriptionData,
 } from '@/services/ad-service';
 
 describe('Ads Tabs Render Suite', () => {
@@ -728,6 +732,225 @@ describe('Ads Tabs Render Suite', () => {
       );
 
       expect(screen.getByText('Применение...')).toBeInTheDocument();
+    });
+  });
+
+  describe('BillingTab', () => {
+    const mockSubscription: UserSubscriptionData = {
+      id: 'sub-1',
+      user_id: 'user-1',
+      tenant_id: 'tenant-1',
+      plan_id: 'pro',
+      status: 'active',
+      auto_renew: true,
+      price_usd: 49.99,
+      current_period_start: 1700000000000,
+      current_period_end: 1702592000000,
+      next_billing_time: 1702592000000,
+      cancel_at_period_end: false,
+      card: {
+        id: 'card-1',
+        card_pan_masked: '**** 4242',
+        card_type: 'visa',
+        card_expiry: '12/28',
+      },
+    };
+
+    const mockSavedCards: SavedPaymentMethodItem[] = [
+      {
+        id: 'card-1',
+        card_pan_masked: '**** 4242',
+        card_expiry: '12/28',
+        card_type: 'visa',
+        is_default: true,
+        create_time: 1700000000000,
+      },
+      {
+        id: 'card-2',
+        card_pan_masked: '**** 8888',
+        card_expiry: '06/27',
+        card_type: 'mastercard',
+        is_default: false,
+        create_time: 1701000000000,
+      },
+    ];
+
+    const mockTransactions: AdTransactionItem[] = [
+      {
+        id: 'tx-1',
+        type: 'deposit',
+        description: 'Пополнение баланса картой',
+        amount: 100.0,
+        reference_id: 'ref-1',
+        created_at: 1700000000000,
+      },
+      {
+        id: 'tx-2',
+        type: 'spend',
+        description: 'Списание за клики кампании "AI Promo"',
+        amount: -25.5,
+        reference_id: 'ref-2',
+        created_at: 1701000000000,
+      },
+    ];
+
+    it('renders empty / free state when subscription is null and transactions are empty', () => {
+      render(
+        <BillingTab
+          subscription={null}
+          loadingSubscriptionAction={false}
+          savedCards={[]}
+          balance={0}
+          currency="USD"
+          transactions={[]}
+          onToggleAutoRenew={jest.fn()}
+          onOpenCardsModal={jest.fn()}
+          onOpenTopUpModal={jest.fn()}
+          onExportTransactions={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('Тариф и Автопродление')).toBeInTheDocument();
+      expect(screen.getByText('FREE')).toBeInTheDocument();
+      expect(screen.getByText('$0.00 / мес')).toBeInTheDocument();
+      expect(screen.getByText('Базовый (Free)')).toBeInTheDocument();
+      expect(screen.getByText('⏸️ Отключено')).toBeInTheDocument();
+      expect(screen.getByText('No transactions recorded yet.')).toBeInTheDocument();
+      expect(screen.getByText('Сохранённые карты (0)')).toBeInTheDocument();
+    });
+
+    it('renders active pro subscription with price, cards count, balance, and transaction history', () => {
+      render(
+        <BillingTab
+          subscription={mockSubscription}
+          loadingSubscriptionAction={false}
+          savedCards={mockSavedCards}
+          balance={250.75}
+          currency="USD"
+          transactions={mockTransactions}
+          onToggleAutoRenew={jest.fn()}
+          onOpenCardsModal={jest.fn()}
+          onOpenTopUpModal={jest.fn()}
+          onExportTransactions={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('PRO')).toBeInTheDocument();
+      expect(screen.getByText('$49.99 / мес')).toBeInTheDocument();
+      expect(screen.getByText('Активна')).toBeInTheDocument();
+      expect(screen.getByText('🟢 Включено (каждые 30 дн.)')).toBeInTheDocument();
+      expect(screen.getByText('**** 4242')).toBeInTheDocument();
+      expect(screen.getByText('Сохранённые карты (2)')).toBeInTheDocument();
+
+      // Wallet
+      expect(screen.getByText('$250.75 USD')).toBeInTheDocument();
+
+      // Transactions
+      expect(screen.getByText('deposit')).toBeInTheDocument();
+      expect(screen.getByText('Пополнение баланса картой')).toBeInTheDocument();
+      expect(screen.getByText('+$100.00')).toBeInTheDocument();
+
+      expect(screen.getByText('spend')).toBeInTheDocument();
+      expect(screen.getByText('-$25.50')).toBeInTheDocument();
+    });
+
+    it('wires action buttons properly (toggle auto-renew, open modals, export)', () => {
+      const handleToggleAutoRenew = jest.fn();
+      const handleOpenCards = jest.fn();
+      const handleOpenTopUp = jest.fn();
+      const handleExport = jest.fn();
+
+      const { rerender } = render(
+        <BillingTab
+          subscription={mockSubscription}
+          loadingSubscriptionAction={false}
+          savedCards={mockSavedCards}
+          balance={250.75}
+          currency="USD"
+          transactions={mockTransactions}
+          onToggleAutoRenew={handleToggleAutoRenew}
+          onOpenCardsModal={handleOpenCards}
+          onOpenTopUpModal={handleOpenTopUp}
+          onExportTransactions={handleExport}
+        />,
+      );
+
+      // Auto-renew button
+      const autoRenewBtn = screen.getByRole('button', { name: /отключить автопродление/i });
+      fireEvent.click(autoRenewBtn);
+      expect(handleToggleAutoRenew).toHaveBeenCalledTimes(1);
+
+      // Open cards modal
+      fireEvent.click(screen.getByRole('button', { name: /управление сохранёнными картами/i }));
+      expect(handleOpenCards).toHaveBeenCalledTimes(1);
+
+      // Open topup modal
+      fireEvent.click(screen.getByRole('button', { name: /пополнить баланс кабинета/i }));
+      expect(handleOpenTopUp).toHaveBeenCalledTimes(1);
+
+      // Export CSV
+      fireEvent.click(screen.getByRole('button', { name: /экспорт транзакций в csv/i }));
+      expect(handleExport).toHaveBeenCalledTimes(1);
+
+      // Re-render with loading state on auto-renew
+      rerender(
+        <BillingTab
+          subscription={mockSubscription}
+          loadingSubscriptionAction={true}
+          savedCards={mockSavedCards}
+          balance={250.75}
+          currency="USD"
+          transactions={mockTransactions}
+          onToggleAutoRenew={handleToggleAutoRenew}
+          onOpenCardsModal={handleOpenCards}
+          onOpenTopUpModal={handleOpenTopUp}
+          onExportTransactions={handleExport}
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: /отключить автопродление/i })).toBeDisabled();
+    });
+
+    it('handles defensive edge cases (past_due status, null/undefined numeric values)', () => {
+      const corruptSubscription: any = {
+        id: 'sub-corrupt',
+        plan_id: undefined,
+        status: 'past_due',
+        auto_renew: false,
+        price_usd: undefined,
+      };
+
+      const corruptTransactions: any = [
+        {
+          id: 'tx-corrupt',
+          type: 'adjustment',
+          description: 'Corrupt row',
+          amount: undefined,
+          created_at: 1700000000000,
+        },
+      ];
+
+      expect(() =>
+        render(
+          <BillingTab
+            subscription={corruptSubscription}
+            loadingSubscriptionAction={false}
+            savedCards={null as any}
+            balance={undefined as any}
+            currency="USD"
+            transactions={corruptTransactions}
+            onToggleAutoRenew={jest.fn()}
+            onOpenCardsModal={jest.fn()}
+            onOpenTopUpModal={jest.fn()}
+            onExportTransactions={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+
+      expect(screen.getByText('Ошибка оплаты')).toBeInTheDocument();
+      expect(screen.getByText('+$0.00')).toBeInTheDocument();
+      expect(screen.getByText('$0.00 USD')).toBeInTheDocument();
+      expect(screen.getByText('Сохранённые карты (0)')).toBeInTheDocument();
     });
   });
 
