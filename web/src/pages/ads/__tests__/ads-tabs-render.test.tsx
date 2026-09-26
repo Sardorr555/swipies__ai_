@@ -8,22 +8,34 @@ import { BillingTab } from '../tabs/BillingTab';
 import { SettingsTab } from '../tabs/SettingsTab';
 import { AttributionTab } from '../tabs/AttributionTab';
 import { AnalyticsTab } from '../tabs/AnalyticsTab';
+import { AudiencesTab } from '../tabs/AudiencesTab';
+import { AgencyTab } from '../tabs/AgencyTab';
+import { OmniChannelTab } from '../tabs/OmniChannelTab';
 import {
   AdTransactionItem,
   AdvertiserInsightsData,
   AdvertiserSettingsData,
+  AgencyClient,
+  AgencyMember,
+  AgencyWorkspace,
   AttributionSummaryResponse,
-  TimelineAnalyticsData,
+  AudienceSegmentItem,
   BlacklistEntryItem,
   ConversionJourneyPath,
+  CrossPlatformAnalyticsResponse,
+  CustomerLtvOverviewResponse,
   FraudOverviewData,
   FunnelAnalyticsResponse,
+  LookalikeAudienceItem,
   NotificationSettingsData,
+  OmniAccountItem,
+  OmniSyncJobItem,
   PlacementItem,
   PublisherPayoutItem,
   PublisherProfileData,
   SavedPaymentMethodItem,
   TeamMemberItem,
+  TimelineAnalyticsData,
   UserSubscriptionData,
 } from '@/services/ad-service';
 
@@ -1710,6 +1722,788 @@ describe('Ads Tabs Render Suite', () => {
       expect(screen.getByText('За выбранный период данных нет')).toBeInTheDocument();
       expect(screen.getByText('$0.00')).toBeInTheDocument();
       expect(screen.getByText('0%')).toBeInTheDocument();
+    });
+  });
+
+  describe('AudiencesTab', () => {
+    const mockLtvOverview: CustomerLtvOverviewResponse = {
+      total_customers: 1500,
+      avg_predicted_ltv_90d: 340.5,
+      avg_predicted_ltv_365d: 1200.75,
+      avg_churn_risk_percent: 18,
+      total_historical_revenue: 45000.25,
+      segment_counts: {
+        champions: 210,
+        loyal: 340,
+        potential_loyalist: 180,
+        recent_customers: 95,
+        at_risk: 120,
+        hibernating: 85,
+        lost: 470,
+      },
+      top_customers: [
+        {
+          id: 'c1',
+          customer_identifier: 'VIP-User-Alpha',
+          visitor_id: 'v1234567890abcdef',
+          rfm_segment: 'champions',
+          predicted_ltv_90d: 950.0,
+          predicted_ltv_365d: 3200.0,
+          churn_risk_score: 0.12,
+          total_orders: 14,
+          rfm_monetary_val: 2800.5,
+          avg_order_value: 200.0,
+          rfm_recency_days: 2,
+          tags: ['vip'],
+          create_time: 1700000000,
+        },
+        {
+          id: 'c2',
+          customer_identifier: '',
+          visitor_id: 'visitor_long_hex_id_9999',
+          rfm_segment: 'at_risk',
+          predicted_ltv_90d: 45.0,
+          predicted_ltv_365d: 110.0,
+          churn_risk_score: 0.85,
+          total_orders: 2,
+          rfm_monetary_val: 90.0,
+          avg_order_value: 45.0,
+          rfm_recency_days: 75,
+          tags: [],
+          create_time: 1700000000,
+        },
+      ],
+    };
+
+    const mockLookalikes: LookalikeAudienceItem[] = [
+      {
+        id: 'lal-1',
+        advertiser_id: 'adv-1',
+        name: 'Lookalike High LTV 2%',
+        source_segment_id: 'seg-1',
+        source_segment_name: 'VIP Buyers',
+        similarity_ratio: 98,
+        country: 'US',
+        seed_audience_size: 1500,
+        estimated_reach: 450000,
+        status: 'ready',
+        feature_weights: {},
+        create_time: 1700000000,
+      },
+    ];
+
+    const mockAudiences: AudienceSegmentItem[] = [
+      {
+        id: 'aud-1',
+        advertiser_id: 'adv-1',
+        name: 'Cart Abandoners 7d',
+        description: 'Visited checkout but did not buy',
+        rule_type: 'pixel_event',
+        rule_config: { event_type: 'abandoned_checkout' },
+        member_count: 4250,
+        status: 'active',
+        create_time: 1700000000000,
+      },
+    ];
+
+    it('renders empty state when lookalikes and audiences are empty and ltvOverview is null', () => {
+      render(
+        <AudiencesTab
+          ltvOverview={null}
+          lookalikes={[]}
+          audiences={[]}
+          loadingLookalikes={false}
+          loadingAudiences={false}
+          onOpenCreateLookalikeModal={jest.fn()}
+          onOpenLtvSyncModal={jest.fn()}
+          onOpenCreateAudienceModal={jest.fn()}
+          onRefreshLookalikes={jest.fn()}
+          onRefreshAudiences={jest.fn()}
+          onDeleteLookalike={jest.fn()}
+          onDeleteAudience={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('Сегменты аудиторий, Lookalike AI и Прогнозный LTV')).toBeInTheDocument();
+      expect(screen.getByText('У вас пока нет созданных Lookalike аудиторий. Создайте расширенную аудиторию на основе VIP-покупателей!')).toBeInTheDocument();
+      expect(screen.getByText('У вас пока нет созданных сегментов аудиторий. Создайте первую аудиторию ретаргетинга!')).toBeInTheDocument();
+      expect(screen.queryByText('Топ VIP-профили по Прогнозному LTV (pLTV Top-25)')).not.toBeInTheDocument();
+      expect(screen.getByText('0%')).toBeInTheDocument();
+      expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0);
+    });
+
+    it('renders populated lookalikes, audiences, RFM segmentation cohorts and top customers', () => {
+      render(
+        <AudiencesTab
+          ltvOverview={mockLtvOverview}
+          lookalikes={mockLookalikes}
+          audiences={mockAudiences}
+          loadingLookalikes={false}
+          loadingAudiences={false}
+          onOpenCreateLookalikeModal={jest.fn()}
+          onOpenLtvSyncModal={jest.fn()}
+          onOpenCreateAudienceModal={jest.fn()}
+          onRefreshLookalikes={jest.fn()}
+          onRefreshAudiences={jest.fn()}
+          onDeleteLookalike={jest.fn()}
+          onDeleteAudience={jest.fn()}
+        />,
+      );
+
+      // KPI scorecard
+      expect(screen.getByText('1500')).toBeInTheDocument();
+      expect(screen.getByText('$340.50')).toBeInTheDocument();
+      expect(screen.getByText('$1200.75')).toBeInTheDocument();
+      expect(screen.getByText('18%')).toBeInTheDocument();
+      expect(screen.getByText(/45000\.25/)).toBeInTheDocument();
+
+      // RFM cohorts
+      expect(screen.getByText('210')).toBeInTheDocument();
+      expect(screen.getByText('340')).toBeInTheDocument();
+      expect(screen.getByText('180')).toBeInTheDocument();
+      expect(screen.getByText('95')).toBeInTheDocument();
+      expect(screen.getByText('120')).toBeInTheDocument();
+      expect(screen.getByText('85')).toBeInTheDocument();
+      expect(screen.getByText('470')).toBeInTheDocument();
+
+      // Lookalike table
+      expect(screen.getByText('Lookalike High LTV 2%')).toBeInTheDocument();
+      expect(screen.getByText('VIP Buyers')).toBeInTheDocument();
+      expect(screen.getByText('98%')).toBeInTheDocument();
+      expect(screen.getByText('US')).toBeInTheDocument();
+      expect(screen.getByText(/1,500 чел|1500 чел/)).toBeInTheDocument();
+      expect(screen.getByText(/450,000 чел|450000 чел/)).toBeInTheDocument();
+
+      // Audiences table
+      expect(screen.getByText('Cart Abandoners 7d')).toBeInTheDocument();
+      expect(screen.getByText('Visited checkout but did not buy')).toBeInTheDocument();
+      expect(screen.getByText('🌐 Событие Пикселя')).toBeInTheDocument();
+      expect(screen.getByText('abandoned_checkout')).toBeInTheDocument();
+      expect(screen.getByText(/4,250|4250/)).toBeInTheDocument();
+
+      // Top customers table
+      expect(screen.getByText('Топ VIP-профили по Прогнозному LTV (pLTV Top-25)')).toBeInTheDocument();
+      expect(screen.getByText('VIP-User-Alpha')).toBeInTheDocument();
+      expect(screen.getByText('champions')).toBeInTheDocument();
+      expect(screen.getByText('visitor_long_hex')).toBeInTheDocument();
+      expect(screen.getByText('at risk')).toBeInTheDocument();
+      expect(screen.getByText('12%')).toBeInTheDocument();
+      expect(screen.getByText('85%')).toBeInTheDocument();
+    });
+
+    it('handles all user action button clicks and delete handlers', () => {
+      const onOpenCreateLookalikeModal = jest.fn();
+      const onOpenLtvSyncModal = jest.fn();
+      const onOpenCreateAudienceModal = jest.fn();
+      const onRefreshLookalikes = jest.fn();
+      const onRefreshAudiences = jest.fn();
+      const onDeleteLookalike = jest.fn();
+      const onDeleteAudience = jest.fn();
+
+      render(
+        <AudiencesTab
+          ltvOverview={mockLtvOverview}
+          lookalikes={mockLookalikes}
+          audiences={mockAudiences}
+          loadingLookalikes={false}
+          loadingAudiences={false}
+          onOpenCreateLookalikeModal={onOpenCreateLookalikeModal}
+          onOpenLtvSyncModal={onOpenLtvSyncModal}
+          onOpenCreateAudienceModal={onOpenCreateAudienceModal}
+          onRefreshLookalikes={onRefreshLookalikes}
+          onRefreshAudiences={onRefreshAudiences}
+          onDeleteLookalike={onDeleteLookalike}
+          onDeleteAudience={onDeleteAudience}
+        />,
+      );
+
+      fireEvent.click(screen.getByText('+ Lookalike AI'));
+      expect(onOpenCreateLookalikeModal).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('+ Синхронизация клиента'));
+      expect(onOpenLtvSyncModal).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('+ Создать аудиторию'));
+      expect(onOpenCreateAudienceModal).toHaveBeenCalledTimes(1);
+
+      const deleteButtons = screen.getAllByText('Удалить');
+      expect(deleteButtons.length).toBe(2);
+
+      fireEvent.click(deleteButtons[0]);
+      expect(onDeleteLookalike).toHaveBeenCalledWith('lal-1');
+
+      fireEvent.click(deleteButtons[1]);
+      expect(onDeleteAudience).toHaveBeenCalledWith('aud-1');
+    });
+
+    it('disables refresh buttons and shows spinner when loading', () => {
+      const onRefreshLookalikes = jest.fn();
+      const onRefreshAudiences = jest.fn();
+
+      const { container } = render(
+        <AudiencesTab
+          ltvOverview={null}
+          lookalikes={[]}
+          audiences={[]}
+          loadingLookalikes={true}
+          loadingAudiences={true}
+          onOpenCreateLookalikeModal={jest.fn()}
+          onOpenLtvSyncModal={jest.fn()}
+          onOpenCreateAudienceModal={jest.fn()}
+          onRefreshLookalikes={onRefreshLookalikes}
+          onRefreshAudiences={onRefreshAudiences}
+          onDeleteLookalike={jest.fn()}
+          onDeleteAudience={jest.fn()}
+        />,
+      );
+
+      const spinners = container.querySelectorAll('.animate-spin');
+      expect(spinners.length).toBe(2);
+    });
+
+    it('does not throw when top_customers has rfm_segment: undefined (corrupt-data guard for ?.replace fix)', () => {
+      const corruptLtv = {
+        ...mockLtvOverview,
+        top_customers: [
+          {
+            id: 'c-corrupt',
+            customer_identifier: 'Broken-Record',
+            visitor_id: null,
+            rfm_segment: undefined as any,
+            predicted_ltv_90d: 100,
+            predicted_ltv_365d: 400,
+            churn_risk_score: 0.1,
+            total_orders: 1,
+            rfm_monetary_val: 100,
+            avg_order_value: 100,
+            rfm_recency_days: 5,
+            tags: [],
+            create_time: 1700000000,
+          },
+        ],
+      };
+
+      expect(() =>
+        render(
+          <AudiencesTab
+            ltvOverview={corruptLtv as any}
+            lookalikes={[]}
+            audiences={[]}
+            loadingLookalikes={false}
+            loadingAudiences={false}
+            onOpenCreateLookalikeModal={jest.fn()}
+            onOpenLtvSyncModal={jest.fn()}
+            onOpenCreateAudienceModal={jest.fn()}
+            onRefreshLookalikes={jest.fn()}
+            onRefreshAudiences={jest.fn()}
+            onDeleteLookalike={jest.fn()}
+            onDeleteAudience={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+      expect(screen.getByText('—')).toBeInTheDocument();
+    });
+  });
+
+  describe('AgencyTab', () => {
+    const mockWorkspace: AgencyWorkspace = {
+      id: 'ws-1',
+      owner_advertiser_id: 'adv-owner',
+      name: 'Apex Media Agency',
+      agency_slug: 'apex-media',
+      logo_url: 'https://example.com/logo.png',
+      brand_color: '#3b82f6',
+      report_footer_text: 'Confidential Report',
+      billing_mode: 'separate',
+      status: 'active',
+      clients_count: 2,
+      members_count: 3,
+      total_managed_spend: 125000.5,
+      create_time: 1700000000,
+    };
+
+    const mockClients: AgencyClient[] = [
+      {
+        id: 'cli-1',
+        workspace_id: 'ws-1',
+        client_advertiser_id: 'adv-c1',
+        client_name: 'Acme Corp',
+        contact_email: 'acme@example.com',
+        monthly_budget_cap: 10000.0,
+        monthly_spend_current: 8500.0,
+        currency: 'USD',
+        status: 'active',
+        total_spend: 8500.0,
+        campaigns_count: 5,
+        active_campaigns_count: 3,
+        total_clicks: 12400,
+        avg_ctr: 3.25,
+        total_conversions: 420,
+        avg_cpa: 20.24,
+        create_time: 1700000000,
+      },
+      {
+        id: 'cli-2',
+        workspace_id: 'ws-1',
+        client_advertiser_id: 'adv-c2',
+        client_name: 'Beta Brand',
+        contact_email: 'beta@example.com',
+        monthly_budget_cap: 0,
+        monthly_spend_current: 1500.0,
+        currency: 'USD',
+        status: 'active',
+        total_spend: 1500.0,
+        campaigns_count: 2,
+        active_campaigns_count: 1,
+        total_clicks: 3100,
+        avg_ctr: 2.1,
+        total_conversions: 85,
+        avg_cpa: 0,
+        create_time: 1700000000,
+      },
+    ];
+
+    const mockMembers: AgencyMember[] = [
+      {
+        id: 'mem-admin',
+        workspace_id: 'ws-1',
+        user_id: 'u-1',
+        email: 'owner@agency.com',
+        role: 'agency_admin',
+        assigned_client_ids: [],
+        status: 'active',
+        create_time: 1700000000,
+      },
+      {
+        id: 'mem-buyer',
+        workspace_id: 'ws-1',
+        user_id: 'u-2',
+        email: 'buyer@agency.com',
+        role: 'media_buyer',
+        assigned_client_ids: ['cli-1'],
+        status: 'active',
+        create_time: 1700000000,
+      },
+      {
+        id: 'mem-auditor',
+        workspace_id: 'ws-1',
+        user_id: 'u-3',
+        email: 'audit@agency.com',
+        role: 'financial_auditor',
+        assigned_client_ids: ['cli-1', 'cli-2'],
+        status: 'active',
+        create_time: 1700000000,
+      },
+    ];
+
+    it('renders empty state when agencyClients is empty and agencyWorkspace is null', () => {
+      render(
+        <AgencyTab
+          agencyWorkspace={null}
+          agencyClients={[]}
+          agencyMembers={[]}
+          onOpenSettingsModal={jest.fn()}
+          onOpenExecutiveReport={jest.fn()}
+          onOpenAddClientModal={jest.fn()}
+          onDeleteClient={jest.fn()}
+          onOpenInviteMemberModal={jest.fn()}
+          onRemoveMember={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('Agency Enterprise Hub')).toBeInTheDocument();
+      expect(screen.getByText('agency')).toBeInTheDocument();
+      expect(screen.getByText('consolidated')).toBeInTheDocument();
+      expect(screen.getByText('У вас пока нет созданных субаккаунтов клиентов. Нажмите «Добавить субаккаунт», чтобы подключить бренд.')).toBeInTheDocument();
+      expect(screen.getByText('$0.00')).toBeInTheDocument();
+    });
+
+    it('renders populated workspace, sub-account list, budget progress bar, and RBAC team members', () => {
+      render(
+        <AgencyTab
+          agencyWorkspace={mockWorkspace}
+          agencyClients={mockClients}
+          agencyMembers={mockMembers}
+          onOpenSettingsModal={jest.fn()}
+          onOpenExecutiveReport={jest.fn()}
+          onOpenAddClientModal={jest.fn()}
+          onDeleteClient={jest.fn()}
+          onOpenInviteMemberModal={jest.fn()}
+          onRemoveMember={jest.fn()}
+        />,
+      );
+
+      // Hero banner
+      expect(screen.getByText('Apex Media Agency')).toBeInTheDocument();
+      expect(screen.getByText('apex-media')).toBeInTheDocument();
+      expect(screen.getByText('separate')).toBeInTheDocument();
+
+      // KPIs
+      expect(screen.getByText('2')).toBeInTheDocument();
+      expect(screen.getByText('$125000.50')).toBeInTheDocument();
+      expect(screen.getByText('3')).toBeInTheDocument();
+      expect(screen.getByText('4')).toBeInTheDocument();
+      expect(screen.getByText(/из 7 запущенных/)).toBeInTheDocument();
+
+      // Client list
+      expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      expect(screen.getByText('acme@example.com')).toBeInTheDocument();
+      expect(screen.getByText('$8500.00')).toBeInTheDocument();
+      expect(screen.getByText('/ $10000.00')).toBeInTheDocument();
+      expect(screen.getByText('3 акт. / 5 всего')).toBeInTheDocument();
+      expect(screen.getByText('12400 кликов')).toBeInTheDocument();
+      expect(screen.getByText('3.25% CTR')).toBeInTheDocument();
+      expect(screen.getByText('420 конв.')).toBeInTheDocument();
+      expect(screen.getByText('$20.24 CPA')).toBeInTheDocument();
+
+      expect(screen.getByText('Beta Brand')).toBeInTheDocument();
+      expect(screen.getByText('Без лимита')).toBeInTheDocument();
+
+      // Members and RBAC
+      expect(screen.getByText('owner@agency.com')).toBeInTheDocument();
+      expect(screen.getByText(/👑 Agency Admin/)).toBeInTheDocument();
+      expect(screen.getByText('🌐 Все субаккаунты')).toBeInTheDocument();
+
+      expect(screen.getByText('buyer@agency.com')).toBeInTheDocument();
+      expect(screen.getByText(/🎯 Media Buyer/)).toBeInTheDocument();
+      expect(screen.getByText('1 субаккаунтов')).toBeInTheDocument();
+
+      expect(screen.getByText('audit@agency.com')).toBeInTheDocument();
+      expect(screen.getByText(/📊 Financial Auditor/)).toBeInTheDocument();
+      expect(screen.getByText('2 субаккаунтов')).toBeInTheDocument();
+
+      // Admin has no revoke button, buyer and auditor do
+      const revokeButtons = screen.getAllByText('Отозвать');
+      expect(revokeButtons.length).toBe(2);
+    });
+
+    it('fires modal and delete callbacks correctly', () => {
+      const onOpenSettingsModal = jest.fn();
+      const onOpenExecutiveReport = jest.fn();
+      const onOpenAddClientModal = jest.fn();
+      const onDeleteClient = jest.fn();
+      const onOpenInviteMemberModal = jest.fn();
+      const onRemoveMember = jest.fn();
+
+      render(
+        <AgencyTab
+          agencyWorkspace={mockWorkspace}
+          agencyClients={mockClients}
+          agencyMembers={mockMembers}
+          onOpenSettingsModal={onOpenSettingsModal}
+          onOpenExecutiveReport={onOpenExecutiveReport}
+          onOpenAddClientModal={onOpenAddClientModal}
+          onDeleteClient={onDeleteClient}
+          onOpenInviteMemberModal={onOpenInviteMemberModal}
+          onRemoveMember={onRemoveMember}
+        />,
+      );
+
+      fireEvent.click(screen.getByText('White-Label Брендинг'));
+      expect(onOpenSettingsModal).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('Сводный Executive Report'));
+      expect(onOpenExecutiveReport).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('Добавить субаккаунт'));
+      expect(onOpenAddClientModal).toHaveBeenCalledTimes(1);
+
+      const clientReports = screen.getAllByText('Report');
+      fireEvent.click(clientReports[0]);
+      expect(onOpenExecutiveReport).toHaveBeenCalledWith('cli-1');
+
+      fireEvent.click(screen.getByText('Пригласить сотрудника'));
+      expect(onOpenInviteMemberModal).toHaveBeenCalledTimes(1);
+
+      const revokeButtons = screen.getAllByText('Отозвать');
+      fireEvent.click(revokeButtons[0]);
+      expect(onRemoveMember).toHaveBeenCalledWith('mem-buyer');
+
+      fireEvent.click(screen.getByText('Сформировать сводный отчет'));
+      expect(onOpenExecutiveReport).toHaveBeenCalled();
+    });
+  });
+
+  describe('OmniChannelTab', () => {
+    const mockAnalytics: CrossPlatformAnalyticsResponse = {
+      period_days: 30,
+      total_blended_spend: 34500.75,
+      connected_accounts_count: 4,
+      blended_roas: 4.85,
+      total_blended_impressions: 1250000,
+      total_blended_clicks: 45000,
+      blended_ctr: 3.6,
+      total_blended_conversions: 1850,
+      blended_cpa: 18.65,
+      networks: [
+        {
+          platform: 'telegram_ads',
+          name: 'Telegram Ads',
+          spend: 12000,
+          conversions: 650,
+          clicks: 18000,
+          impressions: 400000,
+          ctr: 4.5,
+          cpa: 18.46,
+          share_percent: 35,
+        },
+        {
+          platform: 'meta_ads',
+          name: 'Meta Ads',
+          spend: 15000,
+          conversions: 800,
+          clicks: 20000,
+          impressions: 500000,
+          ctr: 4.0,
+          cpa: 18.75,
+          share_percent: 43,
+        },
+        {
+          platform: 'google_ads',
+          name: 'Google Ads',
+          spend: 7500,
+          conversions: 400,
+          clicks: 7000,
+          impressions: 350000,
+          ctr: 2.0,
+          cpa: 18.75,
+          share_percent: 22,
+        },
+      ],
+    };
+
+    const mockAccounts: OmniAccountItem[] = [
+      {
+        id: 'acc-tg',
+        advertiser_id: 'adv-1',
+        platform: 'telegram_ads',
+        account_name: 'TG Main Ads',
+        platform_display_name: 'Telegram Ads API',
+        account_id_external: 'tg_123456',
+        default_currency: 'EUR',
+        auth_status: 'connected',
+        auto_sync_enabled: true,
+        total_campaigns_exported: 8,
+        total_external_spend: 0,
+        last_sync_time: null,
+        create_time: 1700000000,
+      },
+      {
+        id: 'acc-meta',
+        advertiser_id: 'adv-1',
+        platform: 'meta_ads',
+        account_name: 'FB Agency Hub',
+        platform_display_name: 'Meta Marketing API',
+        account_id_external: 'act_987654',
+        default_currency: 'USD',
+        auth_status: 'error',
+        auto_sync_enabled: false,
+        total_campaigns_exported: 3,
+        total_external_spend: 0,
+        last_sync_time: null,
+        create_time: 1700000000,
+      },
+    ];
+
+    const mockSyncJobs: OmniSyncJobItem[] = [
+      {
+        id: 'job-101',
+        advertiser_id: 'adv-1',
+        account_id: 'acc-tg',
+        campaign_id: 'cmp-1',
+        job_type: 'export_campaign',
+        platform: 'telegram_ads',
+        external_campaign_id: 'tg_cmp_888',
+        status: 'completed',
+        payload_data: {},
+        response_data: {},
+        items_synced_count: 1,
+        error_message: null,
+        create_time: 1700000000,
+        finish_time: null,
+      },
+      {
+        id: 'job-102',
+        advertiser_id: 'adv-1',
+        account_id: 'acc-meta',
+        campaign_id: 'cmp-2',
+        job_type: 'sync_audience',
+        platform: 'meta_ads',
+        external_campaign_id: 'aud_444',
+        status: 'success',
+        payload_data: {},
+        response_data: {},
+        items_synced_count: 1,
+        error_message: null,
+        create_time: 1700001000,
+        finish_time: null,
+      },
+    ];
+
+    it('renders empty state when omniAccounts is empty and crossPlatformAnalytics is null', () => {
+      render(
+        <OmniChannelTab
+          crossPlatformAnalytics={null}
+          omniAccounts={[]}
+          omniSyncJobs={[]}
+          testingOmniAccountId={null}
+          onOpenConnectAccount={jest.fn()}
+          onOpenExportModal={jest.fn()}
+          onTestConnection={jest.fn()}
+          onDisconnectAccount={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('Кросс-платформенный Мост (Omni-Channel Ads Bridge)')).toBeInTheDocument();
+      expect(screen.getByText('Нет подключенных рекламных кабинетов. Нажмите «Добавить кабинет», чтобы настроить синхронизацию с Telegram Ads, Meta или Google.')).toBeInTheDocument();
+      expect(screen.getAllByText('$0.00').length).toBeGreaterThanOrEqual(2);
+      expect(screen.getByText('0.00x')).toBeInTheDocument();
+      expect(screen.queryByText('Сравнение Результативности по Рекламным Сетям')).not.toBeInTheDocument();
+      expect(screen.queryByText('Журнал Экспорта и Синхронизации (Sync Jobs)')).not.toBeInTheDocument();
+    });
+
+    it('renders populated cross-platform metrics, Recharts BarChart, connected accounts, and sync jobs', () => {
+      const { container } = render(
+        <OmniChannelTab
+          crossPlatformAnalytics={mockAnalytics}
+          omniAccounts={mockAccounts}
+          omniSyncJobs={mockSyncJobs}
+          testingOmniAccountId={null}
+          onOpenConnectAccount={jest.fn()}
+          onOpenExportModal={jest.fn()}
+          onTestConnection={jest.fn()}
+          onDisconnectAccount={jest.fn()}
+        />,
+      );
+
+      // KPI cards
+      expect(screen.getByText('$34500.75')).toBeInTheDocument();
+      expect(screen.getByText(/4 платформ/)).toBeInTheDocument();
+      expect(screen.getByText('4.85x')).toBeInTheDocument();
+      expect(screen.getByText('1850')).toBeInTheDocument();
+      expect(screen.getByText('$18.65')).toBeInTheDocument();
+
+      // Chart surface
+      expect(screen.getByText('Сравнение Результативности по Рекламным Сетям')).toBeInTheDocument();
+      expect(container.querySelector('.recharts-surface')).toBeInTheDocument();
+
+      // Accounts table
+      expect(screen.getByText('TG Main Ads')).toBeInTheDocument();
+      expect(screen.getByText('Telegram Ads API')).toBeInTheDocument();
+      expect(screen.getByText('tg_123456')).toBeInTheDocument();
+      expect(screen.getByText('8')).toBeInTheDocument();
+      expect(screen.getByText('EUR')).toBeInTheDocument();
+      expect(screen.getByText('🟢 Подключен')).toBeInTheDocument();
+      expect(screen.getByText('✈️')).toBeInTheDocument();
+
+      expect(screen.getByText('FB Agency Hub')).toBeInTheDocument();
+      expect(screen.getByText('Meta Marketing API')).toBeInTheDocument();
+      expect(screen.getByText('act_987654')).toBeInTheDocument();
+      expect(screen.getByText('3')).toBeInTheDocument();
+      expect(screen.getByText('USD')).toBeInTheDocument();
+      expect(screen.getByText('🔴 Ошибка')).toBeInTheDocument();
+      expect(screen.getByText('♾️')).toBeInTheDocument();
+
+      // Sync jobs table
+      expect(screen.getByText('Журнал Экспорта и Синхронизации (Sync Jobs)')).toBeInTheDocument();
+      expect(screen.getByText('job-101')).toBeInTheDocument();
+      expect(screen.getByText('🚀 Экспорт кампании')).toBeInTheDocument();
+      expect(screen.getByText('telegram ads', { exact: true })).toBeInTheDocument();
+      expect(screen.getByText('tg_cmp_888')).toBeInTheDocument();
+      expect(screen.getByText('✅ completed')).toBeInTheDocument();
+
+      expect(screen.getByText('job-102')).toBeInTheDocument();
+      expect(screen.getByText('👥 Синхронизация аудитории')).toBeInTheDocument();
+      expect(screen.getByText('meta ads', { exact: true })).toBeInTheDocument();
+      expect(screen.getByText('aud_444')).toBeInTheDocument();
+      expect(screen.getByText('✅ success')).toBeInTheDocument();
+    });
+
+    it('fires action handlers for account connection, campaign export, test API ping, and disconnect', () => {
+      const onOpenConnectAccount = jest.fn();
+      const onOpenExportModal = jest.fn();
+      const onTestConnection = jest.fn();
+      const onDisconnectAccount = jest.fn();
+
+      const { rerender } = render(
+        <OmniChannelTab
+          crossPlatformAnalytics={mockAnalytics}
+          omniAccounts={mockAccounts}
+          omniSyncJobs={mockSyncJobs}
+          testingOmniAccountId={null}
+          onOpenConnectAccount={onOpenConnectAccount}
+          onOpenExportModal={onOpenExportModal}
+          onTestConnection={onTestConnection}
+          onDisconnectAccount={onDisconnectAccount}
+        />,
+      );
+
+      fireEvent.click(screen.getByText('Подключить кабинет'));
+      expect(onOpenConnectAccount).toHaveBeenCalledWith('telegram_ads');
+
+      fireEvent.click(screen.getByText('🚀 1-Click Экспорт Кампании'));
+      expect(onOpenExportModal).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('Добавить кабинет'));
+      expect(onOpenConnectAccount).toHaveBeenCalledWith();
+
+      const testButtons = screen.getAllByText('📡 Тест API');
+      fireEvent.click(testButtons[0]);
+      expect(onTestConnection).toHaveBeenCalledWith('acc-tg');
+
+      // Test active pinging state
+      rerender(
+        <OmniChannelTab
+          crossPlatformAnalytics={mockAnalytics}
+          omniAccounts={mockAccounts}
+          omniSyncJobs={mockSyncJobs}
+          testingOmniAccountId={'acc-tg'}
+          onOpenConnectAccount={onOpenConnectAccount}
+          onOpenExportModal={onOpenExportModal}
+          onTestConnection={onTestConnection}
+          onDisconnectAccount={onDisconnectAccount}
+        />,
+      );
+
+      expect(screen.getByText('Пинг...')).toBeInTheDocument();
+    });
+
+    it('does not throw when omniSyncJobs has platform: undefined (corrupt-data guard for ?.replace fix)', () => {
+      const corruptJobs = [
+        {
+          id: 'job-corrupt',
+          advertiser_id: 'adv-1',
+          account_id: 'acc-tg',
+          campaign_id: 'cmp-1',
+          job_type: 'export_campaign',
+          platform: undefined as any,
+          external_campaign_id: null,
+          status: 'completed',
+          payload_data: {},
+          response_data: {},
+          items_synced_count: 1,
+          error_message: null,
+          create_time: 1700000000,
+          finish_time: null,
+        },
+      ];
+
+      expect(() =>
+        render(
+          <OmniChannelTab
+            crossPlatformAnalytics={mockAnalytics}
+            omniAccounts={mockAccounts}
+            omniSyncJobs={corruptJobs}
+            testingOmniAccountId={null}
+            onOpenConnectAccount={jest.fn()}
+            onOpenExportModal={jest.fn()}
+            onTestConnection={jest.fn()}
+            onDisconnectAccount={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+      // Two '—' in the corrupt row: platform column (from ?.replace fix) + external_campaign_id column (null fallback)
+      expect(screen.getAllByText('—').length).toBe(2);
     });
   });
 
