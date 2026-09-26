@@ -163,6 +163,89 @@ describe('Ads Tabs Render Suite', () => {
       expect(screen.getByText(/У вас пока нет созданных рекламных мест/i)).toBeInTheDocument();
       expect(screen.getByText(/Заявок на выплату пока не было/i)).toBeInTheDocument();
     });
+
+    it('renders without throwing when publisher, placement, or payout numeric fields are undefined or null', () => {
+      const undefinedPublisher: any = {
+        id: 'pub-undef',
+        name: 'Undef Pub',
+        api_key: 'key-123',
+        balance: undefined,
+        total_earned: null,
+        total_withdrawn: undefined,
+        default_rev_share: undefined,
+        status: 'active',
+      };
+
+      const undefinedPlacement: any = {
+        id: 'plc-undef',
+        name: 'Undef Placement',
+        placement_type: 'telegram_bot',
+        rev_share_rate: undefined,
+        impressions: undefined,
+        clicks: null,
+        earnings: undefined,
+      };
+
+      const undefinedPayout: any = {
+        id: 'pay-undef',
+        amount: undefined,
+        currency: 'USD',
+        create_time: 1700000000000,
+        status: 'pending',
+      };
+
+      expect(() =>
+        render(
+          <PublisherTab
+            publisher={undefinedPublisher}
+            placements={[undefinedPlacement]}
+            payouts={[undefinedPayout]}
+            onRefresh={jest.fn()}
+            onRegenerateKey={jest.fn()}
+            onDeletePlacement={jest.fn()}
+            onOpenPlacementModal={jest.fn()}
+            onOpenPayoutModal={jest.fn()}
+            onOpenSdkSnippetModal={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+
+      // Expect safe defaults to be rendered
+      expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0);
+      expect(screen.getByText('0%')).toBeInTheDocument();
+      expect(screen.getByText('$0.0000')).toBeInTheDocument();
+      expect(screen.getByText('$0.00 USD')).toBeInTheDocument();
+    });
+  });
+
+  describe('format-utils', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { toFixedSafe, toLocaleSafe } = require('../format-utils');
+
+    it('toFixedSafe safely handles undefined, null, NaN, strings, and numbers', () => {
+      expect(toFixedSafe(undefined)).toBe('0.00');
+      expect(toFixedSafe(null)).toBe('0.00');
+      expect(toFixedSafe('')).toBe('0.00');
+      expect(toFixedSafe(NaN)).toBe('0.00');
+      expect(toFixedSafe(Infinity)).toBe('0.00');
+      expect(toFixedSafe(123.456, 2)).toBe('123.46');
+      expect(toFixedSafe(123.4, 2)).toBe('123.40');
+      expect(toFixedSafe('42.5', 2)).toBe('42.50');
+      expect(toFixedSafe(0, 0)).toBe('0');
+      expect(toFixedSafe(70.2, 0)).toBe('70');
+      expect(toFixedSafe(5, 4)).toBe('5.0000');
+    });
+
+    it('toLocaleSafe safely handles undefined, null, NaN, strings, and numbers', () => {
+      expect(toLocaleSafe(undefined)).toBe('0');
+      expect(toLocaleSafe(null)).toBe('0');
+      expect(toLocaleSafe('')).toBe('0');
+      expect(toLocaleSafe(NaN)).toBe('0');
+      expect(toLocaleSafe(Infinity)).toBe('0');
+      expect(toLocaleSafe(0)).toBe('0');
+      expect(toLocaleSafe(1000)).toBe((1000).toLocaleString());
+      expect(toLocaleSafe('5000')).toBe((5000).toLocaleString());
+    });
   });
 });
 

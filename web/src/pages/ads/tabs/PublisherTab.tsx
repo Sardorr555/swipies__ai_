@@ -8,6 +8,7 @@ import {
   PublisherPayoutItem,
   PublisherProfileData,
 } from '@/services/ad-service';
+import { toFixedSafe, toLocaleSafe } from '../format-utils';
 import {
   ArrowUpRight,
   Bot,
@@ -66,7 +67,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
             variant="outline"
             className="text-xs flex items-center gap-1.5 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
           >
-            <Coins className="h-3.5 w-3.5" /> Вывести доход (${publisher?.balance ? publisher.balance.toFixed(2) : '0.00'})
+            <Coins className="h-3.5 w-3.5" /> Вывести доход (${toFixedSafe(publisher?.balance, 2)})
           </Button>
           <Button
             onClick={onOpenPlacementModal}
@@ -87,7 +88,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              ${publisher?.balance ? publisher.balance.toFixed(2) : '0.00'}
+              ${toFixedSafe(publisher?.balance, 2)}
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5">Мгновенный вывод на карты Uzcard / Humo / Visa</p>
           </CardContent>
@@ -100,7 +101,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${publisher?.total_earned ? publisher.total_earned.toFixed(2) : '0.00'}
+              ${toFixedSafe(publisher?.total_earned, 2)}
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5">За всё время монетизации</p>
           </CardContent>
@@ -113,7 +114,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${publisher?.total_withdrawn ? publisher.total_withdrawn.toFixed(2) : '0.00'}
+              ${toFixedSafe(publisher?.total_withdrawn, 2)}
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5">{(Array.isArray(payouts) ? payouts.length : 0)} заявок на выплату</p>
           </CardContent>
@@ -126,7 +127,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-              {((publisher?.default_rev_share || 0.70) * 100).toFixed(0)}%
+              {toFixedSafe((publisher?.default_rev_share ?? 0.70) * 100, 0)}%
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5">От каждого платного клика и показа</p>
           </CardContent>
@@ -220,12 +221,12 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
                         </Badge>
                       </td>
                       <td className="py-3 px-4 font-semibold text-amber-600">
-                        {(plc.rev_share_rate * 100).toFixed(0)}%
+                        {toFixedSafe((plc.rev_share_rate ?? 0) * 100, 0)}%
                       </td>
-                      <td className="py-3 px-4 font-mono">{plc.impressions.toLocaleString()}</td>
-                      <td className="py-3 px-4 font-mono">{plc.clicks.toLocaleString()}</td>
+                      <td className="py-3 px-4 font-mono">{toLocaleSafe(plc.impressions)}</td>
+                      <td className="py-3 px-4 font-mono">{toLocaleSafe(plc.clicks)}</td>
                       <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
-                        ${plc.earnings.toFixed(4)}
+                        ${toFixedSafe(plc.earnings, 4)}
                       </td>
                       <td className="py-3 px-4 text-right flex items-center justify-end gap-1.5">
                         <Button
@@ -286,7 +287,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
                         {new Date(pay.create_time).toLocaleDateString()} {new Date(pay.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="py-3 px-4 font-bold text-foreground">
-                        ${pay.amount.toFixed(2)} {pay.currency}
+                        ${toFixedSafe(pay.amount, 2)} {pay.currency}
                       </td>
                       <td className="py-3 px-4 font-mono text-[11px]">
                         {pay.destination_card} {pay.destination_holder && `(${pay.destination_holder})`}

@@ -171,7 +171,8 @@ import adService, {
 } from '@/services/ad-service';
 import { changeLanguageAsync } from '@/locales/config';
 import { AD_TRANSLATIONS, AdLanguage, translateAdText, getActiveAdLanguage, setActiveAdLanguage } from './translations';
-export { AD_TRANSLATIONS, AdLanguage, translateAdText, getActiveAdLanguage, setActiveAdLanguage };
+import { toFixedSafe, toLocaleSafe } from './format-utils';
+export { AD_TRANSLATIONS, AdLanguage, translateAdText, getActiveAdLanguage, setActiveAdLanguage, toFixedSafe, toLocaleSafe };
 
 // Modular Ads Tab Components
 import { GuideTab } from './tabs/GuideTab';
@@ -2449,7 +2450,19 @@ export default function SwipiesAdsPage({
         );
       }
       if (statsRes?.data) {
-        setCrossPlatformAnalytics(statsRes.data);
+        const d = statsRes.data as any;
+        setCrossPlatformAnalytics({
+          ...d,
+          total_blended_spend: Number(d.total_blended_spend || 0),
+          total_blended_impressions: Number(d.total_blended_impressions || 0),
+          total_blended_clicks: Number(d.total_blended_clicks || 0),
+          total_blended_conversions: Number(d.total_blended_conversions || 0),
+          blended_cpa: Number(d.blended_cpa || 0),
+          blended_roas: d.blended_roas ?? '0.00',
+          blended_ctr: d.blended_ctr ?? '0.00',
+          connected_accounts_count: Number(d.connected_accounts_count || 0),
+          networks: Array.isArray(d.networks) ? d.networks : [],
+        });
       }
       if (jobsRes?.data) {
         setOmniSyncJobs(
@@ -2601,7 +2614,7 @@ export default function SwipiesAdsPage({
           date: dateStr,
           impressions: Math.round(((dashboard?.total_impressions || 120) / 14) * factor),
           clicks: Math.round(((dashboard?.total_clicks || 15) / 14) * factor),
-          spend: Number((((dashboard?.total_spent || 25) / 14) * factor).toFixed(2)),
+          spend: Number(toFixedSafe((((dashboard?.total_spent || 25) / 14) * factor), 2)),
         };
       });
 
@@ -2647,7 +2660,7 @@ export default function SwipiesAdsPage({
             <div>
               <div className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{t('availableBalance')}</div>
               <div className="text-sm sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-tight">
-                ${balance.toFixed(2)} {currency}
+                ${toFixedSafe(balance, 2)} {currency}
               </div>
             </div>
             <Button size="sm" variant="outline" onClick={() => setIsTopUpModalOpen(true)} className="ml-1 sm:ml-2 h-7 sm:h-8 text-xs px-2 sm:px-3">
@@ -2959,7 +2972,7 @@ export default function SwipiesAdsPage({
                 <Activity className="h-4 w-4 text-indigo-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{(dashboard?.total_impressions || 0).toLocaleString()}</div>
+                <div className="text-2xl font-bold">{toLocaleSafe(dashboard?.total_impressions)}</div>
                 <p className="text-xs text-muted-foreground mt-1">{t('timesShown')}</p>
               </CardContent>
             </Card>
@@ -2971,7 +2984,7 @@ export default function SwipiesAdsPage({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {(dashboard?.total_clicks || 0).toLocaleString()}{' '}
+                  {toLocaleSafe(dashboard?.total_clicks)}{' '}
                   <span className="text-sm font-normal text-emerald-500">({dashboard?.ctr || 0}% CTR)</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{t('verifiedVisits')}</p>
@@ -2984,7 +2997,7 @@ export default function SwipiesAdsPage({
                 <DollarSign className="h-4 w-4 text-amber-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${(dashboard?.total_spent || 0).toFixed(2)}</div>
+                <div className="text-2xl font-bold">${toFixedSafe(dashboard?.total_spent, 2)}</div>
                 <p className="text-xs text-muted-foreground mt-1">{t('allTimeInvest')}</p>
               </CardContent>
             </Card>
@@ -3124,7 +3137,7 @@ export default function SwipiesAdsPage({
                 </div>
                 <CardTitle className="text-sm font-semibold mt-2">{t('cardWalletTitle')}</CardTitle>
                 <CardDescription className="text-xs">
-                  Баланс: ${(dashboard?.balance || 0).toFixed(2)} • Пополнение и чеки
+                  Баланс: ${toFixedSafe(dashboard?.balance, 2)} • Пополнение и чеки
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
@@ -3188,14 +3201,14 @@ export default function SwipiesAdsPage({
                             </Badge>
                           </td>
                           <td className="py-2.5 px-3">
-                            <div className="font-medium">${c.total_spent?.toFixed(2) || '0.00'}</div>
-                            <div className="text-[10px] text-muted-foreground">из ${c.total_budget?.toFixed(2) || '0.00'}</div>
+                            <div className="font-medium">${toFixedSafe(c.total_spent, 2)}</div>
+                            <div className="text-[10px] text-muted-foreground">из ${toFixedSafe(c.total_budget, 2)}</div>
                           </td>
                           <td className="py-2.5 px-3 font-medium">
-                            {(c.impressions || 0).toLocaleString()}
+                            {toLocaleSafe(c.impressions)}
                           </td>
                           <td className="py-2.5 px-3">
-                            <div className="font-medium">{(c.clicks || 0).toLocaleString()}</div>
+                            <div className="font-medium">{toLocaleSafe(c.clicks)}</div>
                             <div className="text-[10px] text-emerald-500">{c.ctr || 0}% CTR</div>
                           </td>
                         </tr>
@@ -3247,7 +3260,7 @@ export default function SwipiesAdsPage({
                 <Activity className="h-4 w-4 text-indigo-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{(dashboard?.total_impressions || 0).toLocaleString()}</div>
+                <div className="text-2xl font-bold">{toLocaleSafe(dashboard?.total_impressions)}</div>
                 <p className="text-xs text-muted-foreground mt-1">{t('timesShown')}</p>
               </CardContent>
             </Card>
@@ -3259,7 +3272,7 @@ export default function SwipiesAdsPage({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {(dashboard?.total_clicks || 0).toLocaleString()}{' '}
+                  {toLocaleSafe(dashboard?.total_clicks)}{' '}
                   <span className="text-sm font-normal text-emerald-500">({dashboard?.ctr || 0}% CTR)</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{t('verifiedVisits')}</p>
@@ -3272,7 +3285,7 @@ export default function SwipiesAdsPage({
                 <DollarSign className="h-4 w-4 text-amber-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${(dashboard?.total_spent || 0).toFixed(2)}</div>
+                <div className="text-2xl font-bold">${toFixedSafe(dashboard?.total_spent, 2)}</div>
                 <p className="text-xs text-muted-foreground mt-1">{t('allTimeInvest')}</p>
               </CardContent>
             </Card>
@@ -3423,8 +3436,8 @@ export default function SwipiesAdsPage({
                             </div>
                             <div className="text-xs text-muted-foreground font-semibold">
                               {cmp.pricing_model === 'cpa' || cmp.bidding_strategy === 'target_cpa'
-                                ? `$${(cmp.target_cpa || 5.0).toFixed(2)} ${t('targetCpaLabel')}`
-                                : `$${cmp.bid_amount.toFixed(2)} / ${cmp.pricing_model === 'cpc' ? t('perClick') : t('per1kImp')}`}
+                                ? `$${toFixedSafe(cmp.target_cpa ?? 5.0, 2)} ${t('targetCpaLabel')}`
+                                : `$${toFixedSafe(cmp.bid_amount, 2)} / ${cmp.pricing_model === 'cpc' ? t('perClick') : t('per1kImp')}`}
                             </div>
                             {cmp.schedule_config?.enabled_days && cmp.schedule_config.enabled_days.length < 7 && (
                               <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 mt-0.5">
@@ -3434,16 +3447,16 @@ export default function SwipiesAdsPage({
                           </td>
                           <td className="py-3 px-4">
                             <div className="text-xs">
-                              <span className="font-bold">${cmp.spent_today.toFixed(2)}</span> / ${cmp.daily_budget.toFixed(2)} {t('dayUnit')}
+                              <span className="font-bold">${toFixedSafe(cmp.spent_today, 2)}</span> / ${toFixedSafe(cmp.daily_budget, 2)} {t('dayUnit')}
                             </div>
                             <div className="text-[11px] text-muted-foreground">
-                              {t('totalBudgetLabel')} ${cmp.total_spent.toFixed(2)} / ${cmp.total_budget.toFixed(2)}
+                              {t('totalBudgetLabel')} ${toFixedSafe(cmp.total_spent, 2)} / ${toFixedSafe(cmp.total_budget, 2)}
                             </div>
                           </td>
-                          <td className="py-3 px-4 font-medium">{cmp.impressions.toLocaleString()}</td>
+                          <td className="py-3 px-4 font-medium">{toLocaleSafe(cmp.impressions)}</td>
                           <td className="py-3 px-4">
-                            <div className="font-semibold text-emerald-600 dark:text-emerald-400">{cmp.clicks.toLocaleString()}</div>
-                            <div className="text-xs text-muted-foreground">{cmp.ctr}% CTR</div>
+                            <div className="font-semibold text-emerald-600 dark:text-emerald-400">{toLocaleSafe(cmp.clicks)}</div>
+                            <div className="text-xs text-muted-foreground">{cmp.ctr || 0}% CTR</div>
                             {((cmp.conversions_count && cmp.conversions_count > 0) || cmp.pricing_model === 'cpa') && (
                               <div className="text-[11px] font-medium text-purple-600 dark:text-purple-400 mt-0.5">
                                 🎯 {cmp.conversions_count || 0} {t('conversionsBadge', 'conv')} ({cmp.conversion_rate || 0}% CVR)
@@ -4034,11 +4047,11 @@ export default function SwipiesAdsPage({
                               <div className="flex items-center justify-between pt-2 border-t text-xs">
                                 <div>
                                   <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                    ${sku.price.toFixed(2)}
+                                    ${toFixedSafe(sku.price, 2)}
                                   </span>
                                   {sku.original_price && (
                                     <span className="text-[10px] text-muted-foreground line-through ml-1.5">
-                                      ${sku.original_price.toFixed(2)}
+                                      ${toFixedSafe(sku.original_price, 2)}
                                     </span>
                                   )}
                                 </div>
@@ -4571,7 +4584,7 @@ export default function SwipiesAdsPage({
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
                 </div>
                 <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  ${(mtaSummary?.total_revenue || 0).toFixed(2)}
+                  ${toFixedSafe(mtaSummary?.total_revenue, 2)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">По модели {mtaModel.replace('_', ' ')}</p>
               </CardContent>
@@ -4653,7 +4666,7 @@ export default function SwipiesAdsPage({
                             {stage.name}
                           </span>
                           <div className="text-xl font-black text-foreground mt-1">
-                            {stage.count.toLocaleString()}
+                            {toLocaleSafe(stage.count)}
                           </div>
                         </div>
 
@@ -4730,7 +4743,7 @@ export default function SwipiesAdsPage({
                               <div className="text-[10px] text-muted-foreground font-normal">{c.product_name}</div>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 font-mono">${c.total_spend.toFixed(2)}</td>
+                          <td className="py-2.5 px-3 font-mono">${toFixedSafe(c.total_spend, 2)}</td>
                           <td className="py-2.5 px-3 text-center">
                             <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-500 border-blue-500/20">
                               {c.first_touch_count}
@@ -4750,14 +4763,14 @@ export default function SwipiesAdsPage({
                             {c.credited_conversions}
                           </td>
                           <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                            ${c.credited_revenue.toFixed(2)}
+                            ${toFixedSafe(c.credited_revenue, 2)}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono">
-                            ${c.effective_cpa.toFixed(2)}
+                            ${toFixedSafe(c.effective_cpa, 2)}
                           </td>
                           <td className="py-2.5 px-3 text-right font-bold font-mono">
                             <span className={c.roas >= 1.0 ? 'text-emerald-600' : 'text-muted-foreground'}>
-                              {c.roas.toFixed(2)}x
+                              {toFixedSafe(c.roas, 2)}x
                             </span>
                           </td>
                         </tr>
@@ -4798,7 +4811,7 @@ export default function SwipiesAdsPage({
                             Visitor: {path.visitor_id.substring(0, 16)}
                           </span>
                           <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-bold">
-                            🏆 {path.conversion_type.toUpperCase()} (${path.conversion_value.toFixed(2)})
+                            🏆 {path.conversion_type.toUpperCase()} (${toFixedSafe(path.conversion_value, 2)})
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -4906,7 +4919,7 @@ export default function SwipiesAdsPage({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                  {(timelineData?.total_impressions || 0).toLocaleString()}
+                  {toLocaleSafe(timelineData?.total_impressions)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">Охват рекомендаций в чате</p>
               </CardContent>
@@ -4918,7 +4931,7 @@ export default function SwipiesAdsPage({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                  {(timelineData?.total_clicks || 0).toLocaleString()}
+                  {toLocaleSafe(timelineData?.total_clicks)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">Переходы на ваш сайт</p>
               </CardContent>
@@ -4942,7 +4955,7 @@ export default function SwipiesAdsPage({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
-                  ${(timelineData?.total_spend || 0).toFixed(2)}
+                  ${toFixedSafe(timelineData?.total_spend, 2)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">CPC / CPM инвестиции</p>
               </CardContent>
@@ -5202,7 +5215,7 @@ export default function SwipiesAdsPage({
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Стоимость:</span>
                     <span className="font-bold text-foreground">
-                      ${subscription?.price_usd ? subscription.price_usd.toFixed(2) : '0.00'} / мес
+                      ${toFixedSafe(subscription?.price_usd, 2)} / мес
                     </span>
                   </div>
 
@@ -5302,7 +5315,7 @@ export default function SwipiesAdsPage({
                 <div className="rounded-lg border bg-muted/40 p-4 text-center">
                   <div className="text-xs text-muted-foreground uppercase tracking-wider">Available Balance</div>
                   <div className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                    ${balance.toFixed(2)} {currency}
+                    ${toFixedSafe(balance, 2)} {currency}
                   </div>
                 </div>
 
@@ -5372,7 +5385,7 @@ export default function SwipiesAdsPage({
                             <td className="py-2.5 px-3">{t.description}</td>
                             <td className="py-2.5 px-3">
                               <span className={t.amount >= 0 ? 'text-emerald-500 font-bold' : 'text-zinc-400'}>
-                                {t.amount >= 0 ? `+$${t.amount.toFixed(2)}` : `-$${Math.abs(t.amount).toFixed(2)}`}
+                                {t.amount >= 0 ? `+$${toFixedSafe(t.amount, 2)}` : `-$${toFixedSafe(Math.abs(t.amount ?? 0), 2)}`}
                               </span>
                             </td>
                             <td className="py-2.5 px-3 text-muted-foreground">
@@ -5440,7 +5453,7 @@ export default function SwipiesAdsPage({
                   {ltvOverview?.total_customers || 0}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Историческая выручка: ${(ltvOverview?.total_historical_revenue || 0).toFixed(2)}
+                  Историческая выручка: ${toFixedSafe(ltvOverview?.total_historical_revenue, 2)}
                 </p>
               </CardContent>
             </Card>
@@ -5452,7 +5465,7 @@ export default function SwipiesAdsPage({
                   <TrendingUp className="h-4 w-4 text-indigo-500" />
                 </div>
                 <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                  ${(ltvOverview?.avg_predicted_ltv_90d || 0).toFixed(2)}
+                  ${toFixedSafe(ltvOverview?.avg_predicted_ltv_90d, 2)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Ожидаемый доход с покупателя</p>
               </CardContent>
@@ -5465,7 +5478,7 @@ export default function SwipiesAdsPage({
                   <Calendar className="h-4 w-4 text-cyan-500" />
                 </div>
                 <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400 mt-1">
-                  ${(ltvOverview?.avg_predicted_ltv_365d || 0).toFixed(2)}
+                  ${toFixedSafe(ltvOverview?.avg_predicted_ltv_365d, 2)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Годовая ценность клиента</p>
               </CardContent>
@@ -5569,9 +5582,9 @@ export default function SwipiesAdsPage({
                             </Badge>
                           </td>
                           <td className="py-3 px-4 font-mono">{lal.country}</td>
-                          <td className="py-3 px-4">{lal.seed_audience_size.toLocaleString()} чел.</td>
+                          <td className="py-3 px-4">{toLocaleSafe(lal.seed_audience_size)} чел.</td>
                           <td className="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400 font-mono">
-                            ~{lal.estimated_reach.toLocaleString()} чел.
+                            ~{toLocaleSafe(lal.estimated_reach)} чел.
                           </td>
                           <td className="py-3 px-4">
                             <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
@@ -5647,7 +5660,7 @@ export default function SwipiesAdsPage({
                             {aud.rule_config?.event_type || 'all_events'}
                           </td>
                           <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
-                            {aud.member_count.toLocaleString()}
+                            {toLocaleSafe(aud.member_count)}
                           </td>
                           <td className="py-3 px-4 text-muted-foreground">
                             {new Date(aud.create_time).toLocaleDateString()}
@@ -5708,17 +5721,17 @@ export default function SwipiesAdsPage({
                             </Badge>
                           </td>
                           <td className="py-3 px-4 text-center font-bold">{cust.total_orders}</td>
-                          <td className="py-3 px-4 text-right font-mono">${cust.rfm_monetary_val.toFixed(2)}</td>
-                          <td className="py-3 px-4 text-right font-mono">${cust.avg_order_value.toFixed(2)}</td>
+                          <td className="py-3 px-4 text-right font-mono">${toFixedSafe(cust.rfm_monetary_val, 2)}</td>
+                          <td className="py-3 px-4 text-right font-mono">${toFixedSafe(cust.avg_order_value, 2)}</td>
                           <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                            ${cust.predicted_ltv_90d.toFixed(2)}
+                            ${toFixedSafe(cust.predicted_ltv_90d, 2)}
                           </td>
                           <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                            ${cust.predicted_ltv_365d.toFixed(2)}
+                            ${toFixedSafe(cust.predicted_ltv_365d, 2)}
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span className={cust.churn_risk_score > 0.5 ? 'text-rose-500 font-bold' : 'text-emerald-500 font-medium'}>
-                              {(cust.churn_risk_score * 100).toFixed(0)}%
+                              {toFixedSafe((cust.churn_risk_score ?? 0) * 100, 0)}%
                             </span>
                           </td>
                         </tr>
@@ -5939,7 +5952,7 @@ export default function SwipiesAdsPage({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  ${fraudOverview?.total_cost_saved ? fraudOverview.total_cost_saved.toFixed(2) : '0.00'}
+                  ${toFixedSafe(fraudOverview?.total_cost_saved, 2)}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Сохраненные средства рекламодателя</p>
               </CardContent>
@@ -6035,7 +6048,7 @@ export default function SwipiesAdsPage({
                             {log.user_agent}
                           </td>
                           <td className="py-3 px-4 font-semibold text-emerald-600 dark:text-emerald-400">
-                            +${log.cost_saved.toFixed(2)}
+                            +${toFixedSafe(log.cost_saved, 2)}
                           </td>
                           <td className="py-3 px-4">
                             <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
@@ -6230,7 +6243,7 @@ export default function SwipiesAdsPage({
                   <DollarSign className="h-4 w-4 text-emerald-500" />
                 </div>
                 <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  ${(agencyWorkspace?.total_managed_spend || 0).toFixed(2)}
+                  ${toFixedSafe(agencyWorkspace?.total_managed_spend, 2)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Совокупный spend клиентов</p>
               </CardContent>
@@ -6319,9 +6332,9 @@ export default function SwipiesAdsPage({
                             </td>
                             <td className="py-3 px-4 min-w-[180px]">
                               <div className="flex items-center justify-between text-[11px] font-medium mb-1">
-                                <span className="font-bold text-foreground">${client.total_spend.toFixed(2)}</span>
+                                <span className="font-bold text-foreground">${toFixedSafe(client.total_spend, 2)}</span>
                                 <span className="text-muted-foreground">
-                                  {client.monthly_budget_cap > 0 ? `/ $${client.monthly_budget_cap.toFixed(2)}` : 'Без лимита'}
+                                  {client.monthly_budget_cap > 0 ? `/ $${toFixedSafe(client.monthly_budget_cap, 2)}` : 'Без лимита'}
                                 </span>
                               </div>
                               {client.monthly_budget_cap > 0 && (
@@ -6353,7 +6366,7 @@ export default function SwipiesAdsPage({
                                 {client.total_conversions} конв.
                               </div>
                               <div className="text-[11px] text-muted-foreground">
-                                {client.avg_cpa > 0 ? `$${client.avg_cpa.toFixed(2)} CPA` : '—'}
+                                {client.avg_cpa > 0 ? `$${toFixedSafe(client.avg_cpa, 2)} CPA` : '—'}
                               </div>
                             </td>
                             <td className="py-3 px-4 text-right">
@@ -6561,11 +6574,11 @@ export default function SwipiesAdsPage({
                   <DollarSign className="h-4 w-4 text-blue-500" />
                 </div>
                 <div className="text-2xl font-bold text-foreground mt-1">
-                  ${crossPlatformAnalytics ? crossPlatformAnalytics.total_blended_spend.toFixed(2) : '0.00'}
+                  ${toFixedSafe(crossPlatformAnalytics?.total_blended_spend, 2)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Подключено сетей:{' '}
-                  <b>{crossPlatformAnalytics ? crossPlatformAnalytics.connected_accounts_count : 0} платформ</b>
+                  <b>{crossPlatformAnalytics?.connected_accounts_count || 0} платформ</b>
                 </p>
               </CardContent>
             </Card>
@@ -6577,7 +6590,7 @@ export default function SwipiesAdsPage({
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
                 </div>
                 <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  {crossPlatformAnalytics ? crossPlatformAnalytics.blended_roas : '3.85'}x
+                  {crossPlatformAnalytics?.blended_roas || '0.00'}x
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Сквозная окупаемость инвестиций в трафик
@@ -6592,10 +6605,10 @@ export default function SwipiesAdsPage({
                   <Activity className="h-4 w-4 text-indigo-500" />
                 </div>
                 <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                  {crossPlatformAnalytics ? crossPlatformAnalytics.total_blended_impressions.toLocaleString() : 0}
+                  {toLocaleSafe(crossPlatformAnalytics?.total_blended_impressions)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Кликов: <b>{crossPlatformAnalytics ? crossPlatformAnalytics.total_blended_clicks.toLocaleString() : 0}</b> ({crossPlatformAnalytics ? crossPlatformAnalytics.blended_ctr : 0}% CTR)
+                  Кликов: <b>{toLocaleSafe(crossPlatformAnalytics?.total_blended_clicks)}</b> ({crossPlatformAnalytics?.blended_ctr || 0}% CTR)
                 </p>
               </CardContent>
             </Card>
@@ -6607,11 +6620,11 @@ export default function SwipiesAdsPage({
                   <Target className="h-4 w-4 text-purple-500" />
                 </div>
                 <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
-                  {crossPlatformAnalytics ? crossPlatformAnalytics.total_blended_conversions : 0}
+                  {crossPlatformAnalytics?.total_blended_conversions || 0}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Ср. стоимость действия (CPA):{' '}
-                  <b>${crossPlatformAnalytics ? crossPlatformAnalytics.blended_cpa.toFixed(2) : '0.00'}</b>
+                  <b>${toFixedSafe(crossPlatformAnalytics?.blended_cpa, 2)}</b>
                 </p>
               </CardContent>
             </Card>
@@ -7764,7 +7777,7 @@ export default function SwipiesAdsPage({
               <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground font-medium">К оплате через Atmos:</span>
                 <span className="font-extrabold text-blue-700 dark:text-blue-400 text-base">
-                  {(Math.round(parseFloat(topUpAmount || '0') * 12800)).toLocaleString()} UZS
+                  {toLocaleSafe(Math.round(parseFloat(topUpAmount || '0') * 12800))} UZS
                 </span>
               </div>
               <div className="text-[10px] text-muted-foreground flex justify-between items-center pt-1 border-t border-blue-100/60 dark:border-blue-900/40">
@@ -7791,7 +7804,7 @@ export default function SwipiesAdsPage({
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
             >
               <CreditCard className="h-4 w-4" />
-              Оплатить картой (${parseFloat(topUpAmount || '0').toFixed(2)})
+              Оплатить картой (${toFixedSafe(topUpAmount, 2)})
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -7849,7 +7862,7 @@ export default function SwipiesAdsPage({
               <div className="rounded-lg border bg-amber-50/50 dark:bg-amber-950/20 p-2.5">
                 <div className="text-[11px] text-muted-foreground">Расход</div>
                 <div className="text-base font-bold text-amber-600 dark:text-amber-400">
-                  ${(analyticsData?.total_spend || analyticsData?.total_spent || 0).toFixed(2)}
+                  ${toFixedSafe(analyticsData?.total_spend || analyticsData?.total_spent, 2)}
                 </div>
               </div>
             </div>
@@ -8082,12 +8095,12 @@ export default function SwipiesAdsPage({
                             <div className="flex items-center gap-3 bg-muted/50 px-2.5 py-1 rounded text-xs">
                               <div>
                                 <span className="text-muted-foreground text-[10px] block">Показы</span>
-                                <span className="font-semibold">{v.impressions.toLocaleString()}</span>
+                                <span className="font-semibold">{toLocaleSafe(v.impressions)}</span>
                               </div>
                               <div className="h-6 w-px bg-border" />
                               <div>
                                 <span className="text-muted-foreground text-[10px] block">Клики</span>
-                                <span className="font-semibold text-emerald-600">{v.clicks.toLocaleString()}</span>
+                                <span className="font-semibold text-emerald-600">{toLocaleSafe(v.clicks)}</span>
                               </div>
                               <div className="h-6 w-px bg-border" />
                               <div>
@@ -8865,7 +8878,7 @@ export default function SwipiesAdsPage({
             <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-lg flex items-center justify-between">
               <span className="text-emerald-700 dark:text-emerald-400 font-medium">Доступный баланс:</span>
               <span className="text-lg font-bold text-emerald-600 dark:text-emerald-300">
-                ${publisher?.balance ? publisher.balance.toFixed(2) : '0.00'} USD
+                ${toFixedSafe(publisher?.balance, 2)} USD
               </span>
             </div>
 
@@ -9148,7 +9161,7 @@ async def get_swipies_ad(user_query: str):
 
                 <div className="text-right sm:border-l sm:pl-4">
                   <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Базовая ставка</span>
-                  <span className="text-base font-bold text-foreground">${(biddingInfo?.base_bid || 0.10).toFixed(2)} / клик</span>
+                  <span className="text-base font-bold text-foreground">${toFixedSafe(biddingInfo?.base_bid ?? 0.10, 2)} / клик</span>
                 </div>
               </div>
 
@@ -9216,7 +9229,7 @@ async def get_swipies_ad(user_query: str):
                   <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl space-y-1.5 mt-2">
                     <label className="font-semibold text-purple-700 dark:text-purple-300 flex items-center justify-between text-xs">
                       <span>Целевая стоимость конверсии / лида (Target CPA, $)</span>
-                      <span className="font-bold font-mono">${targetCpaValue.toFixed(2)}</span>
+                      <span className="font-bold font-mono">${toFixedSafe(targetCpaValue, 2)}</span>
                     </label>
                     <Input
                       type="number"
@@ -9402,10 +9415,10 @@ async def get_swipies_ad(user_query: str):
                               {new Date(bid.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </td>
                             <td className="py-2 px-3 font-semibold uppercase">{bid.strategy}</td>
-                            <td className="py-2 px-3 font-mono">${bid.base_bid.toFixed(2)}</td>
+                            <td className="py-2 px-3 font-mono">${toFixedSafe(bid.base_bid, 2)}</td>
                             <td className="py-2 px-3 font-mono text-blue-600">{bid.schedule_multiplier}x</td>
                             <td className="py-2 px-3 font-mono text-purple-600">{bid.cvr_multiplier}x</td>
-                            <td className="py-2 px-3 font-mono font-bold text-emerald-600">${bid.adjusted_bid.toFixed(4)}</td>
+                            <td className="py-2 px-3 font-mono font-bold text-emerald-600">${toFixedSafe(bid.adjusted_bid, 4)}</td>
                             <td className="py-2 px-3 text-muted-foreground truncate max-w-[180px]">{bid.reason}</td>
                           </tr>
                         ))}
@@ -10086,13 +10099,13 @@ async def get_swipies_ad(user_query: str):
                     </span>
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
-                    Потрачено сегодня: ${pacingInfo?.spent_today.toFixed(2)} из ${pacingInfo?.daily_budget.toFixed(2)} ({pacingInfo?.schedule_timezone})
+                    Потрачено сегодня: ${toFixedSafe(pacingInfo?.spent_today, 2)} из ${toFixedSafe(pacingInfo?.daily_budget, 2)} ({pacingInfo?.schedule_timezone})
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-xs text-muted-foreground font-medium">Множитель ставки</div>
                   <div className="text-lg font-bold font-mono text-purple-600 dark:text-purple-400">
-                    {pacingInfo?.current_pacing_multiplier.toFixed(2)}x
+                    {toFixedSafe(pacingInfo?.current_pacing_multiplier, 2)}x
                   </div>
                 </div>
               </div>
@@ -10116,7 +10129,7 @@ async def get_swipies_ad(user_query: str):
                         <XAxis dataKey="hour_label" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 10 }} domain={[0, 'dataMax + 1']} />
                         <Tooltip
-                          formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Ожидаемый расход']}
+                          formatter={(value: any) => [`$${toFixedSafe(value, 2)}`, 'Ожидаемый расход']}
                           labelFormatter={(label: any) => `Время: ${label}`}
                         />
                         <Area
@@ -10228,19 +10241,21 @@ async def get_swipies_ad(user_query: str):
                 <span>Прогнозируемый охват расширенной аудитории:</span>
                 <span className="font-mono text-sm font-bold">
                   ~
-                  {Math.round(
-                    ((lookalikeCountry === 'UZ'
-                      ? 350000
-                      : lookalikeCountry === 'RU'
-                      ? 1200000
-                      : lookalikeCountry === 'US'
-                      ? 2500000
-                      : lookalikeCountry === 'KZ'
-                      ? 450000
-                      : 4500000) *
-                      lookalikeSimilarity) /
-                      100
-                  ).toLocaleString()}{' '}
+                  {toLocaleSafe(
+                    Math.round(
+                      ((lookalikeCountry === 'UZ'
+                        ? 350000
+                        : lookalikeCountry === 'RU'
+                        ? 1200000
+                        : lookalikeCountry === 'US'
+                        ? 2500000
+                        : lookalikeCountry === 'KZ'
+                        ? 450000
+                        : 4500000) *
+                        lookalikeSimilarity) /
+                        100
+                    )
+                  )}{' '}
                   чел.
                 </span>
               </div>
@@ -10758,40 +10773,40 @@ async def get_swipies_ad(user_query: str):
                   <div className="p-3.5 rounded-xl border bg-muted/20">
                     <div className="text-[11px] font-semibold text-muted-foreground">Инвестиции (Spend)</div>
                     <div className="text-xl font-bold text-foreground mt-1">
-                      ${executiveReport.kpi_summary.total_spend.toFixed(2)}
+                      ${toFixedSafe(executiveReport?.kpi_summary?.total_spend, 2)}
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {executiveReport.kpi_summary.active_campaigns} активных кампаний
+                      {executiveReport?.kpi_summary?.active_campaigns || 0} активных кампаний
                     </div>
                   </div>
 
                   <div className="p-3.5 rounded-xl border bg-muted/20">
                     <div className="text-[11px] font-semibold text-muted-foreground">Клики и Охват</div>
                     <div className="text-xl font-bold text-foreground mt-1">
-                      {executiveReport.kpi_summary.total_clicks.toLocaleString()}
+                      {toLocaleSafe(executiveReport?.kpi_summary?.total_clicks)}
                     </div>
                     <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                      {executiveReport.kpi_summary.avg_ctr}% Avg CTR (${executiveReport.kpi_summary.avg_cpc} CPC)
+                      {executiveReport?.kpi_summary?.avg_ctr || 0}% Avg CTR (${executiveReport?.kpi_summary?.avg_cpc || 0} CPC)
                     </div>
                   </div>
 
                   <div className="p-3.5 rounded-xl border bg-muted/20">
                     <div className="text-[11px] font-semibold text-muted-foreground">Конверсии (Заказы)</div>
                     <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                      {executiveReport.kpi_summary.total_conversions}
+                      {executiveReport?.kpi_summary?.total_conversions || 0}
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      ${executiveReport.kpi_summary.avg_cpa.toFixed(2)} CPA за заказ
+                      ${toFixedSafe(executiveReport?.kpi_summary?.avg_cpa, 2)} CPA за заказ
                     </div>
                   </div>
 
                   <div className="p-3.5 rounded-xl border bg-muted/20">
                     <div className="text-[11px] font-semibold text-muted-foreground">Окупаемость (ROAS)</div>
                     <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                      {executiveReport.kpi_summary.roas}x
+                      {executiveReport?.kpi_summary?.roas || 0}x
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Est. Выручка: ${executiveReport.kpi_summary.estimated_revenue.toFixed(2)}
+                      Est. Выручка: ${toFixedSafe(executiveReport?.kpi_summary?.estimated_revenue, 2)}
                     </div>
                   </div>
                 </div>
