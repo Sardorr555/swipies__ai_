@@ -7,11 +7,13 @@ import { InsightsTab } from '../tabs/InsightsTab';
 import { BillingTab } from '../tabs/BillingTab';
 import { SettingsTab } from '../tabs/SettingsTab';
 import { AttributionTab } from '../tabs/AttributionTab';
+import { AnalyticsTab } from '../tabs/AnalyticsTab';
 import {
   AdTransactionItem,
   AdvertiserInsightsData,
   AdvertiserSettingsData,
   AttributionSummaryResponse,
+  TimelineAnalyticsData,
   BlacklistEntryItem,
   ConversionJourneyPath,
   FraudOverviewData,
@@ -26,6 +28,31 @@ import {
 } from '@/services/ad-service';
 
 describe('Ads Tabs Render Suite', () => {
+  beforeAll(() => {
+    if (typeof window !== 'undefined' && !window.ResizeObserver) {
+      class ResizeObserverMock {
+        callback: any;
+        constructor(callback: any) {
+          this.callback = callback;
+        }
+        observe(target: any) {
+          if (this.callback) {
+            this.callback([
+              {
+                target,
+                contentRect: { width: 800, height: 280, top: 0, left: 0, bottom: 280, right: 800, x: 0, y: 0 },
+              },
+            ]);
+          }
+        }
+        unobserve() {}
+        disconnect() {}
+      }
+      window.ResizeObserver = ResizeObserverMock as any;
+      (globalThis as any).ResizeObserver = ResizeObserverMock as any;
+    }
+  });
+
   describe('GuideTab', () => {
     it('renders without throwing exceptions', () => {
       expect(() => render(<GuideTab />)).not.toThrow();
@@ -1473,6 +1500,216 @@ describe('Ads Tabs Render Suite', () => {
       expect(screen.getByText('Недостаточно данных для построения воронки')).toBeInTheDocument();
       expect(screen.getByText('Кампании пока не зафиксировали конверсионных путей')).toBeInTheDocument();
       expect(screen.getByText('Нет зафиксированных мультикасательных путей')).toBeInTheDocument();
+    });
+  });
+
+  describe('AnalyticsTab', () => {
+    const mockTimelineData: TimelineAnalyticsData = {
+      days: 14,
+      total_impressions: 15420,
+      total_clicks: 1230,
+      total_spend: 450.75,
+      ctr: 7.98,
+      timeline: [
+        { date: '2026-09-01', impressions: 1000, clicks: 80, ctr: 8.0, spend: 30.0 },
+        { date: '2026-09-02', impressions: 1200, clicks: 95, ctr: 7.9, spend: 35.5 },
+      ],
+      languages: {
+        ru: 800,
+        uz: 350,
+        en: 150,
+        other: 50,
+      },
+      models: {
+        'gpt-4o': 600,
+        deepseek: 450,
+        claude: 250,
+        other: 50,
+      },
+      devices: {
+        desktop: 700,
+        mobile: 600,
+        tablet: 50,
+      },
+      regions: {
+        tashkent: 800,
+        samarkand: 250,
+        fergana: 150,
+        bukhara: 80,
+        andijan: 50,
+        namangan: 10,
+        other: 10,
+      },
+    };
+
+    it('renders empty state when timelineData is null', () => {
+      const { container } = render(
+        <AnalyticsTab
+          timelineData={null}
+          timelineDays={14}
+          loadingTimeline={false}
+          onTimelineDaysChange={jest.fn()}
+          onRefresh={jest.fn()}
+          onExportCsv={jest.fn()}
+          onExportReport={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('Интерактивная статистика эффективности')).toBeInTheDocument();
+      expect(screen.getByText('Динамика вовлеченности аудитории за последние 14 дней')).toBeInTheDocument();
+      expect(screen.getByText('За выбранный период данных нет')).toBeInTheDocument();
+      expect(container.querySelector('.recharts-surface')).not.toBeInTheDocument();
+      expect(screen.getByText('$0.00')).toBeInTheDocument();
+      expect(screen.getByText('0%')).toBeInTheDocument();
+    });
+
+    it('renders populated KPI metrics, breakdown cards, and timeline points', () => {
+      const { container } = render(
+        <AnalyticsTab
+          timelineData={mockTimelineData}
+          timelineDays={14}
+          loadingTimeline={false}
+          onTimelineDaysChange={jest.fn()}
+          onRefresh={jest.fn()}
+          onExportCsv={jest.fn()}
+          onExportReport={jest.fn()}
+        />,
+      );
+
+      // Verify Recharts chart renders in JSDOM via ResponsiveContainer + surface + legend
+      expect(container.querySelector('.recharts-responsive-container')).toBeInTheDocument();
+      expect(container.querySelector('.recharts-surface')).toBeInTheDocument();
+      expect(screen.getByText('Показы (Impressions)')).toBeInTheDocument();
+      expect(screen.getByText('Клики (Clicks)')).toBeInTheDocument();
+
+      // KPI metrics
+      expect(screen.getByText((15420).toLocaleString())).toBeInTheDocument();
+      expect(screen.getByText((1230).toLocaleString())).toBeInTheDocument();
+      expect(screen.getByText('7.98%')).toBeInTheDocument();
+      expect(screen.getByText('$450.75')).toBeInTheDocument();
+
+      // Breakdown headers
+      expect(screen.getByText('Языки запросов пользователей')).toBeInTheDocument();
+      expect(screen.getByText('Используемые модели LLM')).toBeInTheDocument();
+      expect(screen.getByText('Устройства и платформы')).toBeInTheDocument();
+      expect(screen.getByText('Регионы Узбекистана')).toBeInTheDocument();
+
+      // Breakdown content items
+      expect(screen.getByText('🇷🇺 Русский')).toBeInTheDocument();
+      expect(screen.getByText('🇺🇿 Oʻzbekcha')).toBeInTheDocument();
+      expect(screen.getByText('🤖 GPT-4o / Mini')).toBeInTheDocument();
+      expect(screen.getByText('⚡ DeepSeek R1 / V3')).toBeInTheDocument();
+      expect(screen.getByText('🖥️ Desktop (ПК)')).toBeInTheDocument();
+      expect(screen.getByText('📱 Mobile (Смартфоны)')).toBeInTheDocument();
+      expect(screen.getByText('📍 Ташкент')).toBeInTheDocument();
+      expect(screen.getByText('📍 Самарканд')).toBeInTheDocument();
+      // Verifies that namangan (10) + other (10) are aggregated into "🌐 Другие регионы" = 20
+      expect(screen.getByText(/20 \(1%\)/)).toBeInTheDocument();
+    });
+
+    it('wires date range selector, refresh, and export callbacks correctly', () => {
+      const onTimelineDaysChange = jest.fn();
+      const onRefresh = jest.fn();
+      const onExportCsv = jest.fn();
+      const onExportReport = jest.fn();
+
+      render(
+        <AnalyticsTab
+          timelineData={mockTimelineData}
+          timelineDays={14}
+          loadingTimeline={false}
+          onTimelineDaysChange={onTimelineDaysChange}
+          onRefresh={onRefresh}
+          onExportCsv={onExportCsv}
+          onExportReport={onExportReport}
+        />,
+      );
+
+      // Click 7 days filter
+      fireEvent.click(screen.getByRole('button', { name: '7 дней' }));
+      expect(onTimelineDaysChange).toHaveBeenCalledWith(7);
+
+      // Click 30 days filter
+      fireEvent.click(screen.getByRole('button', { name: '30 дней' }));
+      expect(onTimelineDaysChange).toHaveBeenCalledWith(30);
+
+      // Click refresh
+      fireEvent.click(screen.getByRole('button', { name: 'Обновить данные' }));
+      expect(onRefresh).toHaveBeenCalled();
+
+      // Click CSV export
+      fireEvent.click(screen.getByRole('button', { name: 'Экспорт динамики в CSV' }));
+      expect(onExportCsv).toHaveBeenCalledWith(14);
+
+      // Click PDF report export
+      fireEvent.click(screen.getByRole('button', { name: 'Открыть PDF / Печатную версию отчета' }));
+      expect(onExportReport).toHaveBeenCalledWith(14);
+    });
+
+    it('applies stale indicator during loading or mismatched timelineDays (ARCH-Race-Conditions guard)', () => {
+      const { rerender, container } = render(
+        <AnalyticsTab
+          timelineData={mockTimelineData}
+          timelineDays={14}
+          loadingTimeline={false}
+          onTimelineDaysChange={jest.fn()}
+          onRefresh={jest.fn()}
+          onExportCsv={jest.fn()}
+          onExportReport={jest.fn()}
+        />,
+      );
+
+      // Initially matched and not loading -> not stale (no opacity-70 on the metrics grid)
+      const metricsGrid = container.querySelector('.grid.gap-4.md\\:grid-cols-4');
+      expect(metricsGrid).not.toHaveClass('opacity-70');
+
+      // User changed period to 30 days, data still has days = 14 and loading = true
+      rerender(
+        <AnalyticsTab
+          timelineData={mockTimelineData} // days is 14
+          timelineDays={30}
+          loadingTimeline={true}
+          onTimelineDaysChange={jest.fn()}
+          onRefresh={jest.fn()}
+          onExportCsv={jest.fn()}
+          onExportReport={jest.fn()}
+        />,
+      );
+
+      expect(metricsGrid).toHaveClass('opacity-70');
+    });
+
+    it('safely handles corrupt / unexpected timeline structures without throwing', () => {
+      const corruptData = {
+        days: 7,
+        total_impressions: null as any,
+        total_clicks: undefined as any,
+        total_spend: NaN,
+        ctr: null as any,
+        timeline: 'not-an-array' as any,
+        languages: null as any,
+        models: undefined as any,
+        devices: 'invalid' as any,
+        regions: null as any,
+      };
+
+      expect(() =>
+        render(
+          <AnalyticsTab
+            timelineData={corruptData}
+            timelineDays={7}
+            loadingTimeline={false}
+            onTimelineDaysChange={jest.fn()}
+            onRefresh={jest.fn()}
+            onExportCsv={jest.fn()}
+            onExportReport={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+
+      expect(screen.getByText('За выбранный период данных нет')).toBeInTheDocument();
+      expect(screen.getByText('$0.00')).toBeInTheDocument();
+      expect(screen.getByText('0%')).toBeInTheDocument();
     });
   });
 
