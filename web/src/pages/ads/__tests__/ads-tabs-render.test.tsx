@@ -2,12 +2,14 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { GuideTab } from '../tabs/GuideTab';
 import { PublisherTab } from '../tabs/PublisherTab';
 import { FraudTab } from '../tabs/FraudTab';
+import { TeamTab } from '../tabs/TeamTab';
 import {
   BlacklistEntryItem,
   FraudOverviewData,
   PlacementItem,
   PublisherPayoutItem,
   PublisherProfileData,
+  TeamMemberItem,
 } from '@/services/ad-service';
 
 describe('Ads Tabs Render Suite', () => {
@@ -231,10 +233,14 @@ describe('Ads Tabs Render Suite', () => {
       total_cost_saved: 78.45,
       bot_detections: 95,
       active_blacklist_count: 3,
+      rate_limit_blocks: 25,
+      blacklist_blocks: 15,
       recent_logs: [
         {
           id: 'log-1',
+          campaign_id: 'cmp-1',
           campaign_name: 'Summer AI Promo',
+          event_type: 'bot_click',
           reason: 'bot_user_agent',
           ip_hash: 'abc123def4567890abcdef',
           user_agent: 'Scrapy/2.11.0',
@@ -243,7 +249,9 @@ describe('Ads Tabs Render Suite', () => {
         },
         {
           id: 'log-2',
+          campaign_id: 'cmp-2',
           campaign_name: 'Telegram Bot Ads',
+          event_type: 'datacenter_ip',
           reason: 'blacklist_ip',
           ip_hash: 'deadbeef12345678cafe',
           user_agent: 'Mozilla/5.0',
@@ -252,7 +260,9 @@ describe('Ads Tabs Render Suite', () => {
         },
         {
           id: 'log-3',
+          campaign_id: 'cmp-3',
           campaign_name: 'Search Boost',
+          event_type: 'rapid_clicks',
           reason: 'rapid_repeat_clicks',
           ip_hash: '99887766554433221100',
           user_agent: 'HeadlessChrome',
@@ -268,14 +278,18 @@ describe('Ads Tabs Render Suite', () => {
         ip_address: '192.168.1.100',
         is_system: false,
         reason: 'Manual block by admin',
-        auto_expires_at: '2026-09-25T15:00:00Z',
+        status: 'active',
+        create_time: 1700000000000,
+        auto_expires_at: 1727280000000,
       },
       {
         id: 'bl-2',
         ip_address: '10.0.0.1/24',
         is_system: true,
         reason: 'Known DC datacenter range',
-        auto_expires_at: null,
+        status: 'active',
+        create_time: 1700000000000,
+        auto_expires_at: undefined,
       },
     ];
 
@@ -431,6 +445,113 @@ describe('Ads Tabs Render Suite', () => {
       expect(screen.getByText('$0.00')).toBeInTheDocument();
       expect(screen.getByText('+$0.00')).toBeInTheDocument();
       expect(screen.getByText('Undef Promo')).toBeInTheDocument();
+    });
+  });
+
+  describe('TeamTab', () => {
+    const mockTeamMembers: TeamMemberItem[] = [
+      {
+        id: 'member-1',
+        advertiser_id: 'adv-123',
+        email: 'admin@swipies.ai',
+        role: 'admin',
+        status: 'active',
+        create_time: 1700000000000,
+      },
+      {
+        id: 'member-2',
+        advertiser_id: 'adv-123',
+        email: 'marketer@swipies.ai',
+        role: 'manager',
+        status: 'active',
+        create_time: 1705000000000,
+      },
+    ];
+
+    it('renders without throwing exceptions with empty members', () => {
+      expect(() =>
+        render(
+          <TeamTab
+            teamMembers={[]}
+            loadingTeam={false}
+            onOpenInviteModal={jest.fn()}
+            onRefresh={jest.fn()}
+            onUpdateRole={jest.fn()}
+            onDeleteMember={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+
+      expect(screen.getByText('Командный доступ & Роли')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'У вас пока нет приглашенных участников. Вы единственный владелец кабинета.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('renders roles matrix cards', () => {
+      render(
+        <TeamTab
+          teamMembers={[]}
+          loadingTeam={false}
+          onOpenInviteModal={jest.fn()}
+          onRefresh={jest.fn()}
+          onUpdateRole={jest.fn()}
+          onDeleteMember={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('👑 Администратор')).toBeInTheDocument();
+      expect(screen.getByText('🎯 Маркетолог')).toBeInTheDocument();
+      expect(screen.getByText('📊 Аналитик')).toBeInTheDocument();
+      expect(screen.getByText('💳 Бухгалтерия')).toBeInTheDocument();
+    });
+
+    it('renders members table when teamMembers are provided', () => {
+      render(
+        <TeamTab
+          teamMembers={mockTeamMembers}
+          loadingTeam={false}
+          onOpenInviteModal={jest.fn()}
+          onRefresh={jest.fn()}
+          onUpdateRole={jest.fn()}
+          onDeleteMember={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('admin@swipies.ai')).toBeInTheDocument();
+      expect(screen.getByText('marketer@swipies.ai')).toBeInTheDocument();
+      expect(screen.getAllByText('🟢 Активен')).toHaveLength(2);
+    });
+
+    it('wires action buttons properly (invite, refresh, delete)', () => {
+      const handleOpenInvite = jest.fn();
+      const handleRefresh = jest.fn();
+      const handleDelete = jest.fn();
+
+      render(
+        <TeamTab
+          teamMembers={mockTeamMembers}
+          loadingTeam={false}
+          onOpenInviteModal={handleOpenInvite}
+          onRefresh={handleRefresh}
+          onUpdateRole={jest.fn()}
+          onDeleteMember={handleDelete}
+        />,
+      );
+
+      const inviteBtn = screen.getByText(/\+ Пригласить участника/i);
+      fireEvent.click(inviteBtn);
+      expect(handleOpenInvite).toHaveBeenCalledTimes(1);
+
+      const refreshBtn = screen.getByLabelText('Обновить список участников');
+      fireEvent.click(refreshBtn);
+      expect(handleRefresh).toHaveBeenCalledTimes(1);
+
+      const deleteBtn = screen.getByLabelText('Отозвать доступ marketer@swipies.ai');
+      fireEvent.click(deleteBtn);
+      expect(handleDelete).toHaveBeenCalledWith('member-2');
     });
   });
 
