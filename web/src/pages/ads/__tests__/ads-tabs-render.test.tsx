@@ -3,7 +3,9 @@ import { GuideTab } from '../tabs/GuideTab';
 import { PublisherTab } from '../tabs/PublisherTab';
 import { FraudTab } from '../tabs/FraudTab';
 import { TeamTab } from '../tabs/TeamTab';
+import { InsightsTab } from '../tabs/InsightsTab';
 import {
+  AdvertiserInsightsData,
   BlacklistEntryItem,
   FraudOverviewData,
   PlacementItem,
@@ -552,6 +554,180 @@ describe('Ads Tabs Render Suite', () => {
       const deleteBtn = screen.getByLabelText('Отозвать доступ marketer@swipies.ai');
       fireEvent.click(deleteBtn);
       expect(handleDelete).toHaveBeenCalledWith('member-2');
+    });
+  });
+
+  describe('InsightsTab', () => {
+    const mockInsightsData: AdvertiserInsightsData = {
+      score: 84,
+      total_insights: 5,
+      insights: [
+        {
+          id: 'ins-1',
+          campaign_id: 'cmp-1',
+          campaign_name: 'Summer AI Sale',
+          type: 'negative_keywords',
+          category: 'cost',
+          severity: 'high',
+          title: 'Добавьте минус-слова для экономии бюджета',
+          description: 'Обнаружено 15 нецелевых поисковых запросов.',
+          estimated_impact: 'Экономия ~15% бюджета',
+          suggested_action: 'Добавить "бесплатно, torrent, скачать" в минус-слова',
+          action_payload: { keywords: ['бесплатно', 'torrent'] },
+        },
+        {
+          id: 'ins-2',
+          campaign_id: 'cmp-2',
+          campaign_name: 'B2B Leads Campaign',
+          type: 'ad_copy_refresh',
+          category: 'quality',
+          severity: 'medium',
+          title: 'Обновите рекламный креатив',
+          description: 'CTR креатива снизился за последние 7 дней.',
+          estimated_impact: '+22% к кликабельности',
+          suggested_action: 'Сгенерировать новые офферы с AI Copilot',
+          action_payload: {},
+        },
+        {
+          id: 'ins-3',
+          campaign_id: 'cmp-3',
+          campaign_name: 'Target CPA Scaling',
+          type: 'switch_to_cpa',
+          category: 'bidding',
+          severity: 'low',
+          title: 'Переход на автостратегию Smart CPA',
+          description: 'Кампания накопила более 50 конверсий.',
+          estimated_impact: 'Снижение CPA на 18%',
+          suggested_action: 'Включить автоматический биддинг по целевой стоимости',
+          action_payload: {},
+        },
+        {
+          id: 'ins-4',
+          campaign_id: 'cmp-4',
+          campaign_name: 'Expansion Campaign',
+          type: 'keyword_expansion',
+          category: 'reach',
+          severity: 'medium',
+          title: 'Расширьте семантическое ядро',
+          description: 'Найдено 40 новых релевантных фраз для таргетинга.',
+          estimated_impact: '+35% к охвату',
+          suggested_action: 'Добавить 40 семантических кластеров',
+          action_payload: {},
+        },
+        {
+          id: 'ins-5',
+          campaign_id: 'cmp-5',
+          campaign_name: 'Growth Experiments',
+          type: 'ab_test_recommendation',
+          category: 'growth',
+          severity: 'low',
+          title: 'Запустите сплит-тест заголовков',
+          description: 'Текущий креатив демонстрирует усталость аудитории.',
+          estimated_impact: '+10% CR',
+          suggested_action: 'Создать A/B вариацию с акцентом на выгоду',
+          action_payload: {},
+        },
+      ],
+    };
+
+    it('renders empty state when insightsData is null or empty', () => {
+      render(
+        <InsightsTab
+          insightsData={null}
+          loadingInsights={false}
+          onRefresh={jest.fn()}
+          onApplyInsight={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('AI Рекламный Аудит & Оптимизатор')).toBeInTheDocument();
+      expect(screen.getByText('100%')).toBeInTheDocument();
+      expect(screen.getByText('Кампании максимально оптимизированы!')).toBeInTheDocument();
+    });
+
+    it('renders loading state when loadingInsights is true', () => {
+      render(
+        <InsightsTab
+          insightsData={null}
+          loadingInsights={true}
+          onRefresh={jest.fn()}
+          onApplyInsight={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('Идет аудит рекламных кампаний...')).toBeInTheDocument();
+    });
+
+    it('renders populated recommendations cards and score badge for all 5 categories', () => {
+      render(
+        <InsightsTab
+          insightsData={mockInsightsData}
+          loadingInsights={false}
+          onRefresh={jest.fn()}
+          onApplyInsight={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('84%')).toBeInTheDocument();
+
+      // Cost category
+      expect(screen.getByText('Summer AI Sale')).toBeInTheDocument();
+      expect(screen.getByText('Добавьте минус-слова для экономии бюджета')).toBeInTheDocument();
+      expect(screen.getByText('🛡️ Защита бюджета')).toBeInTheDocument();
+      expect(screen.getByText('Экономия ~15% бюджета')).toBeInTheDocument();
+
+      // Quality category
+      expect(screen.getByText('B2B Leads Campaign')).toBeInTheDocument();
+      expect(screen.getByText('🎨 Оффер & CTR')).toBeInTheDocument();
+
+      // Bidding category
+      expect(screen.getByText('Target CPA Scaling')).toBeInTheDocument();
+      expect(screen.getByText('⚡ Smart CPA')).toBeInTheDocument();
+
+      // Reach category
+      expect(screen.getByText('Expansion Campaign')).toBeInTheDocument();
+      expect(screen.getByText('🔍 Охват запросов')).toBeInTheDocument();
+
+      // Growth category
+      expect(screen.getByText('Growth Experiments')).toBeInTheDocument();
+      expect(screen.getByText('🧪 A/B Эксперимент')).toBeInTheDocument();
+    });
+
+    it('wires action buttons properly (onRefresh, onApplyInsight, applying state)', () => {
+      const handleRefresh = jest.fn();
+      const handleApplyInsight = jest.fn();
+
+      const { rerender } = render(
+        <InsightsTab
+          insightsData={mockInsightsData}
+          loadingInsights={false}
+          applyingInsightId={null}
+          onRefresh={handleRefresh}
+          onApplyInsight={handleApplyInsight}
+        />,
+      );
+
+      const refreshBtn = screen.getByRole('button', { name: /пересканировать кампании/i });
+      fireEvent.click(refreshBtn);
+      expect(handleRefresh).toHaveBeenCalledTimes(1);
+
+      const applyButtons = screen.getAllByRole('button', { name: /применить рекомендацию/i });
+      expect(applyButtons.length).toBe(5);
+      fireEvent.click(applyButtons[0]);
+      expect(handleApplyInsight).toHaveBeenCalledWith(mockInsightsData.insights[0]);
+
+      // Re-render with applying state
+      rerender(
+        <InsightsTab
+          insightsData={mockInsightsData}
+          loadingInsights={false}
+          applyingInsightId="ins-1"
+          onRefresh={handleRefresh}
+          onApplyInsight={handleApplyInsight}
+        />,
+      );
+
+      expect(screen.getByText('Применение...')).toBeInTheDocument();
     });
   });
 
