@@ -63,7 +63,6 @@ import {
   UserCheck,
   Bot,
   ArrowUpRight,
-  Key,
   Code,
   Ban,
   ShieldX,
@@ -176,6 +175,7 @@ export { AD_TRANSLATIONS, AdLanguage, translateAdText, getActiveAdLanguage, setA
 
 // Modular Ads Tab Components
 import { GuideTab } from './tabs/GuideTab';
+import { PublisherTab } from './tabs/PublisherTab';
 
 export interface SwipiesAdsPageProps {
   currentLang?: AdLanguage;
@@ -526,7 +526,13 @@ export default function SwipiesAdsPage({
         setMtaSummary(sumRes.data);
       }
       if (pathsRes?.data) {
-        setMtaPaths(pathsRes.data);
+        setMtaPaths(
+          Array.isArray(pathsRes.data)
+            ? pathsRes.data
+            : Array.isArray((pathsRes.data as any)?.paths)
+            ? (pathsRes.data as any).paths
+            : []
+        );
       }
     } catch (err: any) {
       console.error('Failed to load attribution data', err);
@@ -584,7 +590,13 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getLookalikes();
       if (res?.data) {
-        setLookalikes(res.data);
+        setLookalikes(
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray((res.data as any)?.lookalikes)
+            ? (res.data as any).lookalikes
+            : []
+        );
       }
     } catch (err: any) {
       console.error('Failed to load lookalikes', err);
@@ -719,10 +731,15 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getProductFeeds();
       if (res?.data) {
-        setProductFeeds(res.data);
-        if (res.data.length > 0 && !selectedFeedId) {
-          setSelectedFeedId(res.data[0].id);
-          fetchFeedItems(res.data[0].id);
+        const feeds = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray((res.data as any)?.feeds)
+          ? (res.data as any).feeds
+          : [];
+        setProductFeeds(feeds);
+        if (feeds.length > 0 && !selectedFeedId) {
+          setSelectedFeedId(feeds[0].id);
+          fetchFeedItems(feeds[0].id);
         }
       }
     } catch (err: any) {
@@ -737,7 +754,13 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getFeedItems(feedId);
       if (res?.data) {
-        setFeedItems(res.data);
+        setFeedItems(
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray((res.data as any)?.items)
+            ? (res.data as any).items
+            : []
+        );
       }
     } catch (err: any) {
       console.error('Failed to load feed items', err);
@@ -859,7 +882,11 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getCreativeHealthScore(campaignId);
       if (res?.data) {
-        setCampaignHealth(res.data);
+        setCampaignHealth({
+          ...res.data,
+          checklist: Array.isArray(res.data.checklist) ? res.data.checklist : [],
+          recommendations: Array.isArray(res.data.recommendations) ? res.data.recommendations : [],
+        });
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка анализа качества креативов');
@@ -918,10 +945,22 @@ export default function SwipiesAdsPage({
         setWsBillingMode(wsRes.data.billing_mode || 'consolidated');
       }
       if (clientsRes?.data) {
-        setAgencyClients(clientsRes.data);
+        setAgencyClients(
+          Array.isArray(clientsRes.data)
+            ? clientsRes.data
+            : Array.isArray((clientsRes.data as any)?.clients)
+            ? (clientsRes.data as any).clients
+            : []
+        );
       }
       if (membersRes?.data) {
-        setAgencyMembers(membersRes.data);
+        setAgencyMembers(
+          Array.isArray(membersRes.data)
+            ? membersRes.data
+            : Array.isArray((membersRes.data as any)?.members)
+            ? (membersRes.data as any).members
+            : []
+        );
       }
     } catch (err: any) {
       // silent
@@ -1044,7 +1083,14 @@ export default function SwipiesAdsPage({
         days: reportPeriodDays,
       });
       if (res?.data) {
-        setExecutiveReport(res.data);
+        setExecutiveReport({
+          ...res.data,
+          timeline_trends: Array.isArray(res.data.timeline_trends) ? res.data.timeline_trends : [],
+          channel_attribution: Array.isArray(res.data.channel_attribution) ? res.data.channel_attribution : [],
+          top_creative_assets: Array.isArray(res.data.top_creative_assets) ? res.data.top_creative_assets : [],
+          executive_takeaways: Array.isArray(res.data.executive_takeaways) ? res.data.executive_takeaways : [],
+          white_label: res.data.white_label || {},
+        });
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка генерации сводного отчета');
@@ -1086,7 +1132,11 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getDashboard();
       if (res?.data) {
-        setDashboard(res.data);
+        const d = res.data;
+        if (d && !Array.isArray(d.campaigns)) {
+          d.campaigns = [];
+        }
+        setDashboard(d);
       }
     } catch (err: any) {
       message.error(err.message || 'Failed to load advertiser dashboard');
@@ -1100,7 +1150,13 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getTeamMembers();
       if (res?.data) {
-        setTeamMembers(res.data);
+        setTeamMembers(
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray((res.data as any)?.members)
+            ? (res.data as any).members
+            : []
+        );
       }
     } catch (err: any) {
       // silent
@@ -1162,7 +1218,13 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getAudienceSegments();
       if (res?.data) {
-        setAudiences(res.data);
+        setAudiences(
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray((res.data as any)?.segments)
+            ? (res.data as any).segments
+            : []
+        );
       }
     } catch (err: any) {
       // silent
@@ -1219,8 +1281,24 @@ export default function SwipiesAdsPage({
         adService.getPublisherPayouts(),
       ]);
       if (pubRes?.data) setPublisher(pubRes.data);
-      if (plcRes?.data) setPlacements(plcRes.data);
-      if (payRes?.data) setPayouts(payRes.data);
+      if (plcRes?.data) {
+        setPlacements(
+          Array.isArray(plcRes.data)
+            ? plcRes.data
+            : Array.isArray((plcRes.data as any)?.placements)
+            ? (plcRes.data as any).placements
+            : []
+        );
+      }
+      if (payRes?.data) {
+        setPayouts(
+          Array.isArray(payRes.data)
+            ? payRes.data
+            : Array.isArray((payRes.data as any)?.payouts)
+            ? (payRes.data as any).payouts
+            : []
+        );
+      }
     } catch (err: any) {
       // silent
     } finally {
@@ -1314,8 +1392,13 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getNotifications();
       if (res?.data) {
-        setNotifications(res.data.notifications || []);
-        setUnreadNotifCount(res.data.unread_count || 0);
+        const notifs = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data.notifications)
+          ? res.data.notifications
+          : [];
+        setNotifications(notifs);
+        setUnreadNotifCount(typeof res.data.unread_count === 'number' ? res.data.unread_count : notifs.filter((n: any) => !n.is_read).length);
       }
     } catch (err: any) {
       // silent
@@ -1436,7 +1519,13 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.listTransactions();
       if (res?.data) {
-        setTransactions(res.data);
+        setTransactions(
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray((res.data as any)?.transactions)
+            ? (res.data as any).transactions
+            : []
+        );
       }
     } catch (err: any) {
       console.error(err);
@@ -1458,7 +1547,13 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getSavedPaymentMethods();
       if (res?.data) {
-        setSavedCards(res.data);
+        setSavedCards(
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray((res.data as any)?.cards)
+            ? (res.data as any).cards
+            : []
+        );
       }
     } catch (err: any) {
       console.error('Failed to load saved cards', err);
@@ -1507,7 +1602,13 @@ export default function SwipiesAdsPage({
         setFraudOverview(ovRes.data);
       }
       if (blRes?.data) {
-        setFraudBlacklist(blRes.data);
+        setFraudBlacklist(
+          Array.isArray(blRes.data)
+            ? blRes.data
+            : Array.isArray((blRes.data as any)?.blacklist)
+            ? (blRes.data as any).blacklist
+            : []
+        );
       }
     } catch (err: any) {
       // silent
@@ -1617,9 +1718,9 @@ export default function SwipiesAdsPage({
     setRawKeywords((cmp.keywords || []).join(', '));
     setRawCategories((cmp.target_categories || []).join(', '));
     setRawNegativeKeywords((cmp.negative_keywords || []).join(', '));
-    setTargetLanguages(cmp.target_languages && cmp.target_languages.length > 0 ? cmp.target_languages : ['all']);
-    setTargetModels(cmp.target_models && cmp.target_models.length > 0 ? cmp.target_models : ['all']);
-    setTargetRegions(cmp.target_regions && cmp.target_regions.length > 0 ? cmp.target_regions : ['all']);
+    setTargetLanguages(Array.isArray(cmp.target_languages) && cmp.target_languages.length > 0 ? cmp.target_languages : ['all']);
+    setTargetModels(Array.isArray(cmp.target_models) && cmp.target_models.length > 0 ? cmp.target_models : ['all']);
+    setTargetRegions(Array.isArray(cmp.target_regions) && cmp.target_regions.length > 0 ? cmp.target_regions : ['all']);
     setIsCampaignModalOpen(true);
   };
 
@@ -1639,20 +1740,20 @@ export default function SwipiesAdsPage({
       });
       if (res?.data) {
         const data = res.data;
-        if (data.ad_copy_variations && data.ad_copy_variations.length > 0) {
+        if (Array.isArray(data.ad_copy_variations) && data.ad_copy_variations.length > 0) {
           setCampaignForm((prev) => ({
             ...prev,
             advertisement_text: data.ad_copy_variations[0],
             bid_amount: data.recommended_bid || prev.bid_amount,
           }));
         }
-        if (data.recommended_keywords && data.recommended_keywords.length > 0) {
+        if (Array.isArray(data.recommended_keywords) && data.recommended_keywords.length > 0) {
           setRawKeywords(data.recommended_keywords.join(', '));
         }
-        if (data.recommended_negative_keywords && data.recommended_negative_keywords.length > 0) {
+        if (Array.isArray(data.recommended_negative_keywords) && data.recommended_negative_keywords.length > 0) {
           setRawNegativeKeywords(data.recommended_negative_keywords.join(', '));
         }
-        if (data.recommended_categories && data.recommended_categories.length > 0) {
+        if (Array.isArray(data.recommended_categories) && data.recommended_categories.length > 0) {
           setRawCategories(data.recommended_categories.join(', '));
         }
         message.success('AI успешно сгенерировал продающий текст и ключевые слова!');
@@ -1784,16 +1885,19 @@ export default function SwipiesAdsPage({
       const infoRes = await adService.getCampaignBidding(cmp.id);
       if (infoRes?.data) {
         const info = infoRes.data;
-        setBiddingInfo(info);
+        setBiddingInfo({
+          ...info,
+          recent_bids: Array.isArray(info.recent_bids) ? info.recent_bids : [],
+        });
         setSelectedStrategy(info.bidding_strategy || 'manual_cpc');
         setTargetCpaValue(info.target_cpa || 5.0);
         setBiddingTz(info.schedule_timezone || 'Asia/Tashkent');
         const sched = info.schedule_config || {};
-        setEnabledDays(sched.enabled_days && sched.enabled_days.length > 0 ? sched.enabled_days : [0, 1, 2, 3, 4, 5, 6]);
+        setEnabledDays(Array.isArray(sched.enabled_days) && sched.enabled_days.length > 0 ? sched.enabled_days : [0, 1, 2, 3, 4, 5, 6]);
         setActiveHoursStart(sched.active_hours_start !== undefined ? sched.active_hours_start : 0);
         setActiveHoursEnd(sched.active_hours_end !== undefined ? sched.active_hours_end : 23);
         setPeakMultiplier(sched.peak_hours_multiplier || 1.25);
-        setPeakHoursEnabled(!!(sched.peak_hours && sched.peak_hours.length > 0));
+        setPeakHoursEnabled(!!(Array.isArray(sched.peak_hours) && sched.peak_hours.length > 0));
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка загрузки настроек авто-ставок');
@@ -1820,7 +1924,10 @@ export default function SwipiesAdsPage({
         schedule_config: schedConfig,
       });
       if (res?.data) {
-        setBiddingInfo(res.data);
+        setBiddingInfo({
+          ...res.data,
+          recent_bids: Array.isArray(res.data.recent_bids) ? res.data.recent_bids : [],
+        });
         message.success('Стратегия ставок и расписание успешно сохранены!');
         fetchDashboard();
         setIsBiddingModalOpen(false);
@@ -1841,7 +1948,10 @@ export default function SwipiesAdsPage({
       const res = await adService.getCampaignDco(cmp.id);
       if (res?.data) {
         const info = res.data;
-        setDcoInfo(info);
+        setDcoInfo({
+          ...info,
+          recent_logs: Array.isArray(info.recent_logs) ? info.recent_logs : [],
+        });
         setDcoEnabled(info.dco_enabled || false);
         const cfg = info.dco_config || {};
         setDcoHeadlineTemplate(cfg.headline_template || '');
@@ -1940,9 +2050,33 @@ export default function SwipiesAdsPage({
         adService.getRuleTemplates(),
         adService.getRuleExecutionLogs(),
       ]);
-      if (rulesRes?.data) setRulesList(rulesRes.data);
-      if (tmplRes?.data) setRuleTemplates(tmplRes.data);
-      if (logsRes?.data) setRuleExecutionLogs(logsRes.data);
+      if (rulesRes?.data) {
+        setRulesList(
+          Array.isArray(rulesRes.data)
+            ? rulesRes.data
+            : Array.isArray((rulesRes.data as any)?.rules)
+            ? (rulesRes.data as any).rules
+            : []
+        );
+      }
+      if (tmplRes?.data) {
+        setRuleTemplates(
+          Array.isArray(tmplRes.data)
+            ? tmplRes.data
+            : Array.isArray((tmplRes.data as any)?.templates)
+            ? (tmplRes.data as any).templates
+            : []
+        );
+      }
+      if (logsRes?.data) {
+        setRuleExecutionLogs(
+          Array.isArray(logsRes.data)
+            ? logsRes.data
+            : Array.isArray((logsRes.data as any)?.logs)
+            ? (logsRes.data as any).logs
+            : []
+        );
+      }
     } catch (err: any) {
       // silent
     }
@@ -2057,7 +2191,10 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getCampaignPacing(cmp.id);
       if (res?.data) {
-        setPacingInfo(res.data);
+        setPacingInfo({
+          ...res.data,
+          hourly_forecast: Array.isArray(res.data.hourly_forecast) ? res.data.hourly_forecast : [],
+        });
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка загрузки данных распределения бюджета');
@@ -2071,7 +2208,10 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.updateCampaignPacing(pacingCampaign.id, { pacing_mode: pacingMode });
       if (res?.data) {
-        setPacingInfo(res.data);
+        setPacingInfo({
+          ...res.data,
+          hourly_forecast: Array.isArray(res.data.hourly_forecast) ? res.data.hourly_forecast : [],
+        });
         message.success('Режим распределения бюджета (Pacing) обновлен!');
         fetchDashboard();
       }
@@ -2097,7 +2237,15 @@ export default function SwipiesAdsPage({
     setIsAnalyticsModalOpen(true);
     try {
       const res = await adService.getCampaignAnalyticsDetailed(cmp.id, 14);
-      setAnalyticsData(res?.data || null);
+      if (res?.data) {
+        setAnalyticsData({
+          ...res.data,
+          timeline: Array.isArray(res.data.timeline) ? res.data.timeline : [],
+          recent_impressions: Array.isArray(res.data.recent_impressions) ? res.data.recent_impressions : [],
+        });
+      } else {
+        setAnalyticsData(null);
+      }
     } catch (err: any) {
       message.error('Failed to load campaign analytics');
     }
@@ -2108,7 +2256,7 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getCampaignVariants(campaignId);
       if (res?.data) {
-        setVariantsList(res.data);
+        setVariantsList(Array.isArray(res.data) ? res.data : []);
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка загрузки вариантов объявления');
@@ -2184,11 +2332,11 @@ export default function SwipiesAdsPage({
         description: `Альтернативный продающий оффер для A/B тестирования: ${variantsCampaign.name}`,
         lang: 'ru',
       });
-      if (res?.data?.ad_copy_variations && res.data.ad_copy_variations.length > 0) {
+      if (res?.data?.ad_copy_variations && Array.isArray(res.data.ad_copy_variations) && res.data.ad_copy_variations.length > 0) {
         const altIndex = Math.min(1, res.data.ad_copy_variations.length - 1);
         setNewVariantText(res.data.ad_copy_variations[altIndex] || res.data.ad_copy_variations[0]);
         if (!newVariantName) {
-          setNewVariantName(`Вариант ${variantsList.length + 1} (AI Оффер)`);
+          setNewVariantName(`Вариант ${(Array.isArray(variantsList) ? variantsList.length : 0) + 1} (AI Оффер)`);
         }
         message.success('AI сгенерировал новый вариант рекламного текста!');
       }
@@ -2292,13 +2440,25 @@ export default function SwipiesAdsPage({
         adService.getOmniSyncJobs({ limit: 50 }),
       ]);
       if (accsRes?.data) {
-        setOmniAccounts(accsRes.data);
+        setOmniAccounts(
+          Array.isArray(accsRes.data)
+            ? accsRes.data
+            : Array.isArray((accsRes.data as any)?.accounts)
+            ? (accsRes.data as any).accounts
+            : []
+        );
       }
       if (statsRes?.data) {
         setCrossPlatformAnalytics(statsRes.data);
       }
       if (jobsRes?.data) {
-        setOmniSyncJobs(jobsRes.data);
+        setOmniSyncJobs(
+          Array.isArray(jobsRes.data)
+            ? jobsRes.data
+            : Array.isArray((jobsRes.data as any)?.jobs)
+            ? (jobsRes.data as any).jobs
+            : []
+        );
       }
     } catch (err: any) {
       console.error('Failed to load omni-channel data', err);
@@ -2379,7 +2539,7 @@ export default function SwipiesAdsPage({
   };
 
   const handleOpenExportModal = (campaignId?: string) => {
-    if (omniAccounts.length === 0) {
+    if (!Array.isArray(omniAccounts) || omniAccounts.length === 0) {
       message.warning('Сначала подключите хотя бы один внешний рекламный аккаунт (Telegram Ads, Meta или Google).');
       handleOpenConnectAccount('telegram_ads');
       return;
@@ -2430,7 +2590,7 @@ export default function SwipiesAdsPage({
   const isSettingsActive = ['settings', 'team', 'omnichannel', 'agency', 'publisher', 'guide'].includes(activeTab);
   const isAutopilotActive = ['autopilot'].includes(activeTab);
 
-  const overviewTimeline = (timelineData?.timeline && timelineData.timeline.length > 0)
+  const overviewTimeline = (timelineData?.timeline && Array.isArray(timelineData.timeline) && timelineData.timeline.length > 0)
     ? timelineData.timeline
     : Array.from({ length: 14 }).map((_, i) => {
         const d = new Date();
@@ -2572,7 +2732,7 @@ export default function SwipiesAdsPage({
               className="flex items-center gap-2 font-medium relative"
             >
               <Sparkles className="h-4 w-4 text-purple-500" />
-              {t('tabStudio')} ({productFeeds.length})
+              {t('tabStudio')} ({(Array.isArray(productFeeds) ? productFeeds.length : 0)})
             </TabsTrigger>
             <TabsTrigger
               value="analytics"
@@ -2592,9 +2752,9 @@ export default function SwipiesAdsPage({
             >
               <Zap className="h-4 w-4 text-amber-500" />
               {t('tabAutopilot')}
-              {rulesList.filter((r) => r.is_active).length > 0 && (
+              {Array.isArray(rulesList) && rulesList.filter((r) => r.is_active).length > 0 && (
                 <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-cyan-500 text-white">
-                  {rulesList.filter((r) => r.is_active).length}
+                  {(rulesList || []).filter((r) => r.is_active).length}
                 </span>
               )}
             </TabsTrigger>
@@ -2602,7 +2762,7 @@ export default function SwipiesAdsPage({
               value="audiences"
               className="flex items-center gap-2 font-medium"
             >
-              <Fingerprint className="h-4 w-4 text-emerald-500" /> {t('tabAudiences')} ({audiences.length + lookalikes.length})
+              <Fingerprint className="h-4 w-4 text-emerald-500" /> {t('tabAudiences')} ({(Array.isArray(audiences) ? audiences.length : 0) + (Array.isArray(lookalikes) ? lookalikes.length : 0)})
             </TabsTrigger>
             <TabsTrigger
               value="billing"
@@ -2690,7 +2850,7 @@ export default function SwipiesAdsPage({
               className="h-8 text-xs font-medium"
             >
               <Users className="mr-1.5 h-3.5 w-3.5" />
-              {t('subtabTeam')} ({teamMembers.length})
+              {t('subtabTeam')} ({(Array.isArray(teamMembers) ? teamMembers.length : 0)})
             </Button>
             <Button
               variant={activeTab === 'omnichannel' ? 'default' : 'ghost'}
@@ -2700,7 +2860,7 @@ export default function SwipiesAdsPage({
             >
               <Share2 className="mr-1.5 h-3.5 w-3.5 text-blue-500" />
               {t('subtabOmnichannel')}
-              {omniAccounts.length > 0 && (
+              {Array.isArray(omniAccounts) && omniAccounts.length > 0 && (
                 <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
                   {omniAccounts.length}
                 </span>
@@ -2713,7 +2873,7 @@ export default function SwipiesAdsPage({
               className="h-8 text-xs font-medium"
             >
               <Building2 className="mr-1.5 h-3.5 w-3.5 text-indigo-500" />
-              {t('subtabAgency')} ({agencyClients.length})
+              {t('subtabAgency')} ({(Array.isArray(agencyClients) ? agencyClients.length : 0)})
             </Button>
             <Button
               variant={activeTab === 'publisher' ? 'default' : 'ghost'}
@@ -2722,7 +2882,7 @@ export default function SwipiesAdsPage({
               className="h-8 text-xs font-medium"
             >
               <Bot className="mr-1.5 h-3.5 w-3.5 text-cyan-500" />
-              {t('subtabPublisher')} ({placements.length})
+              {t('subtabPublisher')} ({(Array.isArray(placements) ? placements.length : 0)})
             </Button>
             <Button
               variant={activeTab === 'guide' ? 'default' : 'ghost'}
@@ -2929,7 +3089,7 @@ export default function SwipiesAdsPage({
               </CardHeader>
               <CardContent className="pt-0">
                 <Button variant="ghost" size="sm" className="h-7 text-xs text-purple-600 dark:text-purple-400 p-0 font-medium">
-                  {t('tabStudio')} ({productFeeds.length}) →
+                  {t('tabStudio')} ({(Array.isArray(productFeeds) ? productFeeds.length : 0)}) →
                 </Button>
               </CardContent>
             </Card>
@@ -2994,7 +3154,7 @@ export default function SwipiesAdsPage({
               </Button>
             </CardHeader>
             <CardContent>
-              {dashboard?.campaigns && dashboard.campaigns.length > 0 ? (
+              {dashboard?.campaigns && Array.isArray(dashboard.campaigns) && dashboard.campaigns.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
                     <thead className="text-muted-foreground border-b uppercase bg-muted/30 text-[10px]">
@@ -3007,7 +3167,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {dashboard.campaigns.slice(0, 4).map((c) => (
+                      {(dashboard.campaigns || []).slice(0, 4).map((c) => (
                         <tr key={c.id} className="hover:bg-muted/40 transition-colors">
                           <td className="py-2.5 px-3">
                             <div className="font-semibold text-foreground">{c.name}</div>
@@ -3140,7 +3300,7 @@ export default function SwipiesAdsPage({
               </div>
             </CardHeader>
             <CardContent>
-              {!dashboard?.campaigns || dashboard.campaigns.length === 0 ? (
+              {!Array.isArray(dashboard?.campaigns) || dashboard.campaigns.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 mb-3">
                     <Megaphone className="h-6 w-6" />
@@ -3168,7 +3328,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {dashboard.campaigns.map((cmp) => (
+                      {(dashboard?.campaigns || []).map((cmp) => (
                         <tr key={cmp.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4">
                             <div className="font-semibold text-foreground flex items-center gap-1.5">
@@ -3192,16 +3352,16 @@ export default function SwipiesAdsPage({
                               </a>
                             </div>
                             <div className="flex flex-wrap gap-1 mt-1.5">
-                              {(!cmp.target_languages || cmp.target_languages.includes('all') || cmp.target_languages.length === 0) ? (
+                              {(!Array.isArray(cmp.target_languages) || cmp.target_languages.length === 0 || cmp.target_languages.includes('all')) ? (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-medium">{t('badgeAllLanguages')}</span>
                               ) : (
-                                cmp.target_languages.map((l) => (
+                                (cmp.target_languages || []).map((l) => (
                                   <span key={l} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 font-bold uppercase">
                                     {l === 'uz' ? '🇺🇿 UZ' : l === 'ru' ? '🇷🇺 RU' : l === 'en' ? '🇬🇧 EN' : l}
                                   </span>
                                 ))
                               )}
-                              {cmp.target_models && cmp.target_models.length > 0 && !cmp.target_models.includes('all') && (
+                              {Array.isArray(cmp.target_models) && cmp.target_models.length > 0 && !cmp.target_models.includes('all') && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 font-medium">
                                   🤖 {cmp.target_models.join(', ')}
                                 </span>
@@ -3512,7 +3672,7 @@ export default function SwipiesAdsPage({
                         <div>
                           <div className="font-semibold text-foreground mb-1">Заголовки (3 угла):</div>
                           <ul className="space-y-1">
-                            {matrixResult.formats.text_card.headlines.map((h, i) => (
+                            {(matrixResult.formats.text_card.headlines || []).map((h, i) => (
                               <li key={i} className="p-1.5 rounded bg-background border text-[11px] font-medium">
                                 🔹 {h}
                               </li>
@@ -3522,7 +3682,7 @@ export default function SwipiesAdsPage({
                         <div>
                           <div className="font-semibold text-foreground mb-1">Тексты описания:</div>
                           <ul className="space-y-1">
-                            {matrixResult.formats.text_card.descriptions.map((d, i) => (
+                            {(matrixResult.formats.text_card.descriptions || []).map((d, i) => (
                               <li key={i} className="p-1.5 rounded bg-background border text-[11px] text-muted-foreground">
                                 {d}
                               </li>
@@ -3530,7 +3690,7 @@ export default function SwipiesAdsPage({
                           </ul>
                         </div>
                         <div className="flex flex-wrap gap-1.5 pt-1">
-                          {matrixResult.formats.text_card.badges.map((b, i) => (
+                          {(matrixResult.formats.text_card.badges || []).map((b, i) => (
                             <span key={i} className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 text-[10px] font-semibold">
                               {b}
                             </span>
@@ -3567,7 +3727,7 @@ export default function SwipiesAdsPage({
                           </div>
 
                           <div className="grid grid-cols-1 gap-1 py-1">
-                            {matrixResult.formats.rich_interactive_card.features.map((f, i) => (
+                            {(matrixResult.formats.rich_interactive_card.features || []).map((f, i) => (
                               <div key={i} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                                 <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                                 <span>{f}</span>
@@ -3678,7 +3838,7 @@ export default function SwipiesAdsPage({
                             <Film className="h-4 w-4" /> 5. Video Storyboard Script (TikTok / Reels / Shorts - {matrixResult.formats.video_storyboard.duration_sec}s)
                           </CardTitle>
                           <Badge variant="secondary" className="text-[10px]">
-                            {matrixResult.formats.video_storyboard.target_platform.join(' • ')}
+                            {(matrixResult.formats.video_storyboard.target_platform || []).join(' • ')}
                           </Badge>
                         </div>
                       </CardHeader>
@@ -3695,7 +3855,7 @@ export default function SwipiesAdsPage({
                               </tr>
                             </thead>
                             <tbody className="divide-y">
-                              {matrixResult.formats.video_storyboard.scenes.map((scene) => (
+                              {(matrixResult.formats.video_storyboard.scenes || []).map((scene) => (
                                 <tr key={scene.scene} className="hover:bg-background/80">
                                   <td className="py-2.5 px-3 font-bold text-foreground">#{scene.scene}</td>
                                   <td className="py-2.5 px-3 font-mono text-[11px] text-amber-600 font-semibold">{scene.timestamp}</td>
@@ -3760,7 +3920,7 @@ export default function SwipiesAdsPage({
                 <div className="flex items-center justify-center py-12">
                   <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : productFeeds.length === 0 ? (
+              ) : !Array.isArray(productFeeds) || productFeeds.length === 0 ? (
                 <div className="p-8 text-center border-dashed border rounded-xl">
                   <ShoppingBag className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
                   <h4 className="text-sm font-semibold text-foreground">У вас пока нет товарных каталогов</h4>
@@ -3779,7 +3939,7 @@ export default function SwipiesAdsPage({
                 <div className="space-y-4">
                   {/* Feed Selector Tabs / Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {productFeeds.map((feed) => (
+                    {(productFeeds || []).map((feed) => (
                       <div
                         key={feed.id}
                         onClick={() => {
@@ -3831,7 +3991,7 @@ export default function SwipiesAdsPage({
                       <div className="flex items-center justify-between">
                         <div>
                           <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                            Товары в каталоге ({feedItems.length})
+                            Товары в каталоге ({(Array.isArray(feedItems) ? feedItems.length : 0)})
                           </h4>
                         </div>
                         <Button
@@ -3847,13 +4007,13 @@ export default function SwipiesAdsPage({
                         <div className="flex items-center justify-center py-8">
                           <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
                         </div>
-                      ) : feedItems.length === 0 ? (
+                      ) : !Array.isArray(feedItems) || feedItems.length === 0 ? (
                         <div className="p-6 text-center border-dashed border rounded-lg text-xs text-muted-foreground">
                           В выбранном каталоге пока нет товаров. Добавьте первый SKU вручную.
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {feedItems.map((sku) => (
+                          {(feedItems || []).map((sku) => (
                             <div key={sku.id} className="p-3 rounded-lg border bg-background flex flex-col justify-between gap-2 shadow-sm">
                               <div>
                                 <div className="flex items-start justify-between gap-2">
@@ -3937,7 +4097,7 @@ export default function SwipiesAdsPage({
               <RefreshCw className="h-8 w-8 animate-spin text-amber-500 mb-2" />
               <p className="text-sm text-muted-foreground">Идет аудит рекламных кампаний...</p>
             </div>
-          ) : !insightsData || insightsData.insights.length === 0 ? (
+          ) : !insightsData || !Array.isArray(insightsData.insights) || insightsData.insights.length === 0 ? (
             <Card className="p-8 text-center border-dashed">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 mx-auto mb-3">
                 <CheckCircle2 className="h-6 w-6" />
@@ -3949,7 +4109,7 @@ export default function SwipiesAdsPage({
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {insightsData.insights.map((insight: CampaignInsightItem) => (
+              {(insightsData.insights || []).map((insight: CampaignInsightItem) => (
                 <Card key={insight.id} className="relative flex flex-col justify-between border shadow-sm hover:border-amber-500/40 transition-colors">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -4024,7 +4184,7 @@ export default function SwipiesAdsPage({
                   <Zap className="h-4 w-4 text-cyan-500" />
                 </div>
                 <div className="text-2xl font-bold text-foreground mt-1">
-                  {rulesList.filter((r) => r.is_active).length} / {rulesList.length}
+                  {Array.isArray(rulesList) ? rulesList.filter((r) => r.is_active).length : 0} / {Array.isArray(rulesList) ? rulesList.length : 0}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Круглосуточный мониторинг</p>
               </CardContent>
@@ -4037,7 +4197,7 @@ export default function SwipiesAdsPage({
                   <Activity className="h-4 w-4 text-emerald-500" />
                 </div>
                 <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  {rulesList.reduce((acc, r) => acc + (r.trigger_count || 0), 0)}
+                  {Array.isArray(rulesList) ? rulesList.reduce((acc, r) => acc + (r.trigger_count || 0), 0) : 0}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Автоматических оптимизаций</p>
               </CardContent>
@@ -4050,7 +4210,7 @@ export default function SwipiesAdsPage({
                   <ShieldCheck className="h-4 w-4 text-amber-500" />
                 </div>
                 <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                  {rulesList.filter((r) => r.action_type === 'pause_campaign').length} правил
+                  {Array.isArray(rulesList) ? rulesList.filter((r) => r.action_type === 'pause_campaign').length : 0} правил
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Предотвращают слив средств</p>
               </CardContent>
@@ -4084,7 +4244,7 @@ export default function SwipiesAdsPage({
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                {ruleTemplates.map((tmpl) => (
+                {(ruleTemplates || []).map((tmpl) => (
                   <div
                     key={tmpl.template_id}
                     className="p-3.5 rounded-xl border border-muted hover:border-cyan-500/40 bg-card hover:bg-muted/30 transition-all flex flex-col justify-between"
@@ -4121,7 +4281,7 @@ export default function SwipiesAdsPage({
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-amber-500" /> Настроенные правила Auto-Pilot ({rulesList.length})
+                  <Zap className="h-4 w-4 text-amber-500" /> Настроенные правила Auto-Pilot ({(Array.isArray(rulesList) ? rulesList.length : 0)})
                 </CardTitle>
                 <CardDescription className="text-xs">
                   Правила непрерывно проверяют метрики и автоматически реагируют на изменения.
@@ -4151,7 +4311,7 @@ export default function SwipiesAdsPage({
               </div>
             </CardHeader>
             <CardContent>
-              {rulesList.length === 0 ? (
+              {!Array.isArray(rulesList) || rulesList.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground text-xs">
                   У вас пока нет настроенных правил. Выберите готовый рецепт выше или создайте новое правило.
                 </div>
@@ -4170,7 +4330,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {rulesList.map((r) => (
+                      {(rulesList || []).map((r) => (
                         <tr key={r.id} className="hover:bg-muted/30">
                           <td className="py-3 px-3">
                             <div className="font-semibold text-foreground">{r.name}</div>
@@ -4252,7 +4412,7 @@ export default function SwipiesAdsPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {ruleExecutionLogs.length === 0 ? (
+              {!Array.isArray(ruleExecutionLogs) || ruleExecutionLogs.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground text-xs">
                   Журнал пуст. Срабатывания авто-правил будут фиксироваться здесь в реальном времени.
                 </div>
@@ -4269,7 +4429,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {ruleExecutionLogs.map((log) => (
+                      {(ruleExecutionLogs || []).map((log) => (
                         <tr key={log.id} className="hover:bg-muted/30">
                           <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
                             {new Date(log.create_time).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' })}
@@ -4467,13 +4627,13 @@ export default function SwipiesAdsPage({
                 <div className="py-8 flex items-center justify-center text-xs text-muted-foreground">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" /> Загрузка воронки...
                 </div>
-              ) : !funnelData?.stages || funnelData.stages.length === 0 ? (
+              ) : !funnelData?.stages || !Array.isArray(funnelData.stages) || funnelData.stages.length === 0 ? (
                 <div className="py-8 text-center text-xs text-muted-foreground">
                   Недостаточно данных для построения воронки
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                  {funnelData.stages.map((stage: FunnelStageItem, idx: number) => {
+                  {(funnelData.stages || []).map((stage: FunnelStageItem, idx: number) => {
                     const colors = [
                       'from-blue-500 to-blue-600',
                       'from-cyan-500 to-cyan-600',
@@ -4541,7 +4701,7 @@ export default function SwipiesAdsPage({
                 <div className="py-8 flex items-center justify-center text-xs text-muted-foreground">
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" /> Расчет мультитач весов...
                 </div>
-              ) : !mtaSummary?.campaigns || mtaSummary.campaigns.length === 0 ? (
+              ) : !mtaSummary?.campaigns || !Array.isArray(mtaSummary.campaigns) || mtaSummary.campaigns.length === 0 ? (
                 <div className="py-8 text-center text-xs text-muted-foreground">
                   Кампании пока не зафиксировали конверсионных путей
                 </div>
@@ -4562,7 +4722,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {mtaSummary.campaigns.map((c: CampaignAttributionCredit) => (
+                      {(mtaSummary.campaigns || []).map((c: CampaignAttributionCredit) => (
                         <tr key={c.campaign_id} className="hover:bg-muted/40 transition-colors">
                           <td className="py-2.5 px-3 font-semibold text-foreground">
                             <div>{c.campaign_name}</div>
@@ -4621,13 +4781,13 @@ export default function SwipiesAdsPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {mtaPaths.length === 0 ? (
+              {!Array.isArray(mtaPaths) || mtaPaths.length === 0 ? (
                 <div className="py-8 text-center text-xs text-muted-foreground">
                   Нет зафиксированных мультикасательных путей
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {mtaPaths.map((path: ConversionJourneyPath) => (
+                  {(mtaPaths || []).map((path: ConversionJourneyPath) => (
                     <div
                       key={path.id}
                       className="p-3.5 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors space-y-2 text-xs"
@@ -4650,7 +4810,7 @@ export default function SwipiesAdsPage({
 
                       {/* Path step sequence */}
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        {path.path_steps.map((step, sIdx) => (
+                        {(path.path_steps || []).map((step, sIdx) => (
                           <div key={sIdx} className="flex items-center gap-1.5">
                             <div className="px-2.5 py-1 rounded-md bg-background border text-[11px] flex items-center gap-1.5 shadow-sm">
                               <span className="h-4 w-4 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold flex items-center justify-center text-[9px]">
@@ -4659,7 +4819,7 @@ export default function SwipiesAdsPage({
                               <span className="font-semibold text-foreground">{step.campaign_name}</span>
                               <span className="text-[10px] text-muted-foreground">({step.channel})</span>
                             </div>
-                            {sIdx < path.path_steps.length - 1 && (
+                            {sIdx < ((path.path_steps && path.path_steps.length) || 0) - 1 && (
                               <ArrowRight className="h-3 w-3 text-muted-foreground" />
                             )}
                           </div>
@@ -4801,10 +4961,10 @@ export default function SwipiesAdsPage({
             </CardHeader>
             <CardContent>
               <div className="h-[280px] w-full">
-                {timelineData?.timeline && timelineData.timeline.length > 0 ? (
+                {timelineData?.timeline && Array.isArray(timelineData.timeline) && timelineData.timeline.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
-                      data={timelineData.timeline}
+                      data={Array.isArray(timelineData.timeline) ? timelineData.timeline : []}
                       margin={{ top: 10, right: 20, left: -10, bottom: 0 }}
                     >
                       <defs>
@@ -5127,7 +5287,7 @@ export default function SwipiesAdsPage({
                     onClick={() => setIsCardsModalOpen(true)}
                   >
                     <CreditCard className="h-3.5 w-3.5 text-blue-500" />
-                    Сохранённые карты ({savedCards.length})
+                    Сохранённые карты ({(Array.isArray(savedCards) ? savedCards.length : 0)})
                   </Button>
                 </div>
               </CardContent>
@@ -5192,7 +5352,7 @@ export default function SwipiesAdsPage({
                 </Button>
               </CardHeader>
               <CardContent>
-                {transactions.length === 0 ? (
+                {!Array.isArray(transactions) || transactions.length === 0 ? (
                   <div className="py-8 text-center text-sm text-muted-foreground">No transactions recorded yet.</div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -5206,7 +5366,7 @@ export default function SwipiesAdsPage({
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {transactions.map((t) => (
+                        {(transactions || []).map((t) => (
                           <tr key={t.id} className="hover:bg-muted/20">
                             <td className="py-2.5 px-3 font-semibold uppercase">{t.type}</td>
                             <td className="py-2.5 px-3">{t.description}</td>
@@ -5378,7 +5538,7 @@ export default function SwipiesAdsPage({
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {lookalikes.length === 0 ? (
+              {!Array.isArray(lookalikes) || lookalikes.length === 0 ? (
                 <div className="p-8 text-center text-xs text-muted-foreground">
                   <GitBranch className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
                   У вас пока нет созданных Lookalike аудиторий. Создайте расширенную аудиторию на основе VIP-покупателей!
@@ -5399,7 +5559,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {lookalikes.map((lal) => (
+                      {(lookalikes || []).map((lal) => (
                         <tr key={lal.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4 font-semibold text-foreground">{lal.name}</td>
                           <td className="py-3 px-4 text-muted-foreground">{lal.source_segment_name || 'Seed Segment'}</td>
@@ -5451,7 +5611,7 @@ export default function SwipiesAdsPage({
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {audiences.length === 0 ? (
+              {!Array.isArray(audiences) || audiences.length === 0 ? (
                 <div className="p-8 text-center text-xs text-muted-foreground">
                   <Fingerprint className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
                   У вас пока нет созданных сегментов аудиторий. Создайте первую аудиторию ретаргетинга!
@@ -5470,7 +5630,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {audiences.map((aud) => (
+                      {(audiences || []).map((aud) => (
                         <tr key={aud.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4 font-medium">
                             <div>{aud.name}</div>
@@ -5512,7 +5672,7 @@ export default function SwipiesAdsPage({
           </Card>
 
           {/* High-pLTV Top Customer Cohort Table */}
-          {ltvOverview?.top_customers && ltvOverview.top_customers.length > 0 && (
+          {ltvOverview?.top_customers && Array.isArray(ltvOverview.top_customers) && ltvOverview.top_customers.length > 0 && (
             <Card>
               <CardHeader className="py-4">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -5539,7 +5699,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {ltvOverview.top_customers.map((cust) => (
+                      {(ltvOverview.top_customers || []).map((cust) => (
                         <tr key={cust.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4 font-mono font-medium">{cust.customer_identifier || cust.visitor_id.substring(0, 16)}</td>
                           <td className="py-3 px-4">
@@ -5642,7 +5802,7 @@ export default function SwipiesAdsPage({
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {teamMembers.length === 0 ? (
+              {!Array.isArray(teamMembers) || teamMembers.length === 0 ? (
                 <div className="p-8 text-center text-xs text-muted-foreground">
                   <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                   У вас пока нет приглашенных участников. Вы единственный владелец кабинета.
@@ -5660,7 +5820,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {teamMembers.map((m) => (
+                      {(teamMembers || []).map((m) => (
                         <tr key={m.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4 font-medium">{m.email}</td>
                           <td className="py-3 px-4">
@@ -5711,271 +5871,21 @@ export default function SwipiesAdsPage({
 
         {/* Publisher Monetization & Partner SDK Tab */}
         <TabsContent value="publisher" className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border">
-            <div>
-              <h3 className="text-base font-bold flex items-center gap-2">
-                <Bot className="h-5 w-5 text-cyan-500" />
-                Монетизация & Партнёрская сеть (Publisher SDK)
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Подключайте свои Telegram-боты, сайты и AI-агенты, показывайте релевантные рекомендации и получайте 70% Revenue Share
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => setIsPayoutModalOpen(true)}
-                size="sm"
-                variant="outline"
-                className="text-xs flex items-center gap-1.5 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
-              >
-                <Coins className="h-3.5 w-3.5" /> Вывести доход (${publisher?.balance ? publisher.balance.toFixed(2) : '0.00'})
-              </Button>
-              <Button
-                onClick={() => setIsPlacementModalOpen(true)}
-                size="sm"
-                className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs flex items-center gap-1.5"
-              >
-                <Plus className="h-3.5 w-3.5" /> + Создать размещение
-              </Button>
-            </div>
-          </div>
-
-          {/* Publisher KPI Cards */}
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Доступно к выводу</CardTitle>
-                <Coins className="h-4 w-4 text-emerald-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  ${publisher?.balance ? publisher.balance.toFixed(2) : '0.00'}
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Мгновенный вывод на карты Uzcard / Humo / Visa</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Всего заработано</CardTitle>
-                <ArrowUpRight className="h-4 w-4 text-cyan-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${publisher?.total_earned ? publisher.total_earned.toFixed(2) : '0.00'}
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">За всё время монетизации</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Выплачено</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${publisher?.total_withdrawn ? publisher.total_withdrawn.toFixed(2) : '0.00'}
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{payouts.length} заявок на выплату</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Доля дохода (RevShare)</CardTitle>
-                <Sparkles className="h-4 w-4 text-amber-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {((publisher?.default_rev_share || 0.70) * 100).toFixed(0)}%
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">От каждого платного клика и показа</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* API Key Banner */}
-          <div className="p-4 bg-muted/40 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5">
-              <Key className="h-4 w-4 text-cyan-500 shrink-0" />
-              <div>
-                <span className="font-semibold text-foreground">Ваш уникальный API-ключ паблишера:</span>
-                <div className="font-mono bg-background border px-2.5 py-1 rounded mt-1 text-[11px] select-all">
-                  {publisher?.api_key || 'Загрузка...'}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  if (publisher?.api_key) {
-                    navigator.clipboard.writeText(publisher.api_key);
-                    message.success('API-ключ скопирован в буфер обмена');
-                  }
-                }}
-                className="h-8 text-xs"
-              >
-                <Copy className="h-3.5 w-3.5 mr-1" /> Скопировать
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleRegenerateKey}
-                className="h-8 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Перевыпустить
-              </Button>
-            </div>
-          </div>
-
-          {/* Placements Table */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between py-4">
-              <div>
-                <CardTitle className="text-sm font-semibold">Рекламные места (Placements)</CardTitle>
-                <CardDescription className="text-xs">
-                  Подключенные боты, сайты и приложения для показа объявлений
-                </CardDescription>
-              </div>
-              <Button size="sm" variant="ghost" onClick={fetchPublisher} disabled={loadingPublisher}>
-                <RefreshCw className={`h-3.5 w-3.5 ${loadingPublisher ? 'animate-spin' : ''}`} />
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              {placements.length === 0 ? (
-                <div className="p-8 text-center text-xs text-muted-foreground">
-                  <Bot className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-                  У вас пока нет созданных рекламных мест. Создайте первое размещение для своего Telegram-бота или сайта!
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
-                      <tr>
-                        <th className="py-2.5 px-4">Название & Канал</th>
-                        <th className="py-2.5 px-4">Тип интеграции</th>
-                        <th className="py-2.5 px-4">Доля (RevShare)</th>
-                        <th className="py-2.5 px-4">Показов</th>
-                        <th className="py-2.5 px-4">Кликов</th>
-                        <th className="py-2.5 px-4">Заработано ($)</th>
-                        <th className="py-2.5 px-4 text-right">Действия</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {placements.map((plc) => (
-                        <tr key={plc.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-3 px-4 font-medium">
-                            <div>{plc.name}</div>
-                            {plc.domain_or_bot && (
-                              <div className="text-[11px] text-muted-foreground font-mono">{plc.domain_or_bot}</div>
-                            )}
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant="outline" className="text-[10px] gap-1">
-                              {plc.placement_type === 'telegram_bot' && '🤖 Telegram Bot'}
-                              {plc.placement_type === 'web_widget' && '🌐 Web Widget'}
-                              {plc.placement_type === 'mobile_app' && '📱 Mobile App'}
-                              {plc.placement_type === 'api_agent' && '⚡ AI Agent API'}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 font-semibold text-amber-600">
-                            {(plc.rev_share_rate * 100).toFixed(0)}%
-                          </td>
-                          <td className="py-3 px-4 font-mono">{plc.impressions.toLocaleString()}</td>
-                          <td className="py-3 px-4 font-mono">{plc.clicks.toLocaleString()}</td>
-                          <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
-                            ${plc.earnings.toFixed(4)}
-                          </td>
-                          <td className="py-3 px-4 text-right flex items-center justify-end gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedPlacementForSnippet(plc);
-                                setIsSdkSnippetModalOpen(true);
-                              }}
-                              className="h-7 px-2 text-xs"
-                            >
-                              <Code className="h-3.5 w-3.5 mr-1" /> Код SDK
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeletePlacement(plc.id)}
-                              className="text-red-500 hover:text-red-700 h-7 px-2 text-xs"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Payouts History Card */}
-          <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-sm font-semibold">История выплат</CardTitle>
-              <CardDescription className="text-xs">
-                Все запросы на перевод заработанных средств на банковские карты
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              {payouts.length === 0 ? (
-                <div className="p-6 text-center text-xs text-muted-foreground">
-                  Заявок на выплату пока не было. Накопите минимальный баланс и нажмите «Вывести доход».
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="border-b bg-muted/40 uppercase text-muted-foreground">
-                      <tr>
-                        <th className="py-2.5 px-4">Дата запроса</th>
-                        <th className="py-2.5 px-4">Сумма</th>
-                        <th className="py-2.5 px-4">Карта получателя</th>
-                        <th className="py-2.5 px-4">Статус</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {payouts.map((pay) => (
-                        <tr key={pay.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-3 px-4 text-muted-foreground">
-                            {new Date(pay.create_time).toLocaleDateString()} {new Date(pay.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </td>
-                          <td className="py-3 px-4 font-bold text-foreground">
-                            ${pay.amount.toFixed(2)} {pay.currency}
-                          </td>
-                          <td className="py-3 px-4 font-mono text-[11px]">
-                            {pay.destination_card} {pay.destination_holder && `(${pay.destination_holder})`}
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge
-                              variant={
-                                pay.status === 'paid' ? 'default' : pay.status === 'pending' ? 'secondary' : 'destructive'
-                              }
-                              className="text-[10px]"
-                            >
-                              {pay.status === 'paid' && '✅ Выплачено'}
-                              {pay.status === 'pending' && '⏳ В обработке'}
-                              {pay.status === 'approved' && '👍 Одобрено'}
-                              {pay.status === 'rejected' && '❌ Отклонено'}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <PublisherTab
+            publisher={publisher}
+            placements={placements}
+            payouts={payouts}
+            loadingPublisher={loadingPublisher}
+            onRefresh={fetchPublisher}
+            onRegenerateKey={handleRegenerateKey}
+            onDeletePlacement={handleDeletePlacement}
+            onOpenPlacementModal={() => setIsPlacementModalOpen(true)}
+            onOpenPayoutModal={() => setIsPayoutModalOpen(true)}
+            onOpenSdkSnippetModal={(plc) => {
+              setSelectedPlacementForSnippet(plc);
+              setIsSdkSnippetModalOpen(true);
+            }}
+          />
         </TabsContent>
 
         {/* Anti-Fraud & Invalid Traffic (IVT) Tab */}
@@ -6073,7 +5983,7 @@ export default function SwipiesAdsPage({
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {!fraudOverview?.recent_logs || fraudOverview.recent_logs.length === 0 ? (
+              {!fraudOverview?.recent_logs || !Array.isArray(fraudOverview.recent_logs) || fraudOverview.recent_logs.length === 0 ? (
                 <div className="p-8 text-center text-xs text-muted-foreground">
                   <ShieldCheck className="h-8 w-8 mx-auto mb-2 text-emerald-500/60" />
                   Подозрительной активности не зафиксировано. Все клики соответствуют стандартам чистоты трафика.
@@ -6093,7 +6003,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {fraudOverview.recent_logs.map((log) => (
+                      {(fraudOverview.recent_logs || []).map((log) => (
                         <tr key={log.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
                             {new Date(log.create_time).toLocaleDateString()} {new Date(log.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -6160,7 +6070,7 @@ export default function SwipiesAdsPage({
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {fraudBlacklist.length === 0 ? (
+              {!Array.isArray(fraudBlacklist) || fraudBlacklist.length === 0 ? (
                 <div className="p-6 text-center text-xs text-muted-foreground">
                   Черный список пуст. При обнаружении подозрительной активности система заблокирует IP автоматически, либо вы можете добавить его вручную.
                 </div>
@@ -6177,7 +6087,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {fraudBlacklist.map((entry) => (
+                      {(fraudBlacklist || []).map((entry) => (
                         <tr key={entry.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4 font-mono font-bold text-foreground">
                             {entry.ip_address}
@@ -6307,7 +6217,7 @@ export default function SwipiesAdsPage({
                   <Briefcase className="h-4 w-4 text-indigo-500" />
                 </div>
                 <div className="text-2xl font-bold text-foreground mt-1">
-                  {agencyClients.length}
+                  {(Array.isArray(agencyClients) ? agencyClients.length : 0)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Активных брендов в управлении</p>
               </CardContent>
@@ -6333,7 +6243,7 @@ export default function SwipiesAdsPage({
                   <Users className="h-4 w-4 text-purple-500" />
                 </div>
                 <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
-                  {agencyMembers.length}
+                  {(Array.isArray(agencyMembers) ? agencyMembers.length : 0)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Медиабайеры, дизайнеры, аудиторы</p>
               </CardContent>
@@ -6346,10 +6256,10 @@ export default function SwipiesAdsPage({
                   <Layers className="h-4 w-4 text-blue-500" />
                 </div>
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                  {agencyClients.reduce((sum, c) => sum + (c.active_campaigns_count || 0), 0)}
+                  {Array.isArray(agencyClients) ? agencyClients.reduce((sum, c) => sum + (c.active_campaigns_count || 0), 0) : 0}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  из {agencyClients.reduce((sum, c) => sum + (c.campaigns_count || 0), 0)} запущенных
+                  из {Array.isArray(agencyClients) ? agencyClients.reduce((sum, c) => sum + (c.campaigns_count || 0), 0) : 0} запущенных
                 </p>
               </CardContent>
             </Card>
@@ -6375,7 +6285,7 @@ export default function SwipiesAdsPage({
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {agencyClients.length === 0 ? (
+              {!Array.isArray(agencyClients) || agencyClients.length === 0 ? (
                 <div className="py-12 text-center text-xs text-muted-foreground">
                   <Briefcase className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
                   У вас пока нет созданных субаккаунтов клиентов. Нажмите «Добавить субаккаунт», чтобы подключить бренд.
@@ -6394,7 +6304,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {agencyClients.map((client) => {
+                      {(agencyClients || []).map((client) => {
                         const spendPercent = client.monthly_budget_cap > 0
                           ? Math.min(100, Math.round((client.total_spend / client.monthly_budget_cap) * 100))
                           : 0;
@@ -6509,7 +6419,7 @@ export default function SwipiesAdsPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {agencyMembers.map((member) => (
+                    {(agencyMembers || []).map((member) => (
                       <tr key={member.id} className="hover:bg-muted/30 transition-colors">
                         <td className="py-3 px-4 font-medium text-foreground">
                           {member.email}
@@ -6540,7 +6450,7 @@ export default function SwipiesAdsPage({
                           </Badge>
                         </td>
                         <td className="py-3 px-4">
-                          {member.assigned_client_ids && member.assigned_client_ids.length > 0 ? (
+                          {member.assigned_client_ids && Array.isArray(member.assigned_client_ids) && member.assigned_client_ids.length > 0 ? (
                             <span className="text-[11px] text-foreground font-medium">
                               {member.assigned_client_ids.length} субаккаунтов
                             </span>
@@ -6708,7 +6618,7 @@ export default function SwipiesAdsPage({
           </div>
 
           {/* Cross-Platform Breakdown Chart */}
-          {crossPlatformAnalytics && crossPlatformAnalytics.networks && (
+          {crossPlatformAnalytics && crossPlatformAnalytics.networks && Array.isArray(crossPlatformAnalytics.networks) && (
             <Card>
               <CardHeader className="py-4">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -6758,7 +6668,7 @@ export default function SwipiesAdsPage({
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {omniAccounts.length === 0 ? (
+              {!Array.isArray(omniAccounts) || omniAccounts.length === 0 ? (
                 <div className="py-12 text-center text-xs text-muted-foreground">
                   <Share2 className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
                   Нет подключенных рекламных кабинетов. Нажмите «Добавить кабинет», чтобы настроить синхронизацию с Telegram Ads, Meta или Google.
@@ -6777,7 +6687,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {omniAccounts.map((acc) => (
+                      {(omniAccounts || []).map((acc) => (
                         <tr key={acc.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4 font-bold text-foreground">
                             <div className="flex items-center gap-2">
@@ -6862,7 +6772,7 @@ export default function SwipiesAdsPage({
           </Card>
 
           {/* Sync Jobs History */}
-          {omniSyncJobs.length > 0 && (
+          {Array.isArray(omniSyncJobs) && omniSyncJobs.length > 0 && (
             <Card>
               <CardHeader className="py-4">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -6882,7 +6792,7 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {omniSyncJobs.slice(0, 10).map((job) => (
+                      {(omniSyncJobs || []).slice(0, 10).map((job) => (
                         <tr key={job.id} className="hover:bg-muted/30 transition-colors">
                           <td className="py-2.5 px-4">
                             <div className="font-mono font-bold text-foreground">{job.id}</div>
@@ -7717,7 +7627,7 @@ export default function SwipiesAdsPage({
             </div>
 
             {/* Audience Targeting & Exclusion */}
-            {audiences.length > 0 && (
+            {Array.isArray(audiences) && audiences.length > 0 && (
               <div className="rounded-lg border p-3 bg-muted/20 space-y-3 text-xs">
                 <div className="font-semibold flex items-center gap-1.5">
                   <Fingerprint className="h-3.5 w-3.5 text-emerald-500" /> Ретаргетинг аудиторий
@@ -7728,7 +7638,7 @@ export default function SwipiesAdsPage({
                     🎯 Таргетинг на аудитории (показывать ТОЛЬКО этим сегментам):
                   </label>
                   <div className="flex flex-wrap gap-1.5">
-                    {audiences.map((aud) => {
+                    {(audiences || []).map((aud) => {
                       const isIncluded = (campaignForm.target_audience_segment_ids || []).includes(aud.id);
                       return (
                         <Button
@@ -7756,7 +7666,7 @@ export default function SwipiesAdsPage({
                     🚫 Исключение аудиторий (НЕ показывать этим пользователям):
                   </label>
                   <div className="flex flex-wrap gap-1.5">
-                    {audiences.map((aud) => {
+                    {(audiences || []).map((aud) => {
                       const isExcluded = (campaignForm.exclude_audience_segment_ids || []).includes(aud.id);
                       return (
                         <Button
@@ -7945,7 +7855,7 @@ export default function SwipiesAdsPage({
             </div>
 
             {/* Campaign Daily Timeline Mini Chart */}
-            {analyticsData?.timeline && analyticsData.timeline.length > 0 && (
+            {analyticsData?.timeline && Array.isArray(analyticsData.timeline) && analyticsData.timeline.length > 0 && (
               <div className="rounded-lg border p-3 bg-muted/10 space-y-1">
                 <div className="text-xs font-semibold text-muted-foreground mb-1">
                   Динамика за последние 14 дней
@@ -7953,7 +7863,7 @@ export default function SwipiesAdsPage({
                 <div className="h-44 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
-                      data={analyticsData.timeline}
+                      data={Array.isArray(analyticsData.timeline) ? analyticsData.timeline : []}
                       margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
                     >
                       <defs>
@@ -8017,7 +7927,7 @@ export default function SwipiesAdsPage({
                     <Globe className="h-3.5 w-3.5 text-blue-500" /> Языки аудитории
                   </div>
                   <div className="flex flex-wrap gap-1 pt-1">
-                    {Object.entries(analyticsData.languages).map(([l, count]: any) => (
+                    {Object.entries(analyticsData?.languages || {}).map(([l, count]: any) => (
                       <span key={l} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-background border font-mono">
                         {l.toUpperCase()}: {count}
                       </span>
@@ -8030,7 +7940,7 @@ export default function SwipiesAdsPage({
                     <Laptop className="h-3.5 w-3.5 text-emerald-500" /> Устройства
                   </div>
                   <div className="flex flex-wrap gap-1 pt-1">
-                    {Object.entries(analyticsData.devices || {}).map(([d, count]: any) => (
+                    {Object.entries(analyticsData?.devices || {}).map(([d, count]: any) => (
                       <span key={d} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-background border font-mono">
                         {d}: {count}
                       </span>
@@ -8045,10 +7955,10 @@ export default function SwipiesAdsPage({
               <div>
                 <div className="text-xs font-semibold mb-1.5">Недавние поисковые намерения</div>
                 <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {analyticsData.recent_impressions.length === 0 ? (
+                  {!Array.isArray(analyticsData.recent_impressions) || analyticsData.recent_impressions.length === 0 ? (
                     <div className="text-xs text-muted-foreground py-1 text-center">Нет записанных показов</div>
                   ) : (
-                    analyticsData.recent_impressions.map((imp: any) => (
+                    (analyticsData.recent_impressions || []).map((imp: any) => (
                       <div key={imp.id} className="rounded border p-1.5 text-xs flex justify-between items-center bg-background/50">
                         <span className="truncate max-w-[340px] italic">"{imp.query_intent}"</span>
                         <span className="text-muted-foreground text-[10px]">
@@ -8103,7 +8013,7 @@ export default function SwipiesAdsPage({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5">
-                  <Layers className="h-4 w-4 text-muted-foreground" /> Варианты в ротации ({variantsList.length})
+                  <Layers className="h-4 w-4 text-muted-foreground" /> Варианты в ротации ({(Array.isArray(variantsList) ? variantsList.length : 0)})
                 </h4>
                 <Button size="sm" variant="ghost" onClick={() => variantsCampaign && fetchVariants(variantsCampaign.id)} disabled={loadingVariants} className="h-7 text-xs">
                   <RefreshCw className={`h-3 w-3 mr-1 ${loadingVariants ? 'animate-spin' : ''}`} /> Обновить
@@ -8112,16 +8022,16 @@ export default function SwipiesAdsPage({
 
               {loadingVariants ? (
                 <div className="p-6 text-center text-xs text-muted-foreground">Загрузка вариантов...</div>
-              ) : variantsList.length === 0 ? (
+              ) : !Array.isArray(variantsList) || variantsList.length === 0 ? (
                 <div className="p-4 rounded-lg border border-dashed text-center text-xs text-muted-foreground">
                   У этой кампании пока нет дополнительных вариантов (используется основной текст по умолчанию).
                   Добавьте альтернативные заголовки ниже для запуска A/B теста!
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {variantsList.map((v) => {
-                    const maxCtr = Math.max(...variantsList.map((x) => x.ctr));
-                    const isLeader = variantsList.length > 1 && v.impressions >= 5 && v.ctr === maxCtr && maxCtr > 0;
+                  {(variantsList || []).map((v) => {
+                    const maxCtr = Math.max(0, ...(variantsList || []).map((x) => x.ctr || 0));
+                    const isLeader = Array.isArray(variantsList) && variantsList.length > 1 && v.impressions >= 5 && v.ctr === maxCtr && maxCtr > 0;
                     return (
                       <div
                         key={v.id}
@@ -8310,13 +8220,13 @@ export default function SwipiesAdsPage({
           </DialogHeader>
 
           <div className="py-3 space-y-3">
-            {savedCards.length === 0 ? (
+            {!Array.isArray(savedCards) || savedCards.length === 0 ? (
               <div className="py-8 text-center text-xs text-muted-foreground border rounded-lg bg-muted/20">
                 <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-40" />
                 Нет сохранённых карт. При следующей оплате подписки или пополнении кошелька карта сохранится автоматически.
               </div>
             ) : (
-              savedCards.map((card) => (
+              (savedCards || []).map((card) => (
                 <div
                   key={card.id}
                   className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
@@ -8547,13 +8457,13 @@ export default function SwipiesAdsPage({
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-2.5 py-3 pr-1">
-            {notifications.length === 0 ? (
+            {!Array.isArray(notifications) || notifications.length === 0 ? (
               <div className="p-8 text-center text-xs text-muted-foreground">
                 <Bell className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
                 У вас нет новых уведомлений
               </div>
             ) : (
-              notifications.map((n) => (
+              (notifications || []).map((n) => (
                 <div
                   key={n.id}
                   onClick={() => !n.is_read && handleMarkSingleRead(n.id)}
@@ -9467,7 +9377,7 @@ async def get_swipies_ad(user_query: str):
               </div>
 
               {/* 3. Recent Smart Bidding Decision Logs */}
-              {biddingInfo?.recent_bids && biddingInfo.recent_bids.length > 0 && (
+              {biddingInfo?.recent_bids && Array.isArray(biddingInfo.recent_bids) && biddingInfo.recent_bids.length > 0 && (
                 <div className="space-y-2 pt-2 border-t">
                   <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
                     <Activity className="h-3.5 w-3.5 text-emerald-500" /> Журнал аукционных решений Smart Bidding
@@ -9486,7 +9396,7 @@ async def get_swipies_ad(user_query: str):
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {biddingInfo.recent_bids.slice(0, 8).map((bid) => (
+                        {(biddingInfo.recent_bids || []).slice(0, 8).map((bid) => (
                           <tr key={bid.id} className="hover:bg-muted/30">
                             <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">
                               {new Date(bid.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -9822,11 +9732,11 @@ async def get_swipies_ad(user_query: str):
               </div>
 
               {/* 5. DCO Decision Logs Table */}
-              {dcoInfo?.recent_logs && dcoInfo.recent_logs.length > 0 && (
+              {dcoInfo?.recent_logs && Array.isArray(dcoInfo.recent_logs) && dcoInfo.recent_logs.length > 0 && (
                 <div className="space-y-2 pt-2 border-t">
                   <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
                     <Activity className="h-3.5 w-3.5 text-cyan-500" />
-                    Журнал реальных показов DCO креативов ({dcoInfo.recent_logs.length})
+                    Журнал реальных показов DCO креативов ({(Array.isArray(dcoInfo.recent_logs) ? dcoInfo.recent_logs.length : 0)})
                   </h4>
                   <div className="rounded-xl border overflow-x-auto">
                     <table className="w-full text-left text-[11px]">
@@ -9841,7 +9751,7 @@ async def get_swipies_ad(user_query: str):
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {dcoInfo.recent_logs.slice(0, 8).map((log) => (
+                        {(dcoInfo.recent_logs || []).slice(0, 8).map((log) => (
                           <tr key={log.id} className="hover:bg-muted/30">
                             <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">
                               {new Date(log.create_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -10188,14 +10098,14 @@ async def get_swipies_ad(user_query: str):
               </div>
 
               {/* 24-Hour Cumulative Spend Forecast Chart */}
-              {pacingInfo?.hourly_forecast && (
+              {pacingInfo?.hourly_forecast && Array.isArray(pacingInfo.hourly_forecast) && pacingInfo.hourly_forecast.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-xs font-bold text-foreground">
                     График целевого накопления расходов на 24 часа ($)
                   </div>
                   <div className="h-44 w-full pt-2">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={pacingInfo.hourly_forecast}>
+                      <AreaChart data={Array.isArray(pacingInfo.hourly_forecast) ? pacingInfo.hourly_forecast : []}>
                         <defs>
                           <linearGradient id="pacingGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
@@ -10264,7 +10174,7 @@ async def get_swipies_ad(user_query: str):
                   <SelectValue placeholder="Выберите исходную аудиторию" />
                 </SelectTrigger>
                 <SelectContent>
-                  {audiences.map((aud) => (
+                  {(audiences || []).map((aud) => (
                     <SelectItem key={aud.id} value={aud.id}>
                       {aud.name} ({aud.member_count} чел.)
                     </SelectItem>
@@ -10696,7 +10606,7 @@ async def get_swipies_ad(user_query: str):
               <div>
                 <h5 className="font-bold text-foreground mb-2">Чек-лист готовности креативов:</h5>
                 <div className="space-y-1.5">
-                  {campaignHealth.checklist.map((item, i) => (
+                  {(Array.isArray(campaignHealth.checklist) ? campaignHealth.checklist : []).map((item, i) => (
                     <div key={i} className="p-2.5 rounded-lg border bg-background flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {item.status === 'passed' ? (
@@ -10729,13 +10639,13 @@ async def get_swipies_ad(user_query: str):
               </div>
 
               {/* Recommendations */}
-              {campaignHealth.recommendations && campaignHealth.recommendations.length > 0 && (
+              {campaignHealth.recommendations && Array.isArray(campaignHealth.recommendations) && campaignHealth.recommendations.length > 0 && (
                 <div className="p-3 rounded-lg border bg-amber-50/50 dark:bg-amber-950/20 border-amber-500/20 space-y-1.5">
                   <h6 className="font-bold text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
                     <Lightbulb className="h-3.5 w-3.5" /> AI Советы по росту конверсий:
                   </h6>
                   <ul className="space-y-1">
-                    {campaignHealth.recommendations.map((rec, i) => (
+                    {(campaignHealth.recommendations || []).map((rec, i) => (
                       <li key={i} className="text-[10px] text-muted-foreground flex items-start gap-1">
                         <span>•</span>
                         <span>{rec}</span>
@@ -10894,7 +10804,7 @@ async def get_swipies_ad(user_query: str):
                   </div>
                   <div className="h-[200px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={executiveReport.timeline_trends}>
+                      <AreaChart data={Array.isArray(executiveReport.timeline_trends) ? executiveReport.timeline_trends : []}>
                         <defs>
                           <linearGradient id="execSpendGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
@@ -10923,7 +10833,7 @@ async def get_swipies_ad(user_query: str):
                     Мультиканальная аттрибуция и вклад каналов в выручку
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                    {executiveReport.channel_attribution.map((ch, i) => (
+                    {(executiveReport.channel_attribution || []).map((ch, i) => (
                       <div key={i} className="p-3 rounded-lg border bg-muted/10 space-y-1">
                         <div className="font-semibold text-foreground text-[11px]">{ch.channel}</div>
                         <div className="flex items-center justify-between text-[11px]">
@@ -10956,7 +10866,7 @@ async def get_swipies_ad(user_query: str):
                         </tr>
                       </thead>
                       <tbody className="divide-y text-[11px]">
-                        {executiveReport.top_creative_assets.map((asset, i) => (
+                        {(executiveReport.top_creative_assets || []).map((asset, i) => (
                           <tr key={i}>
                             <td className="p-2.5 font-medium text-foreground">{asset.title}</td>
                             <td className="p-2.5">
@@ -10982,7 +10892,7 @@ async def get_swipies_ad(user_query: str):
                     <Sparkles className="h-4 w-4" /> AI Стратегические выводы и рекомендации для руководства
                   </div>
                   <ul className="space-y-1.5">
-                    {executiveReport.executive_takeaways.map((point, i) => (
+                    {(executiveReport.executive_takeaways || []).map((point, i) => (
                       <li key={i} className="text-xs text-foreground/90 flex items-start gap-2">
                         <span className="text-indigo-500 font-bold">✓</span>
                         <span>{point}</span>
@@ -11384,7 +11294,7 @@ async def get_swipies_ad(user_query: str):
                     <SelectValue placeholder="Выберите кампанию" />
                   </SelectTrigger>
                   <SelectContent>
-                    {dashboard?.campaigns?.map((c) => (
+                    {(dashboard?.campaigns || []).map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
                       </SelectItem>
@@ -11400,7 +11310,7 @@ async def get_swipies_ad(user_query: str):
                     <SelectValue placeholder="Выберите кабинет" />
                   </SelectTrigger>
                   <SelectContent>
-                    {omniAccounts.map((acc) => (
+                    {(omniAccounts || []).map((acc) => (
                       <SelectItem key={acc.id} value={acc.id}>
                         {acc.platform === 'telegram_ads' ? '✈️' : acc.platform === 'meta_ads' ? '♾️' : '🔍'} {acc.account_name} ({acc.platform_display_name})
                       </SelectItem>

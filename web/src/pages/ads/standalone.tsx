@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { ArrowLeft, Megaphone, ExternalLink, Sparkles, ShieldCheck, Globe, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,6 @@ import { AD_TRANSLATIONS, AdLanguage, getActiveAdLanguage, setActiveAdLanguage }
 import SwipiesAdsPage from './index';
 
 export default function StandaloneAdsApp() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   // Language state synchronized with Ads dashboard & global storage (defaults strictly to 'ru')

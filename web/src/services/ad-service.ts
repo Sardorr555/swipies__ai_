@@ -763,6 +763,7 @@ export interface CampaignDetailedAnalyticsData extends TimelineAnalyticsData {
   campaign_name: string;
   product_name: string;
   status: string;
+  recent_impressions?: any[];
 }
 
 export interface AdminTimelineData {
