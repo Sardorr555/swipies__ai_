@@ -6,12 +6,16 @@ import { TeamTab } from '../tabs/TeamTab';
 import { InsightsTab } from '../tabs/InsightsTab';
 import { BillingTab } from '../tabs/BillingTab';
 import { SettingsTab } from '../tabs/SettingsTab';
+import { AttributionTab } from '../tabs/AttributionTab';
 import {
   AdTransactionItem,
   AdvertiserInsightsData,
   AdvertiserSettingsData,
+  AttributionSummaryResponse,
   BlacklistEntryItem,
+  ConversionJourneyPath,
   FraudOverviewData,
+  FunnelAnalyticsResponse,
   NotificationSettingsData,
   PlacementItem,
   PublisherPayoutItem,
@@ -1233,6 +1237,242 @@ describe('Ads Tabs Render Suite', () => {
 
       expect(screen.getByDisplayValue('px_swipies_live')).toBeInTheDocument();
       expect(screen.getByText('$50 / day')).toBeInTheDocument();
+    });
+  });
+
+  describe('AttributionTab', () => {
+    const mockMtaSummary: AttributionSummaryResponse = {
+      model_selected: 'position_based',
+      days: 30,
+      total_conversions: 142,
+      total_revenue: 12540.5,
+      avg_touchpoints_per_conversion: 3.4,
+      avg_journey_duration_hours: 18.5,
+      campaigns: [
+        {
+          campaign_id: 'cmp-1',
+          campaign_name: 'AI CRM Enterprise Search',
+          product_name: 'CRM Copilot',
+          total_spend: 3400.0,
+          first_touch_count: 50,
+          last_touch_count: 45,
+          assisted_count: 32,
+          credited_conversions: 52.4,
+          credited_revenue: 5800.0,
+          effective_cpa: 64.88,
+          roas: 1.71,
+        },
+      ],
+    };
+
+    const mockFunnelData: FunnelAnalyticsResponse = {
+      days: 30,
+      overall_funnel_conversion_rate: 4.8,
+      stages: [
+        { stage_id: 'stg-1', name: 'AI Recommendation', count: 10000, conversion_from_prev: 100, dropoff_rate: 0 },
+        { stage_id: 'stg-2', name: 'Product Click', count: 2500, conversion_from_prev: 25.0, dropoff_rate: 75.0 },
+        { stage_id: 'stg-3', name: 'Target Conversion', count: 480, conversion_from_prev: 19.2, dropoff_rate: 80.8 },
+      ],
+    };
+
+    const mockMtaPaths: ConversionJourneyPath[] = [
+      {
+        id: 'pth-1',
+        visitor_id: 'v_user_998877665544',
+        conversion_type: 'subscription_purchase',
+        conversion_value: 299.0,
+        total_touchpoints: 2,
+        journey_duration_hours: 4.2,
+        first_touch: 'Smart Search discovery',
+        last_touch: 'AI Retargeting chat',
+        create_time: 1711500000000,
+        path_steps: [
+          { seq: 1, campaign_name: 'Smart Search discovery', type: 'click', channel: 'search', device: 'desktop' },
+          { seq: 2, campaign_name: 'AI Retargeting chat', type: 'click', channel: 'chat', device: 'mobile' },
+        ],
+      },
+    ];
+
+    it('renders toolbar, model callout, KPI cards, funnel stages, campaign credits table, and journey paths', () => {
+      render(
+        <AttributionTab
+          mtaModel="position_based"
+          mtaDays={30}
+          mtaSummary={mockMtaSummary}
+          mtaPaths={mockMtaPaths}
+          funnelData={mockFunnelData}
+          loadingMta={false}
+          loadingFunnel={false}
+          onMtaModelChange={jest.fn()}
+          onMtaDaysChange={jest.fn()}
+          onRefresh={jest.fn()}
+        />,
+      );
+
+      // Header & callout
+      expect(screen.getByText('Мультитач Аттрибуция & Карта Пути Клиента (MTA)')).toBeInTheDocument();
+      expect(screen.getByText('U-Shaped / Position-Based модель:')).toBeInTheDocument();
+
+      // KPI cards
+      expect(screen.getByText('142')).toBeInTheDocument();
+      expect(screen.getByText('$12540.50')).toBeInTheDocument();
+      expect(screen.getByText('3.4')).toBeInTheDocument();
+      expect(screen.getByText('18.5 ч')).toBeInTheDocument();
+
+      // Funnel
+      expect(screen.getByText('Общая конверсия воронки: 4.8%')).toBeInTheDocument();
+      expect(screen.getByText('AI Recommendation')).toBeInTheDocument();
+      expect(screen.getByText('Product Click')).toBeInTheDocument();
+      expect(screen.getByText('Target Conversion')).toBeInTheDocument();
+
+      // Campaign table
+      expect(screen.getByText('AI CRM Enterprise Search')).toBeInTheDocument();
+      expect(screen.getByText('CRM Copilot')).toBeInTheDocument();
+      expect(screen.getByText('1.71x')).toBeInTheDocument();
+
+      // Journey path
+      expect(screen.getByText(/v_user_99887766/i)).toBeInTheDocument();
+      expect(screen.getByText(/Smart Search discovery/i)).toBeInTheDocument();
+      expect(screen.getByText(/AI Retargeting chat/i)).toBeInTheDocument();
+    });
+
+    it('wires model selector, days filter, and refresh button properly', () => {
+      const handleModelChange = jest.fn();
+      const handleDaysChange = jest.fn();
+      const handleRefresh = jest.fn();
+
+      render(
+        <AttributionTab
+          mtaModel="position_based"
+          mtaDays={30}
+          mtaSummary={mockMtaSummary}
+          mtaPaths={mockMtaPaths}
+          funnelData={mockFunnelData}
+          loadingMta={false}
+          loadingFunnel={false}
+          onMtaModelChange={handleModelChange}
+          onMtaDaysChange={handleDaysChange}
+          onRefresh={handleRefresh}
+        />,
+      );
+
+      // Click model button
+      fireEvent.click(screen.getByRole('button', { name: 'First Touch' }));
+      expect(handleModelChange).toHaveBeenCalledWith('first_touch');
+
+      // Click days button
+      fireEvent.click(screen.getByRole('button', { name: '14 дней' }));
+      expect(handleDaysChange).toHaveBeenCalledWith(14);
+
+      // Click refresh button
+      fireEvent.click(screen.getByRole('button', { name: /обновить аналитику/i }));
+      expect(handleRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles data consistency and prevents displaying stale metrics under newly selected model during network lag', () => {
+      const { rerender } = render(
+        <AttributionTab
+          mtaModel="position_based"
+          mtaDays={30}
+          mtaSummary={mockMtaSummary}
+          mtaPaths={mockMtaPaths}
+          funnelData={mockFunnelData}
+          loadingMta={false}
+          loadingFunnel={false}
+          onMtaModelChange={jest.fn()}
+          onMtaDaysChange={jest.fn()}
+          onRefresh={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('По модели position based')).toBeInTheDocument();
+      expect(screen.getByText('AI CRM Enterprise Search')).toBeInTheDocument();
+
+      // User switches model to 'first_touch', but data hasn't arrived yet (loadingMta: true, mtaSummary still has model_selected: 'position_based')
+      rerender(
+        <AttributionTab
+          mtaModel="first_touch"
+          mtaDays={30}
+          mtaSummary={mockMtaSummary}
+          mtaPaths={mockMtaPaths}
+          funnelData={mockFunnelData}
+          loadingMta={true}
+          loadingFunnel={false}
+          onMtaModelChange={jest.fn()}
+          onMtaDaysChange={jest.fn()}
+          onRefresh={jest.fn()}
+        />,
+      );
+
+      // Verify that stale revenue is NOT attributed to first touch without qualification
+      expect(screen.getByText('По модели position based (обновление...)')).toBeInTheDocument();
+
+      // Verify that campaign table immediately switches to loader instead of displaying old weights under new model
+      expect(screen.getByText(/Расчет мультитач весов \(first touch\)\.\.\./i)).toBeInTheDocument();
+      expect(screen.queryByText('AI CRM Enterprise Search')).not.toBeInTheDocument();
+
+      // When fresh data arrives with model_selected: 'first_touch'
+      const freshMtaSummary: AttributionSummaryResponse = {
+        ...mockMtaSummary,
+        model_selected: 'first_touch',
+        total_revenue: 15200.0,
+      };
+
+      rerender(
+        <AttributionTab
+          mtaModel="first_touch"
+          mtaDays={30}
+          mtaSummary={freshMtaSummary}
+          mtaPaths={mockMtaPaths}
+          funnelData={mockFunnelData}
+          loadingMta={false}
+          loadingFunnel={false}
+          onMtaModelChange={jest.fn()}
+          onMtaDaysChange={jest.fn()}
+          onRefresh={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('По модели first touch')).toBeInTheDocument();
+      expect(screen.getByText('$15200.00')).toBeInTheDocument();
+      expect(screen.getByText('AI CRM Enterprise Search')).toBeInTheDocument();
+    });
+
+    it('renders gracefully when mtaSummary, mtaPaths, or funnelData are null, empty, or have corrupt numeric fields', () => {
+      const corruptSummary: any = {
+        model_selected: undefined,
+        days: null,
+        total_conversions: undefined,
+        total_revenue: null,
+        avg_touchpoints_per_conversion: undefined,
+        avg_journey_duration_hours: null,
+        campaigns: null,
+      };
+
+      expect(() =>
+        render(
+          <AttributionTab
+            mtaModel="position_based"
+            mtaDays={30}
+            mtaSummary={corruptSummary}
+            mtaPaths={[]}
+            funnelData={null}
+            loadingMta={false}
+            loadingFunnel={false}
+            onMtaModelChange={jest.fn()}
+            onMtaDaysChange={jest.fn()}
+            onRefresh={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+
+      // Fallbacks
+      expect(screen.getByText('$0.00')).toBeInTheDocument();
+      expect(screen.getByText('1')).toBeInTheDocument(); // avg_touchpoints fallback
+      expect(screen.getByText('0 ч')).toBeInTheDocument(); // avg_journey fallback
+      expect(screen.getByText('Недостаточно данных для построения воронки')).toBeInTheDocument();
+      expect(screen.getByText('Кампании пока не зафиксировали конверсионных путей')).toBeInTheDocument();
+      expect(screen.getByText('Нет зафиксированных мультикасательных путей')).toBeInTheDocument();
     });
   });
 
