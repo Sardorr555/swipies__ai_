@@ -5,11 +5,14 @@ import { FraudTab } from '../tabs/FraudTab';
 import { TeamTab } from '../tabs/TeamTab';
 import { InsightsTab } from '../tabs/InsightsTab';
 import { BillingTab } from '../tabs/BillingTab';
+import { SettingsTab } from '../tabs/SettingsTab';
 import {
   AdTransactionItem,
   AdvertiserInsightsData,
+  AdvertiserSettingsData,
   BlacklistEntryItem,
   FraudOverviewData,
+  NotificationSettingsData,
   PlacementItem,
   PublisherPayoutItem,
   PublisherProfileData,
@@ -951,6 +954,285 @@ describe('Ads Tabs Render Suite', () => {
       expect(screen.getByText('+$0.00')).toBeInTheDocument();
       expect(screen.getByText('$0.00 USD')).toBeInTheDocument();
       expect(screen.getByText('Сохранённые карты (0)')).toBeInTheDocument();
+    });
+  });
+
+  describe('SettingsTab', () => {
+    const mockAdvSettings: AdvertiserSettingsData = {
+      advertiser_id: 'adv-1',
+      company_name: 'Acme AI Labs',
+      contact_email: 'ads@acme.ai',
+      website_url: 'https://acme.ai',
+      currency: 'USD',
+      pixel_id: 'px_live_abc123',
+      balance: 100,
+      status: 'active',
+      language: 'ru',
+      default_regions: ['UZ', 'US'],
+      default_models: ['gpt-4o', 'claude-3-5-sonnet'],
+      daily_spend_ceiling: 75,
+      default_frequency_cap: 4,
+      auto_pause_low_ctr: true,
+      low_ctr_threshold: 0.8,
+      timezone: 'Asia/Tashkent',
+    };
+
+    const mockNotifSettings: NotificationSettingsData = {
+      email_alerts_enabled: true,
+      email_target: 'alerts@acme.ai',
+      telegram_alerts_enabled: true,
+      telegram_chat_id: '123456789',
+      webhook_url: 'https://acme.ai/webhook',
+      webhook_secret: 'secret123',
+      notify_low_balance: true,
+      low_balance_threshold: 10,
+      notify_daily_budget_reached: true,
+      notify_moderation_status: true,
+      notify_conversion_milestone: true,
+    };
+
+    it('renders profile, targeting, safety, and notification settings cards', () => {
+      render(
+        <SettingsTab
+          advSettings={mockAdvSettings}
+          onUpdateAdvSettings={jest.fn()}
+          notifSettings={mockNotifSettings}
+          onUpdateNotifSettings={jest.fn()}
+          isSavingAdvSettings={false}
+          onSaveAdvSettings={jest.fn()}
+          copiedPixelSuccess={false}
+          onCopyPixelId={jest.fn()}
+          currentLang="ru"
+          onLanguageChange={jest.fn()}
+          testingNotifChannel={null}
+          onSendTestNotification={jest.fn()}
+        />,
+      );
+
+      // Profile
+      expect(screen.getByDisplayValue('Acme AI Labs')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('ads@acme.ai')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('https://acme.ai')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('px_live_abc123')).toBeInTheDocument();
+
+      // Targeting
+      expect(screen.getByText('🇺🇿 Uzbekistan')).toBeInTheDocument();
+      expect(screen.getByText('🇺🇸 United States')).toBeInTheDocument();
+      expect(screen.getByText('GPT-4o')).toBeInTheDocument();
+      expect(screen.getByText('Claude 3.5 Sonnet')).toBeInTheDocument();
+
+      // Safety
+      expect(screen.getByText('$75 / day')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('4')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('0.8')).toBeInTheDocument();
+
+      // Notifications
+      expect(screen.getByDisplayValue('123456789')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('alerts@acme.ai')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('https://acme.ai/webhook')).toBeInTheDocument();
+    });
+
+    it('wires action buttons and updates properly (save, copy pixel, test notif, region/model toggle)', () => {
+      const handleSave = jest.fn();
+      const handleCopyPixel = jest.fn();
+      const handleSendTest = jest.fn();
+      const handleUpdateAdvSettings = jest.fn();
+
+      const { rerender } = render(
+        <SettingsTab
+          advSettings={mockAdvSettings}
+          onUpdateAdvSettings={handleUpdateAdvSettings}
+          notifSettings={mockNotifSettings}
+          onUpdateNotifSettings={jest.fn()}
+          isSavingAdvSettings={false}
+          onSaveAdvSettings={handleSave}
+          copiedPixelSuccess={false}
+          onCopyPixelId={handleCopyPixel}
+          currentLang="ru"
+          onLanguageChange={jest.fn()}
+          testingNotifChannel={null}
+          onSendTestNotification={handleSendTest}
+        />,
+      );
+
+      // Save button (header and bottom)
+      const saveButtons = screen.getAllByRole('button', { name: /сохранить настройки/i });
+      expect(saveButtons.length).toBeGreaterThan(0);
+      fireEvent.click(saveButtons[0]);
+      expect(handleSave).toHaveBeenCalledTimes(1);
+
+      // Copy pixel
+      const copyBtn = screen.getByRole('button', { name: /копировать/i });
+      fireEvent.click(copyBtn);
+      expect(handleCopyPixel).toHaveBeenCalledTimes(1);
+
+      // Region toggle fallback: click unselected region RU
+      const ruRegionBtn = screen.getByText('🇷🇺 Russia');
+      fireEvent.click(ruRegionBtn);
+      expect(handleUpdateAdvSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          default_regions: ['UZ', 'US', 'RU'],
+        }),
+      );
+
+      // Model toggle fallback: click unselected model DeepSeek
+      const deepseekBtn = screen.getByText('DeepSeek V3');
+      fireEvent.click(deepseekBtn);
+      expect(handleUpdateAdvSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          default_models: ['gpt-4o', 'claude-3-5-sonnet', 'deepseek-v3'],
+        }),
+      );
+
+      // Send test alert
+      const testAlertBtn = screen.getByRole('button', { name: /отправить тестовое уведомление/i });
+      fireEvent.click(testAlertBtn);
+      expect(handleSendTest).toHaveBeenCalledWith('all');
+
+      // Re-render with saving state and explicit onToggle callbacks
+      const handleToggleRegion = jest.fn();
+      const handleToggleModel = jest.fn();
+      rerender(
+        <SettingsTab
+          advSettings={mockAdvSettings}
+          onUpdateAdvSettings={handleUpdateAdvSettings}
+          notifSettings={mockNotifSettings}
+          onUpdateNotifSettings={jest.fn()}
+          isSavingAdvSettings={true}
+          onSaveAdvSettings={handleSave}
+          copiedPixelSuccess={true}
+          onCopyPixelId={handleCopyPixel}
+          onToggleDefaultRegion={handleToggleRegion}
+          onToggleDefaultModel={handleToggleModel}
+          currentLang="ru"
+          onLanguageChange={jest.fn()}
+          testingNotifChannel={null}
+          onSendTestNotification={handleSendTest}
+        />,
+      );
+
+      expect(screen.getAllByRole('button', { name: /сохранение\.\.\./i })[0]).toBeDisabled();
+
+      // Explicit onToggle props delegation
+      fireEvent.click(screen.getByText('🇺🇸 United States'));
+      expect(handleToggleRegion).toHaveBeenCalledWith('US');
+
+      fireEvent.click(screen.getByText('GPT-4o'));
+      expect(handleToggleModel).toHaveBeenCalledWith('gpt-4o');
+    });
+
+    it('handles notification alert toggles and verifies 1:1 legacy webhook clear behavior', () => {
+      const handleUpdateNotifSettings = jest.fn();
+
+      const { rerender } = render(
+        <SettingsTab
+          advSettings={mockAdvSettings}
+          onUpdateAdvSettings={jest.fn()}
+          notifSettings={mockNotifSettings}
+          onUpdateNotifSettings={handleUpdateNotifSettings}
+          isSavingAdvSettings={false}
+          onSaveAdvSettings={jest.fn()}
+          copiedPixelSuccess={false}
+          onCopyPixelId={jest.fn()}
+          currentLang="ru"
+          onLanguageChange={jest.fn()}
+          testingNotifChannel={null}
+          onSendTestNotification={jest.fn()}
+        />,
+      );
+
+      // Telegram alert toggle
+      const tgCheckbox = screen.getByRole('checkbox', { name: /telegram/i });
+      expect(tgCheckbox).toBeChecked();
+      fireEvent.click(tgCheckbox);
+      expect(handleUpdateNotifSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          telegram_alerts_enabled: false,
+        }),
+      );
+
+      // Email alert toggle
+      const emailCheckbox = screen.getByRole('checkbox', { name: /email/i });
+      expect(emailCheckbox).toBeChecked();
+      fireEvent.click(emailCheckbox);
+      expect(handleUpdateNotifSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email_alerts_enabled: false,
+        }),
+      );
+
+      // Webhook alert toggle (unchecking clears webhook_url - legacy behavior)
+      const webhookCheckbox = screen.getByRole('checkbox', { name: /webhook/i });
+      expect(webhookCheckbox).toBeChecked();
+      fireEvent.click(webhookCheckbox);
+      expect(handleUpdateNotifSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          webhook_url: '',
+        }),
+      );
+
+      // When webhook_url is empty, checking does nothing (verified 1:1 legacy behavior)
+      handleUpdateNotifSettings.mockClear();
+      rerender(
+        <SettingsTab
+          advSettings={mockAdvSettings}
+          onUpdateAdvSettings={jest.fn()}
+          notifSettings={{ ...mockNotifSettings, webhook_url: '' }}
+          onUpdateNotifSettings={handleUpdateNotifSettings}
+          isSavingAdvSettings={false}
+          onSaveAdvSettings={jest.fn()}
+          copiedPixelSuccess={false}
+          onCopyPixelId={jest.fn()}
+          currentLang="ru"
+          onLanguageChange={jest.fn()}
+          testingNotifChannel={null}
+          onSendTestNotification={jest.fn()}
+        />,
+      );
+
+      const emptyWebhookCheckbox = screen.getByRole('checkbox', { name: /webhook/i });
+      expect(emptyWebhookCheckbox).not.toBeChecked();
+      fireEvent.click(emptyWebhookCheckbox);
+      expect(handleUpdateNotifSettings).not.toHaveBeenCalled();
+    });
+
+    it('renders without throwing when advSettings or notifSettings fields are null or undefined', () => {
+      const corruptAdvSettings: any = {
+        company_name: '',
+        contact_email: '',
+        website_url: '',
+        currency: undefined,
+        pixel_id: null,
+        language: undefined,
+        default_regions: null,
+        default_models: undefined,
+        daily_spend_ceiling: undefined,
+        default_frequency_cap: null,
+        auto_pause_low_ctr: false,
+        low_ctr_threshold: undefined,
+      };
+
+      expect(() =>
+        render(
+          <SettingsTab
+            advSettings={corruptAdvSettings}
+            onUpdateAdvSettings={jest.fn()}
+            notifSettings={null}
+            onUpdateNotifSettings={jest.fn()}
+            isSavingAdvSettings={false}
+            onSaveAdvSettings={jest.fn()}
+            copiedPixelSuccess={false}
+            onCopyPixelId={jest.fn()}
+            currentLang="ru"
+            onLanguageChange={jest.fn()}
+            testingNotifChannel={null}
+            onSendTestNotification={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+
+      expect(screen.getByDisplayValue('px_swipies_live')).toBeInTheDocument();
+      expect(screen.getByText('$50 / day')).toBeInTheDocument();
     });
   });
 
