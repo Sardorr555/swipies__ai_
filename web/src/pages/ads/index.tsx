@@ -3176,8 +3176,8 @@ export default function SwipiesAdsPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {(dashboard.campaigns || []).slice(0, 4).map((c) => (
-                        <tr key={c.id} className="hover:bg-muted/40 transition-colors">
+                      {(dashboard?.campaigns || []).slice(0, 4).map((c) => (
+                        <tr key={c.id || c.campaign_id} className="hover:bg-muted/40 transition-colors">
                           <td className="py-2.5 px-3">
                             <div className="font-semibold text-foreground">{c.name}</div>
                             <div className="text-[11px] text-muted-foreground truncate max-w-[220px]">
