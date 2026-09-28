@@ -77,7 +77,7 @@ async def create_atmos_payment():
     )
 
     if not success:
-        return get_data_error_result(message=msg, data=data)
+        return get_json_result(data=data, message=msg, code=RetCode.DATA_ERROR)
 
     return get_json_result(data=data, message=msg)
 
@@ -107,7 +107,7 @@ async def pre_apply_card():
     )
 
     if not success:
-        return get_data_error_result(message=msg, data=data)
+        return get_json_result(data=data, message=msg, code=RetCode.DATA_ERROR)
 
     return get_json_result(data=data, message=msg)
 
@@ -136,7 +136,7 @@ async def apply_otp():
     )
 
     if not success:
-        return get_data_error_result(message=msg, data=data)
+        return get_json_result(data=data, message=msg, code=RetCode.DATA_ERROR)
 
     return get_json_result(data=data, message=msg)
 
