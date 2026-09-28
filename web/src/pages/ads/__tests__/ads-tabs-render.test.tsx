@@ -12,7 +12,9 @@ import { AudiencesTab } from '../tabs/AudiencesTab';
 import { AgencyTab } from '../tabs/AgencyTab';
 import { OmniChannelTab } from '../tabs/OmniChannelTab';
 import { OverviewTab } from '../tabs/OverviewTab';
+import { CampaignsTab } from '../tabs/CampaignsTab';
 import {
+  AdCampaignItem,
   AdvertiserDashboardData,
   AdTransactionItem,
   AdvertiserInsightsData,
@@ -2780,6 +2782,319 @@ describe('Ads Tabs Render Suite', () => {
       expect(screen.getByText('URL не указан')).toBeInTheDocument();
       expect(screen.getByText('unknown_custom_status')).toBeInTheDocument();
       expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('CampaignsTab', () => {
+    const mockCampaignsDashboard: AdvertiserDashboardData = {
+      advertiser_id: 'adv-camp-1',
+      company_name: 'Campaigns Test Co',
+      balance: 1500.0,
+      currency: 'USD',
+      active_campaigns: 2,
+      total_campaigns: 5,
+      total_impressions: 54200,
+      total_clicks: 2180,
+      total_spent: 1540.5,
+      ctr: 4.02,
+      campaigns: [],
+    };
+
+    it('renders empty state when dashboard is null or campaigns are empty', () => {
+      const onOpenCreateCampaign = jest.fn();
+      const onExportCsv = jest.fn();
+
+      const { rerender } = render(
+        <CampaignsTab
+          dashboard={null}
+          onOpenCreateCampaign={onOpenCreateCampaign}
+          onToggleStatus={jest.fn()}
+          onOpenDcoModal={jest.fn()}
+          onOpenPacingModal={jest.fn()}
+          onOpenBiddingConfig={jest.fn()}
+          onOpenVariants={jest.fn()}
+          onViewCampaignHealth={jest.fn()}
+          onOpenAnalytics={jest.fn()}
+          onOpenEditCampaign={jest.fn()}
+          onDeleteCampaign={jest.fn()}
+          onExportCsv={onExportCsv}
+        />,
+      );
+
+      // Top KPIs show zero defaults
+      expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+      expect(screen.getByText(/\/ 0 всего/)).toBeInTheDocument();
+      expect(screen.getByText('$0.00')).toBeInTheDocument();
+
+      // Empty state content
+      expect(screen.getByText('Кампаний пока нет')).toBeInTheDocument();
+      expect(screen.getByText('Запустите вашу первую спонсируемую рекомендацию в ответах ИИ и привлекайте горячих клиентов.')).toBeInTheDocument();
+
+      // Top header actions
+      const newCampaignBtn = screen.getByRole('button', { name: /^Создать кампанию$/ });
+      fireEvent.click(newCampaignBtn);
+      expect(onOpenCreateCampaign).toHaveBeenCalledTimes(1);
+
+      const exportCsvBtn = screen.getByRole('button', { name: /Экспорт CSV/ });
+      fireEvent.click(exportCsvBtn);
+      expect(onExportCsv).toHaveBeenCalledTimes(1);
+
+      const createFirstBtn = screen.getByRole('button', { name: /Создать первую кампанию/ });
+      fireEvent.click(createFirstBtn);
+      expect(onOpenCreateCampaign).toHaveBeenCalledTimes(2);
+
+      // Rerender with empty campaigns array
+      rerender(
+        <CampaignsTab
+          dashboard={{ ...mockCampaignsDashboard, campaigns: [] }}
+          onOpenCreateCampaign={onOpenCreateCampaign}
+          onToggleStatus={jest.fn()}
+          onOpenDcoModal={jest.fn()}
+          onOpenPacingModal={jest.fn()}
+          onOpenBiddingConfig={jest.fn()}
+          onOpenVariants={jest.fn()}
+          onViewCampaignHealth={jest.fn()}
+          onOpenAnalytics={jest.fn()}
+          onOpenEditCampaign={jest.fn()}
+          onDeleteCampaign={jest.fn()}
+          onExportCsv={onExportCsv}
+        />,
+      );
+      expect(screen.getByText('Кампаний пока нет')).toBeInTheDocument();
+    });
+
+    it('renders populated campaigns with details, badges, and targeting tags', () => {
+      const mockCampaign: AdCampaignItem = {
+        id: 'cmp_prod_01',
+        name: 'AI Search Autopilot',
+        product_name: 'Smart CRM Assistant',
+        description: 'Advanced AI automation for sales reps',
+        advertisement_text: 'Increase close rates by 40% with AI',
+        landing_url: 'https://swipies.app/crm',
+        target_categories: ['saas', 'crm'],
+        keywords: ['crm', 'ai', 'sales'],
+        target_languages: ['uz', 'ru'],
+        target_models: ['gpt-4o', 'claude-3-5-sonnet'],
+        daily_budget: 150.0,
+        total_budget: 1500.0,
+        spent_today: 45.5,
+        total_spent: 450.0,
+        pricing_model: 'cpc',
+        bid_amount: 1.25,
+        bidding_strategy: 'enhanced_cpc',
+        pacing_mode: 'peak_weighted',
+        dco_enabled: true,
+        conversions_count: 32,
+        conversion_rate: 6.4,
+        schedule_config: {
+          enabled_days: [1, 2, 3, 4, 5],
+          active_hours_start: 9,
+          active_hours_end: 18,
+        },
+        status: 'active',
+        moderation_status: 'approved',
+        impressions: 12500,
+        clicks: 500,
+        ctr: 4.0,
+      };
+
+      const populatedDashboard: AdvertiserDashboardData = {
+        advertiser_id: 'adv_test_100',
+        company_name: 'Acme AI Systems',
+        balance: 2450.5,
+        currency: 'USD',
+        active_campaigns: 1,
+        total_campaigns: 1,
+        total_impressions: 12500,
+        total_clicks: 500,
+        total_spent: 450.0,
+        ctr: 4.0,
+        campaigns: [mockCampaign],
+      };
+
+      render(
+        <CampaignsTab
+          dashboard={populatedDashboard}
+          onOpenCreateCampaign={jest.fn()}
+          onToggleStatus={jest.fn()}
+          onOpenDcoModal={jest.fn()}
+          onOpenPacingModal={jest.fn()}
+          onOpenBiddingConfig={jest.fn()}
+          onOpenVariants={jest.fn()}
+          onViewCampaignHealth={jest.fn()}
+          onOpenAnalytics={jest.fn()}
+          onOpenEditCampaign={jest.fn()}
+          onDeleteCampaign={jest.fn()}
+        />,
+      );
+
+      // Verify campaign info
+      expect(screen.getByText('AI Search Autopilot')).toBeInTheDocument();
+      expect(screen.getByText('✨ DCO')).toBeInTheDocument();
+      expect(screen.getByText('Smart CRM Assistant')).toBeInTheDocument();
+      expect(screen.getByText('https://swipies.app/crm')).toBeInTheDocument();
+
+      // Language & model tags
+      expect(screen.getByText('🇺🇿 UZ')).toBeInTheDocument();
+      expect(screen.getByText('🇷🇺 RU')).toBeInTheDocument();
+      expect(screen.getByText(/🤖 gpt-4o, claude-3-5-sonnet/)).toBeInTheDocument();
+
+      // Status & strategy badges
+      expect(screen.getByText('Активна')).toBeInTheDocument();
+      expect(screen.getByText('⚡ E-CPC')).toBeInTheDocument();
+      expect(screen.getByText(/Пик/)).toBeInTheDocument();
+
+      // Budgets & conversions
+      expect(screen.getByText('$45.50')).toBeInTheDocument();
+      expect(screen.getByText(/Всего: \$450\.00 \/ \$1500\.00/)).toBeInTheDocument();
+      expect(screen.getByText(/32 конв/)).toBeInTheDocument();
+      expect(screen.getByText(/6\.4% CVR/)).toBeInTheDocument();
+
+      // Schedule label
+      expect(screen.getByText(/Расписание \(9:00-18:00\)/)).toBeInTheDocument();
+    });
+
+    it('wires all row action toolbar callbacks correctly', () => {
+      const mockCampaign: AdCampaignItem = {
+        id: 'cmp_actions_01',
+        name: 'Action Test Campaign',
+        product_name: 'Product X',
+        description: 'Testing action buttons',
+        advertisement_text: 'Ad text',
+        landing_url: 'https://example.com',
+        target_categories: ['tech'],
+        keywords: ['test'],
+        daily_budget: 100.0,
+        total_budget: 1000.0,
+        spent_today: 0,
+        total_spent: 0,
+        pricing_model: 'cpc',
+        bid_amount: 1.0,
+        status: 'active',
+        moderation_status: 'approved',
+        impressions: 100,
+        clicks: 10,
+        ctr: 10.0,
+      };
+
+      const onToggleStatus = jest.fn();
+      const onOpenDcoModal = jest.fn();
+      const onOpenPacingModal = jest.fn();
+      const onOpenBiddingConfig = jest.fn();
+      const onOpenVariants = jest.fn();
+      const onViewCampaignHealth = jest.fn();
+      const onOpenAnalytics = jest.fn();
+      const onOpenEditCampaign = jest.fn();
+      const onDeleteCampaign = jest.fn();
+
+      render(
+        <CampaignsTab
+          dashboard={{ ...mockCampaignsDashboard, campaigns: [mockCampaign] }}
+          onOpenCreateCampaign={jest.fn()}
+          onToggleStatus={onToggleStatus}
+          onOpenDcoModal={onOpenDcoModal}
+          onOpenPacingModal={onOpenPacingModal}
+          onOpenBiddingConfig={onOpenBiddingConfig}
+          onOpenVariants={onOpenVariants}
+          onViewCampaignHealth={onViewCampaignHealth}
+          onOpenAnalytics={onOpenAnalytics}
+          onOpenEditCampaign={onOpenEditCampaign}
+          onDeleteCampaign={onDeleteCampaign}
+        />,
+      );
+
+      // 1. Toggle status
+      fireEvent.click(screen.getByTitle('Приостановить кампанию'));
+      expect(onToggleStatus).toHaveBeenCalledWith(mockCampaign);
+
+      // 2. DCO modal
+      fireEvent.click(screen.getByTitle('DCO: Динамическая оптимизация & Авто-вставки'));
+      expect(onOpenDcoModal).toHaveBeenCalledWith(mockCampaign);
+
+      // 3. Pacing modal
+      fireEvent.click(screen.getByTitle('Контроль скорости расхода бюджета (Budget Pacing)'));
+      expect(onOpenPacingModal).toHaveBeenCalledWith(mockCampaign);
+
+      // 4. Bidding config
+      fireEvent.click(screen.getByTitle('Авто-ставки & Расписание показов'));
+      expect(onOpenBiddingConfig).toHaveBeenCalledWith(mockCampaign);
+
+      // 5. Variants
+      fireEvent.click(screen.getByTitle('A/B Тестирование & Варианты'));
+      expect(onOpenVariants).toHaveBeenCalledWith(mockCampaign);
+
+      // 6. Campaign Health
+      fireEvent.click(screen.getByTitle('Аудит разнообразия и качества креативов'));
+      expect(onViewCampaignHealth).toHaveBeenCalledWith('cmp_actions_01');
+
+      // 7. Analytics
+      fireEvent.click(screen.getByTitle('Просмотр аналитики'));
+      expect(onOpenAnalytics).toHaveBeenCalledWith(mockCampaign);
+
+      // 8. Edit
+      fireEvent.click(screen.getByTitle('Редактировать кампанию'));
+      expect(onOpenEditCampaign).toHaveBeenCalledWith(mockCampaign);
+
+      // 9. Delete
+      fireEvent.click(screen.getByTitle('Удалить кампанию'));
+      expect(onDeleteCampaign).toHaveBeenCalledWith(mockCampaign);
+    });
+
+    it('safely handles corrupt / missing campaign data without throwing (corrupt-data guard)', () => {
+      const corruptCampaign = {
+        campaign_id: 'cmp_fallback_id',
+        name: 'Corrupt Campaign',
+        product_name: undefined,
+        landing_url: '',
+        target_languages: null,
+        target_models: null,
+        spent_today: undefined,
+        daily_budget: null,
+        total_spent: NaN,
+        total_budget: undefined,
+        impressions: NaN,
+        clicks: null,
+        ctr: undefined,
+        status: 'paused',
+        moderation_status: 'pending',
+        pricing_model: undefined,
+        bid_amount: NaN,
+      } as unknown as AdCampaignItem;
+
+      expect(() => {
+        render(
+          <CampaignsTab
+            dashboard={{
+              advertiser_id: 'adv_test',
+              company_name: 'Test',
+              balance: NaN,
+              currency: 'USD',
+              active_campaigns: NaN,
+              total_campaigns: NaN,
+              total_impressions: NaN,
+              total_clicks: NaN,
+              total_spent: NaN,
+              ctr: NaN,
+              campaigns: [corruptCampaign],
+            }}
+            onOpenCreateCampaign={jest.fn()}
+            onToggleStatus={jest.fn()}
+            onOpenDcoModal={jest.fn()}
+            onOpenPacingModal={jest.fn()}
+            onOpenBiddingConfig={jest.fn()}
+            onOpenVariants={jest.fn()}
+            onViewCampaignHealth={jest.fn()}
+            onOpenAnalytics={jest.fn()}
+            onOpenEditCampaign={jest.fn()}
+            onDeleteCampaign={jest.fn()}
+          />,
+        );
+      }).not.toThrow();
+
+      expect(screen.getByText('Corrupt Campaign')).toBeInTheDocument();
+      expect(screen.getByText('🌐 Все языки')).toBeInTheDocument();
+      expect(screen.getByText('На паузе')).toBeInTheDocument();
+      expect(screen.getByText('Модерация')).toBeInTheDocument();
     });
   });
 
