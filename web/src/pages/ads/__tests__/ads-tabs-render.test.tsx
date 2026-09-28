@@ -14,8 +14,12 @@ import { OmniChannelTab } from '../tabs/OmniChannelTab';
 import { OverviewTab } from '../tabs/OverviewTab';
 import { CampaignsTab } from '../tabs/CampaignsTab';
 import { StudioTab } from '../tabs/StudioTab';
+import { AutopilotTab } from '../tabs/AutopilotTab';
 import {
   AdCampaignItem,
+  AutomatedRuleItem,
+  RuleTemplateItem,
+  RuleExecutionLogItem,
   AdvertiserDashboardData,
   AdTransactionItem,
   AdvertiserInsightsData,
@@ -3578,6 +3582,352 @@ describe('Ads Tabs Render Suite', () => {
 
       expect(screen.getByText('AI Multi-Format Creative Studio & DPA')).toBeInTheDocument();
       expect(screen.getByText('$0.00')).toBeInTheDocument();
+    });
+  });
+
+  describe('AutopilotTab', () => {
+    const mockRuleTemplates: RuleTemplateItem[] = [
+      {
+        template_id: 'tmpl_stop_loss',
+        name: 'Auto Stop-Loss CPA',
+        description: 'Останавливать кампании при CPA выше 15$',
+        metric: 'cpa',
+        operator: '>',
+        threshold_value: 15,
+        min_impressions: 500,
+        time_window: 'today',
+        action_type: 'pause_campaign',
+        action_value: 0,
+      },
+      {
+        template_id: 'tmpl_scale_roas',
+        name: 'Scale Winner ROAS',
+        description: 'Увеличивать бюджет на 25% при ROAS > 3.0',
+        metric: 'roas',
+        operator: '>',
+        threshold_value: 3,
+        min_impressions: 1000,
+        time_window: 'last_7_days',
+        action_type: 'increase_budget',
+        action_value: 25,
+      },
+    ];
+
+    const mockRulesList: AutomatedRuleItem[] = [
+      {
+        id: 'rule_1',
+        name: 'Daily Budget Guard',
+        description: 'Пауза при превышении CPA',
+        campaign_id: 'cmp_1',
+        campaign_name: 'Summer Sale 2026',
+        metric: 'cpa',
+        operator: '>',
+        threshold_value: 12.5,
+        min_impressions: 300,
+        time_window: 'today',
+        action_type: 'pause_campaign',
+        action_value: 0,
+        trigger_count: 4,
+        is_active: true,
+      },
+      {
+        id: 'rule_2',
+        name: 'Scale High CTR',
+        description: 'Увеличение бюджета при хорошем CTR',
+        campaign_id: 'all',
+        campaign_name: '',
+        metric: 'ctr',
+        operator: '>',
+        threshold_value: 2.5,
+        min_impressions: 1000,
+        time_window: 'today',
+        action_type: 'increase_budget',
+        action_value: 20,
+        trigger_count: 2,
+        is_active: false,
+      },
+      {
+        id: 'rule_3',
+        name: 'Bid Boost',
+        description: 'Поднятие ставки',
+        campaign_id: 'cmp_2',
+        campaign_name: 'Brand Search',
+        metric: 'cpc',
+        operator: '<',
+        threshold_value: 0.8,
+        min_impressions: 200,
+        time_window: 'last_3_days',
+        action_type: 'increase_bid',
+        action_value: 10,
+        trigger_count: 1,
+        is_active: true,
+      },
+    ];
+
+    const mockExecutionLogs: RuleExecutionLogItem[] = [
+      {
+        id: 'log_1',
+        rule_id: 'rule_1',
+        rule_name: 'History Stop-Loss Guard',
+        campaign_id: 'cmp_1',
+        campaign_name: 'Flash Sale 2026',
+        metric_name: 'cpa',
+        metric_current_value: '14.20',
+        action_taken: 'pause_campaign',
+        action_details: 'Кампания поставлена на паузу (CPA 14.20 > 12.50)',
+        create_time: '2026-09-28T14:30:00Z',
+      },
+      {
+        id: 'log_2',
+        rule_id: 'rule_2',
+        rule_name: 'History Scaler Rule',
+        campaign_id: 'cmp_3',
+        campaign_name: 'Retargeting Autumn',
+        metric_name: 'ctr',
+        metric_current_value: '3.1%',
+        action_taken: 'increase_budget',
+        action_details: '',
+        create_time: '2026-09-28T12:00:00Z',
+      },
+    ];
+
+    it('renders empty state correctly with 0 KPI counters and placeholder text', () => {
+      render(
+        <AutopilotTab
+          rulesList={[]}
+          ruleTemplates={[]}
+          ruleExecutionLogs={[]}
+          evaluatingRules={false}
+          onApplyRuleTemplate={jest.fn()}
+          onEvaluateRules={jest.fn()}
+          onOpenCreateRuleModal={jest.fn()}
+          onToggleRule={jest.fn()}
+          onDeleteRule={jest.fn()}
+        />,
+      );
+
+      // KPI cards
+      expect(screen.getByText('Активные авто-правила')).toBeInTheDocument();
+      expect(screen.getByText('0 / 0')).toBeInTheDocument();
+      expect(screen.getByText('Срабатываний авто-правил')).toBeInTheDocument();
+      expect(screen.getByText('Защита бюджета (Stop-Loss)')).toBeInTheDocument();
+      expect(screen.getByText('0 правил')).toBeInTheDocument();
+      expect(screen.getByText('Плавный расход (Pacing)')).toBeInTheDocument();
+      expect(screen.getByText('24/7')).toBeInTheDocument();
+
+      // Empty state messages
+      expect(
+        screen.getByText(
+          'У вас пока нет настроенных правил. Выберите готовый рецепт выше или создайте новое правило.',
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Журнал пуст. Срабатывания авто-правил будут фиксироваться здесь в реальном времени.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('renders populated state with correct KPI aggregations, rules table, and execution logs', () => {
+      render(
+        <AutopilotTab
+          rulesList={mockRulesList}
+          ruleTemplates={mockRuleTemplates}
+          ruleExecutionLogs={mockExecutionLogs}
+          evaluatingRules={false}
+          onApplyRuleTemplate={jest.fn()}
+          onEvaluateRules={jest.fn()}
+          onOpenCreateRuleModal={jest.fn()}
+          onToggleRule={jest.fn()}
+          onDeleteRule={jest.fn()}
+        />,
+      );
+
+      // Active rules KPI: 2 active out of 3 total
+      expect(screen.getByText('2 / 3')).toBeInTheDocument();
+      // Total trigger count: 4 + 2 + 1 = 7
+      expect(screen.getByText('7')).toBeInTheDocument();
+      // Stop-loss pause rules: 1 rule
+      expect(screen.getByText('1 правил')).toBeInTheDocument();
+
+      // 1-Click Recipe Templates
+      expect(screen.getByText('Auto Stop-Loss CPA')).toBeInTheDocument();
+      expect(screen.getByText('Scale Winner ROAS')).toBeInTheDocument();
+      expect(screen.getByText('cpa > 15')).toBeInTheDocument();
+      expect(screen.getByText('roas > 3')).toBeInTheDocument();
+
+      // Rules table rows
+      expect(screen.getByText('Daily Budget Guard')).toBeInTheDocument();
+      expect(screen.getByText('Summer Sale 2026')).toBeInTheDocument();
+      expect(screen.getByText('CPA > 12.5')).toBeInTheDocument();
+      expect(screen.getByText('🛑 Пауза')).toBeInTheDocument();
+      expect(screen.getByText('4 раз')).toBeInTheDocument();
+      expect(screen.getAllByText('🟢 Включено')).toHaveLength(2);
+
+      expect(screen.getByText('Scale High CTR')).toBeInTheDocument();
+      expect(screen.getByText('Все кампании')).toBeInTheDocument();
+      expect(screen.getByText('CTR > 2.5')).toBeInTheDocument();
+      expect(screen.getByText('🚀 Бюджет +20%')).toBeInTheDocument();
+      expect(screen.getByText('2 раз')).toBeInTheDocument();
+      expect(screen.getByText('⚪ Выключено')).toBeInTheDocument();
+
+      expect(screen.getByText('Bid Boost')).toBeInTheDocument();
+      expect(screen.getByText('Brand Search')).toBeInTheDocument();
+      expect(screen.getByText('CPC < 0.8')).toBeInTheDocument();
+      expect(screen.getByText('📈 Ставка +10%')).toBeInTheDocument();
+
+      // Execution Logs table
+      expect(screen.getByText('History Stop-Loss Guard')).toBeInTheDocument();
+      expect(screen.getByText('Flash Sale 2026')).toBeInTheDocument();
+      expect(screen.getByText('CPA = 14.20')).toBeInTheDocument();
+      expect(screen.getByText('Кампания поставлена на паузу (CPA 14.20 > 12.50)')).toBeInTheDocument();
+      expect(screen.getByText('History Scaler Rule')).toBeInTheDocument();
+      expect(screen.getByText('Retargeting Autumn')).toBeInTheDocument();
+      expect(screen.getByText('CTR = 3.1%')).toBeInTheDocument();
+      expect(screen.getByText('increase_budget')).toBeInTheDocument();
+    });
+
+    it('handles applying recipe templates, rule evaluation, and create rule modal triggers', () => {
+      const handleApplyTemplate = jest.fn();
+      const handleEvaluateRules = jest.fn();
+      const handleOpenCreateModal = jest.fn();
+
+      const { rerender } = render(
+        <AutopilotTab
+          rulesList={mockRulesList}
+          ruleTemplates={mockRuleTemplates}
+          ruleExecutionLogs={mockExecutionLogs}
+          evaluatingRules={false}
+          onApplyRuleTemplate={handleApplyTemplate}
+          onEvaluateRules={handleEvaluateRules}
+          onOpenCreateRuleModal={handleOpenCreateModal}
+          onToggleRule={jest.fn()}
+          onDeleteRule={jest.fn()}
+        />,
+      );
+
+      // Click + Добавить on first template
+      const addButtons = screen.getAllByRole('button', { name: /\+ Добавить/i });
+      fireEvent.click(addButtons[0]);
+      expect(handleApplyTemplate).toHaveBeenCalledWith(mockRuleTemplates[0]);
+
+      // Click "Проверить правила сейчас"
+      const evalBtn = screen.getByRole('button', { name: /Проверить правила сейчас/i });
+      expect(evalBtn).not.toBeDisabled();
+      fireEvent.click(evalBtn);
+      expect(handleEvaluateRules).toHaveBeenCalledTimes(1);
+
+      // Click "+ Создать правило"
+      const createBtn = screen.getByRole('button', { name: /Создать правило/i });
+      fireEvent.click(createBtn);
+      expect(handleOpenCreateModal).toHaveBeenCalledTimes(1);
+
+      // Rerender with evaluatingRules = true
+      rerender(
+        <AutopilotTab
+          rulesList={mockRulesList}
+          ruleTemplates={mockRuleTemplates}
+          ruleExecutionLogs={mockExecutionLogs}
+          evaluatingRules={true}
+          onApplyRuleTemplate={handleApplyTemplate}
+          onEvaluateRules={handleEvaluateRules}
+          onOpenCreateRuleModal={handleOpenCreateModal}
+          onToggleRule={jest.fn()}
+          onDeleteRule={jest.fn()}
+        />,
+      );
+
+      const checkingBtn = screen.getByRole('button', { name: /Проверка\.\.\./i });
+      expect(checkingBtn).toBeDisabled();
+    });
+
+    it('delegates toggle rule status and delete rule callbacks with correct rule IDs', () => {
+      const handleToggle = jest.fn();
+      const handleDelete = jest.fn();
+
+      render(
+        <AutopilotTab
+          rulesList={mockRulesList}
+          ruleTemplates={mockRuleTemplates}
+          ruleExecutionLogs={mockExecutionLogs}
+          evaluatingRules={false}
+          onApplyRuleTemplate={jest.fn()}
+          onEvaluateRules={jest.fn()}
+          onOpenCreateRuleModal={jest.fn()}
+          onToggleRule={handleToggle}
+          onDeleteRule={handleDelete}
+        />,
+      );
+
+      // Click active toggle button (rule_1 and rule_3 are active)
+      const activeBtns = screen.getAllByRole('button', { name: /Включено/i });
+      fireEvent.click(activeBtns[0]);
+      expect(handleToggle).toHaveBeenCalledWith('rule_1');
+
+      // Click inactive toggle button (rule_2 is inactive)
+      const inactiveBtn = screen.getByRole('button', { name: /Выключено/i });
+      fireEvent.click(inactiveBtn);
+      expect(handleToggle).toHaveBeenCalledWith('rule_2');
+
+      // Click delete buttons
+      const deleteButtons = screen.getAllByRole('button').filter((btn) => btn.querySelector('svg.lucide-trash2'));
+      expect(deleteButtons.length).toBe(3);
+      fireEvent.click(deleteButtons[0]);
+      expect(handleDelete).toHaveBeenCalledWith('rule_1');
+
+      fireEvent.click(deleteButtons[1]);
+      expect(handleDelete).toHaveBeenCalledWith('rule_2');
+    });
+
+    it('renders gracefully without crashing when rulesList, ruleTemplates, or logs contain null or corrupt values', () => {
+      const corruptRule = {
+        id: 'corrupt_1',
+        name: 'Broken Rule',
+        description: null,
+        campaign_id: null,
+        campaign_name: null,
+        metric: null,
+        operator: null,
+        threshold_value: null,
+        min_impressions: null,
+        time_window: null,
+        action_type: 'unknown_action',
+        action_value: null,
+        trigger_count: null,
+        is_active: null,
+      } as unknown as AutomatedRuleItem;
+
+      const corruptLog = {
+        id: 'corrupt_log_1',
+        rule_name: 'Corrupt Log',
+        campaign_name: null,
+        metric_name: null,
+        metric_current_value: null,
+        action_taken: 'custom_action',
+        action_details: null,
+        create_time: 'not-a-valid-date',
+      } as unknown as RuleExecutionLogItem;
+
+      expect(() => {
+        render(
+          <AutopilotTab
+            rulesList={[corruptRule]}
+            ruleTemplates={undefined as any}
+            ruleExecutionLogs={[corruptLog]}
+            evaluatingRules={false}
+            onApplyRuleTemplate={jest.fn()}
+            onEvaluateRules={jest.fn()}
+            onOpenCreateRuleModal={jest.fn()}
+            onToggleRule={jest.fn()}
+            onDeleteRule={jest.fn()}
+          />,
+        );
+      }).not.toThrow();
+
+      expect(screen.getByText('Broken Rule')).toBeInTheDocument();
+      expect(screen.getByText('Corrupt Log')).toBeInTheDocument();
+      expect(screen.getByText('—')).toBeInTheDocument();
+      expect(screen.getByText('0 / 1')).toBeInTheDocument();
     });
   });
 
