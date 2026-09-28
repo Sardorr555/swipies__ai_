@@ -11,7 +11,9 @@ import { AnalyticsTab } from '../tabs/AnalyticsTab';
 import { AudiencesTab } from '../tabs/AudiencesTab';
 import { AgencyTab } from '../tabs/AgencyTab';
 import { OmniChannelTab } from '../tabs/OmniChannelTab';
+import { OverviewTab } from '../tabs/OverviewTab';
 import {
+  AdvertiserDashboardData,
   AdTransactionItem,
   AdvertiserInsightsData,
   AdvertiserSettingsData,
@@ -31,6 +33,7 @@ import {
   OmniAccountItem,
   OmniSyncJobItem,
   PlacementItem,
+  ProductFeedItem,
   PublisherPayoutItem,
   PublisherProfileData,
   SavedPaymentMethodItem,
@@ -2504,6 +2507,279 @@ describe('Ads Tabs Render Suite', () => {
       ).not.toThrow();
       // Two '—' in the corrupt row: platform column (from ?.replace fix) + external_campaign_id column (null fallback)
       expect(screen.getAllByText('—').length).toBe(2);
+    });
+  });
+
+  describe('OverviewTab', () => {
+    const mockDashboard: AdvertiserDashboardData = {
+      advertiser_id: 'adv-1',
+      company_name: 'Test Corp',
+      balance: 350.0,
+      currency: 'USD',
+      active_campaigns: 3,
+      total_campaigns: 5,
+      total_impressions: 54200,
+      total_clicks: 2180,
+      total_spent: 1540.5,
+      ctr: 4.02,
+      campaigns: [
+        {
+          id: 'cmp-1',
+          name: 'Black Friday AI Promo',
+          status: 'active',
+          landing_url: 'https://example.com/promo',
+          total_spent: 850.5,
+          total_budget: 2000.0,
+          impressions: 32000,
+          clicks: 1400,
+          ctr: 4.38,
+          pricing_model: 'cpa',
+          daily_budget: 100,
+          bid_amount: 2.5,
+          product_name: 'Product A',
+          description: '',
+          advertisement_text: '',
+          target_categories: [],
+          keywords: [],
+          spent_today: 0,
+          moderation_status: 'approved',
+        },
+        {
+          id: 'cmp-2',
+          name: 'Spring Retargeting',
+          status: 'paused',
+          landing_url: '',
+          total_spent: 690.0,
+          total_budget: 1000.0,
+          impressions: 22200,
+          clicks: 780,
+          ctr: 3.51,
+          pricing_model: 'cpc',
+          daily_budget: 50,
+          bid_amount: 1.0,
+          product_name: 'Product B',
+          description: '',
+          advertisement_text: '',
+          target_categories: [],
+          keywords: [],
+          spent_today: 0,
+          moderation_status: 'approved',
+        },
+      ],
+    };
+
+    const mockFeeds: ProductFeedItem[] = [
+      {
+        id: 'feed-1',
+        advertiser_id: 'adv-1',
+        name: 'Main E-commerce Feed',
+        feed_type: 'xml',
+        feed_url: 'https://example.com/feed.xml',
+        currency: 'USD',
+        items_count: 120,
+        sync_status: 'active',
+        sync_frequency: 'daily',
+        last_sync_time: 1700000000,
+        create_time: 1700000000,
+      },
+      {
+        id: 'feed-2',
+        advertiser_id: 'adv-1',
+        name: 'Secondary Feed',
+        feed_type: 'csv',
+        feed_url: 'https://example.com/feed.csv',
+        currency: 'USD',
+        items_count: 50,
+        sync_status: 'active',
+        sync_frequency: 'daily',
+        last_sync_time: 1700000000,
+        create_time: 1700000000,
+      },
+    ];
+
+    const mockTimeline = [
+      { date: '09-01', impressions: 1200, clicks: 50, spend: 35.0 },
+      { date: '09-02', impressions: 1500, clicks: 65, spend: 42.5 },
+    ];
+
+    it('renders empty state when dashboard is null and feeds empty', () => {
+      const { container } = render(
+        <OverviewTab
+          dashboard={null}
+          overviewTimeline={[]}
+          productFeeds={[]}
+          onOpenCreateCampaign={jest.fn()}
+          onOpenPixelModal={jest.fn()}
+          onOpenTopUpModal={jest.fn()}
+          onNavigateTab={jest.fn()}
+        />,
+      );
+
+      // Hero banner
+      expect(screen.getByText('Next-Gen AI Ad Platform')).toBeInTheDocument();
+      expect(screen.getByText('Добро пожаловать в Swipies Ads')).toBeInTheDocument();
+
+      // KPI cards default to 0
+      expect(screen.getByText(/\/ 0 всего/)).toBeInTheDocument();
+      expect(screen.getByText('(0% CTR)')).toBeInTheDocument();
+      expect(screen.getByText('$0.00')).toBeInTheDocument();
+
+      // Chart area
+      expect(screen.getByText('Динамика эффективности за последние 14 дней')).toBeInTheDocument();
+      expect(container.querySelector('.recharts-surface')).toBeInTheDocument();
+
+      // Quick Nav cards show 0
+      expect(screen.getAllByText('Все кампании (0) →').length).toBe(2);
+      expect(screen.getByText('Креативная Студия & DPA (0) →')).toBeInTheDocument();
+      expect(screen.getByText('Баланс: $0.00 • Пополнение и чеки')).toBeInTheDocument();
+
+      // Empty campaigns table
+      expect(screen.getByText('Кампаний пока нет')).toBeInTheDocument();
+      expect(screen.getByText('Создать первую кампанию')).toBeInTheDocument();
+    });
+
+    it('renders populated dashboard with campaigns, timeline, and product feeds', () => {
+      const { container } = render(
+        <OverviewTab
+          dashboard={mockDashboard}
+          overviewTimeline={mockTimeline}
+          productFeeds={mockFeeds}
+          onOpenCreateCampaign={jest.fn()}
+          onOpenPixelModal={jest.fn()}
+          onOpenTopUpModal={jest.fn()}
+          onNavigateTab={jest.fn()}
+        />,
+      );
+
+      // Core KPI numbers
+      expect(screen.getByText(/\/ 5 всего/)).toBeInTheDocument();
+      expect(screen.getByText(/54,200|54200/)).toBeInTheDocument();
+      expect(screen.getByText(/2,180|2180/)).toBeInTheDocument();
+      expect(screen.getByText('(4.02% CTR)')).toBeInTheDocument();
+      expect(screen.getByText('$1540.50')).toBeInTheDocument();
+
+      // Chart surface
+      expect(container.querySelector('.recharts-surface')).toBeInTheDocument();
+
+      // Quick nav counts
+      expect(screen.getAllByText('Все кампании (2) →').length).toBe(2);
+      expect(screen.getByText('Креативная Студия & DPA (2) →')).toBeInTheDocument();
+      expect(screen.getByText('Баланс: $350.00 • Пополнение и чеки')).toBeInTheDocument();
+
+      // Recent campaigns table rows
+      expect(screen.getByText('Black Friday AI Promo')).toBeInTheDocument();
+      expect(screen.getByText('https://example.com/promo')).toBeInTheDocument();
+      expect(screen.getByText('Активна')).toBeInTheDocument();
+      expect(screen.getByText('$850.50')).toBeInTheDocument();
+      expect(screen.getByText('из $2000.00')).toBeInTheDocument();
+
+      expect(screen.getByText('Spring Retargeting')).toBeInTheDocument();
+      expect(screen.getByText('URL не указан')).toBeInTheDocument();
+      expect(screen.getByText('На паузе')).toBeInTheDocument();
+      expect(screen.getByText('$690.00')).toBeInTheDocument();
+      expect(screen.getByText('из $1000.00')).toBeInTheDocument();
+    });
+
+    it('handles all action buttons and tab navigation callbacks', () => {
+      const onOpenCreateCampaign = jest.fn();
+      const onOpenPixelModal = jest.fn();
+      const onOpenTopUpModal = jest.fn();
+      const onNavigateTab = jest.fn();
+
+      render(
+        <OverviewTab
+          dashboard={mockDashboard}
+          overviewTimeline={mockTimeline}
+          productFeeds={mockFeeds}
+          onOpenCreateCampaign={onOpenCreateCampaign}
+          onOpenPixelModal={onOpenPixelModal}
+          onOpenTopUpModal={onOpenTopUpModal}
+          onNavigateTab={onNavigateTab}
+        />,
+      );
+
+      // Top banner buttons
+      fireEvent.click(screen.getByText('Создать кампанию'));
+      expect(onOpenCreateCampaign).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getAllByText('Пиксель конверсий')[0]);
+      expect(onOpenPixelModal).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('Пополнить'));
+      expect(onOpenTopUpModal).toHaveBeenCalledTimes(1);
+
+      // Chart analytics link
+      fireEvent.click(screen.getByText('Аналитика & Отчеты'));
+      expect(onNavigateTab).toHaveBeenCalledWith('analytics');
+
+      // Quick nav cards
+      fireEvent.click(screen.getByText('Кампании'));
+      expect(onNavigateTab).toHaveBeenCalledWith('campaigns');
+
+      fireEvent.click(screen.getByText('AI Креативная Студия'));
+      expect(onNavigateTab).toHaveBeenCalledWith('studio');
+
+      fireEvent.click(screen.getByText('Пиксель конверсий →'));
+      expect(onOpenPixelModal).toHaveBeenCalledTimes(2);
+
+      fireEvent.click(screen.getByText('Кошелек рекламодателя'));
+      expect(onNavigateTab).toHaveBeenCalledWith('billing');
+
+      // Table header "Все кампании (2) →" button
+      const allCampaignsButtons = screen.getAllByText('Все кампании (2) →');
+      fireEvent.click(allCampaignsButtons[1]);
+      expect(onNavigateTab).toHaveBeenCalledWith('campaigns');
+    });
+
+    it('handles corrupt/missing campaign data safely without throwing (corrupt-data guard)', () => {
+      const corruptDashboard: AdvertiserDashboardData = {
+        advertiser_id: 'adv-corrupt',
+        company_name: 'Broken Data Inc',
+        balance: NaN,
+        currency: 'USD',
+        active_campaigns: 0,
+        total_campaigns: 0,
+        total_impressions: NaN,
+        total_clicks: NaN,
+        total_spent: NaN,
+        ctr: NaN,
+        campaigns: [
+          {
+            id: 'cmp-corrupt-1',
+            name: 'Corrupt Campaign',
+            status: 'unknown_custom_status' as any,
+            landing_url: null as any,
+            total_spent: undefined as any,
+            total_budget: undefined as any,
+            impressions: undefined as any,
+            clicks: undefined as any,
+            ctr: undefined as any,
+            pricing_model: 'cpc',
+            daily_budget: 0,
+            bid_amount: 0,
+            product_name: '',
+          } as any,
+        ],
+      };
+
+      expect(() =>
+        render(
+          <OverviewTab
+            dashboard={corruptDashboard}
+            overviewTimeline={undefined}
+            productFeeds={undefined}
+            onOpenCreateCampaign={jest.fn()}
+            onOpenPixelModal={jest.fn()}
+            onOpenTopUpModal={jest.fn()}
+            onNavigateTab={jest.fn()}
+          />,
+        ),
+      ).not.toThrow();
+
+      // Check fallback strings rendered
+      expect(screen.getByText('URL не указан')).toBeInTheDocument();
+      expect(screen.getByText('unknown_custom_status')).toBeInTheDocument();
+      expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0);
     });
   });
 
