@@ -13,6 +13,7 @@ import { AgencyTab } from '../tabs/AgencyTab';
 import { OmniChannelTab } from '../tabs/OmniChannelTab';
 import { OverviewTab } from '../tabs/OverviewTab';
 import { CampaignsTab } from '../tabs/CampaignsTab';
+import { StudioTab } from '../tabs/StudioTab';
 import {
   AdCampaignItem,
   AdvertiserDashboardData,
@@ -26,6 +27,7 @@ import {
   AudienceSegmentItem,
   BlacklistEntryItem,
   ConversionJourneyPath,
+  CreativeMatrixResponse,
   CrossPlatformAnalyticsResponse,
   CustomerLtvOverviewResponse,
   FraudOverviewData,
@@ -36,6 +38,7 @@ import {
   OmniSyncJobItem,
   PlacementItem,
   ProductFeedItem,
+  ProductSkuItem,
   PublisherPayoutItem,
   PublisherProfileData,
   SavedPaymentMethodItem,
@@ -3095,6 +3098,486 @@ describe('Ads Tabs Render Suite', () => {
       expect(screen.getByText('🌐 Все языки')).toBeInTheDocument();
       expect(screen.getByText('На паузе')).toBeInTheDocument();
       expect(screen.getByText('Модерация')).toBeInTheDocument();
+    });
+  });
+
+  describe('StudioTab', () => {
+    const mockFeeds: ProductFeedItem[] = [
+      {
+        id: 'feed_001',
+        advertiser_id: 'adv-123',
+        name: 'Main Tech Catalog',
+        feed_type: 'xml',
+        sync_status: 'active',
+        sync_frequency: 'daily',
+        items_count: 1420,
+        currency: 'USD',
+        last_sync_time: 1700000000000,
+        create_time: 1700000000000,
+      },
+      {
+        id: 'feed_002',
+        advertiser_id: 'adv-123',
+        name: 'Fashion & Apparel',
+        feed_type: 'json',
+        sync_status: 'syncing',
+        sync_frequency: 'daily',
+        items_count: 530,
+        currency: 'EUR',
+        last_sync_time: 1700500000000,
+        create_time: 1700000000000,
+      },
+    ];
+
+    const mockSkuItems: ProductSkuItem[] = [
+      {
+        id: 'sku_101',
+        advertiser_id: 'adv-123',
+        feed_id: 'feed_001',
+        sku: 'MBP-M3-01',
+        title: 'MacBook Pro 16" M3 Max 64GB',
+        category: 'Laptops',
+        brand: 'Apple',
+        price: 3499.0,
+        original_price: 3999.0,
+        discount_percent: 12,
+        currency: 'USD',
+        product_url: 'https://example.com/mbp',
+        availability: 'in_stock',
+        is_active: true,
+        create_time: 1700000000000,
+      },
+      {
+        id: 'sku_102',
+        advertiser_id: 'adv-123',
+        feed_id: 'feed_001',
+        sku: 'MX-MST-02',
+        title: 'Logitech MX Master 3S',
+        category: 'Accessories',
+        brand: 'Logitech',
+        price: 99.99,
+        discount_percent: 0,
+        currency: 'USD',
+        product_url: 'https://example.com/mouse',
+        availability: 'out_of_stock',
+        is_active: true,
+        create_time: 1700000000000,
+      },
+    ];
+
+    const mockMatrixResult: CreativeMatrixResponse = {
+      product_name: 'MacBook Pro M3 Max',
+      category: 'Ноутбуки и Электроника',
+      target_audience: 'Разработчики, дизайнеры и IT-специалисты',
+      overall_health_score: 94,
+      saved_assets: [],
+      formats: {
+        text_card: {
+          headlines: ['MacBook Pro M3 Max: Сила для кода', 'Рендеринг в 2.5x быстрее', 'Невероятная автономность'],
+          descriptions: ['Прокачайте вашу производительность с революционным чипом Apple M3 Max.'],
+          ctas: ['Купить', 'Подробнее'],
+          badges: ['Бестселлер', 'AI Ready', 'В наличии'],
+        },
+        rich_interactive_card: {
+          widget_title: 'Флагманский Ноутбук',
+          headline: 'Apple MacBook Pro 16" (2024)',
+          rating: 4.9,
+          reviews_count: 128,
+          features: ['Чип M3 Max 16-Core', '64GB Unified Memory', 'Liquid Retina XDR 120Hz'],
+          primary_cta: 'Купить в рассрочку',
+          secondary_cta: 'Характеристики',
+          visual_style: 'glassmorphic',
+        },
+        story_banner: {
+          aspect_ratio: '9:16',
+          resolution: '1080x1920',
+          sticker_badge: 'ХИТ 2024',
+          title_overlay: 'Максимальная мощь M3 Max',
+          subtitle: 'Создан для тех, кто не признает компромиссов в скорости.',
+          swipe_up_text: 'Смотреть конфигурации',
+          background_gradient: 'from-purple-900 via-indigo-900 to-black',
+        },
+        leaderboard_banner: {
+          banner_header: 'Новый MacBook Pro с чипом M3 Max уже в продаже',
+          banner_body: 'Скидка до 15% для IT-компаний при заказе от 3 штук.',
+          button_text: 'Заказать с доставкой',
+          color_theme: 'emerald',
+          dimensions: ['1200x628', '728x90', '300x250'],
+        },
+        video_storyboard: {
+          duration_sec: 15,
+          target_platform: ['TikTok', 'Instagram Reels', 'YouTube Shorts'],
+          scenes: [
+            {
+              scene: 1,
+              timestamp: '00:00 - 00:03',
+              phase: 'Hook',
+              visual: 'Крупный план компиляции огромного проекта за 2 секунды',
+              voiceover: 'Ваш ноутбук виснет на сложных билдах?',
+            },
+            {
+              scene: 2,
+              timestamp: '00:03 - 00:10',
+              phase: 'Body',
+              visual: 'Демонстрация работы с 8K видео и локальными LLM',
+              voiceover: 'Встречайте MacBook Pro на M3 Max. Никаких лагов.',
+            },
+            {
+              scene: 3,
+              timestamp: '00:10 - 00:15',
+              phase: 'CTA',
+              visual: 'Финальный экран с оффером и кнопкой перехода',
+              voiceover: 'Переходите по ссылке и заказывайте с официальной гарантией!',
+            },
+          ],
+        },
+      },
+    };
+
+    it('renders empty state when productFeeds are empty and matrixResult is null', () => {
+      const onOpenCreateFeedModal = jest.fn();
+
+      render(
+        <StudioTab
+          productFeeds={[]}
+          loadingFeeds={false}
+          selectedFeedId={null}
+          feedItems={[]}
+          loadingFeedItems={false}
+          onOpenCreateFeedModal={onOpenCreateFeedModal}
+          onSelectFeed={jest.fn()}
+          onDeleteFeed={jest.fn()}
+          onOpenAddSkuModal={jest.fn()}
+          matrixProductName="MacBook Pro M3 Max"
+          setMatrixProductName={jest.fn()}
+          matrixCategory="Ноутбуки и Электроника"
+          setMatrixCategory={jest.fn()}
+          matrixTargetAudience="Разработчики"
+          setMatrixTargetAudience={jest.fn()}
+          matrixResult={null}
+          generatingMatrix={false}
+          onGenerateCreativeMatrix={jest.fn()}
+        />,
+      );
+
+      // Header Banner
+      expect(screen.getByText('AI Multi-Format Creative Studio & DPA')).toBeInTheDocument();
+      expect(screen.getByText('Phase 27')).toBeInTheDocument();
+
+      // Repurposing generator inputs
+      expect(screen.getByText('AI Мульти-Форматный Генератор Креативов')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('MacBook Pro M3 Max')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Ноутбуки и Электроника')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Разработчики')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Сгенерировать 5-Форматный Пакет/ })).toBeInTheDocument();
+
+      // Empty feeds state
+      expect(screen.getByText('У вас пока нет товарных каталогов')).toBeInTheDocument();
+      expect(screen.getByText(/Создайте фид вручную или укажите URL/)).toBeInTheDocument();
+
+      // Wire modal buttons
+      const connectCatalogBtn = screen.getByRole('button', { name: /Подключить Каталог \(Feed\)/ });
+      fireEvent.click(connectCatalogBtn);
+      expect(onOpenCreateFeedModal).toHaveBeenCalledTimes(1);
+
+      const createFirstFeedBtn = screen.getByRole('button', { name: /Создать первый фид/ });
+      fireEvent.click(createFirstFeedBtn);
+      expect(onOpenCreateFeedModal).toHaveBeenCalledTimes(2);
+    });
+
+    it('renders populated feeds and SKU catalog items when selectedFeedId is set', () => {
+      const onSelectFeed = jest.fn();
+      const onDeleteFeed = jest.fn();
+      const onOpenAddSkuModal = jest.fn();
+
+      render(
+        <StudioTab
+          productFeeds={mockFeeds}
+          loadingFeeds={false}
+          selectedFeedId="feed_001"
+          feedItems={mockSkuItems}
+          loadingFeedItems={false}
+          onOpenCreateFeedModal={jest.fn()}
+          onSelectFeed={onSelectFeed}
+          onDeleteFeed={onDeleteFeed}
+          onOpenAddSkuModal={onOpenAddSkuModal}
+          matrixProductName=""
+          setMatrixProductName={jest.fn()}
+          matrixCategory=""
+          setMatrixCategory={jest.fn()}
+          matrixTargetAudience=""
+          setMatrixTargetAudience={jest.fn()}
+          matrixResult={null}
+          generatingMatrix={false}
+          onGenerateCreativeMatrix={jest.fn()}
+        />,
+      );
+
+      // Feed items
+      expect(screen.getByText('Main Tech Catalog')).toBeInTheDocument();
+      expect(screen.getByText('Fashion & Apparel')).toBeInTheDocument();
+      expect(screen.getByText('1420 SKU товаров')).toBeInTheDocument();
+      expect(screen.getByText('530 SKU товаров')).toBeInTheDocument();
+
+      // Click feed card triggers onSelectFeed
+      fireEvent.click(screen.getByText('Fashion & Apparel'));
+      expect(onSelectFeed).toHaveBeenCalledWith('feed_002');
+
+      // Click delete feed triggers onDeleteFeed
+      const deleteButtons = screen.getAllByRole('button', { name: 'Удалить' });
+      fireEvent.click(deleteButtons[0]);
+      expect(onDeleteFeed).toHaveBeenCalledWith('feed_001');
+
+      // SKU items list
+      expect(screen.getByText(/Товары в каталоге \(2\)/)).toBeInTheDocument();
+      expect(screen.getByText('MBP-M3-01')).toBeInTheDocument();
+      expect(screen.getByText('MacBook Pro 16" M3 Max 64GB')).toBeInTheDocument();
+      expect(screen.getByText('$3499.00')).toBeInTheDocument();
+      expect(screen.getByText('$3999.00')).toBeInTheDocument();
+      expect(screen.getByText('-12%')).toBeInTheDocument();
+      expect(screen.getByText('in_stock')).toBeInTheDocument();
+
+      expect(screen.getByText('MX-MST-02')).toBeInTheDocument();
+      expect(screen.getByText('Logitech MX Master 3S')).toBeInTheDocument();
+      expect(screen.getByText('$99.99')).toBeInTheDocument();
+      expect(screen.getByText('out_of_stock')).toBeInTheDocument();
+
+      // Add SKU button
+      const addSkuBtn = screen.getByRole('button', { name: /Добавить Товар \(SKU\)/ });
+      fireEvent.click(addSkuBtn);
+      expect(onOpenAddSkuModal).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders full 5-format creative matrix results when matrixResult is provided', () => {
+      render(
+        <StudioTab
+          productFeeds={[]}
+          loadingFeeds={false}
+          selectedFeedId={null}
+          feedItems={[]}
+          loadingFeedItems={false}
+          onOpenCreateFeedModal={jest.fn()}
+          onSelectFeed={jest.fn()}
+          onDeleteFeed={jest.fn()}
+          onOpenAddSkuModal={jest.fn()}
+          matrixProductName="MacBook Pro M3 Max"
+          setMatrixProductName={jest.fn()}
+          matrixCategory="Ноутбуки"
+          setMatrixCategory={jest.fn()}
+          matrixTargetAudience="IT"
+          setMatrixTargetAudience={jest.fn()}
+          matrixResult={mockMatrixResult}
+          generatingMatrix={false}
+          onGenerateCreativeMatrix={jest.fn()}
+        />,
+      );
+
+      // Overall health score badge
+      expect(screen.getByText('94% Creative Quality Score')).toBeInTheDocument();
+
+      // Format 1: Chat Text Card
+      expect(screen.getByText('1. Native Chat Text Card')).toBeInTheDocument();
+      expect(screen.getByText(/MacBook Pro M3 Max: Сила для кода/)).toBeInTheDocument();
+      expect(screen.getByText('Бестселлер')).toBeInTheDocument();
+      expect(screen.getByText('AI Ready')).toBeInTheDocument();
+
+      // Format 2: Rich Interactive Card
+      expect(screen.getByText('2. Rich Interactive Card')).toBeInTheDocument();
+      expect(screen.getByText('Флагманский Ноутбук')).toBeInTheDocument();
+      expect(screen.getByText('Apple MacBook Pro 16" (2024)')).toBeInTheDocument();
+      expect(screen.getByText(/4\.9/)).toBeInTheDocument();
+      expect(screen.getByText('(128)')).toBeInTheDocument();
+      expect(screen.getByText('Чип M3 Max 16-Core')).toBeInTheDocument();
+      expect(screen.getByText('Купить в рассрочку')).toBeInTheDocument();
+
+      // Format 3: 9:16 Story Banner
+      expect(screen.getByText('3. 9:16 Story Banner (Mobile)')).toBeInTheDocument();
+      expect(screen.getByText('ХИТ 2024')).toBeInTheDocument();
+      expect(screen.getByText('Максимальная мощь M3 Max')).toBeInTheDocument();
+      expect(screen.getByText('Смотреть конфигурации')).toBeInTheDocument();
+
+      // Format 4: Display Leaderboard Banner
+      expect(screen.getByText('4. Display Leaderboard & Banners')).toBeInTheDocument();
+      expect(screen.getByText('Новый MacBook Pro с чипом M3 Max уже в продаже')).toBeInTheDocument();
+      expect(screen.getByText(/1200x628 • 728x90 • 300x250/)).toBeInTheDocument();
+
+      // Format 5: Video Storyboard
+      expect(screen.getByText(/5\. Video Storyboard Script.*15s/)).toBeInTheDocument();
+      expect(screen.getByText('TikTok • Instagram Reels • YouTube Shorts')).toBeInTheDocument();
+      expect(screen.getByText('#1')).toBeInTheDocument();
+      expect(screen.getByText('00:00 - 00:03')).toBeInTheDocument();
+      expect(screen.getByText('Hook')).toBeInTheDocument();
+      expect(screen.getByText(/"Ваш ноутбук виснет на сложных билдах\?"/)).toBeInTheDocument();
+      expect(screen.getByText('CTA')).toBeInTheDocument();
+      expect(screen.getByText(/"Переходите по ссылке и заказывайте с официальной гарантией!"/)).toBeInTheDocument();
+    });
+
+    it('wires matrix input changes and generation trigger', () => {
+      const setMatrixProductName = jest.fn();
+      const setMatrixCategory = jest.fn();
+      const setMatrixTargetAudience = jest.fn();
+      const onGenerateCreativeMatrix = jest.fn();
+
+      const { rerender } = render(
+        <StudioTab
+          productFeeds={[]}
+          loadingFeeds={false}
+          selectedFeedId={null}
+          feedItems={[]}
+          loadingFeedItems={false}
+          onOpenCreateFeedModal={jest.fn()}
+          onSelectFeed={jest.fn()}
+          onDeleteFeed={jest.fn()}
+          onOpenAddSkuModal={jest.fn()}
+          matrixProductName="Initial Product"
+          setMatrixProductName={setMatrixProductName}
+          matrixCategory="Initial Category"
+          setMatrixCategory={setMatrixCategory}
+          matrixTargetAudience="Initial Audience"
+          setMatrixTargetAudience={setMatrixTargetAudience}
+          matrixResult={null}
+          generatingMatrix={false}
+          onGenerateCreativeMatrix={onGenerateCreativeMatrix}
+        />,
+      );
+
+      // Change product name
+      const nameInput = screen.getByDisplayValue('Initial Product');
+      fireEvent.change(nameInput, { target: { value: 'New Gadget' } });
+      expect(setMatrixProductName).toHaveBeenCalledWith('New Gadget');
+
+      // Change category
+      const catInput = screen.getByDisplayValue('Initial Category');
+      fireEvent.change(catInput, { target: { value: 'Electronics' } });
+      expect(setMatrixCategory).toHaveBeenCalledWith('Electronics');
+
+      // Change audience
+      const audInput = screen.getByDisplayValue('Initial Audience');
+      fireEvent.change(audInput, { target: { value: 'Gamers' } });
+      expect(setMatrixTargetAudience).toHaveBeenCalledWith('Gamers');
+
+      // Click generate button
+      const genBtn = screen.getByRole('button', { name: /Сгенерировать 5-Форматный Пакет/ });
+      fireEvent.click(genBtn);
+      expect(onGenerateCreativeMatrix).toHaveBeenCalledTimes(1);
+
+      // Rerender in generating state
+      rerender(
+        <StudioTab
+          productFeeds={[]}
+          loadingFeeds={false}
+          selectedFeedId={null}
+          feedItems={[]}
+          loadingFeedItems={false}
+          onOpenCreateFeedModal={jest.fn()}
+          onSelectFeed={jest.fn()}
+          onDeleteFeed={jest.fn()}
+          onOpenAddSkuModal={jest.fn()}
+          matrixProductName="Initial Product"
+          setMatrixProductName={setMatrixProductName}
+          matrixCategory="Initial Category"
+          setMatrixCategory={setMatrixCategory}
+          matrixTargetAudience="Initial Audience"
+          setMatrixTargetAudience={setMatrixTargetAudience}
+          matrixResult={null}
+          generatingMatrix={true}
+          onGenerateCreativeMatrix={onGenerateCreativeMatrix}
+        />,
+      );
+
+      const disabledGenBtn = screen.getByRole('button', { name: /Генерация 5 форматов\.\.\./ });
+      expect(disabledGenBtn).toBeDisabled();
+    });
+
+    it('safely handles corrupt / missing data without throwing (corrupt-data guard)', () => {
+      const corruptFeed = {
+        id: 'corrupt_feed_1',
+        name: undefined,
+        feed_type: null,
+        sync_status: undefined,
+        items_count: NaN,
+        currency: '',
+      } as unknown as ProductFeedItem;
+
+      const corruptSku = {
+        id: 'corrupt_sku_1',
+        sku: undefined,
+        title: undefined,
+        category: null,
+        brand: null,
+        price: NaN,
+        original_price: NaN,
+        discount_percent: -5,
+        availability: null,
+      } as unknown as ProductSkuItem;
+
+      const corruptMatrix = {
+        product_name: undefined as any,
+        category: undefined as any,
+        target_audience: undefined as any,
+        overall_health_score: NaN,
+        formats: {
+          text_card: {
+            headlines: null as any,
+            descriptions: undefined as any,
+            badges: null as any,
+          },
+          rich_interactive_card: {
+            widget_title: '',
+            headline: '',
+            rating: NaN,
+            reviews_count: NaN,
+            features: null as any,
+            primary_cta: '',
+            secondary_cta: '',
+          },
+          story_banner: {
+            sticker_badge: '',
+            title_overlay: '',
+            subtitle: '',
+            swipe_up_text: '',
+          },
+          leaderboard_banner: {
+            banner_header: '',
+            banner_body: '',
+            button_text: '',
+            dimensions: ['1200x628'],
+          },
+          video_storyboard: {
+            duration_sec: NaN,
+            target_platform: null as any,
+            scenes: null as any,
+          },
+        },
+      } as unknown as CreativeMatrixResponse;
+
+      expect(() => {
+        render(
+          <StudioTab
+            productFeeds={[corruptFeed]}
+            loadingFeeds={false}
+            selectedFeedId="corrupt_feed_1"
+            feedItems={[corruptSku]}
+            loadingFeedItems={false}
+            onOpenCreateFeedModal={jest.fn()}
+            onSelectFeed={jest.fn()}
+            onDeleteFeed={jest.fn()}
+            onOpenAddSkuModal={jest.fn()}
+            matrixProductName=""
+            setMatrixProductName={jest.fn()}
+            matrixCategory=""
+            setMatrixCategory={jest.fn()}
+            matrixTargetAudience=""
+            setMatrixTargetAudience={jest.fn()}
+            matrixResult={corruptMatrix}
+            generatingMatrix={false}
+            onGenerateCreativeMatrix={jest.fn()}
+          />,
+        );
+      }).not.toThrow();
+
+      expect(screen.getByText('AI Multi-Format Creative Studio & DPA')).toBeInTheDocument();
+      expect(screen.getByText('$0.00')).toBeInTheDocument();
     });
   });
 
