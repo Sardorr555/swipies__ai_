@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"ragflow/internal/dao"
+	"ragflow/internal/utility"
 )
 
 // RegisterBuiltIns wires every connector shipped in the server binary. Each
@@ -70,9 +71,9 @@ func RegisterBuiltIns(registry *Registry) {
 
 func registerBuiltIn[T Connector](registry *Registry, source string, factory func(map[string]any) (T, error)) {
 	registry.RegisterConfigFactory(source, func(config map[string]any) (Connector, error) {
-		return factory(config)
+		return factory(utility.DecryptConnectorConfig(config))
 	})
 	registry.Register(source, func(ctx context.Context, taskContext dao.SyncTaskContext) (Connector, error) {
-		return factory(map[string]any(taskContext.Connector.Config))
+		return factory(utility.DecryptConnectorConfig(map[string]any(taskContext.Connector.Config)))
 	})
 }

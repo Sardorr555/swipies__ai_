@@ -310,13 +310,18 @@ func (s *ConnectorService) CreateConnector(ctx context.Context, userID string, r
 		timeoutSecs = *req.TimeoutSecs
 	}
 
+	var encConfig entity.JSONMap
+	if req.Config != nil {
+		encConfig = entity.JSONMap(utility.EncryptConnectorConfig(map[string]any(req.Config)))
+	}
+
 	connector := &entity.Connector{
 		ID:          utility.GenerateUUID(),
 		TenantID:    userID,
 		Name:        req.Name,
 		Source:      req.Source,
 		InputType:   connectorInputTypePoll,
-		Config:      req.Config,
+		Config:      encConfig,
 		RefreshFreq: refreshFreq,
 		PruneFreq:   pruneFreq,
 		TimeoutSecs: timeoutSecs,
@@ -327,7 +332,11 @@ func (s *ConnectorService) CreateConnector(ctx context.Context, userID string, r
 		return nil, err
 	}
 
-	return s.connectorDAO.GetByID(ctx, dao.DB, connector.ID)
+	created, err := s.connectorDAO.GetByID(ctx, dao.DB, connector.ID)
+	if err != nil {
+		return nil, err
+	}
+	return utility.MaskConnectorEntity(created), nil
 }
 
 // GetConnector returns one connector when the user can access its tenant.
@@ -352,7 +361,7 @@ func (s *ConnectorService) GetConnector(ctx context.Context, connectorID, userID
 	if !canAccess {
 		return nil, ErrConnectorNoAuth
 	}
-	return connector, nil
+	return utility.MaskConnectorEntity(connector), nil
 }
 
 // ListConnectors list connectors for a user
@@ -411,7 +420,8 @@ func (s *ConnectorService) TestConnector(ctx context.Context, connectorID, userI
 	if err != nil {
 		return err
 	}
-	connector, err := s.connectorRegistry.OpenFromConfig(source, connectorConfig)
+	decryptedConfig := utility.DecryptConnectorConfig(map[string]any(connectorConfig))
+	connector, err := s.connectorRegistry.OpenFromConfig(source, decryptedConfig)
 	if err != nil {
 		var unsupported *syncerconnector.UnsupportedSourceError
 		if errors.As(err, &unsupported) {
@@ -423,7 +433,7 @@ func (s *ConnectorService) TestConnector(ctx context.Context, connectorID, userI
 	if !ok {
 		return ErrConnectorTestUnsupported
 	}
-	return wrapConnectorValidationError(validator.ValidateConnectorSetting(ctx, connectorConfig))
+	return wrapConnectorValidationError(validator.ValidateConnectorSetting(ctx, decryptedConfig))
 }
 
 func wrapConnectorValidationError(err error) error {
@@ -463,6 +473,10 @@ func testConnectorSettings(stored *entity.Connector, request entity.JSONMap) (st
 	}
 	if config == nil {
 		return "", nil, fmt.Errorf("connector configuration is missing")
+	}
+	if stored != nil && stored.Config != nil && config != nil {
+		merged := utility.MergeUpdatedConnectorConfig(map[string]any(stored.Config), map[string]any(config))
+		config = entity.JSONMap(merged)
 	}
 	return source, config, nil
 }
@@ -1004,7 +1018,12 @@ func (s *ConnectorService) UpdateConnector(ctx context.Context, connectorID, use
 			updates["refresh_freq"] = *req.RefreshFreq
 		}
 		if req.Config != nil {
-			updates["config"] = req.Config
+			var existingConfig map[string]any
+			if connector.Config != nil {
+				existingConfig = map[string]any(connector.Config)
+			}
+			mergedConfig := utility.MergeUpdatedConnectorConfig(existingConfig, map[string]any(req.Config))
+			updates["config"] = entity.JSONMap(mergedConfig)
 		}
 		if req.TimeoutSecs != nil {
 			updates["timeout_secs"] = *req.TimeoutSecs
@@ -1048,7 +1067,7 @@ func (s *ConnectorService) UpdateConnector(ctx context.Context, connectorID, use
 		return nil, common.CodeServerError, err
 	}
 
-	return connector, common.CodeSuccess, nil
+	return utility.MaskConnectorEntity(connector), common.CodeSuccess, nil
 }
 
 func isConnectorCancelStatus(status string) bool {

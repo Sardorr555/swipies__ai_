@@ -34,6 +34,7 @@ from common.data_source.google_util.constant import WEB_OAUTH_POPUP_TEMPLATE, GO
 from common.misc_utils import get_uuid
 from rag.utils.redis_conn import REDIS_CONN
 from api.apps import login_required, current_user
+from api.utils.key_crypto import mask_connector_config, decrypt_connector_config, merge_updated_connector_config
 from box_sdk_gen import BoxOAuth, OAuthConfig, GetAuthorizeUrlOptions
 
 
@@ -44,6 +45,16 @@ def _connector_auth_error(connector_id: str, user_id: str):
     """Return the connector authorization failure response and log the denial."""
     LOGGER.warning("connector access denied: connector_id=%s user_id=%s", connector_id, user_id)
     return get_json_result(data=False, message="no authorization", code=RetCode.AUTHENTICATION_ERROR)
+
+
+def _format_connector_response(conn) -> dict:
+    """Format connector model dictionary with sensitive configuration masked."""
+    if not conn:
+        return {}
+    res = conn.to_dict()
+    if isinstance(res.get("config"), dict):
+        res["config"] = mask_connector_config(res["config"])
+    return res
 
 
 @manager.route("/connectors/<connector_id>", methods=["PATCH"])  # noqa: F821
@@ -83,7 +94,7 @@ async def update_connector(connector_id):
     if not e:
         return get_data_error_result(message="Can't find this Connector!")
 
-    return get_json_result(data=conn.to_dict())
+    return get_json_result(data=_format_connector_response(conn))
 
 
 @manager.route("/connectors", methods=["POST"])  # noqa: F821
@@ -110,7 +121,7 @@ async def create_connector():
     await asyncio.sleep(1)
     e, conn = ConnectorService.get_by_id(req["id"])
 
-    return get_json_result(data=conn.to_dict())
+    return get_json_result(data=_format_connector_response(conn))
 
 
 @manager.route("/connectors", methods=["GET"])  # noqa: F821
@@ -130,7 +141,7 @@ def get_connector(connector_id):
     e, conn = ConnectorService.get_by_id(connector_id)
     if not e:
         return get_data_error_result(message="Can't find this Connector!")
-    return get_json_result(data=conn.to_dict())
+    return get_json_result(data=_format_connector_response(conn))
 
 
 @manager.route("/connectors/<connector_id>/logs", methods=["GET"])  # noqa: F821
@@ -201,12 +212,19 @@ async def test_connector(connector_id):
         return get_json_result(code=RetCode.ARGUMENT_ERROR, message="config must be an object.")
 
     if not unsaved:
-        ok, conn = ConnectorService.get_by_id(connector_id)
-        if ok and conn.tenant_id != current_user.id:
+        if not ConnectorService.accessible(connector_id, current_user.id):
             return get_json_result(code=RetCode.PERMISSION_ERROR, message="You don't own this connector.")
+        ok, conn = ConnectorService.get_by_id(connector_id)
+        if ok and conn.config:
+            stored_dec = decrypt_connector_config(conn.config)
+            merged_cfg = merge_updated_connector_config(stored_dec, config)
+            config = decrypt_connector_config(merged_cfg)
+    else:
+        config = decrypt_connector_config(config)
 
     def _validate() -> None:
-        connector = build_connector_for_source(source, config)
+        decrypted_cfg = decrypt_connector_config(config)
+        connector = build_connector_for_source(source, decrypted_cfg)
         connector.validate_connector_settings()
 
     try:

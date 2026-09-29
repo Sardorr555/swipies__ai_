@@ -31,6 +31,7 @@ import (
 	"ragflow/internal/entity"
 	"ragflow/internal/service"
 	syncerconnector "ragflow/internal/syncer/connector"
+	"ragflow/internal/utility"
 )
 
 type connectorServiceIface interface {
@@ -137,7 +138,7 @@ func (h *ConnectorHandler) GetConnector(c *gin.Context) {
 		return
 	}
 
-	common.SuccessWithData(c, connector, "success")
+	common.SuccessWithData(c, utility.MaskConnectorEntity(connector), "success")
 }
 
 // UpdateConnector Update an accessible connector's polling configuration.
@@ -162,7 +163,7 @@ func (h *ConnectorHandler) UpdateConnector(c *gin.Context) {
 		return
 	}
 
-	common.SuccessWithData(c, connector, "success")
+	common.SuccessWithData(c, utility.MaskConnectorEntity(connector), "success")
 }
 
 func decodeUpdateConnectorRequest(c *gin.Context) (*service.UpdateConnectorRequest, error) {
@@ -335,7 +336,7 @@ func (h *ConnectorHandler) CreateConnector(c *gin.Context) {
 		return
 	}
 
-	common.SuccessWithData(c, connector, "success")
+	common.SuccessWithData(c, utility.MaskConnectorEntity(connector), "success")
 }
 
 type testConnectorRequest struct {

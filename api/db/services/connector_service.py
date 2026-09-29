@@ -33,6 +33,12 @@ from common.misc_utils import get_uuid
 from common.constants import ConnectorTaskType, TaskStatus
 from common.settings import TIMEZONE
 from common.time_utils import current_timestamp, timestamp_to_date
+from api.utils.key_crypto import (
+    encrypt_connector_config,
+    decrypt_connector_config,
+    mask_connector_config,
+    merge_updated_connector_config,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -106,6 +112,27 @@ def resolve_connector_doc_id(kb_id: str, connector_id: str, external_id: str, ow
 
 class ConnectorService(CommonService):
     model = Connector
+
+    @classmethod
+    def save(cls, **kwargs):
+        if "config" in kwargs and isinstance(kwargs["config"], dict):
+            kwargs["config"] = encrypt_connector_config(kwargs["config"])
+        return super().save(**kwargs)
+
+    @classmethod
+    def update_by_id(cls, connector_id, update_fields):
+        if update_fields and "config" in update_fields and isinstance(update_fields["config"], dict):
+            e, existing = cls.get_by_id(connector_id)
+            existing_config = existing.config if (e and existing and existing.config) else {}
+            update_fields["config"] = merge_updated_connector_config(existing_config, update_fields["config"])
+        return super().update_by_id(connector_id, update_fields)
+
+    @classmethod
+    def get_decrypted_config(cls, connector_id) -> dict:
+        e, conn = cls.get_by_id(connector_id)
+        if not e or not conn or not conn.config:
+            return {}
+        return decrypt_connector_config(conn.config)
 
     @classmethod
     def cancel_tasks(cls, connector_id):

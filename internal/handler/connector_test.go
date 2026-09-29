@@ -670,3 +670,93 @@ func TestConnectorHandlerListSyncLogs(t *testing.T) {
 		})
 	}
 }
+
+func TestConnectorHandler_CredentialMaskingRealHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rawSecretToken := "super-confidential-pat-token-999"
+	rawClientSecret := "super-private-client-secret-888"
+	rawHeaderSecret := "Bearer secret-jwt-bearer-777"
+
+	fakeConn := &entity.Connector{
+		ID:     "conn-secret-1",
+		Name:   "Protected Jira",
+		Source: "jira",
+		Config: entity.JSONMap{
+			"credentials": map[string]any{
+				"instance_url":    "https://admin:pass123@jira.internal.local",
+				"jira_user_email": "admin@jira.internal.local",
+				"jira_api_token":  rawSecretToken,
+				"client_secret":   rawClientSecret,
+			},
+			"auth_config": map[string]any{
+				"token": rawSecretToken,
+			},
+			"headers": map[string]any{
+				"Authorization": rawHeaderSecret,
+			},
+		},
+	}
+
+	h := &ConnectorHandler{
+		connectorService: fakeConnectorService{
+			connector: fakeConn,
+		},
+	}
+
+	router := gin.New()
+	router.GET("/api/v1/connectors/:connector_id", func(c *gin.Context) {
+		c.Set("user", &entity.User{ID: "tenant-1"})
+		h.GetConnector(c)
+	})
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/connectors/conn-secret-1", nil)
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got: %d", resp.Code)
+	}
+
+	bodyStr := resp.Body.String()
+	// Assert NO plaintext secrets appear anywhere in the HTTP response body
+	if strings.Contains(bodyStr, rawSecretToken) {
+		t.Fatalf("LEAK: rawSecretToken found in HTTP response body! Body: %s", bodyStr)
+	}
+	if strings.Contains(bodyStr, rawClientSecret) {
+		t.Fatalf("LEAK: rawClientSecret found in HTTP response body! Body: %s", bodyStr)
+	}
+	if strings.Contains(bodyStr, rawHeaderSecret) {
+		t.Fatalf("LEAK: rawHeaderSecret found in HTTP response body! Body: %s", bodyStr)
+	}
+	if strings.Contains(bodyStr, "pass123") {
+		t.Fatalf("LEAK: URL password found in HTTP response body! Body: %s", bodyStr)
+	}
+
+	// Unmarshal and assert exact masked fields
+	var respJSON map[string]any
+	if err := json.Unmarshal(resp.Body.Bytes(), &respJSON); err != nil {
+		t.Fatalf("failed to parse JSON response: %v", err)
+	}
+
+	data := respJSON["data"].(map[string]any)
+	cfg := data["config"].(map[string]any)
+	creds := cfg["credentials"].(map[string]any)
+
+	if creds["jira_api_token"] != "********" {
+		t.Errorf("expected jira_api_token to be masked, got: %v", creds["jira_api_token"])
+	}
+	if creds["client_secret"] != "********" {
+		t.Errorf("expected client_secret to be masked, got: %v", creds["client_secret"])
+	}
+	if cfg["auth_config"].(map[string]any)["token"] != "********" {
+		t.Errorf("expected auth_config.token to be masked")
+	}
+	if cfg["headers"].(map[string]any)["Authorization"] != "********" {
+		t.Errorf("expected headers.Authorization to be masked")
+	}
+	if creds["instance_url"] != "https://admin:********@jira.internal.local" {
+		t.Errorf("expected instance_url with masked password, got: %v", creds["instance_url"])
+	}
+}
+

@@ -40,6 +40,7 @@ from flask import json
 from api.db.services.connector_service import ConnectorService, SyncLogsService, resolve_connector_doc_id
 from api.db.services.document_service import DocumentService
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.utils.key_crypto import decrypt_connector_config
 from common import settings
 from common.constants import ConnectorTaskType, FileSource, TaskStatus
 from common.config_utils import show_configs
@@ -2365,7 +2366,9 @@ async def dispatch_tasks():
             task["poll_range_start"] = task["poll_range_start"].astimezone(timezone.utc)
         if task["poll_range_end"]:
             task["poll_range_end"] = task["poll_range_end"].astimezone(timezone.utc)
-        func = func_factory[task["source"]](task["config"])
+        decrypted_conf = decrypt_connector_config(task.get("config") or {})
+        task["config"] = decrypted_conf
+        func = func_factory[task["source"]](decrypted_conf)
         tasks.append(asyncio.create_task(func(task)))
 
     try:
