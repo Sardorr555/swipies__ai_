@@ -132,14 +132,14 @@ const AdminNavigationLayout = () => {
   });
 
   return (
-    <main className="w-screen h-screen flex flex-row px-6 pt-12 pb-6 dark:*:focus-visible:ring-white">
-      <aside className="w-72 mr-6 flex flex-col gap-6">
+    <main className="w-screen h-screen flex flex-row px-6 pt-12 pb-6 dark:*:focus-visible:ring-white overflow-hidden">
+      <aside className="w-72 mr-6 flex flex-col gap-6 shrink-0 h-full overflow-y-auto">
         <div className="flex items-center mb-6">
           <img className="size-8 mr-5" src="/logo.svg" alt="logo" />
           <span className="text-xl font-bold">{t('admin.title')}</span>
         </div>
 
-        <nav>
+        <nav className="flex-1 overflow-y-auto pr-1">
           <ul className="space-y-4">
             {navItems.map((it) => (
               <li key={it.path}>
@@ -167,7 +167,7 @@ const AdminNavigationLayout = () => {
           </ul>
         </nav>
 
-        <div className="mt-auto space-y-4">
+        <div className="mt-auto space-y-4 pt-4 border-t border-border/40">
           <div className="flex justify-between items-center">
             <span className="leading-none text-xs text-accent-primary">
               {version}
@@ -187,7 +187,7 @@ const AdminNavigationLayout = () => {
         </div>
       </aside>
 
-      <section className="flex-1 h-full">
+      <section className="flex-1 h-full min-w-0 overflow-y-auto">
         <Outlet />
       </section>
     </main>

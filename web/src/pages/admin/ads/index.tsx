@@ -221,7 +221,7 @@ export default function AdminAdsPage() {
   };
 
   return (
-    <div className="flex-1 space-y-6 p-8 pt-6">
+    <div className="flex-1 space-y-6 p-8 pt-6 h-full overflow-y-auto pb-16">
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
