@@ -160,6 +160,11 @@ class AdvertiserService(CommonService):
             adv.save()
         return adv
 
+    @classmethod
+    @DB.connection_context()
+    def get_or_create_advertiser(cls, user_id: str, tenant_id: str = "", company_name: str = "", contact_email: str = "") -> Advertiser:
+        return cls.get_or_create_for_user(user_id=user_id, tenant_id=tenant_id, company_name=company_name, contact_email=contact_email)
+
 
 class AdCampaignService(CommonService):
     model = AdCampaign

@@ -3121,7 +3121,9 @@ async def get_public_shared_report(share_token):
 async def list_omni_accounts():
     """List connected external ad accounts for the current advertiser."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         accounts = AdOmniChannelBridgeService.list_accounts(advertiser_id=adv.id)
         return get_json_result(data=accounts)
     except Exception as e:
@@ -3134,7 +3136,9 @@ async def list_omni_accounts():
 async def connect_omni_account():
     """Connect a new external ad platform account."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         req = get_request_json()
         res = AdOmniChannelBridgeService.connect_account(advertiser_id=adv.id, data=req)
         return get_json_result(data=res)
@@ -3148,7 +3152,9 @@ async def connect_omni_account():
 async def disconnect_omni_account(account_id):
     """Disconnect an external ad platform account."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         res = AdOmniChannelBridgeService.disconnect_account(advertiser_id=adv.id, account_id=account_id)
         return get_json_result(data=res)
     except Exception as e:
@@ -3161,7 +3167,9 @@ async def disconnect_omni_account(account_id):
 async def test_omni_account_connection(account_id):
     """Test API connection to external ad network."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         res = AdOmniChannelBridgeService.test_connection(advertiser_id=adv.id, account_id=account_id)
         return get_json_result(data=res)
     except Exception as e:
@@ -3174,7 +3182,9 @@ async def test_omni_account_connection(account_id):
 async def export_campaign_to_omnichannel():
     """1-Click export of an AI campaign into Telegram Ads, Meta Ads, Google Ads or TikTok format."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         req = get_request_json()
         account_id = req.get("account_id")
         campaign_id = req.get("campaign_id")
@@ -3200,7 +3210,9 @@ async def export_campaign_to_omnichannel():
 async def sync_audience_to_omnichannel():
     """Sync audience segment to external ad network."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         req = get_request_json()
         account_id = req.get("account_id")
         segment_id = req.get("segment_id")
@@ -3224,7 +3236,9 @@ async def sync_audience_to_omnichannel():
 async def get_cross_platform_analytics():
     """Consolidated cross-platform analytics and Blended ROAS."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         days = int(request.args.get("days", 30))
         analytics = AdOmniChannelBridgeService.pull_cross_platform_analytics(advertiser_id=adv.id, days=days)
         return get_json_result(data=analytics)
@@ -3238,7 +3252,9 @@ async def get_cross_platform_analytics():
 async def get_omni_sync_jobs():
     """List recent synchronization jobs."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         limit = int(request.args.get("limit", 50))
         jobs = AdOmniChannelBridgeService.list_sync_jobs(advertiser_id=adv.id, limit=limit)
         return get_json_result(data=jobs)
