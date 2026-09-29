@@ -60,15 +60,59 @@ class AtmosService:
 
     @classmethod
     def _get_config(cls) -> Dict[str, Any]:
-        from common import settings
+        try:
+            from api import settings as api_settings
+        except Exception:
+            api_settings = None
+        try:
+            from common import settings as common_settings
+        except Exception:
+            common_settings = None
+
+        key = (
+            os.getenv("ATMOS_KEY")
+            or (getattr(api_settings, "ATMOS_KEY", None) if api_settings else None)
+            or (getattr(common_settings, "ATMOS_KEY", None) if common_settings else None)
+            or "TpLRLagJ1SXiZ0dT_om5BT_I3Nga"
+        )
+        secret = (
+            os.getenv("ATMOS_SECRET")
+            or (getattr(api_settings, "ATMOS_SECRET", None) if api_settings else None)
+            or (getattr(common_settings, "ATMOS_SECRET", None) if common_settings else None)
+            or "bMH7gjat2EgI3fTXoLJX7CRUcbAa"
+        )
+        store_id = str(
+            os.getenv("ATMOS_STORE_ID")
+            or (getattr(api_settings, "ATMOS_STORE_ID", None) if api_settings else None)
+            or (getattr(common_settings, "ATMOS_STORE_ID", None) if common_settings else None)
+            or "100506"
+        )
+        base_url = (
+            os.getenv("ATMOS_BASE_URL")
+            or (getattr(api_settings, "ATMOS_BASE_URL", None) if api_settings else None)
+            or (getattr(common_settings, "ATMOS_BASE_URL", None) if common_settings else None)
+            or "https://apigw.atmos.uz"
+        ).rstrip("/")
         mock_env = os.getenv("ATMOS_MOCK_MODE", "").lower() in ["true", "1", "yes"]
+        mock_mode = (
+            mock_env
+            or (getattr(api_settings, "ATMOS_MOCK_MODE", False) if api_settings else False)
+            or (getattr(common_settings, "ATMOS_MOCK_MODE", False) if common_settings else False)
+        )
+        usd_rate = float(
+            os.getenv("USD_TO_UZS_RATE")
+            or (getattr(api_settings, "USD_TO_UZS_RATE", None) if api_settings else None)
+            or (getattr(common_settings, "USD_TO_UZS_RATE", None) if common_settings else None)
+            or 12800.0
+        )
+
         return {
-            "key": os.getenv("ATMOS_KEY", getattr(settings, "ATMOS_KEY", "")),
-            "secret": os.getenv("ATMOS_SECRET", getattr(settings, "ATMOS_SECRET", "")),
-            "store_id": str(os.getenv("ATMOS_STORE_ID", getattr(settings, "ATMOS_STORE_ID", ""))),
-            "base_url": os.getenv("ATMOS_BASE_URL", getattr(settings, "ATMOS_BASE_URL", "https://apigw.atmos.uz")).rstrip("/"),
-            "mock_mode": mock_env or getattr(settings, "ATMOS_MOCK_MODE", False),
-            "usd_to_uzs_rate": float(os.getenv("USD_TO_UZS_RATE", getattr(settings, "USD_TO_UZS_RATE", 12800.0))),
+            "key": key,
+            "secret": secret,
+            "store_id": store_id,
+            "base_url": base_url,
+            "mock_mode": mock_mode,
+            "usd_to_uzs_rate": usd_rate,
         }
 
     @classmethod

@@ -3609,7 +3609,7 @@ export default function SwipiesAdsPage({
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">Быстрый выбор суммы:</label>
               <div className="grid grid-cols-5 gap-2">
-                {['20', '50', '100', '250', '500'].map((amt) => (
+                {['5', '10', '20', '50', '100'].map((amt) => (
                   <Button
                     key={amt}
                     type="button"
@@ -3630,12 +3630,12 @@ export default function SwipiesAdsPage({
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="number"
-                  step="5"
-                  min="5"
+                  step="1"
+                  min="1"
                   value={topUpAmount}
                   onChange={(e) => setTopUpAmount(e.target.value)}
                   className="pl-9 font-mono text-base font-bold h-11"
-                  placeholder="50.00"
+                  placeholder="10.00"
                 />
               </div>
             </div>
