@@ -3,9 +3,15 @@ import {
   Activity,
   AlertCircle,
   BarChart3,
+  Bot,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Copy,
   DollarSign,
   ExternalLink,
+  Eye,
+  Globe,
   Layers,
   Megaphone,
   MousePointer,
@@ -73,6 +79,26 @@ export default function AdminAdsPage() {
   const [adminTimeline, setAdminTimeline] = useState<AdminTimelineData | null>(null);
   const [timelineDays, setTimelineDays] = useState<number>(14);
   const [activeTab, setActiveTab] = useState('moderation');
+
+  // Offer expand state & Details modal state
+  const [expandedOffers, setExpandedOffers] = useState<Record<string, boolean>>({});
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedDetailsCampaign, setSelectedDetailsCampaign] = useState<any | null>(null);
+
+  const toggleOfferExpand = (id: string) => {
+    setExpandedOffers((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleOpenDetails = (cmp: any) => {
+    setSelectedDetailsCampaign(cmp);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleCopy = (text: string, label: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    message.success(`${label} nusxalandi!`);
+  };
 
   // Reject modal state
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -342,43 +368,107 @@ export default function AdminAdsPage() {
                     </thead>
                     <tbody className="divide-y">
                       {(moderationQueue || []).map((cmp) => (
-                        <tr key={cmp.id} className="hover:bg-muted/30">
-                          <td className="py-3 px-4">
-                            <div className="font-semibold">{cmp.name}</div>
+                        <tr key={cmp.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4 align-top">
+                            <div
+                              className="font-semibold text-foreground hover:text-blue-500 cursor-pointer flex items-center gap-1.5"
+                              onClick={() => handleOpenDetails(cmp)}
+                              title="Tafsilotlarni ko'rish uchun bosing"
+                            >
+                              <span>{cmp.name}</span>
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground opacity-60 hover:opacity-100" />
+                            </div>
                             <div className="text-xs text-muted-foreground font-medium">{cmp.company_name}</div>
-                            <div className="flex flex-wrap gap-1 mt-1">
+                            <div className="flex flex-wrap gap-1 mt-1.5">
                               {(!cmp.target_languages || !Array.isArray(cmp.target_languages) || cmp.target_languages.includes('all') || cmp.target_languages.length === 0) ? (
-                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-medium">🌐 Все языки</span>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-medium">🌐 Все языки</span>
                               ) : (
                                 (Array.isArray(cmp.target_languages) ? cmp.target_languages : []).map((l: string) => (
-                                  <span key={l} className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 font-bold uppercase">
+                                  <span key={l} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 font-bold uppercase">
                                     {l === 'uz' ? '🇺🇿 UZ' : l === 'ru' ? '🇷🇺 RU' : l === 'en' ? '🇬🇧 EN' : l}
                                   </span>
                                 ))
                               )}
-                              {cmp.target_models && cmp.target_models.length > 0 && !cmp.target_models.includes('all') && (
-                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 font-medium">
-                                  🤖 {cmp.target_models.join(', ')}
-                                </span>
+                              {Array.isArray(cmp.target_models) && cmp.target_models.length > 0 && !cmp.target_models.includes('all') && (
+                                cmp.target_models.map((m: string) => (
+                                  <span key={m} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 font-medium">
+                                    🤖 {m}
+                                  </span>
+                                ))
                               )}
                             </div>
                           </td>
-                          <td className="py-3 px-4 max-w-sm">
-                            <div className="text-xs line-clamp-2 text-foreground font-mono bg-muted/30 p-1.5 rounded">
-                              "{cmp.advertisement_text}"
+
+                          {/* Offer Copy with Click-to-Expand */}
+                          <td className="py-3 px-4 max-w-md align-top">
+                            <div
+                              onClick={() => toggleOfferExpand(cmp.id)}
+                              className={`group relative text-xs rounded-lg p-2.5 transition-all cursor-pointer border ${
+                                expandedOffers[cmp.id]
+                                  ? 'bg-muted/80 border-blue-500/40 shadow-sm'
+                                  : 'bg-muted/30 hover:bg-muted/60 border-border/40 hover:border-blue-500/30'
+                              }`}
+                              title="Ustiga bosing: to'liq matn ochiladi"
+                            >
+                              <div
+                                className={`font-mono text-foreground leading-relaxed ${
+                                  expandedOffers[cmp.id] ? 'whitespace-pre-wrap select-text' : 'line-clamp-2'
+                                }`}
+                              >
+                                "{cmp.advertisement_text}"
+                              </div>
+                              <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-border/40 text-[10px] text-muted-foreground">
+                                <span className="flex items-center gap-1 text-blue-500 group-hover:text-blue-400 font-medium">
+                                  {expandedOffers[cmp.id] ? (
+                                    <>
+                                      <ChevronUp className="h-3 w-3" /> Qisqartirish
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown className="h-3 w-3" /> To'liq o'qish ({cmp.advertisement_text?.length || 0} ta belgi)
+                                    </>
+                                  )}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCopy(cmp.advertisement_text, 'Reklama matni');
+                                  }}
+                                  className="hover:text-foreground flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-background/80 transition-colors"
+                                  title="Nusxa olish"
+                                >
+                                  <Copy className="h-2.5 w-2.5" /> Nusxa
+                                </button>
+                              </div>
                             </div>
                           </td>
-                          <td className="py-3 px-4">
-                            <a
-                              href={cmp.landing_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-blue-500 hover:underline flex items-center gap-1 max-w-[180px] truncate"
-                            >
-                              {cmp.landing_url} <ExternalLink className="h-3 w-3 inline" />
-                            </a>
+
+                          {/* Landing Page */}
+                          <td className="py-3 px-4 max-w-[200px] align-top">
+                            <div className="flex flex-col gap-1">
+                              <a
+                                href={cmp.landing_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-blue-500 hover:underline flex items-center gap-1 break-all"
+                                title={cmp.landing_url}
+                              >
+                                <span className="truncate max-w-[170px]">{cmp.landing_url}</span>
+                                <ExternalLink className="h-3 w-3 shrink-0" />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(cmp.landing_url, 'Havola')}
+                                className="text-[10px] text-muted-foreground hover:text-foreground self-start flex items-center gap-1 mt-0.5"
+                              >
+                                <Copy className="h-2.5 w-2.5" /> URL nusxalash
+                              </button>
+                            </div>
                           </td>
-                          <td className="py-3 px-4">
+
+                          {/* Moderation Status */}
+                          <td className="py-3 px-4 align-top">
                             <Badge
                               variant="outline"
                               className={
@@ -392,17 +482,32 @@ export default function AdminAdsPage() {
                               {cmp.moderation_status}
                             </Badge>
                             {cmp.moderation_note && (
-                              <div className="text-[10px] text-muted-foreground mt-0.5 max-w-[150px] truncate">
+                              <div
+                                className="text-[11px] text-muted-foreground mt-1 max-w-[170px] break-words cursor-pointer hover:text-foreground"
+                                onClick={() => handleOpenDetails(cmp)}
+                                title={cmp.moderation_note}
+                              >
                                 {cmp.moderation_note}
                               </div>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
+
+                          {/* Moderation Actions */}
+                          <td className="py-3 px-4 text-right align-top">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10"
+                                className="h-8 text-xs hover:bg-muted"
+                                onClick={() => handleOpenDetails(cmp)}
+                                title="Barcha ma'lumotlarni to'liq ko'rish"
+                              >
+                                <Eye className="mr-1 h-3.5 w-3.5 text-blue-500" /> Ko'rish
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10"
                                 onClick={() => handleApprove(cmp)}
                               >
                                 <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Approve
@@ -410,7 +515,7 @@ export default function AdminAdsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-red-500 border-red-500/30 hover:bg-red-500/10"
+                                className="h-8 text-xs text-red-500 border-red-500/30 hover:bg-red-500/10"
                                 onClick={() => handleOpenReject(cmp)}
                               >
                                 <XCircle className="mr-1 h-3.5 w-3.5" /> Reject
@@ -859,6 +964,167 @@ export default function AdminAdsPage() {
             <Button onClick={handleConfirmReject} className="bg-red-600 hover:bg-red-700 text-white">
               Confirm Rejection
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detailed Campaign View Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6 gap-2">
+              <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
+                <Megaphone className="h-5 w-5 text-blue-500 shrink-0" />
+                <span>{selectedDetailsCampaign?.name || 'Reklama Kampaniyasi'}</span>
+              </DialogTitle>
+              <Badge
+                variant="outline"
+                className={
+                  selectedDetailsCampaign?.moderation_status === 'approved'
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500 shrink-0'
+                    : selectedDetailsCampaign?.moderation_status === 'rejected'
+                    ? 'border-red-500/30 bg-red-500/10 text-red-500 shrink-0'
+                    : 'border-amber-500/30 bg-amber-500/10 text-amber-500 shrink-0'
+                }
+              >
+                {selectedDetailsCampaign?.moderation_status}
+              </Badge>
+            </div>
+            <DialogDescription className="text-xs">
+              {selectedDetailsCampaign?.company_name} &bull; ID: {selectedDetailsCampaign?.id}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            {/* Offer Copy */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-foreground">📝 Reklama Matni (Offer Copy):</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs px-2"
+                  onClick={() => handleCopy(selectedDetailsCampaign?.advertisement_text || '', 'Reklama matni')}
+                >
+                  <Copy className="h-3 w-3 mr-1" /> Nusxa olish
+                </Button>
+              </div>
+              <div className="p-3.5 rounded-lg bg-muted/40 border text-xs sm:text-sm font-mono whitespace-pre-wrap leading-relaxed select-text">
+                "{selectedDetailsCampaign?.advertisement_text}"
+              </div>
+            </div>
+
+            {/* Landing Page */}
+            <div className="space-y-1.5">
+              <span className="text-xs font-semibold text-foreground">🔗 O'tish Havolasi (Landing Page URL):</span>
+              <div className="p-2.5 rounded-lg bg-muted/40 border flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+                <a
+                  href={selectedDetailsCampaign?.landing_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-blue-500 hover:underline break-all"
+                >
+                  {selectedDetailsCampaign?.landing_url}
+                </a>
+                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => handleCopy(selectedDetailsCampaign?.landing_url || '', 'Havola')}
+                    title="Nusxalash"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <a
+                    href={selectedDetailsCampaign?.landing_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center h-7 px-2.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+                  >
+                    Ochish <ExternalLink className="ml-1 h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Targeting & Language Rules */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div className="p-3 rounded-lg bg-muted/30 border space-y-1.5">
+                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                  <Globe className="h-3.5 w-3.5 text-sky-500" /> Maqsadli Tillar:
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {(!selectedDetailsCampaign?.target_languages ||
+                    !Array.isArray(selectedDetailsCampaign.target_languages) ||
+                    selectedDetailsCampaign.target_languages.includes('all') ||
+                    selectedDetailsCampaign.target_languages.length === 0) ? (
+                    <span className="text-xs font-medium text-blue-600">🌐 Barcha tillar</span>
+                  ) : (
+                    selectedDetailsCampaign.target_languages.map((l: string) => (
+                      <span key={l} className="px-2 py-0.5 rounded text-xs bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-bold uppercase">
+                        {l === 'uz' ? '🇺🇿 O‘zbekcha (UZ)' : l === 'ru' ? '🇷🇺 Ruscha (RU)' : l === 'en' ? '🇬🇧 Inglizcha (EN)' : l}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/30 border space-y-1.5">
+                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                  <Bot className="h-3.5 w-3.5 text-purple-500" /> AI Modellari (Targeting):
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {(!selectedDetailsCampaign?.target_models ||
+                    !Array.isArray(selectedDetailsCampaign.target_models) ||
+                    selectedDetailsCampaign.target_models.includes('all') ||
+                    selectedDetailsCampaign.target_models.length === 0) ? (
+                    <span className="text-xs font-medium text-purple-600">🤖 Barcha AI modellari</span>
+                  ) : (
+                    selectedDetailsCampaign.target_models.map((m: string) => (
+                      <span key={m} className="px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 font-medium">
+                        🤖 {m}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Moderation Notes if present */}
+            {selectedDetailsCampaign?.moderation_note && (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
+                <span className="font-semibold text-amber-600 dark:text-amber-400">Moderator Izohi:</span>
+                <p className="mt-0.5 text-muted-foreground">{selectedDetailsCampaign.moderation_note}</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>
+              Yopish
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="text-red-500 border-red-500/30 hover:bg-red-500/10"
+                onClick={() => {
+                  setIsDetailsModalOpen(false);
+                  handleOpenReject(selectedDetailsCampaign);
+                }}
+              >
+                <XCircle className="mr-1 h-3.5 w-3.5" /> Reject
+              </Button>
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => {
+                  setIsDetailsModalOpen(false);
+                  handleApprove(selectedDetailsCampaign);
+                }}
+              >
+                <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Approve
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
