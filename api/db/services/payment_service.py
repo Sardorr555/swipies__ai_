@@ -63,9 +63,9 @@ class AtmosService:
         from common import settings
         mock_env = os.getenv("ATMOS_MOCK_MODE", "").lower() in ["true", "1", "yes"]
         return {
-            "key": os.getenv("ATMOS_KEY", getattr(settings, "ATMOS_KEY", "RSaDKnvdFGdtO2RUrQjOLZ2cCKIa")),
-            "secret": os.getenv("ATMOS_SECRET", getattr(settings, "ATMOS_SECRET", "xVMfVHDLZuvW3zQTGkXBj0wJX3ga")),
-            "store_id": str(os.getenv("ATMOS_STORE_ID", getattr(settings, "ATMOS_STORE_ID", "10577"))),
+            "key": os.getenv("ATMOS_KEY", getattr(settings, "ATMOS_KEY", "")),
+            "secret": os.getenv("ATMOS_SECRET", getattr(settings, "ATMOS_SECRET", "")),
+            "store_id": str(os.getenv("ATMOS_STORE_ID", getattr(settings, "ATMOS_STORE_ID", ""))),
             "base_url": os.getenv("ATMOS_BASE_URL", getattr(settings, "ATMOS_BASE_URL", "https://apigw.atmos.uz")).rstrip("/"),
             "mock_mode": mock_env or getattr(settings, "ATMOS_MOCK_MODE", False),
             "usd_to_uzs_rate": float(os.getenv("USD_TO_UZS_RATE", getattr(settings, "USD_TO_UZS_RATE", 12800.0))),
