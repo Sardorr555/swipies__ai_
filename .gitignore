@@ -278,3 +278,7 @@ internal/deepdoc/native/testdata
 # Local generated secret keys
 .secret_key
 **/.secret_key
+
+# Test temporary sqlite databases
+test/*_temp.db
+test/*.db

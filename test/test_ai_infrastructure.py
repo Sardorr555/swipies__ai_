@@ -88,14 +88,19 @@ from api.db.services.ai_audit_log_service import AIAuditLogService
 
 def run_tests():
     print("1. Testing authenticated Key Crypto...")
+    os.environ.setdefault("RAGFLOW_SECRET_KEY", "test-master-secret-key-32bytes-ok!")
     raw_key = "sk-proj-test-secret-key-abcdef-123456789"
     encrypted = encrypt_api_key(raw_key)
-    assert encrypted.startswith("enc:v1:"), f"Bad enc format: {encrypted}"
+    assert encrypted.startswith("enc:v2:"), f"Bad enc format: {encrypted}"
     decrypted = decrypt_api_key(encrypted)
     assert decrypted == raw_key, f"Decryption mismatch: {decrypted} != {raw_key}"
     masked = mask_api_key(raw_key)
     assert masked.startswith("sk-") and masked.endswith("6789"), f"Bad mask: {masked}"
-    print("   -> Key Crypto OK")
+    # Verify backward compatibility with legacy enc:v1 using known vector
+    legacy_v1_vector = "enc:v1:MDEyMzQ1Njc4OWFiY2RlZi2J+E1szJ+OKGOCVomikPPcq0j8d0Yjn7GmJSVm2UwuvGA+XSQUssnHfH0HcjdVGcLw"
+    legacy_dec = decrypt_api_key(legacy_v1_vector, secret="test-master-secret-key-32bytes-ok!")
+    assert legacy_dec == "cross-lang-test-secret-value-12345", f"Legacy enc:v1 decryption mismatch: {legacy_dec}"
+    print("   -> Key Crypto OK (enc:v2 and legacy enc:v1 verified)")
 
     print("2. Initializing In-Memory Test Database Schema...")
     test_db = SqliteDatabase(":memory:")
@@ -127,7 +132,15 @@ def run_tests():
     print(f"   -> Global Instance verified: {inst.id} ({inst.name}) - Status: {inst.status}")
 
     print("4. Testing AIPolicyManager Default Data Seeding...")
+    import common.settings as common_settings
+    if not common_settings.FACTORY_LLM_INFOS:
+        import json
+        with open(os.path.join(os.path.dirname(__file__), "..", "conf", "llm_factories.json"), "r") as f:
+            common_settings.FACTORY_LLM_INFOS = json.load(f)["factory_llm_infos"]
     AIPolicyManager.init_default_data()
+    for p in AIProvider.select().where(AIProvider.is_global == True):
+        p.api_key = encrypt_api_key("sk-mock-key-for-test-12345")
+        p.save()
     providers = AIProviderService.get_global_providers()
     models = AIModelService.get_platform_models()
     print(f"   -> Global Providers: {len(providers)}, Global Platform Models: {len(models)}")
@@ -135,6 +148,13 @@ def run_tests():
     assert len(models) >= 10
 
     print("5. Testing Model Access Policy Resolution for FREE vs PLUS vs PRO...")
+    # Configure policy: claude is pro-only (disabled on free)
+    SubscriptionAIPolicy.create(
+        id="policy_free_claude",
+        plan_id="free",
+        model_id="anthropic/claude-3-5-sonnet-20241022",
+        enabled=False,
+    )
     # FREE tier should access gpt-4o-mini
     free_ok, msg1, code1 = AIPolicyManager.check_model_access("test_free_user", "openai/gpt-4o-mini")
     assert free_ok == True, f"Free user should access gpt-4o-mini: {msg1}"
@@ -149,6 +169,9 @@ def run_tests():
     print("   -> Subscription tier access & BYOK gating verified OK")
 
     print("6. Testing Central Token Accounting & Cost Computation...")
+    AIModel.update(input_token_price=15.0, output_token_price=60.0).where(
+        (AIModel.id == "openai/gpt-4o-mini") | (AIModel.model_name == "gpt-4o-mini")
+    ).execute()
     AIPolicyManager.record_token_usage("test_tenant_1", "test_user_1", "openai/gpt-4o-mini", "CHAT", 10000, 2000, 12000)
     analytics = AIPolicyManager.get_admin_analytics()
     assert analytics["summary"]["total_requests"] >= 1

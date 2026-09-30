@@ -17,6 +17,9 @@
 package utility
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"os"
 	"strings"
@@ -304,6 +307,58 @@ func TestCrypto_URLRoundTripMaskedURL(t *testing.T) {
 
 	if recoveredURL != originalURL {
 		t.Fatalf("URL round-trip FAILED:\n  expected: %s\n  recovered: %s", originalURL, recoveredURL)
+	}
+}
+
+func TestCrypto_KeyRotation_InsecureDefaultKeyringDecryptOnly(t *testing.T) {
+	defaultSec := "ragflow_single_global_instance_master_secret_2026"
+	plainVal := "legacy-ai-secret-encrypted-with-hardcoded-default-2026"
+
+	// 1. Synthesize enc:v1 ciphertext using defaultSec
+	kEnc, kMac := deriveLegacyV1Keys(defaultSec)
+	iv := []byte("0123456789abcdef")
+	data := []byte(plainVal)
+	ks := legacyV1Keystream(kEnc, iv, len(data))
+	ct := make([]byte, len(data))
+	for i := range data {
+		ct[i] = data[i] ^ ks[i]
+	}
+	mac := hmac.New(sha256.New, kMac)
+	mac.Write(iv)
+	mac.Write(ct)
+	tag := mac.Sum(nil)[:16]
+	payload := append(iv, tag...)
+	payload = append(payload, ct...)
+	legacyV1 := "enc:v1:" + base64.StdEncoding.EncodeToString(payload)
+
+	// 2. Set primary key to secure 32+ char key, and rotation to include defaultSec
+	os.Setenv("RAGFLOW_SECRET_KEY", "new-strong-production-master-key-32chars!")
+	os.Setenv("RAGFLOW_SECRET_KEYS_ROTATION", "another-key,"+defaultSec)
+	defer func() {
+		os.Unsetenv("RAGFLOW_SECRET_KEY")
+		os.Unsetenv("RAGFLOW_SECRET_KEYS_ROTATION")
+	}()
+
+	// Decrypt succeeds via keyring
+	decVal, err := DecryptAPIKey(legacyV1, "")
+	if err != nil {
+		t.Fatalf("DecryptAPIKey failed: %v", err)
+	}
+	if decVal != plainVal {
+		t.Fatalf("Expected '%s', got '%s'", plainVal, decVal)
+	}
+
+	// 3. Encrypt with defaultSec is strictly forbidden
+	_, err = EncryptAPIKey("some-value", defaultSec)
+	if err != ErrInsecureSecretKey {
+		t.Fatalf("Expected ErrInsecureSecretKey when encrypting with default key, got: %v", err)
+	}
+
+	// Also when defaultSec is set as primary RAGFLOW_SECRET_KEY, EncryptAPIKey must fail
+	os.Setenv("RAGFLOW_SECRET_KEY", defaultSec)
+	_, err = EncryptAPIKey("some-value", "")
+	if err != ErrInsecureSecretKey {
+		t.Fatalf("Expected ErrInsecureSecretKey with primary default key, got: %v", err)
 	}
 }
 

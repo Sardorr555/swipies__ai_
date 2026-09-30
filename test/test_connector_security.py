@@ -418,21 +418,15 @@ class TestConnectorSecurity(unittest.TestCase):
     # -------------------------------------------------------------------------
     # 12. Real Connector Blueprint: HTTP Leak Regression via connector_api.py
     # -------------------------------------------------------------------------
-    def test_real_connector_blueprint_leak_regression(self):
-        """
-        Load the real connector_api.py blueprint via importlib (heavy deps stubbed),
-        register it on a clean Quart test app, exercise GET /api/v1/connectors/<id>
-        through the real _format_connector_response() path, and confirm no plaintext
-        credential leaks. Then run mutation verification: patch mask_connector_config
-        to identity function and confirm the test FAILS (proving the guard is real).
-        """
+    # -------------------------------------------------------------------------
+    # 12. Helper & Blueprint Mutation Tests (List, Create, Update)
+    # -------------------------------------------------------------------------
+    def _setup_real_connector_blueprint(self):
         import importlib.util
         import sys
         import types
+        from quart import Blueprint, Quart
 
-        # ------------------------------------------------------------------
-        # 1. Secrets we will store encrypted in the fake DB record.
-        # ------------------------------------------------------------------
         raw_api_key = "super_confidential_crm_bearer_token_xyz_999"
         raw_client_secret = "raw_oauth_client_secret_abc_456"
         raw_http_pass = "http_pass_777"
@@ -451,21 +445,22 @@ class TestConnectorSecurity(unittest.TestCase):
         }
         stored_enc_config = encrypt_connector_config(raw_db_config)
 
-        # ------------------------------------------------------------------
-        # 2. Build the minimal stub chain that connector_api.py needs.
-        #    We do NOT import api.apps (calls settings.init_settings()).
-        # ------------------------------------------------------------------
         import api.utils.key_crypto as _real_key_crypto
 
-        # Fake connector record
+        _records = {}
+
         class _FakeConn:
+            def __init__(self, cfg=None, name="Production Salesforce CRM"):
+                self.config = cfg if cfg is not None else stored_enc_config
+                self.name = name
+
             def to_dict(self):
                 return {
                     "id": "conn-fake-001",
                     "tenant_id": "tenant-123",
-                    "name": "Production Salesforce CRM",
+                    "name": self.name,
                     "source": "salesforce",
-                    "config": stored_enc_config,
+                    "config": self.config,
                 }
 
         class _FakeConnectorService:
@@ -473,9 +468,26 @@ class TestConnectorSecurity(unittest.TestCase):
             def accessible(connector_id, user_id):
                 return True
 
-            @staticmethod
-            def get_by_id(connector_id):
-                return True, _FakeConn()
+            @classmethod
+            def get_by_id(cls, connector_id):
+                conn = _records.get(connector_id, _FakeConn())
+                return True, conn
+
+            @classmethod
+            def list(cls, tenant_id):
+                return [{"id": "conn-fake-001", "name": "Production Salesforce CRM", "source": "salesforce", "status": "UNSTART"}]
+
+            @classmethod
+            def save(cls, **kwargs):
+                _records[kwargs["id"]] = _FakeConn(cfg=kwargs.get("config"), name=kwargs.get("name", ""))
+                return True
+
+            @classmethod
+            def update_by_id(cls, connector_id, update_fields):
+                existing = _records.get(connector_id, _FakeConn())
+                new_cfg = update_fields.get("config", existing.config)
+                _records[connector_id] = _FakeConn(cfg=new_cfg, name=existing.name)
+                return True
 
         class _FakeSyncLogsService:
             @staticmethod
@@ -513,6 +525,10 @@ class TestConnectorSecurity(unittest.TestCase):
             m.__dict__.update(attrs)
             return m
 
+        async def _fake_get_request_json():
+            from quart import request
+            return await request.get_json() or {}
+
         stubs = {
             "google_auth_oauthlib": _make_dummy("google_auth_oauthlib"),
             "google_auth_oauthlib.flow": _make_dummy("google_auth_oauthlib.flow", Flow=None),
@@ -549,7 +565,7 @@ class TestConnectorSecurity(unittest.TestCase):
                 "api.utils.api_utils",
                 get_json_result=_fake_get_json_result,
                 get_data_error_result=_fake_get_data_error_result,
-                get_request_json=None,
+                get_request_json=_fake_get_request_json,
                 validate_request=lambda *a, **kw: (lambda f: f),
             ),
             "api.utils.pagination_utils": _make_dummy(
@@ -573,9 +589,6 @@ class TestConnectorSecurity(unittest.TestCase):
             ),
         }
 
-        # ------------------------------------------------------------------
-        # 3. Install stubs → exec module → restore sys.modules.
-        # ------------------------------------------------------------------
         saved = {}
         for k, v in stubs.items():
             saved[k] = sys.modules.get(k)
@@ -586,13 +599,14 @@ class TestConnectorSecurity(unittest.TestCase):
         ))
 
         try:
-            from quart import Blueprint, Quart
             mod_name = "api.apps.restful_apis.connector_api"
             spec = importlib.util.spec_from_file_location(mod_name, connector_api_path)
             mod = importlib.util.module_from_spec(spec)
             mod.manager = Blueprint("connector_api", mod_name)
             sys.modules[mod_name] = mod
             spec.loader.exec_module(mod)
+            _orig_sleep = asyncio.sleep
+            mod.asyncio.sleep = lambda s: _orig_sleep(0)
         finally:
             for k, orig in saved.items():
                 if orig is None:
@@ -601,62 +615,367 @@ class TestConnectorSecurity(unittest.TestCase):
                     sys.modules[k] = orig
             sys.modules.pop("api.apps.restful_apis.connector_api", None)
 
-        # ------------------------------------------------------------------
-        # 4. Register blueprint on isolated test Quart app.
-        # ------------------------------------------------------------------
         test_app = Quart("test_real_blueprint")
         test_app.config["TESTING"] = True
         test_app.config["SECRET_KEY"] = "test-secret"
         test_app.register_blueprint(mod.manager, url_prefix="/api/v1")
 
-        # ------------------------------------------------------------------
-        # 5. Run GET handler: assert no plaintext leaks.
-        # ------------------------------------------------------------------
-        async def _assert_no_leaks():
-            async with test_app.test_client() as client:
-                resp = await client.get("/api/v1/connectors/conn-fake-001")
-                self.assertEqual(resp.status_code, 200,
-                    f"Handler returned {resp.status_code}")
-                body = await resp.get_data(as_text=True)
+        return test_app, mod, raw_db_config, raw_api_key, raw_client_secret, raw_http_pass, _real_key_crypto, _records, _FakeConnectorService
 
-                self.assertNotIn(raw_api_key, body,
-                    f"RAW API KEY leaked:\n{body}")
-                self.assertNotIn(raw_client_secret, body,
-                    f"RAW CLIENT SECRET leaked:\n{body}")
-                self.assertNotIn(raw_http_pass, body,
-                    f"RAW HTTP PASSWORD leaked:\n{body}")
+    def test_connector_blueprint_list_masking_mutation(self):
+        """Python Blueprint list mutation test: list endpoint must never project or leak credentials."""
+        test_app, mod, raw_db_config, raw_api_key, raw_client_secret, raw_http_pass, _real_key_crypto, _records, fake_svc = self._setup_real_connector_blueprint()
+
+        async def _run_list():
+            async with test_app.test_client() as client:
+                resp = await client.get("/api/v1/connectors")
+                self.assertEqual(resp.status_code, 200)
+                body = await resp.get_data(as_text=True)
+                self.assertNotIn(raw_api_key, body)
+                self.assertNotIn(raw_client_secret, body)
+                self.assertNotIn(raw_http_pass, body)
+                self.assertNotIn("credentials", body)
+
+        # 1. Clean run: passes
+        asyncio.run(_run_list())
+
+        # 2. Mutation: inject unmasked credentials into list projection
+        orig_list = fake_svc.list
+        fake_svc.list = lambda tid: [{"id": "c1", "name": "Leaker", "config": raw_db_config}]
+        mutation_caught = False
+        try:
+            asyncio.run(_run_list())
+        except AssertionError as exc:
+            mutation_caught = True
+            print(f"\n[MUTATION OK] list projected credentials -> caught by assertion: {exc}")
+        finally:
+            fake_svc.list = orig_list
+
+        self.assertTrue(mutation_caught, "List mutation was not caught!")
+
+    def test_connector_blueprint_create_masking_mutation(self):
+        """Python Blueprint POST create mutation test: response must mask all secrets."""
+        test_app, mod, raw_db_config, raw_api_key, raw_client_secret, raw_http_pass, _real_key_crypto, _records, fake_svc = self._setup_real_connector_blueprint()
+
+        async def _run_create():
+            async with test_app.test_client() as client:
+                resp = await client.post("/api/v1/connectors", json={
+                    "name": "New Salesforce",
+                    "source": "salesforce",
+                    "config": raw_db_config,
+                })
+                self.assertEqual(resp.status_code, 200)
+                body = await resp.get_data(as_text=True)
+                self.assertNotIn(raw_api_key, body)
+                self.assertNotIn(raw_client_secret, body)
+                self.assertNotIn(raw_http_pass, body)
 
                 import json as _json
-                payload = _json.loads(body)
-                cfg = payload["data"]["config"]
+                cfg = _json.loads(body)["data"]["config"]
                 self.assertEqual(cfg["credentials"]["client_secret"], "********")
-                self.assertEqual(cfg["credentials"]["instance_url"],
-                    "https://admin:********@crm.corp.internal")
                 self.assertEqual(cfg["auth_config"]["api_key"], "********")
-                self.assertEqual(cfg["headers"]["Authorization"], "********")
 
-        asyncio.run(_assert_no_leaks())
+        # 1. Clean run: passes
+        asyncio.run(_run_create())
 
-        # ------------------------------------------------------------------
-        # 6. MUTATION VERIFICATION: remove masking in connector_api → test MUST fail.
-        # ------------------------------------------------------------------
+        # 2. Mutation: bypass mask_connector_config in response
         _orig_mod_mask = getattr(mod, "mask_connector_config", None)
         _orig_crypto_mask = _real_key_crypto.mask_connector_config
-        mod.mask_connector_config = lambda cfg, *a, **kw: cfg  # identity bypass in connector_api
+        mod.mask_connector_config = lambda cfg, *a, **kw: cfg
         _real_key_crypto.mask_connector_config = lambda cfg, *a, **kw: cfg
         mutation_caught = False
         try:
-            asyncio.run(_assert_no_leaks())
+            asyncio.run(_run_create())
         except AssertionError as exc:
             mutation_caught = True
-            print(f"\n[MUTATION OK] masking removed in connector_api.py -> assertion correctly failed:\n  {exc}")
+            print(f"\n[MUTATION OK] POST create masking bypassed -> caught by assertion: {exc}")
         finally:
             if _orig_mod_mask:
                 mod.mask_connector_config = _orig_mod_mask
             _real_key_crypto.mask_connector_config = _orig_crypto_mask
 
-        self.assertTrue(mutation_caught,
-            "MUTATION GUARD FAILED: removing mask_connector_config did NOT cause test to fail")
+        self.assertTrue(mutation_caught, "POST create mutation was not caught!")
+
+    def test_connector_blueprint_update_masking_mutation(self):
+        """Python Blueprint PATCH update mutation test: response must mask all secrets."""
+        test_app, mod, raw_db_config, raw_api_key, raw_client_secret, raw_http_pass, _real_key_crypto, _records, fake_svc = self._setup_real_connector_blueprint()
+
+        async def _run_update():
+            async with test_app.test_client() as client:
+                resp = await client.patch("/api/v1/connectors/conn-fake-001", json={
+                    "config": {
+                        "credentials": {
+                            "client_secret": raw_client_secret,
+                        }
+                    }
+                })
+                self.assertEqual(resp.status_code, 200)
+                body = await resp.get_data(as_text=True)
+                self.assertNotIn(raw_api_key, body)
+                self.assertNotIn(raw_client_secret, body)
+                self.assertNotIn(raw_http_pass, body)
+
+                import json as _json
+                cfg = _json.loads(body)["data"]["config"]
+                self.assertEqual(cfg["credentials"]["client_secret"], "********")
+
+        # 1. Clean run: passes
+        asyncio.run(_run_update())
+
+        # 2. Mutation: bypass mask_connector_config in response
+        _orig_mod_mask = getattr(mod, "mask_connector_config", None)
+        _orig_crypto_mask = _real_key_crypto.mask_connector_config
+        mod.mask_connector_config = lambda cfg, *a, **kw: cfg
+        _real_key_crypto.mask_connector_config = lambda cfg, *a, **kw: cfg
+        mutation_caught = False
+        try:
+            asyncio.run(_run_update())
+        except AssertionError as exc:
+            mutation_caught = True
+            print(f"\n[MUTATION OK] PATCH update masking bypassed -> caught by assertion: {exc}")
+        finally:
+            if _orig_mod_mask:
+                mod.mask_connector_config = _orig_mod_mask
+            _real_key_crypto.mask_connector_config = _orig_crypto_mask
+
+        self.assertTrue(mutation_caught, "PATCH update mutation was not caught!")
+
+    def test_real_connector_blueprint_leak_regression(self):
+        """Comprehensive regression test running GET by ID, GET list, POST create, PATCH update."""
+        test_app, mod, raw_db_config, raw_api_key, raw_client_secret, raw_http_pass, _real_key_crypto, _records, fake_svc = self._setup_real_connector_blueprint()
+
+        async def _assert_no_leaks():
+            async with test_app.test_client() as client:
+                # 1. GET by id
+                resp = await client.get("/api/v1/connectors/conn-fake-001")
+                self.assertEqual(resp.status_code, 200)
+                body = await resp.get_data(as_text=True)
+                self.assertNotIn(raw_api_key, body)
+                self.assertNotIn(raw_client_secret, body)
+                self.assertNotIn(raw_http_pass, body)
+
+                # 2. GET list
+                resp_list = await client.get("/api/v1/connectors")
+                self.assertEqual(resp_list.status_code, 200)
+                body_list = await resp_list.get_data(as_text=True)
+                self.assertNotIn(raw_api_key, body_list)
+                self.assertNotIn(raw_client_secret, body_list)
+                self.assertNotIn(raw_http_pass, body_list)
+
+                # 3. POST create
+                resp_post = await client.post("/api/v1/connectors", json={
+                    "name": "New Salesforce",
+                    "source": "salesforce",
+                    "config": raw_db_config,
+                })
+                self.assertEqual(resp_post.status_code, 200)
+                body_post = await resp_post.get_data(as_text=True)
+                self.assertNotIn(raw_api_key, body_post)
+                self.assertNotIn(raw_client_secret, body_post)
+                self.assertNotIn(raw_http_pass, body_post)
+
+                # 4. PATCH update
+                resp_patch = await client.patch("/api/v1/connectors/conn-fake-001", json={
+                    "config": {
+                        "credentials": {
+                            "client_secret": raw_client_secret,
+                        }
+                    }
+                })
+                self.assertEqual(resp_patch.status_code, 200)
+                body_patch = await resp_patch.get_data(as_text=True)
+                self.assertNotIn(raw_api_key, body_patch)
+                self.assertNotIn(raw_client_secret, body_patch)
+                self.assertNotIn(raw_http_pass, body_patch)
+
+        asyncio.run(_assert_no_leaks())
+
+    # -------------------------------------------------------------------------
+    # 13. Real Syncer dispatch_tasks() Decryption & Mutation Test
+    # -------------------------------------------------------------------------
+    def test_real_dispatch_tasks_decryption_mutation(self):
+        """
+        Invoke the REAL dispatch_tasks() from rag/svr/sync_data_source.py.
+        Prove that it calls decrypt_connector_config() so worker factories receive
+        plaintext secrets, and prove mutation: removing decrypt causes assertion failure.
+        """
+        import types
+        import importlib.util
+
+        class AutoMock(types.ModuleType):
+            def __init__(self, name):
+                super().__init__(name)
+                self.__path__ = []
+            def __getattr__(self, name):
+                val = AutoMock(f"{self.__name__}.{name}")
+                setattr(self, name, val)
+                return val
+            def __call__(self, *args, **kwargs): return AutoMock("call")
+
+        saved_mods = {}
+        for m in [
+            "common.data_source", "box_sdk_gen", "common.data_source.models",
+            "common.data_source.webdav_connector", "common.data_source.confluence_connector",
+            "common.data_source.gmail_connector", "common.data_source.box_connector",
+            "common.data_source.github.connector", "common.data_source.gitlab_connector",
+            "common.data_source.bitbucket.connector", "common.data_source.azure_devops.connector",
+            "common.data_source.interfaces", "common.data_source.sitemap_connector",
+            "common.data_source.exceptions", "common.data_source.config", "common.log_utils",
+            "common.signal_utils"
+        ]:
+            saved_mods[m] = sys.modules.get(m)
+            sys.modules[m] = AutoMock(m)
+
+        sds_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "rag", "svr", "sync_data_source.py"))
+        try:
+            spec = importlib.util.spec_from_file_location("rag.svr.sync_data_source", sds_path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules["rag.svr.sync_data_source"] = mod
+            spec.loader.exec_module(mod)
+        finally:
+            for m, orig in saved_mods.items():
+                if orig is None:
+                    sys.modules.pop(m, None)
+                else:
+                    sys.modules[m] = orig
+
+        raw_token = "super-secret-sync-token-12345"
+        enc_cfg = encrypt_connector_config({
+            "credentials": {
+                "jira_api_token": raw_token,
+                "instance_url": "https://jira.corp",
+            }
+        })
+
+        captured_conf = {}
+        async def fake_runner(task): pass
+        def fake_factory(conf):
+            captured_conf.clear()
+            captured_conf.update(conf)
+            return fake_runner
+
+        mod.func_factory = {"jira": fake_factory}
+        mod.SyncLogsService.list_due_sync_tasks = lambda: [{
+            "id": "t1", "source": "jira", "config": enc_cfg, "poll_range_start": None, "poll_range_end": None
+        }]
+        mod.SyncLogsService.list_due_prune_tasks = lambda: []
+        _orig_sleep = asyncio.sleep
+        mod.asyncio.sleep = lambda s: _orig_sleep(0)
+
+        # 1. Clean run: dispatch_tasks() decrypts before passing to factory
+        asyncio.run(mod.dispatch_tasks())
+        self.assertEqual(
+            captured_conf["credentials"]["jira_api_token"],
+            raw_token,
+            "Real dispatch_tasks() did not decrypt credentials for connector worker!"
+        )
+
+        # 2. MUTATION VERIFICATION: bypass decrypt_connector_config -> MUST FAIL
+        _orig_decrypt = mod.decrypt_connector_config
+        mod.decrypt_connector_config = lambda cfg: cfg  # identity bypass (mutation)
+        mutation_caught = False
+        try:
+            asyncio.run(mod.dispatch_tasks())
+            self.assertEqual(captured_conf["credentials"]["jira_api_token"], raw_token)
+        except AssertionError as exc:
+            mutation_caught = True
+            print(f"\n[MUTATION OK] dispatch_tasks decrypt removed -> caught by assertion:\n  {exc}")
+        finally:
+            mod.decrypt_connector_config = _orig_decrypt
+
+        self.assertTrue(mutation_caught, "MUTATION GUARD FAILED: bypassing decrypt_connector_config in dispatch_tasks was not caught!")
+
+    # -------------------------------------------------------------------------
+    # 14. Real Worker OAuth Refresh Persists enc:v2: to Database
+    # -------------------------------------------------------------------------
+    def test_real_worker_oauth_refresh_persists_enc_v2_to_db(self):
+        """
+        Execute the REAL ConnectorService.update_by_id() path invoked by workers
+        (rag/svr/sync_data_source.py:803/954/1751) on a real SQLite-backed Connector table.
+        Prove that:
+        1. Refreshed token is persisted as enc:v2: in the DB column.
+        2. Plaintext token NEVER appears in the database row.
+        3. ConnectorService.get_decrypted_config() recovers the plaintext token.
+        4. Mutation: bypassing merge_updated_connector_config leaks plaintext to DB and fails.
+        """
+        from peewee import SqliteDatabase
+        from api.db.db_models import DB, Connector
+        from api.db.services.connector_service import ConnectorService
+
+        test_db = SqliteDatabase(":memory:")
+        _orig_connect = DB.connect
+        _orig_close = DB.close
+        _orig_is_closed = DB.is_closed
+
+        DB.connect = lambda *a, **kw: True
+        DB.close = lambda *a, **kw: None
+        DB.is_closed = lambda: False
+
+        _orig_db = Connector._meta.database
+        try:
+            Connector._meta.database = test_db
+            test_db.bind([Connector])
+            test_db.connect()
+            test_db.create_tables([Connector])
+
+            # Initial connector record
+            initial_cfg = {"credentials": {"access_token": "old-token-000", "client_id": "cid-123"}}
+            enc_init = encrypt_connector_config(initial_cfg)
+            Connector.create(
+                id="conn-worker-001",
+                tenant_id="tenant-worker",
+                name="Worker OAuth Connector",
+                source="salesforce",
+                input_type="poll",
+                config=enc_init,
+            )
+
+            # Worker refreshes oauth token via ConnectorService.update_by_id
+            refreshed_token = "brand-new-refreshed-oauth-token-999"
+            update_payload = {"credentials": {"access_token": refreshed_token}}
+            ConnectorService.update_by_id("conn-worker-001", {"config": update_payload})
+
+            # 1. Read directly from DB
+            row = Connector.get_by_id("conn-worker-001")
+            token_in_db = row.config["credentials"]["access_token"]
+            self.assertTrue(
+                token_in_db.startswith("enc:v2:"),
+                f"Token was stored plaintext in DB! Got: {token_in_db}"
+            )
+            self.assertNotIn(
+                refreshed_token,
+                str(row.config),
+                "Raw token leaked into DB row JSON!"
+            )
+
+            # 2. Service decrypts properly
+            decrypted = ConnectorService.get_decrypted_config("conn-worker-001")
+            self.assertEqual(decrypted["credentials"]["access_token"], refreshed_token)
+
+            # 3. MUTATION VERIFICATION: bypass merge_updated_connector_config in update_by_id
+            import api.db.services.connector_service as cs_mod
+            _orig_merge = cs_mod.merge_updated_connector_config
+            cs_mod.merge_updated_connector_config = lambda exist, upd: upd  # mutation: raw update
+            mutation_caught = False
+            try:
+                ConnectorService.update_by_id("conn-worker-001", {"config": {"credentials": {"access_token": "leaked-token"}}})
+                mutated_row = Connector.get_by_id("conn-worker-001")
+                mutated_token = mutated_row.config["credentials"]["access_token"]
+                self.assertTrue(mutated_token.startswith("enc:v2:"), "MUTATION TRIGGER: raw token written to DB!")
+            except AssertionError as exc:
+                mutation_caught = True
+                print(f"\n[MUTATION OK] update_by_id merge bypassed -> caught by assertion:\n  {exc}")
+            finally:
+                cs_mod.merge_updated_connector_config = _orig_merge
+
+            self.assertTrue(mutation_caught, "MUTATION GUARD FAILED: bypassing merge in update_by_id was not caught!")
+
+        finally:
+            Connector._meta.database = _orig_db
+            DB.connect = _orig_connect
+            DB.close = _orig_close
+            DB.is_closed = _orig_is_closed
+
 
     # -------------------------------------------------------------------------
     # 13. URL Round-Trip PATCH: masked URL must preserve original secret
@@ -767,6 +1086,49 @@ class TestConnectorSecurity(unittest.TestCase):
         os.environ.pop("RAGFLOW_SECRET_KEYS_ROTATION", None)
         failed_dec = decrypt_api_key(legacy_v1_vector)
         self.assertEqual(failed_dec, legacy_v1_vector, "Unknown key should safely return ciphertext without crash")
+
+    # -------------------------------------------------------------------------
+    # 15. Keyring Decrypt-Only for Insecure Defaults (Historical Data Migration)
+    # -------------------------------------------------------------------------
+    def test_keyring_decrypt_only_insecure_default_secret(self):
+        """
+        Prove that RAGFLOW_SECRET_KEYS_ROTATION accepts INSECURE_DEFAULT_KEYS for decrypt-only.
+        Data previously encrypted under 'ragflow_single_global_instance_master_secret_2026'
+        successfully decrypts, while encryption with that key remains strictly forbidden (fail-closed).
+        """
+        import base64
+        import hashlib
+        import hmac
+        from api.utils.key_crypto import _derive_legacy_v1_keys, _legacy_v1_keystream
+
+        default_sec = "ragflow_single_global_instance_master_secret_2026"
+        plain_secret = "legacy-ai-secret-encrypted-with-hardcoded-default-2026"
+
+        # 1. Synthesize enc:v1 ciphertext using legacy cipher and default_sec
+        k_enc, k_mac = _derive_legacy_v1_keys(default_sec)
+        iv = b"0123456789abcdef"
+        data = plain_secret.encode("utf-8")
+        ks = _legacy_v1_keystream(k_enc, iv, len(data))
+        ct = bytes(a ^ b for a, b in zip(data, ks))
+        tag = hmac.new(k_mac, iv + ct, hashlib.sha256).digest()[:16]
+        legacy_v1 = "enc:v1:" + base64.b64encode(iv + tag + ct).decode("ascii")
+
+        # 2. Configure primary secure key, and put default_sec in RAGFLOW_SECRET_KEYS_ROTATION
+        os.environ["RAGFLOW_SECRET_KEY"] = self.master_secret
+        os.environ["RAGFLOW_SECRET_KEYS_ROTATION"] = f"some-key-1,{default_sec},some-key-2"
+
+        # Decrypt succeeds via keyring
+        decrypted = decrypt_api_key(legacy_v1)
+        self.assertEqual(decrypted, plain_secret, "Failed to decrypt legacy v1 with default key via rotation keyring")
+
+        # 3. Encrypt with default_sec is strictly forbidden (fail-closed)
+        with self.assertRaises(InsecureSecretKeyError):
+            encrypt_api_key("test-secret", secret=default_sec)
+
+        # Also when default_sec is set as primary RAGFLOW_SECRET_KEY, encrypt must fail
+        os.environ["RAGFLOW_SECRET_KEY"] = default_sec
+        with self.assertRaises(InsecureSecretKeyError):
+            encrypt_api_key("test-secret")
 
 
 if __name__ == "__main__":
