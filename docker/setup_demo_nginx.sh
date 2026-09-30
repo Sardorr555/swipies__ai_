@@ -288,6 +288,10 @@ else
   exit 1
 fi
 
+echo "🔄 Force-restarting Python backend container (swipies-cpu) to reload updated API code..."
+sudo docker restart swipies-cpu || true
+
+
 echo "=================================================="
 echo "🎉 Configuration completed for demo.swipies.app and ads.swipies.app!"
 echo "   Access: http://demo.swipies.app -> http://127.0.0.1:9222"
