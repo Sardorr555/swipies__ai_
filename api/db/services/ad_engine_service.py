@@ -1042,6 +1042,9 @@ class AdEngineService:
         total_impressions = AdImpression.select().count()
         total_clicks = AdClick.select().count()
         total_revenue = sum(c.total_spent for c in AdCampaign.select())
+        total_deposits = sum(float(t.amount or 0.0) for t in AdTransaction.select().where(AdTransaction.type == "deposit"))
+        if total_deposits == 0:
+            total_deposits = sum(float(a.balance or 0.0) for a in Advertiser.select())
         ctr = (total_clicks / total_impressions * 100.0) if total_impressions > 0 else 0.0
 
         return {
@@ -1052,6 +1055,7 @@ class AdEngineService:
             "total_impressions": total_impressions,
             "total_clicks": total_clicks,
             "total_revenue": round(total_revenue, 2),
+            "total_deposits": round(total_deposits, 2),
             "network_ctr": round(ctr, 2),
         }
 
