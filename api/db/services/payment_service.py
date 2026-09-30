@@ -368,6 +368,12 @@ class AtmosService:
                 create_time=now_ts,
                 update_time=now_ts,
             )
+            store_id_val = str(conf["store_id"])
+            checkout_url = (
+                f"https://checkout.atmos.uz/invoice/get?storeId={store_id_val}&transactionId={external_tx_id}&redirectLink=https://demo.swipies.app/ads?payment_success={order.id}"
+                if external_tx_id
+                else ""
+            )
             return True, "Транзакция успешно создана.", {
                 "order_id": order.id,
                 "transaction_id": external_tx_id,
@@ -378,6 +384,7 @@ class AtmosService:
                 "advertiser_id": advertiser_id,
                 "currency": "UZS",
                 "status": "pending",
+                "checkout_url": checkout_url,
             }
         except Exception as e:
             logger.exception(f"[PaymentOrder DB Insert Error] {e}")
@@ -735,7 +742,46 @@ class AtmosService:
             return None
         if user_id and order.user_id != user_id:
             return None
-        return order.to_dict()
+
+        # If order is not yet paid, attempt to sync status from Atmos gateway
+        if order.status != "paid" and order.external_transaction_id and not str(order.external_transaction_id).startswith("mock-"):
+            conf = cls._get_config()
+            if not conf["mock_mode"]:
+                try:
+                    token = cls.get_atmos_token()
+                    resp = requests.post(
+                        f"{conf['base_url']}/merchant/pay/get",
+                        headers={
+                            "Authorization": f"Bearer {token}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "store_id": int(conf["store_id"]),
+                            "transaction_id": int(order.external_transaction_id),
+                        },
+                        timeout=10,
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        store_tx = data.get("store_transaction") or {}
+                        is_confirmed = store_tx.get("confirmed") is True or store_tx.get("status_code") == "0"
+                        if is_confirmed:
+                            with DB.atomic():
+                                order.status = "paid"
+                                order.update_time = current_timestamp()
+                                order.save()
+                                cls._fulfill_paid_order(order)
+                except Exception as ex:
+                    logger.warning(f"[Atmos Order Status Sync Error] {ex}")
+
+        order_dict = order.to_dict()
+        conf = cls._get_config()
+        if order.external_transaction_id:
+            store_id_val = str(conf["store_id"])
+            order_dict["checkout_url"] = (
+                f"https://checkout.atmos.uz/invoice/get?storeId={store_id_val}&transactionId={order.external_transaction_id}&redirectLink=https://demo.swipies.app/ads?payment_success={order.id}"
+            )
+        return order_dict
 
     @classmethod
     @DB.connection_context()
