@@ -991,10 +991,12 @@ class AdEngineService:
                 "created_at": c.create_time,
             })
 
+        total_balance = sum(float(a.balance or 0.0) for a in Advertiser.select().where(Advertiser.id.in_(list(adv_ids))))
+
         return {
             "advertiser_id": adv.id,
             "company_name": adv.company_name,
-            "balance": round(adv.balance, 2),
+            "balance": round(total_balance, 2),
             "currency": adv.currency,
             "active_campaigns": active_campaigns,
             "total_campaigns": total_campaigns,
