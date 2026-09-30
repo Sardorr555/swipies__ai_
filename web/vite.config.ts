@@ -251,10 +251,6 @@ export default defineConfig(({ mode }) => {
         },
         output: {
           manualChunks(id) {
-            // if (id.includes('src/components')) {
-            //   return 'components';
-            // }
-
             if (id.includes('src/locales/') && id.endsWith('.ts')) {
               const match = id.match(/src\/locales\/([^/]+)\.ts$/);
               if (match) {
@@ -263,27 +259,19 @@ export default defineConfig(({ mode }) => {
             }
 
             if (id.includes('node_modules')) {
-              if (id.includes('node_modules/d3')) {
-                return 'd3';
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                return 'react-core';
               }
-              if (id.includes('node_modules/ajv')) {
-                return 'ajv';
+              if (id.includes('@antv') || id.includes('d3') || id.includes('recharts')) {
+                return 'charts';
               }
-              if (id.includes('node_modules/@antv')) {
-                return 'antv';
+              if (id.includes('monaco-editor') || id.includes('lexical') || id.includes('pdfjs-dist')) {
+                return 'editors';
               }
-              const name = id
-                .toString()
-                .split('node_modules/')[1]
-                .split('/')[0]
-                .toString();
-              if (['lodash', 'dayjs', 'date-fns', 'axios'].includes(name)) {
-                return 'utils';
+              if (id.includes('lucide-react') || id.includes('@radix-ui') || id.includes('antd')) {
+                return 'ui-vendor';
               }
-              if (['@xmldom', 'xmlbuilder '].includes(name)) {
-                return 'xml-js';
-              }
-              return name;
+              return 'vendor';
             }
           },
           chunkFileNames: 'chunk/js/[name]-[hash].js',
