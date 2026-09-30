@@ -5,7 +5,7 @@
   "author": "bill",
   "type": "module",
   "scripts": {
-    "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build --mode production",
+    "build": "vite build --mode production",
     "build-storybook": "storybook build",
     "dev": "vite --host",
     "format": "oxfmt src",
