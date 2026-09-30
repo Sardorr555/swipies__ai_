@@ -612,7 +612,7 @@ export function AtmosPaymentModal({
               <p className="text-xs text-muted-foreground">
                 {purpose === 'subscription_upgrade'
                   ? `Ваш тариф успешно обновлен до ${planId?.toUpperCase()}. Все привилегии активированы.`
-                  : `Баланс рекламодателя успешно пополнен на $${computedUsd.toFixed(2)} USD.`}
+                  : `Баланс рекламодателя успешно пополнен на $${finalUsd.toFixed(2)} USD.`}
               </p>
             </div>
 
@@ -643,7 +643,7 @@ export function AtmosPaymentModal({
               <div className="flex justify-between">
                 <span>Сумма списания:</span>
                 <span className="font-bold text-foreground">
-                  {computedUzs.toLocaleString()} UZS (${computedUsd.toFixed(2)})
+                  {computedUzs.toLocaleString()} UZS (${finalUsd.toFixed(2)})
                 </span>
               </div>
               <div className="flex justify-between">
