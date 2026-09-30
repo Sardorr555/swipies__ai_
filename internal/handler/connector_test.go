@@ -11,8 +11,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
 
 	"ragflow/internal/common"
+	"ragflow/internal/dao"
 	"ragflow/internal/entity"
 	"ragflow/internal/service"
 	syncerconnector "ragflow/internal/syncer/connector"
@@ -20,6 +23,7 @@ import (
 
 type fakeConnectorService struct {
 	connector *entity.Connector
+	listItem  *dao.ConnectorListItem
 	logs      []*entity.ConnectorSyncLog
 	total     int64
 	code      common.ErrorCode
@@ -34,6 +38,16 @@ type logListCapture struct {
 }
 
 func (s fakeConnectorService) ListConnectors(context.Context, string) (*service.ListConnectorsResponse, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.listItem != nil {
+		return &service.ListConnectorsResponse{
+			Connectors: []*dao.ConnectorListItem{
+				s.listItem,
+			},
+		}, nil
+	}
 	return &service.ListConnectorsResponse{}, nil
 }
 
@@ -757,6 +771,176 @@ func TestConnectorHandler_CredentialMaskingRealHandler(t *testing.T) {
 	}
 	if creds["instance_url"] != "https://admin:********@jira.internal.local" {
 		t.Errorf("expected instance_url with masked password, got: %v", creds["instance_url"])
+	}
+}
+
+func TestConnectorHandler_ListConnectors_MaskingMutation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rawSecretToken := "super-confidential-list-token-111"
+	rawClientSecret := "super-private-list-secret-222"
+
+	fakeItem := &dao.ConnectorListItem{
+		ID:     "conn-list-1",
+		Name:   "Protected List Connector",
+		Source: "jira",
+		Status: "active",
+	}
+
+	h := &ConnectorHandler{
+		connectorService: fakeConnectorService{
+			listItem: fakeItem,
+		},
+	}
+
+	router := gin.New()
+	router.GET("/connector/list", func(c *gin.Context) {
+		c.Set("user", &entity.User{ID: "tenant-1"})
+		h.ListConnectors(c)
+	})
+
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/connector/list", nil)
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got: %d", resp.Code)
+	}
+
+	bodyStr := resp.Body.String()
+	// 1. List endpoint MUST NOT project or leak config field or secrets
+	if strings.Contains(bodyStr, "\"config\"") {
+		t.Fatalf("LEAK: config field found in list response body! Body: %s", bodyStr)
+	}
+	if strings.Contains(bodyStr, rawSecretToken) {
+		t.Fatalf("LEAK: rawSecretToken found in HTTP response body! Body: %s", bodyStr)
+	}
+	if strings.Contains(bodyStr, rawClientSecret) {
+		t.Fatalf("LEAK: rawClientSecret found in HTTP response body! Body: %s", bodyStr)
+	}
+	if strings.Contains(bodyStr, "pass123") {
+		t.Fatalf("LEAK: URL password found in HTTP response body! Body: %s", bodyStr)
+	}
+
+	// 2. DAO Projection Verification:
+	// Verify that ConnectorDAO.ListByTenantID explicitly restricts selected columns
+	// and never executes SELECT * or selects config/secrets from the database.
+	var executedSQL string
+	testDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("failed to open dry-run sqlite: %v", err)
+	}
+
+	testDB.Callback().Query().After("gorm:query").Register("capture_test_sql", func(tx *gorm.DB) {
+		executedSQL = tx.Statement.SQL.String()
+	})
+
+	connectorDAO := dao.NewConnectorDAO()
+	_, _ = connectorDAO.ListByTenantID(context.Background(), testDB, "tenant-1")
+
+	if strings.Contains(executedSQL, "*") || strings.Contains(strings.ToLower(executedSQL), "config") {
+		t.Fatalf("LEAK: DAO query selects all columns or config! SQL: %s", executedSQL)
+	}
+	if !strings.Contains(executedSQL, "id") || !strings.Contains(executedSQL, "name") || !strings.Contains(executedSQL, "source") || !strings.Contains(executedSQL, "status") {
+		t.Fatalf("DAO query does not explicitly project required safe columns! SQL: %s", executedSQL)
+	}
+}
+
+func TestConnectorHandler_CreateConnector_MaskingMutation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rawSecretToken := "super-confidential-create-token-333"
+
+	fakeConn := &entity.Connector{
+		ID:     "conn-create-1",
+		Name:   "Protected Created Connector",
+		Source: "jira",
+		Config: entity.JSONMap{
+			"credentials": map[string]any{
+				"instance_url":   "https://admin:pass123@jira.internal.local",
+				"jira_api_token": rawSecretToken,
+			},
+		},
+	}
+
+	h := &ConnectorHandler{
+		connectorService: fakeConnectorService{
+			connector: fakeConn,
+		},
+	}
+
+	router := gin.New()
+	router.POST("/connector/", func(c *gin.Context) {
+		c.Set("user", &entity.User{ID: "tenant-1"})
+		h.CreateConnector(c)
+	})
+
+	reqBody := `{"name":"test","source":"jira","config":{"credentials":{"jira_api_token":"secret"}}}`
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/connector/", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got: %d", resp.Code)
+	}
+
+	bodyStr := resp.Body.String()
+	if strings.Contains(bodyStr, rawSecretToken) {
+		t.Fatalf("LEAK: rawSecretToken found in HTTP response body! Body: %s", bodyStr)
+	}
+	if strings.Contains(bodyStr, "pass123") {
+		t.Fatalf("LEAK: URL password found in HTTP response body! Body: %s", bodyStr)
+	}
+}
+
+func TestConnectorHandler_UpdateConnector_MaskingMutation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rawSecretToken := "super-confidential-update-token-444"
+
+	fakeConn := &entity.Connector{
+		ID:     "conn-update-1",
+		Name:   "Protected Updated Connector",
+		Source: "jira",
+		Config: entity.JSONMap{
+			"credentials": map[string]any{
+				"instance_url":   "https://admin:pass123@jira.internal.local",
+				"jira_api_token": rawSecretToken,
+			},
+		},
+	}
+
+	h := &ConnectorHandler{
+		connectorService: fakeConnectorService{
+			connector: fakeConn,
+		},
+	}
+
+	router := gin.New()
+	router.POST("/api/v1/connectors/:connector_id", func(c *gin.Context) {
+		c.Set("user", &entity.User{ID: "tenant-1"})
+		h.UpdateConnector(c)
+	})
+
+	reqBody := `{"name":"updated","config":{"credentials":{"jira_api_token":"secret"}}}`
+	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/connectors/conn-update-1", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got: %d", resp.Code)
+	}
+
+	bodyStr := resp.Body.String()
+	if strings.Contains(bodyStr, rawSecretToken) {
+		t.Fatalf("LEAK: rawSecretToken found in HTTP response body! Body: %s", bodyStr)
+	}
+	if strings.Contains(bodyStr, "pass123") {
+		t.Fatalf("LEAK: URL password found in HTTP response body! Body: %s", bodyStr)
 	}
 }
 
