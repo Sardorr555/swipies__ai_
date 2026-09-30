@@ -1888,7 +1888,9 @@ async def export_campaigns_csv():
 @login_required
 def get_campaign_variants(campaign_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         variants = AdVariantService.list_variants(campaign_id=campaign_id, advertiser_id=adv.id)
         return get_json_result(data=variants)
     except Exception as e:
@@ -1900,7 +1902,9 @@ def get_campaign_variants(campaign_id):
 @login_required
 def create_campaign_variant(campaign_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
         if not cmp:
             return get_data_error_result(message="Campaign not found")
@@ -1925,7 +1929,9 @@ def create_campaign_variant(campaign_id):
 @login_required
 def update_campaign_variant(campaign_id, variant_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         req = get_request_json() or {}
         updated = AdVariantService.update_variant(
             variant_id=variant_id,
@@ -1944,7 +1950,9 @@ def update_campaign_variant(campaign_id, variant_id):
 @login_required
 def toggle_campaign_variant(campaign_id, variant_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         toggled = AdVariantService.toggle_variant(
             variant_id=variant_id,
             advertiser_id=adv.id,
@@ -1961,7 +1969,9 @@ def toggle_campaign_variant(campaign_id, variant_id):
 @login_required
 def delete_campaign_variant(campaign_id, variant_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         success = AdVariantService.delete_variant(
             variant_id=variant_id,
             advertiser_id=adv.id,
@@ -1984,7 +1994,9 @@ def delete_campaign_variant(campaign_id, variant_id):
 def get_user_subscription():
     try:
         from api.db.services.recurring_subscription_service import RecurringSubscriptionService
-        sub = RecurringSubscriptionService.get_user_subscription(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        sub = RecurringSubscriptionService.get_user_subscription(user_id, tenant_id)
         return get_json_result(data=sub)
     except Exception as e:
         logger.exception(f"Error fetching subscription: {e}")
@@ -1996,11 +2008,13 @@ def get_user_subscription():
 def cancel_user_subscription():
     try:
         from api.db.services.recurring_subscription_service import RecurringSubscriptionService
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
         req = get_request_json() or {}
         immediate = bool(req.get("immediate", False))
         res = RecurringSubscriptionService.cancel_subscription(
-            user_id=current_user.id,
-            tenant_id=current_user.tenant_id,
+            user_id=user_id,
+            tenant_id=tenant_id,
             cancel_immediately=immediate,
         )
         return get_json_result(data=res)
@@ -2014,9 +2028,11 @@ def cancel_user_subscription():
 def resume_user_subscription():
     try:
         from api.db.services.recurring_subscription_service import RecurringSubscriptionService
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
         res = RecurringSubscriptionService.resume_subscription(
-            user_id=current_user.id,
-            tenant_id=current_user.tenant_id,
+            user_id=user_id,
+            tenant_id=tenant_id,
         )
         return get_json_result(data=res)
     except Exception as e:
@@ -2029,7 +2045,9 @@ def resume_user_subscription():
 def get_user_payment_methods():
     try:
         from api.db.services.recurring_subscription_service import SavedPaymentMethodService
-        cards = SavedPaymentMethodService.list_user_cards(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        cards = SavedPaymentMethodService.list_user_cards(user_id, tenant_id)
         return get_json_result(data=cards)
     except Exception as e:
         logger.exception(f"Error listing payment methods: {e}")
