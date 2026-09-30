@@ -5,7 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --prefer-offline --no-audit --no-fund --maxsockets 3
 
 COPY . .
-ENV NODE_OPTIONS="--max-old-space-size=2560"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 FROM nginx:alpine

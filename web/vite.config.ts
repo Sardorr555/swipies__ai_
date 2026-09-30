@@ -240,8 +240,7 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       assetsDir: 'assets',
       assetsInlineLimit: 4096,
-      experimentalMinChunkSize: 30 * 1024,
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 2000,
       rollupOptions: {
         onwarn(warning, warn) {
           if (warning.code === 'EMPTY_BUNDLE') {
@@ -256,22 +255,6 @@ export default defineConfig(({ mode }) => {
               if (match) {
                 return `locale-${match[1]}`;
               }
-            }
-
-            if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-                return 'react-core';
-              }
-              if (id.includes('@antv') || id.includes('d3') || id.includes('recharts')) {
-                return 'charts';
-              }
-              if (id.includes('monaco-editor') || id.includes('lexical') || id.includes('pdfjs-dist')) {
-                return 'editors';
-              }
-              if (id.includes('lucide-react') || id.includes('@radix-ui') || id.includes('antd')) {
-                return 'ui-vendor';
-              }
-              return 'vendor';
             }
           },
           chunkFileNames: 'chunk/js/[name]-[hash].js',
