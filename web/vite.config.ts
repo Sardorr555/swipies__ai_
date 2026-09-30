@@ -157,7 +157,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      inspectorBabelPlugin(),
+      mode !== 'production' ? inspectorBabelPlugin() : null,
       react(),
       viteStaticCopy({
         targets: [
@@ -186,8 +186,8 @@ export default defineConfig(({ mode }) => {
           },
         },
       }),
-      inspectorServer(),
-    ],
+      mode !== 'production' ? inspectorServer() : null,
+    ].filter(Boolean),
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
