@@ -302,6 +302,16 @@ class AtmosService:
             else:
                 resolved_email = f"user_{user_id[:8]}@swipies.app"
 
+        # Resolve advertiser_id if deposit purpose
+        if purpose == "advertiser_deposit" and not advertiser_id:
+            try:
+                from api.db.services.ad_engine_service import AdvertiserService
+                adv_found = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
+                if adv_found:
+                    advertiser_id = adv_found.id
+            except Exception as e:
+                logger.warning(f"Failed to auto-resolve advertiser_id: {e}")
+
         order_id = uuid.uuid4().hex[:32]
         now_ts = current_timestamp()
 
@@ -694,28 +704,45 @@ class AtmosService:
                 result["error"] = "Tenant not found"
 
         elif order.purpose == "advertiser_deposit":
-            adv_id = order.advertiser_id
-            if not adv_id:
-                # Find advertiser by tenant_id or user_id
+            adv = None
+            if order.advertiser_id:
+                adv = Advertiser.get_or_none(Advertiser.id == order.advertiser_id)
+            if not adv and order.user_id:
+                adv = Advertiser.get_or_none(Advertiser.user_id == order.user_id)
+            if not adv and order.tenant_id:
                 adv = Advertiser.get_or_none(Advertiser.tenant_id == order.tenant_id)
-                if adv:
-                    adv_id = adv.id
+            if not adv and order.user_id:
+                try:
+                    from api.db.services.ad_engine_service import AdvertiserService
+                    adv = AdvertiserService.get_or_create_for_user(order.user_id, order.tenant_id or order.user_id)
+                except Exception as ex:
+                    logger.warning(f"Error creating advertiser for deposit: {ex}")
 
-            if adv_id:
+            if adv:
                 deposit_usd = float(order.amount_usd or 0.0)
                 desc = f"Пополнение через Atmos (Заказ #{order.id[:8]}, {order.amount_uzs:,} UZS)"
-                deposit_ok = AdEngineService.deposit_balance(adv_id, deposit_usd, desc, reference_id=order.id)
-                if not deposit_ok:
-                    result["success"] = False
-                    result["error"] = "Deposit failed"
-                else:
-                    # AC7 (BUG-09): Fetch fresh advertiser object without nonexistent reload()
-                    fresh_adv = Advertiser.get_by_id(adv_id)
-                    result["advertiser_id"] = adv_id
-                    result["deposit_amount_usd"] = deposit_usd
-                    result["deposit_success"] = deposit_ok
-                    result["new_balance"] = round(fresh_adv.balance, 2)
-                    logger.info(f"[Advertiser Deposit Completed] adv={adv_id} +${deposit_usd} balance={fresh_adv.balance}")
+                adv.balance = float(adv.balance or 0.0) + deposit_usd
+                adv.update_time = current_timestamp()
+                adv.save()
+
+                try:
+                    AdTransaction.create(
+                        id=uuid.uuid4().hex[:32],
+                        advertiser_id=adv.id,
+                        amount=deposit_usd,
+                        type="deposit",
+                        description=desc,
+                        reference_id=order.id,
+                        create_time=current_timestamp(),
+                    )
+                except Exception as ex:
+                    logger.warning(f"Error logging AdTransaction: {ex}")
+
+                result["advertiser_id"] = adv.id
+                result["deposit_amount_usd"] = deposit_usd
+                result["deposit_success"] = True
+                result["new_balance"] = round(adv.balance, 2)
+                logger.info(f"[Advertiser Deposit Completed] adv={adv.id} +${deposit_usd} balance={adv.balance}")
             else:
                 logger.error(f"[Fulfill Error] Advertiser account not found for order {order.id}")
                 result["success"] = False
@@ -739,11 +766,27 @@ class AtmosService:
                     )
 
                 if bonus_usd > 0 and order.purpose == "advertiser_deposit":
-                    adv_id = result.get("advertiser_id")
-                    if adv_id:
+                    target_adv = adv or (Advertiser.get_or_none(Advertiser.id == result.get("advertiser_id")) if result.get("advertiser_id") else None)
+                    if target_adv:
                         bonus_desc = f"Бонус по промокоду {promo_info.get('code', '')} (+${bonus_usd:.2f})"
-                        AdEngineService.deposit_balance(adv_id, bonus_usd, bonus_desc, reference_id=order.id)
-                        logger.info(f"[Promo Bonus Credited] adv={adv_id} +${bonus_usd}")
+                        target_adv.balance = float(target_adv.balance or 0.0) + bonus_usd
+                        target_adv.update_time = current_timestamp()
+                        target_adv.save()
+                        try:
+                            AdTransaction.create(
+                                id=uuid.uuid4().hex[:32],
+                                advertiser_id=target_adv.id,
+                                amount=bonus_usd,
+                                type="deposit",
+                                description=bonus_desc,
+                                reference_id=order.id,
+                                create_time=current_timestamp(),
+                            )
+                        except Exception as ex:
+                            logger.warning(f"Error creating bonus AdTransaction: {ex}")
+                        result["bonus_applied_usd"] = bonus_usd
+                        result["new_balance"] = round(target_adv.balance, 2)
+                        logger.info(f"[Promo Bonus Credited] adv={target_adv.id} +${bonus_usd}")
             except Exception as e:
                 logger.warning(f"Error executing promo code fulfillment: {e}")
 

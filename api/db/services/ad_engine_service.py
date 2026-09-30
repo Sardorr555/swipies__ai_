@@ -999,7 +999,6 @@ class AdEngineService:
         }
 
     @classmethod
-    @DB.connection_context()
     def deposit_balance(cls, advertiser_id: str, amount: float, description: str = "Balance Top-Up", reference_id: str = "") -> bool:
         """Credit funds to advertiser balance atomically with row lock (BUG-08)."""
         if amount <= 0:
