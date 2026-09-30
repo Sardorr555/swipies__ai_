@@ -609,7 +609,6 @@ class AtmosService:
             return False, f"Ошибка при подтверждении платежа в Atmos: {e}", None
 
     @classmethod
-    @DB.connection_context()
     def _fulfill_paid_order(cls, order: PaymentOrder) -> Dict[str, Any]:
         """
         Executes immediate business logic for a paid order:
