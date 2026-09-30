@@ -34,7 +34,7 @@ from api.db.db_models import (
     SubscriptionPlan,
 )
 from api.db.services.common_service import CommonService
-from api.db.services.ad_engine_service import AdEngineService
+from api.db.services.ad_engine_service import AdEngineService, AdTransactionService
 from api.db.services.ai_policy_service import AIPolicyManager
 
 logger = logging.getLogger(__name__)
@@ -726,14 +726,12 @@ class AtmosService:
                 adv.save()
 
                 try:
-                    AdTransaction.create(
-                        id=uuid.uuid4().hex[:32],
+                    AdTransactionService.insert(
                         advertiser_id=adv.id,
                         amount=deposit_usd,
                         type="deposit",
                         description=desc,
                         reference_id=order.id,
-                        create_time=current_timestamp(),
                     )
                 except Exception as ex:
                     logger.warning(f"Error logging AdTransaction: {ex}")
@@ -773,14 +771,12 @@ class AtmosService:
                         target_adv.update_time = current_timestamp()
                         target_adv.save()
                         try:
-                            AdTransaction.create(
-                                id=uuid.uuid4().hex[:32],
+                            AdTransactionService.insert(
                                 advertiser_id=target_adv.id,
                                 amount=bonus_usd,
                                 type="deposit",
                                 description=bonus_desc,
                                 reference_id=order.id,
-                                create_time=current_timestamp(),
                             )
                         except Exception as ex:
                             logger.warning(f"Error creating bonus AdTransaction: {ex}")

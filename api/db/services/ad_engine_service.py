@@ -1013,14 +1013,12 @@ class AdEngineService:
             adv.update_time = current_timestamp()
             adv.save()
 
-            AdTransaction.create(
-                id=uuid.uuid4().hex[:32],
+            AdTransactionService.insert(
                 advertiser_id=adv.id,
                 amount=amount,
                 type="deposit",
                 description=description,
                 reference_id=reference_id,
-                create_time=current_timestamp(),
             )
             return True
 
