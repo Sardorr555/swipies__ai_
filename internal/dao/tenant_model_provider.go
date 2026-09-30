@@ -59,7 +59,7 @@ func isProOrEnterprise(tenantID string) bool {
 	}
 	var user entity.User
 	if err := DB.Where("id = ?", tenantID).First(&user).Error; err == nil {
-		if user.IsSuperuser {
+		if user.IsSuperuser != nil && *user.IsSuperuser {
 			return true
 		}
 	}
