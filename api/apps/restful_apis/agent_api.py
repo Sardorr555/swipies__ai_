@@ -49,6 +49,7 @@ from api.db.services.canvas_service import (
 from api.db.services.document_service import DocumentService
 from api.db.services.file_service import FileService
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.db.services.mcp_server_service import MCPServerService
 from api.db.services.pipeline_operation_log_service import PipelineOperationLogService
 from api.db.services.task_service import CANVAS_DEBUG_DOC_ID, TaskService, queue_dataflow
 from api.db.services.user_service import TenantService, UserService
@@ -949,6 +950,7 @@ async def create_agent(tenant_id):
 
     try:
         req["dsl"] = CanvasReplicaService.normalize_dsl(req["dsl"])
+        MCPServerService.validate_dsl_mcp_ownership(req["dsl"], tenant_id)
     except ValueError as exc:
         return get_json_result(
             data=False,
@@ -1197,6 +1199,7 @@ async def update_agent(agent_id, tenant_id):
 
             req["dsl"] = CanvasReplicaService.normalize_dsl(req["dsl"])
             Canvas.validate_component_parameters(req["dsl"])
+            MCPServerService.validate_dsl_mcp_ownership(req["dsl"], tenant_id)
         except ValueError as exc:
             return get_json_result(
                 data=False,
@@ -1309,6 +1312,15 @@ async def rerun_agent(tenant_id):
     TaskService.filter_delete([Task.doc_id == doc["id"]])
 
     dsl = req["dsl"]
+    try:
+        MCPServerService.validate_dsl_mcp_ownership(dsl, tenant_id)
+    except ValueError as exc:
+        return get_json_result(
+            data=False,
+            message=str(exc),
+            code=RetCode.ARGUMENT_ERROR,
+        )
+
     dsl["path"] = [req["component_id"]]
     PipelineOperationLogService.update_by_id(req["id"], {"dsl": dsl})
     queue_dataflow(

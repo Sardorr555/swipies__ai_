@@ -13,6 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+from typing import Any, Optional
 from peewee import fn
 
 from api.db.db_models import DB, MCPServer
@@ -87,5 +88,62 @@ class MCPServerService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def get_by_id_and_tenant(cls, mcp_id: str, tenant_id: str):
+        """Retrieve an MCP server by ID, ensuring it belongs to the specified tenant.
+
+        Args:
+            mcp_id (str): The MCP server ID.
+            tenant_id (str): The tenant ID to scope the lookup.
+
+        Returns:
+            tuple[bool, Optional[MCPServer]]: (True, server) if found and owned, (False, None) otherwise.
+        """
+        if not mcp_id or not tenant_id:
+            return False, None
+        try:
+            mcp_server = cls.model.get_or_none((cls.model.id == mcp_id) & (cls.model.tenant_id == tenant_id))
+            if mcp_server:
+                return True, mcp_server
+        except Exception:
+            pass
+        return False, None
+
+    @classmethod
+    def extract_mcp_ids_from_dsl(cls, dsl: Any) -> set[str]:
+        """Recursively scan canvas DSL structure and extract all referenced mcp_ids."""
+        mcp_ids = set()
+        if isinstance(dsl, dict):
+            if "mcp_id" in dsl and isinstance(dsl["mcp_id"], str) and dsl["mcp_id"].strip():
+                mcp_ids.add(dsl["mcp_id"].strip())
+            if "mcp" in dsl and isinstance(dsl["mcp"], list):
+                for item in dsl["mcp"]:
+                    if isinstance(item, dict) and "mcp_id" in item and isinstance(item["mcp_id"], str):
+                        if item["mcp_id"].strip():
+                            mcp_ids.add(item["mcp_id"].strip())
+            for v in dsl.values():
+                mcp_ids.update(cls.extract_mcp_ids_from_dsl(v))
+        elif isinstance(dsl, list):
+            for item in dsl:
+                mcp_ids.update(cls.extract_mcp_ids_from_dsl(item))
+        return mcp_ids
+
+    @classmethod
+    def validate_dsl_mcp_ownership(cls, dsl: Any, tenant_id: str) -> None:
+        """Validate that all MCP servers referenced in submitted DSL belong to tenant_id.
+
+        Raises:
+            ValueError: If an MCP server does not belong to the tenant or does not exist.
+        """
+        if not dsl:
+            return
+        referenced_mcp_ids = cls.extract_mcp_ids_from_dsl(dsl)
+        for mcp_id in referenced_mcp_ids:
+            ok, server = cls.get_by_id_and_tenant(mcp_id, tenant_id)
+            if not ok or not server:
+                raise ValueError(f"Access denied: MCP server '{mcp_id}' does not belong to tenant '{tenant_id}' or does not exist.")
+
+    @classmethod
+    @DB.connection_context()
     def delete_by_tenant_id(cls, tenant_id: str):
         return cls.model.delete().where(cls.model.tenant_id == tenant_id).execute()
+
