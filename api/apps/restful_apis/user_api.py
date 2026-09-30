@@ -66,7 +66,6 @@ from common import settings
 
 
 @manager.route("/auth/login", methods=["POST"])  # noqa: F821
-@manager.route("/admin/login", methods=["POST"])  # noqa: F821
 async def login():
     """
     User and Admin login endpoint.
@@ -157,6 +156,12 @@ async def login():
     msg = "Welcome back!"
 
     return await construct_response(data=user.to_safe_dict(for_self=True), auth=user.get_id(), message=msg)
+
+
+@manager.route("/admin/login", methods=["POST"])  # noqa: F821
+async def admin_login():
+    """Admin login endpoint."""
+    return await login()
 
 
 def get_oauth_config(channel: str, host_url: str = ""):
