@@ -660,21 +660,56 @@ async def list_transactions():
         tenant_id = getattr(current_user, "tenant_id", "") or user_id
         adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
 
-        txs = list(
-            AdTransaction.select()
-            .where(AdTransaction.advertiser_id == adv.id)
-            .order_by(AdTransaction.create_time.desc())
-            .limit(100)
-        )
+        result = []
 
-        result = [{
-            "id": t.id,
-            "amount": t.amount,
-            "type": t.type,
-            "description": t.description or "",
-            "reference_id": t.reference_id or "",
-            "created_at": t.create_time,
-        } for t in txs]
+        # 1. Fetch from AdTransaction
+        try:
+            txs = list(
+                AdTransaction.select()
+                .where(AdTransaction.advertiser_id == adv.id)
+                .order_by(AdTransaction.create_time.desc())
+                .limit(100)
+            )
+            for t in txs:
+                result.append({
+                    "id": t.id,
+                    "amount": t.amount,
+                    "type": t.type,
+                    "description": t.description or "",
+                    "reference_id": t.reference_id or "",
+                    "created_at": t.create_time,
+                })
+        except Exception as ex:
+            logger.warning(f"Error querying AdTransaction: {ex}")
+
+        # 2. Fetch from PaymentOrder for advertiser deposits
+        try:
+            orders = list(
+                PaymentOrder.select()
+                .where(
+                    ((PaymentOrder.advertiser_id == adv.id) | (PaymentOrder.user_id == user_id))
+                    & (PaymentOrder.purpose == "advertiser_deposit")
+                    & (PaymentOrder.status == "paid")
+                )
+                .order_by(PaymentOrder.create_time.desc())
+                .limit(50)
+            )
+            existing_ref_ids = {r.get("reference_id") for r in result}
+            for o in orders:
+                if o.id not in existing_ref_ids:
+                    result.append({
+                        "id": f"pay_{o.id[:12]}",
+                        "amount": float(o.amount_usd or 0.0),
+                        "type": "deposit",
+                        "description": f"Atmos карта орқали тўлов ({o.amount_uzs:,} UZS)",
+                        "reference_id": o.id,
+                        "created_at": o.create_time,
+                    })
+        except Exception as ex:
+            logger.warning(f"Error querying PaymentOrder for transactions: {ex}")
+
+        # Sort combined transactions by timestamp desc
+        result.sort(key=lambda x: x.get("created_at") or 0, reverse=True)
 
         return get_json_result(data=result)
     except Exception as e:
