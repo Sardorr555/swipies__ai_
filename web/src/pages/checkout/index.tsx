@@ -10,6 +10,7 @@ import {
   applyLicensePay,
   recoverLicensePay
 } from '@/services/license-service';
+import paymentService from '@/services/payment-service';
 import { getAuthorization } from '@/utils/authorization-util';
 import { Routes } from '@/routes';
 import {
@@ -474,31 +475,33 @@ export default function CheckoutPage() {
           if (!cardPhone && phone) setCardPhone(phone);
           setStep('otp');
         } else {
-          // Use Node.js payment server
-          const txData = await safeFetchJson('/api/pay/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              amount: finalAmount,
-              account: userEmail || 'guest',
-              plan: planQuery,
-              months: selectedPeriod,
-              ...cardPayload,
-            }),
+          // Use modern unified Atmos payment service
+          const createRes = await paymentService.createAtmosPayment({
+            purpose: 'subscription_upgrade',
+            plan_id: (planQuery === 'plus' ? 'plus' : 'pro') as any,
+            amount_uzs: finalAmount,
+            lang: 'uz',
           });
 
-          setTransactionId(txData.transaction_id);
+          if (createRes?.data?.code !== 0) {
+            throw new Error(createRes?.data?.message || 'Payment initiation failed');
+          }
 
-          const preData = await safeFetchJson('/api/pay/pre-apply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              transaction_id: txData.transaction_id,
-              ...cardPayload,
-            }),
+          const orderId = createRes.data.data.order_id;
+          setTransactionId(orderId);
+
+          const preRes = await paymentService.preApplyCard({
+            order_id: orderId,
+            card_number: cleanCardNumber,
+            expiry: expiry,
           });
 
-          const phone = preData.phone || preData.phone_number || preData.phoneMask || (preData.payload && preData.payload.phone) || '';
+          if (preRes?.data?.code !== 0) {
+            throw new Error(preRes?.data?.message || 'Card validation failed');
+          }
+
+          const preData = preRes.data.data;
+          const phone = preData?.phone_masked || '';
           setMaskedPhone(phone);
           if (!cardPhone && phone) setCardPhone(phone);
           setStep('otp');
@@ -547,22 +550,18 @@ export default function CheckoutPage() {
         });
         setStep('success');
       } else {
-        // Use Node.js payment server
-        const applyRes = await safeFetchJson('/api/pay/apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            transaction_id: transactionId,
-            otp: otp.trim(),
-            email: userEmail,
-            plan: planQuery,
-            months: selectedPeriod,
-            license_name: planQuery === 'license' ? licenseName : undefined,
-            ...cardPayload,
-          }),
+        // Use unified Atmos payment service
+        const applyRes = await paymentService.applyOtp({
+          order_id: transactionId || '',
+          otp: otp.trim(),
         });
 
-        setSuccessResult(applyRes.provision || { success: true });
+        if (applyRes?.data?.code !== 0) {
+          throw new Error(applyRes?.data?.message || 'Неверный код подтверждения');
+        }
+
+        const fulfillment = applyRes.data.data?.fulfillment;
+        setSuccessResult(fulfillment || { success: true, plan_type: planQuery });
         setStep('success');
       }
     } catch (err: any) {
