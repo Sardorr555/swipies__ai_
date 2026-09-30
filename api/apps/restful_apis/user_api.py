@@ -66,35 +66,10 @@ from common import settings
 
 
 @manager.route("/auth/login", methods=["POST"])  # noqa: F821
+@manager.route("/admin/login", methods=["POST"])  # noqa: F821
 async def login():
     """
-    User login endpoint.
-    ---
-    tags:
-      - User
-    parameters:
-      - in: body
-        name: body
-        description: Login credentials.
-        required: true
-        schema:
-          type: object
-          properties:
-            email:
-              type: string
-              description: User email.
-            password:
-              type: string
-              description: User password.
-    responses:
-      200:
-        description: Login successful.
-        schema:
-          type: object
-      401:
-        description: Authentication failed.
-        schema:
-          type: object
+    User and Admin login endpoint.
     """
     json_body = await get_request_json()
     if not json_body:
@@ -129,10 +104,12 @@ async def login():
             message="Email and password do not match!",
         )
 
+    is_admin_path = (request.path or "").endswith("/admin/login")
+
     email_verification_enabled = os.environ.get("EMAIL_VERIFICATION_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
     login_2fa_enabled = os.environ.get("LOGIN_2FA_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
 
-    if email_verification_enabled and login_2fa_enabled:
+    if not is_admin_path and email_verification_enabled and login_2fa_enabled:
         # Generate 6-digit numeric verification code
         code = "".join(secrets.choice(string.digits) for _ in range(6))
         salt = os.urandom(16)
