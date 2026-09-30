@@ -193,43 +193,62 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         </CardHeader>
         <CardContent>
           <div className="h-[260px] sm:h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={overviewTimeline} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="overviewImpGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
-                  </linearGradient>
-                  <linearGradient id="overviewClkGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px', fontSize: '12px' }} />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Area
-                  type="monotone"
-                  dataKey="impressions"
-                  name={t('totalImpressions')}
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#overviewImpGradient)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="clicks"
-                  name={t('clicksEngagement')}
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#overviewClkGradient)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {overviewTimeline && overviewTimeline.some((p) => p.impressions > 0 || p.clicks > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={overviewTimeline} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="overviewImpGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                    </linearGradient>
+                    <linearGradient id="overviewClkGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px', fontSize: '12px' }} />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Area
+                    type="monotone"
+                    dataKey="impressions"
+                    name={t('totalImpressions')}
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#overviewImpGradient)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="clicks"
+                    name={t('clicksEngagement')}
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#overviewClkGradient)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3 rounded-lg border border-dashed border-border/60 bg-muted/20">
+                <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-semibold text-foreground">
+                    {t('noActivityYetTitle', 'Statistika hali mavjud emas')}
+                  </h4>
+                  <p className="text-xs text-muted-foreground max-w-sm">
+                    {t('noActivityYetDesc', 'Reklama kampaniyangiz faollashgach va foydalanuvchilar qidiruvlariga mos kelgach, bu yerda kunlik real ko\'rsatuvlar va bosishlar grafigi shakllanadi.')}
+                  </p>
+                </div>
+                <Button size="sm" onClick={onOpenCreateCampaign} className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8">
+                  <Plus className="mr-1 h-3.5 w-3.5" /> {t('newCampaignBtn')}
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

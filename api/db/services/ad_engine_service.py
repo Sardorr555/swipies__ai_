@@ -930,9 +930,16 @@ class AdEngineService:
         """Fetch summary metrics and active campaigns for advertiser portal."""
         adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
 
+        adv_ids = {adv.id}
+        try:
+            for a in Advertiser.select().where((Advertiser.user_id == user_id) | (Advertiser.tenant_id == tenant_id)):
+                adv_ids.add(a.id)
+        except Exception:
+            pass
+
         campaigns = list(
             AdCampaign.select()
-            .where(AdCampaign.advertiser_id == adv.id)
+            .where(AdCampaign.advertiser_id.in_(list(adv_ids)))
             .order_by(AdCampaign.create_time.desc())
         )
 
@@ -940,8 +947,8 @@ class AdEngineService:
         active_campaigns = sum(1 for c in campaigns if c.status == "active" and c.moderation_status == "approved")
 
         # Aggregate total impressions and clicks
-        impressions_count = AdImpression.select().where(AdImpression.advertiser_id == adv.id).count()
-        clicks_count = AdClick.select().where(AdClick.advertiser_id == adv.id).count()
+        impressions_count = AdImpression.select().where(AdImpression.advertiser_id.in_(list(adv_ids))).count()
+        clicks_count = AdClick.select().where(AdClick.advertiser_id.in_(list(adv_ids))).count()
         total_spend = sum(c.total_spent for c in campaigns)
         ctr = (clicks_count / impressions_count * 100.0) if impressions_count > 0 else 0.0
 

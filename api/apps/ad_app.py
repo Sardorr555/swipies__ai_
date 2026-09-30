@@ -116,9 +116,16 @@ async def list_campaigns():
         tenant_id = getattr(current_user, "tenant_id", "") or user_id
         adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
 
+        adv_ids = {adv.id}
+        try:
+            for a in Advertiser.select().where((Advertiser.user_id == user_id) | (Advertiser.tenant_id == tenant_id)):
+                adv_ids.add(a.id)
+        except Exception:
+            pass
+
         campaigns = list(
             AdCampaign.select()
-            .where(AdCampaign.advertiser_id == adv.id)
+            .where(AdCampaign.advertiser_id.in_(list(adv_ids)))
             .order_by(AdCampaign.create_time.desc())
         )
 
