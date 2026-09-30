@@ -565,47 +565,6 @@ export default function CheckoutPage() {
         setStep('success');
       }
     } catch (err: any) {
-      // Auto-recovery attempt: if card was debited, verify with backend recover endpoint silently
-      if (planQuery === 'license' && transactionId) {
-        try {
-          const recRes = await safeFetchJson('/v1/license/pay/recover', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transaction_id: transactionId }),
-          });
-          if (recRes?.code === 0 && recRes.data?.license_key) {
-            setSuccessResult({
-              success: true,
-              licenseKey: recRes.data.license_key,
-            });
-            setStep('success');
-            return;
-          }
-        } catch (recErr) {
-          console.warn('Auto-recover license check failed:', recErr);
-        }
-      } else if (transactionId) {
-        try {
-          const recRes = await safeFetchJson('/api/pay/recover', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: userEmail,
-              transaction_id: transactionId,
-              plan: planQuery,
-              months: selectedPeriod,
-            }),
-          });
-          if (recRes?.success) {
-            setSuccessResult(recRes.provision || { success: true });
-            setStep('success');
-            return;
-          }
-        } catch (recErr) {
-          console.warn('Auto-recover subscription check failed:', recErr);
-        }
-      }
-
       let errorMsg = err?.response?.data?.message || err?.message || 'Неверный SMS-код подтверждения. Пожалуйста, попробуйте снова.';
       if (errorMsg.includes('102') || errorMsg.toLowerCase().includes('verification failed')) {
         errorMsg = 'Неверный или просроченный SMS-код подтверждения (код 102). Пожалуйста, проверьте код из SMS или запросите новый.';

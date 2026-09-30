@@ -624,10 +624,18 @@ class AtmosService:
             tenant = Tenant.get_or_none(Tenant.id == order.tenant_id)
             if tenant:
                 tenant.plan_type = plan_name
-                now_dt = datetime.now(timezone.utc)
+                now_dt = datetime.utcnow()
                 # If existing plan is still active in future, extend by 30 days; otherwise now + 30 days
-                if tenant.plan_expiry_date and tenant.plan_expiry_date > now_dt:
-                    tenant.plan_expiry_date = tenant.plan_expiry_date + timedelta(days=30)
+                if tenant.plan_expiry_date:
+                    expiry_dt = (
+                        tenant.plan_expiry_date.replace(tzinfo=None)
+                        if getattr(tenant.plan_expiry_date, "tzinfo", None)
+                        else tenant.plan_expiry_date
+                    )
+                    if expiry_dt > now_dt:
+                        tenant.plan_expiry_date = expiry_dt + timedelta(days=30)
+                    else:
+                        tenant.plan_expiry_date = now_dt + timedelta(days=30)
                 else:
                     tenant.plan_expiry_date = now_dt + timedelta(days=30)
                 tenant.save()
