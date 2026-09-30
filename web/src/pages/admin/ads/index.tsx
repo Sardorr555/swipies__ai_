@@ -316,8 +316,8 @@ export default function AdminAdsPage() {
             <DollarSign className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-500">${(overview?.total_revenue || 0).toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Cumulative spend across network</p>
+            <div className="text-2xl font-bold text-emerald-500">${((overview?.total_revenue || 0) > 0 ? overview?.total_revenue : (overview?.total_deposits || 0)).toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Cumulative deposits & spend across network</p>
           </CardContent>
         </Card>
       </div>

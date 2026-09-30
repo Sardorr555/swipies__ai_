@@ -547,24 +547,29 @@ class PaymentTransactionService(CommonService):
         for r in paid_records:
             pt = (r.plan_type or "other").lower()
             if pt not in plan_breakdown:
-                plan_breakdown[pt] = {"count": 0, "revenue_uzs": 0}
+                plan_breakdown[pt] = {"count": 0, "revenue_uzs": 0, "total_paid_uzs": 0}
             plan_breakdown[pt]["count"] += 1
-            plan_breakdown[pt]["revenue_uzs"] += int(r.paid_amount_uzs or 0)
+            amt = int(r.paid_amount_uzs or 0)
+            plan_breakdown[pt]["revenue_uzs"] += amt
+            plan_breakdown[pt]["total_paid_uzs"] += amt
 
         for o in paid_orders:
             pt = (o.plan_id or o.purpose or "deposit").lower()
             if o.purpose == "advertiser_deposit":
                 pt = "ads_deposit"
             if pt not in plan_breakdown:
-                plan_breakdown[pt] = {"count": 0, "revenue_uzs": 0}
+                plan_breakdown[pt] = {"count": 0, "revenue_uzs": 0, "total_paid_uzs": 0}
             plan_breakdown[pt]["count"] += 1
-            plan_breakdown[pt]["revenue_uzs"] += int(o.amount_uzs or 0)
+            amt = int(o.amount_uzs or 0)
+            plan_breakdown[pt]["revenue_uzs"] += amt
+            plan_breakdown[pt]["total_paid_uzs"] += amt
 
         return {
             "total_revenue_uzs": total_revenue_uzs,
             "mrr_uzs": mrr_uzs,
             "total_initiated_count": total_initiated,
             "total_paid_count": paid_count,
+            "paid_transactions_count": paid_count,
             "conversion_rate_pct": conversion_rate_pct,
             "status_distribution": status_counts,
             "plan_breakdown": plan_breakdown,
