@@ -50,15 +50,15 @@
 
 ---
 
-### [ ] Phase T3: amoCRM Provider 1 Adapter & Fenced Distributed Token Refresh Engine
-- [ ] **T3.1**: Implement `api/crm/clients/amocrm.py` thin client over `transport.py` implementing `CRMProviderBase` (contact lookup `GET /api/v4/contacts?query=...`, contact creation, open deal lookup, and lead creation).
-- [ ] **T3.2**: Enforce amoCRM/Kommo domain boundary allowlisting: strictly match `*.amocrm.ru`, `*.amocrm.com`, and `*.kommo.com` `[VERIFY по документации Kommo и по реальному URL аккаунта заказчика]`; ensure exact domain boundary verification and strictly disable HTTP redirects (`allow_redirects=False`).
-- [ ] **T3.3**: Implement distributed refresh lock using Redis: `crm:lock:refresh:{connection_id}` (timeout=30s) with Lua-based ownership release.
-- [ ] **T3.4**: Implement double-checked database read inside lock: if token was updated while waiting for lock, use fresh token without calling amoCRM OAuth endpoint.
-- [ ] **T3.5**: Implement **fencing token validation**: commit new tokens using atomic compare-and-swap (`WHERE id = :id AND token_version = :read_version`). Reject commit if version has changed. Every write to `config` increments `token_version`.
-- [ ] **T3.6**: Implement recovery read for `invalid_grant`: re-read record from MySQL; if `token_version` increased, use new token; if unchanged, transition `CRMConnection.status` to `reauth_required`.
-- [ ] **T3.7**: Sanitize all URLs, headers, and logs (mask phone numbers dynamically preserving prefix and last 2 digits, credentials as `********`).
-- [ ] **T3.8**: Add unit and concurrency tests: 5 parallel workers result in exactly 1 API call; stale worker with outdated token_version is fenced out; revoked token sets `reauth_required`.
+### [x] Phase T3: amoCRM Provider 1 Adapter & Fenced Distributed Token Refresh Engine
+- [x] **T3.1**: Implement `api/crm/clients/amocrm.py` thin client over `transport.py` implementing `CRMProviderBase` (contact lookup `GET /api/v4/contacts?query=...`, contact creation, open deal lookup, and lead creation).
+- [x] **T3.2**: Enforce amoCRM/Kommo domain boundary allowlisting: strictly match `*.amocrm.ru`, `*.amocrm.com`, and `*.kommo.com` `[VERIFY по документации Kommo и по реальному URL аккаунта заказчика]`; ensure exact domain boundary verification and strictly disable HTTP redirects (`allow_redirects=False`).
+- [x] **T3.3**: Implement distributed refresh lock using Redis: `crm:lock:refresh:{connection_id}` (timeout=30s) with Lua-based ownership release.
+- [x] **T3.4**: Implement double-checked database read inside lock: if token was updated while waiting for lock, use fresh token without calling amoCRM OAuth endpoint.
+- [x] **T3.5**: Implement **fencing token validation**: commit new tokens using atomic compare-and-swap (`WHERE id = :id AND token_version = :read_version`). Reject commit if version has changed. Every write to `config` increments `token_version`.
+- [x] **T3.6**: Implement recovery read for `invalid_grant`: re-read record from MySQL; if `token_version` increased, use new token; if unchanged, transition `CRMConnection.status` to `reauth_required`.
+- [x] **T3.7**: Sanitize all URLs, headers, and logs (mask phone numbers dynamically preserving prefix and last 2 digits, credentials as `********`).
+- [x] **T3.8**: Add unit and concurrency tests: 5 parallel workers result in exactly 1 API call; stale worker with outdated token_version is fenced out; revoked token sets `reauth_required`.
 
 ---
 
