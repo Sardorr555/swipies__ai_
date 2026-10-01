@@ -20,6 +20,7 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 import warnings
+# Suppress RequestsDependencyWarning caused by local environment version drift between urllib3 (2.4.0) and chardet (7.4.3)/charset_normalizer (3.5.1)
 warnings.filterwarnings("ignore", message=".*doesn't match a supported version.*")
 
 # Pre-mock heavy modules for clean import of agent_with_tools without ML deps
@@ -1027,6 +1028,66 @@ class TestMCPSecurity(unittest.TestCase):
         self.assertEqual(parsed["code"], 500)
         self.assertEqual(parsed["data"], False)
         self.assertIn("Access denied: MCP server 'mcp-evil'", parsed["message"])
+
+    # -------------------------------------------------------------------------
+    # 11. Canvas Service Completion Real Path
+    # -------------------------------------------------------------------------
+    def test_canvas_service_completion_team_member_owner_mcp(self):
+        """Verify canvas_service.completion routes canvas_owner_tenant to Canvas for team member chat."""
+        import json
+        from api.db.services.canvas_service import completion
+
+        mock_cvs = MagicMock(id="canvas-team-123", user_id="tenant-alpha")
+        test_dsl = json.dumps({
+            "components": {
+                "agent_1": {
+                    "obj": {
+                        "component_name": "Agent",
+                        "params": {
+                            "llm_id": "test-llm",
+                            "mcp": [{"mcp_id": "mcp-own", "tools": {}}],
+                            "tools": []
+                        }
+                    },
+                    "downstream": [],
+                    "upstream": []
+                }
+            },
+            "history": [],
+            "messages": [],
+            "retrieval": []
+        })
+
+        def fake_llm_init(this, canvas, id, param):
+            this._canvas = canvas
+            this._id = id
+            this._param = param
+
+        async def fake_run(*args, **kwargs):
+            yield {"event": "message", "data": {"content": "ok", "start_to_think": False, "end_to_think": False}}
+
+        async def _run_completion():
+            with patch("api.db.services.canvas_service.UserCanvasService.get_agent_dsl_with_release", return_value=(mock_cvs, test_dsl)), \
+                 patch("api.db.services.canvas_service.UserCanvasVersionService.get_latest_version_title", return_value="v1"), \
+                 patch("api.db.services.canvas_service.API4ConversationService.save"), \
+                 patch("api.db.services.canvas_service.API4ConversationService.append_message"), \
+                 patch("agent.component.agent_with_tools.LLM.__init__", fake_llm_init), \
+                 patch("agent.component.agent_with_tools.resolve_model_type", return_value=["chat"]), \
+                 patch("agent.component.agent_with_tools.resolve_model_config", return_value={}), \
+                 patch("agent.component.agent_with_tools.LLMBundle"), \
+                 patch("agent.component.agent_with_tools.MCPToolCallSession"), \
+                 patch.object(Canvas, "run", side_effect=fake_run):
+
+                # Caller is tenant-beta (team member) chatting with agent owned by tenant-alpha
+                gen = completion(tenant_id="tenant-beta", agent_id="canvas-team-123", query="hello")
+                chunks = []
+                async for chunk in gen:
+                    chunks.append(chunk)
+                self.assertTrue(len(chunks) > 0)
+                self.assertIn("data:", chunks[0])
+                self.assertIn("ok", chunks[0])
+
+        asyncio.run(_run_completion())
 
 
 if __name__ == "__main__":

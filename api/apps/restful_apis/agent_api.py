@@ -2135,7 +2135,7 @@ async def _webhook_impl(agent_id: str, is_test: bool):
     try:
         from agent.canvas import Canvas
 
-        canvas_owner_tenant = getattr(cvs, "user_id", None) or cvs.user_id
+        canvas_owner_tenant = getattr(cvs, "user_id", None)
         canvas = Canvas(dsl, cvs.user_id, agent_id, canvas_id=agent_id, canvas_owner_tenant=canvas_owner_tenant)
     except Exception as e:
         resp = get_data_error_result(code=RetCode.BAD_REQUEST, message=str(e))

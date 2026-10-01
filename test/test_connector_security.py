@@ -18,6 +18,9 @@ import asyncio
 import os
 import sys
 import unittest
+import warnings
+# Suppress RequestsDependencyWarning caused by local environment version drift between urllib3 (2.4.0) and chardet (7.4.3)/charset_normalizer (3.5.1)
+warnings.filterwarnings("ignore", message=".*doesn't match a supported version.*")
 from quart import Quart, jsonify, request
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -45,6 +48,7 @@ from api.scripts.migrate_connector_credentials import (
 
 class TestConnectorSecurity(unittest.TestCase):
     def setUp(self):
+        warnings.filterwarnings("ignore", message=".*doesn't match a supported version.*")
         self.master_secret = "test-master-secret-key-32bytes-ok!"
         os.environ["RAGFLOW_SECRET_KEY"] = self.master_secret
 
@@ -898,9 +902,18 @@ class TestConnectorSecurity(unittest.TestCase):
         3. ConnectorService.get_decrypted_config() recovers the plaintext token.
         4. Mutation: bypassing merge_updated_connector_config leaks plaintext to DB and fails.
         """
+        from unittest.mock import patch
         from peewee import SqliteDatabase
         from api.db.db_models import DB, Connector
         from api.db.services.connector_service import ConnectorService
+
+        class _DummyCtx:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                pass
+            def __call__(self, fn):
+                return fn
 
         test_db = SqliteDatabase(":memory:")
         _orig_connect = DB.connect
@@ -975,6 +988,43 @@ class TestConnectorSecurity(unittest.TestCase):
             DB.connect = _orig_connect
             DB.close = _orig_close
             DB.is_closed = _orig_is_closed
+            if not test_db.is_closed():
+                test_db.close()
+
+    def test_database_isolation_guarantee(self):
+        """Verify tests run against in-memory SQLite and cannot touch real MySQL settings.DATABASE."""
+        from unittest.mock import patch
+        from peewee import SqliteDatabase
+        from api.db.db_models import DB, Connector
+
+        test_db = SqliteDatabase(":memory:")
+        _orig_db = Connector._meta.database
+        _orig_atomic = getattr(DB, "atomic", None)
+        try:
+            Connector._meta.database = test_db
+            DB.atomic = lambda *args, **kwargs: test_db.atomic()
+            test_db.bind([Connector])
+            test_db.connect()
+            test_db.create_tables([Connector])
+
+            with patch.object(DB, "connect", side_effect=RuntimeError("Direct MySQL access forbidden!")):
+                Connector.create(
+                    id="conn-iso-test",
+                    tenant_id="tenant-iso",
+                    name="Isolated Connector",
+                    source="salesforce",
+                    input_type="poll",
+                    config={"credentials": {"access_token": "secret"}},
+                )
+                res = list(Connector.select().where(Connector.id == "conn-iso-test"))
+                self.assertEqual(len(res), 1)
+        finally:
+            Connector._meta.database = _orig_db
+            if _orig_atomic:
+                DB.atomic = _orig_atomic
+            if not test_db.is_closed():
+                test_db.close()
+
 
 
     # -------------------------------------------------------------------------
