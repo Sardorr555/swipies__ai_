@@ -37,16 +37,16 @@
 
 ---
 
-### [ ] Phase T2: Core CRM Models, Storage, License Infrastructure & Provider Contract
-- [ ] **T2.1**: Create `api/db/crm_models.py` with `CRMConnection` (with `token_version = IntegerField(default=1)`, `crm_type = CharField(default="amocrm")` for `amocrm`, `bitrix24`, `bitrix24_onprem`, `1c_odata`) and `CRMOutbox` models. Use `JSONField` matching `db_models`.
-- [ ] **T2.2**: Register models inside `init_database_tables()` in `api/db/db_models.py` via lazy import.
-- [ ] **T2.3**: Add test verifying import order in both directions (`import crm_models; import db_models` and `import db_models; import crm_models`).
-- [ ] **T2.4**: Define abstract contract `CRMProviderBase` (`api/crm/base.py`) with `create_lead`, `find_contact`, `refresh_auth`, `check_stock`.
-- [ ] **T2.5**: Implement custom `api/crm/transport.py` wrapping `common/ssrf_guard.py` with DNS pinning, blocking private IPs, and disabling redirects (`allow_redirects=False`). External libraries permitted only if routed through this transport; otherwise thin clients mandatory.
-- [ ] **T2.6**: Create `api/db/services/crm_service.py` (`CRMConnectionService`, `CRMOutboxService`) with strict `tenant_id` query filtering.
-- [ ] **T2.7**: Implement AES-256-GCM encryption (`enc:v2:`) on `CRMConnection.config` with `get_decrypted_config()` helper.
-- [ ] **T2.8**: Implement fail-closed licensing gate: strictly verify `"crm"` in license `features` (`"crm" in license.get("features", [])`). License `type: "commercial"` or `type: "enterprise"` alone DOES NOT grant access and must fail closed with `PERMISSION_ERROR`.
-- [ ] **T2.9**: Add unit tests for `CRMService`, `crm_models`, license fail-closed gate, and SSRF transport guard with mutation tests.
+### [x] Phase T2: Core CRM Models, Storage, License Infrastructure & Provider Contract
+- [x] **T2.1**: Create `api/db/crm_models.py` with `CRMConnection` (with `token_version = IntegerField(default=1)`, `crm_type = CharField(default="amocrm")` for `amocrm`, `bitrix24`, `bitrix24_onprem`, `1c_odata`) and `CRMOutbox` models. Use `JSONField` matching `db_models`.
+- [x] **T2.2**: Register models inside `init_database_tables()` in `api/db/db_models.py` via lazy import.
+- [x] **T2.3**: Add test verifying import order in both directions (`import crm_models; import db_models` and `import db_models; import crm_models`).
+- [x] **T2.4**: Define abstract contract `CRMProviderBase` (`api/crm/base.py`) with `create_lead`, `find_contact`, `refresh_auth`, `check_stock`.
+- [x] **T2.5**: Implement custom `api/crm/transport.py` wrapping `common/ssrf_guard.py` with DNS pinning, blocking private IPs, and disabling redirects (`allow_redirects=False`). External libraries permitted only if routed through this transport; otherwise thin clients mandatory.
+- [x] **T2.6**: Create `api/db/services/crm_service.py` (`CRMConnectionService`, `CRMOutboxService`) with strict `tenant_id` query filtering.
+- [x] **T2.7**: Implement AES-256-GCM encryption (`enc:v2:`) on `CRMConnection.config` with `get_decrypted_config()` helper.
+- [x] **T2.8**: Implement fail-closed licensing gate: strictly verify `"crm"` in license `features` (`"crm" in license.get("features", [])`). License `type: "commercial"` or `type: "enterprise"` alone DOES NOT grant access and must fail closed with `PERMISSION_ERROR`.
+- [x] **T2.9**: Add unit tests for `CRMService`, `crm_models`, license fail-closed gate, and SSRF transport guard with mutation tests.
 
 ---
 

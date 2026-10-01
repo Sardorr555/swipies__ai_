@@ -1067,17 +1067,26 @@ def init_database_tables(alter_fields=[]):
         if obj != DataBaseModel and issubclass(obj, DataBaseModel):
             table_objs.append(obj)
 
-            if not obj.table_exists():
-                logging.debug(f"start create table {obj.__name__}")
-                try:
-                    obj.create_table(safe=True)
-                    logging.debug(f"create table success: {obj.__name__}")
-                except Exception as e:
-                    logging.warning(f"create table warning for {obj.__name__}: {e}")
-                    if not obj.table_exists():
-                        create_failed_list.append(obj.__name__)
-            else:
-                logging.debug(f"table {obj.__name__} already exists, skip creation.")
+    try:
+        from api.db.crm_models import CRMConnection, CRMOutbox
+        for crm_model in (CRMConnection, CRMOutbox):
+            if crm_model not in table_objs:
+                table_objs.append(crm_model)
+    except Exception as e:
+        logging.warning(f"Could not import crm_models during table initialization: {e}")
+
+    for obj in table_objs:
+        if not obj.table_exists():
+            logging.debug(f"start create table {obj.__name__}")
+            try:
+                obj.create_table(safe=True)
+                logging.debug(f"create table success: {obj.__name__}")
+            except Exception as e:
+                logging.warning(f"create table warning for {obj.__name__}: {e}")
+                if not obj.table_exists():
+                    create_failed_list.append(obj.__name__)
+        else:
+            logging.debug(f"table {obj.__name__} already exists, skip creation.")
 
     if create_failed_list:
         logging.error(f"create tables failed: {create_failed_list}")
