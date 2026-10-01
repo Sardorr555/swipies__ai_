@@ -19,6 +19,8 @@ import os
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
+import warnings
+warnings.filterwarnings("ignore", message=".*doesn't match a supported version.*")
 
 # Pre-mock heavy modules for clean import of agent_with_tools without ML deps
 sys.modules.setdefault("api.db.services.dialog_service", MagicMock())
@@ -26,6 +28,8 @@ sys.modules.setdefault("xgboost", MagicMock())
 sys.modules.setdefault("pypdf", MagicMock())
 sys.modules.setdefault("deepdoc", MagicMock())
 sys.modules.setdefault("deepdoc.parser", MagicMock())
+sys.modules.setdefault("api.db.services.file_service", MagicMock())
+sys.modules.setdefault("api.db.services.task_service", MagicMock())
 
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -36,19 +40,20 @@ settings.init_settings = lambda *a, **kw: None
 from peewee import SqliteDatabase
 from api.db.db_models import DB, MCPServer
 
-test_db = SqliteDatabase(":memory:")
-MCPServer._meta.database = test_db
+_test_db = SqliteDatabase(":memory:")
+MCPServer._meta.database = _test_db
 DB.connection_context = lambda: (lambda fn: fn)
-DB.atomic = lambda *args, **kwargs: test_db.atomic()
+DB.atomic = lambda *args, **kwargs: _test_db.atomic()
 
 from api.db.services.mcp_server_service import MCPServerService
 from agent.component.agent_with_tools import Agent, AgentParam
+from agent.canvas import Canvas
 
 
 class TestMCPSecurity(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.test_db = test_db
+        cls.test_db = _test_db
         if cls.test_db.is_closed():
             cls.test_db.connect()
         cls.test_db.create_tables([MCPServer])
@@ -245,10 +250,11 @@ class TestMCPSecurity(unittest.TestCase):
     # -------------------------------------------------------------------------
     # 4. Runtime Validation in Agent.__init__ Tests
     # -------------------------------------------------------------------------
-    def test_runtime_mcp_validation_own_server_passes(self):
-        """Verify Agent.__init__ successfully initializes when MCP belongs to the canvas tenant."""
+    def test_runtime_mcp_validation_owner_runs_ok(self):
+        """Verify Agent.__init__ successfully initializes when canvas owner runs canvas with own MCP."""
         mock_canvas = MagicMock()
         mock_canvas.get_tenant_id.return_value = "tenant-alpha"
+        mock_canvas.get_canvas_owner_tenant.return_value = "tenant-alpha"
         mock_canvas.tool_use_callback = MagicMock()
 
         def fake_llm_init(this, canvas, id, param):
@@ -270,10 +276,105 @@ class TestMCPSecurity(unittest.TestCase):
             self.assertIsNotNone(agent)
             self.assertEqual(len(agent.tools), 0)
 
-    def test_runtime_mcp_validation_foreign_server_rejected(self):
-        """Verify Agent.__init__ raises PermissionError when MCP belongs to another tenant."""
+    def test_runtime_mcp_validation_team_member_runs_with_owner_mcp_ok(self):
+        """Verify Agent.__init__ allows a team member (tenant-beta) to run canvas with owner's (tenant-alpha) MCP."""
         mock_canvas = MagicMock()
-        mock_canvas.get_tenant_id.return_value = "tenant-alpha"
+        # Caller tenant is tenant-beta (team member)
+        mock_canvas.get_tenant_id.return_value = "tenant-beta"
+        # Canvas owner tenant is tenant-alpha
+        mock_canvas.get_canvas_owner_tenant.return_value = "tenant-alpha"
+        mock_canvas.tool_use_callback = MagicMock()
+
+        def fake_llm_init(this, canvas, id, param):
+            this._canvas = canvas
+            this._id = id
+            this._param = param
+
+        param_team = AgentParam()
+        param_team.llm_id = "test-llm"
+        param_team.mcp = [{"mcp_id": "mcp-own", "tools": {}}]  # mcp-own belongs to tenant-alpha
+        param_team.tools = []
+
+        with patch("agent.component.agent_with_tools.LLM.__init__", fake_llm_init), \
+             patch("agent.component.agent_with_tools.resolve_model_type", return_value=["chat"]), \
+             patch("agent.component.agent_with_tools.resolve_model_config", return_value={}), \
+             patch("agent.component.agent_with_tools.LLMBundle"), \
+             patch("agent.component.agent_with_tools.MCPToolCallSession"):
+            agent = Agent(mock_canvas, "agent_team_id", param_team)
+            self.assertIsNotNone(agent)
+            self.assertEqual(len(agent.tools), 0)
+
+    def test_real_canvas_owner_wiring_and_fallback(self):
+        """Verify real Canvas correctly stores caller tenant vs owner tenant and implements fallback."""
+        import json
+        dsl = json.dumps({"components": {}, "history": [], "messages": [], "retrieval": []})
+
+        # Explicit owner wiring (as performed in agent_api, bot_api, canvas_service)
+        c_wired = Canvas(dsl, tenant_id="tenant-beta", canvas_owner_tenant="tenant-alpha")
+        self.assertEqual(c_wired.get_tenant_id(), "tenant-beta")
+        self.assertEqual(c_wired.get_canvas_owner_tenant(), "tenant-alpha")
+
+        # Fallback when canvas_owner_tenant is omitted or None
+        c_fallback = Canvas(dsl, tenant_id="tenant-gamma")
+        self.assertEqual(c_fallback.get_tenant_id(), "tenant-gamma")
+        self.assertEqual(c_fallback.get_canvas_owner_tenant(), "tenant-gamma")
+
+    def test_real_canvas_runtime_with_agent_owner_vs_team(self):
+        """Verify real Canvas with Agent.__init__: team member runs owner's MCP successfully."""
+        import json
+        dsl = json.dumps({"components": {}, "history": [], "messages": [], "retrieval": []})
+        c_real = Canvas(dsl, tenant_id="tenant-beta", canvas_owner_tenant="tenant-alpha")
+
+        def fake_llm_init(this, canvas, id, param):
+            this._canvas = canvas
+            this._id = id
+            this._param = param
+
+        param = AgentParam()
+        param.llm_id = "test-llm"
+        param.mcp = [{"mcp_id": "mcp-own", "tools": {}}]
+        param.tools = []
+
+        with patch("agent.component.agent_with_tools.LLM.__init__", fake_llm_init), \
+             patch("agent.component.agent_with_tools.resolve_model_type", return_value=["chat"]), \
+             patch("agent.component.agent_with_tools.resolve_model_config", return_value={}), \
+             patch("agent.component.agent_with_tools.LLMBundle"), \
+             patch("agent.component.agent_with_tools.MCPToolCallSession"):
+            agent = Agent(c_real, "agent_team", param)
+            self.assertIsNotNone(agent)
+
+    def test_real_canvas_wiring_mutation_fails(self):
+        """Verify that mutating wiring to use caller tenant_id breaks team execution of owner MCP."""
+        import json
+        dsl = json.dumps({"components": {}, "history": [], "messages": [], "retrieval": []})
+        # Simulate wiring mutation: canvas_owner_tenant = tenant_id (caller tenant-beta instead of cvs.user_id tenant-alpha)
+        c_mutated = Canvas(dsl, tenant_id="tenant-beta", canvas_owner_tenant="tenant-beta")
+
+        def fake_llm_init(this, canvas, id, param):
+            this._canvas = canvas
+            this._id = id
+            this._param = param
+
+        param = AgentParam()
+        param.llm_id = "test-llm"
+        param.mcp = [{"mcp_id": "mcp-own", "tools": {}}]
+        param.tools = []
+
+        with patch("agent.component.agent_with_tools.LLM.__init__", fake_llm_init), \
+             patch("agent.component.agent_with_tools.resolve_model_type", return_value=["chat"]), \
+             patch("agent.component.agent_with_tools.resolve_model_config", return_value={}), \
+             patch("agent.component.agent_with_tools.LLMBundle"), \
+             patch("agent.component.agent_with_tools.MCPToolCallSession"):
+            with self.assertRaises(PermissionError) as ctx:
+                Agent(c_mutated, "agent_mutated", param)
+            self.assertIn("Access denied: MCP server 'mcp-own' does not belong to tenant 'tenant-beta'", str(ctx.exception))
+
+
+    def test_runtime_mcp_validation_foreign_server_rejected(self):
+        """Verify Agent.__init__ raises PermissionError when MCP does not belong to the canvas owner."""
+        mock_canvas = MagicMock()
+        mock_canvas.get_tenant_id.return_value = "tenant-beta"
+        mock_canvas.get_canvas_owner_tenant.return_value = "tenant-alpha"
         mock_canvas.tool_use_callback = MagicMock()
 
         def fake_llm_init(this, canvas, id, param):
@@ -283,7 +384,7 @@ class TestMCPSecurity(unittest.TestCase):
 
         param_foreign = AgentParam()
         param_foreign.llm_id = "test-llm"
-        param_foreign.mcp = [{"mcp_id": "mcp-foreign", "tools": {}}]
+        param_foreign.mcp = [{"mcp_id": "mcp-foreign-evil", "tools": {}}]
         param_foreign.tools = []
 
         with patch("agent.component.agent_with_tools.LLM.__init__", fake_llm_init), \
@@ -293,13 +394,14 @@ class TestMCPSecurity(unittest.TestCase):
             with self.assertRaises(PermissionError) as ctx:
                 Agent(mock_canvas, "agent_attacker_id", param_foreign)
             self.assertIn("Access denied", str(ctx.exception))
-            self.assertIn("mcp-foreign", str(ctx.exception))
+            self.assertIn("mcp-foreign-evil", str(ctx.exception))
             self.assertIn("tenant-alpha", str(ctx.exception))
 
     def test_runtime_mcp_validation_nonexistent_server_rejected(self):
         """Verify Agent.__init__ raises PermissionError when MCP does not exist."""
         mock_canvas = MagicMock()
         mock_canvas.get_tenant_id.return_value = "tenant-alpha"
+        mock_canvas.get_canvas_owner_tenant.return_value = "tenant-alpha"
         mock_canvas.tool_use_callback = MagicMock()
 
         def fake_llm_init(this, canvas, id, param):
@@ -338,6 +440,7 @@ class TestMCPSecurity(unittest.TestCase):
 
         mock_canvas = MagicMock()
         mock_canvas.get_tenant_id.return_value = "tenant-alpha"
+        mock_canvas.get_canvas_owner_tenant.return_value = "tenant-alpha"
         mock_canvas.tool_use_callback = MagicMock()
 
         def fake_llm_init(this, canvas, id, param):
@@ -587,16 +690,34 @@ class TestMCPSecurity(unittest.TestCase):
 
             async def _run():
                 # Attacker tenant-beta attempts to update victim tenant-alpha's mcp-own
-                async with app.test_request_context("/", method="PUT", json={"name": "Hacked Server"}):
-                    update_res = await mcp_api_mod.update("mcp-own")
-                    data = await update_res.get_json() if hasattr(update_res, "get_json") else update_res
-                    self.assertEqual(data["code"], 102)
-                    self.assertIn("Cannot find MCP server", data["message"])
+                with patch.object(mcp_api_mod, "_assert_mcp_url_is_safe", return_value=("mcp-alpha.internal", "93.184.216.34", None)), \
+                     patch.object(mcp_api_mod, "get_mcp_tools", return_value=({"Hacked Server": [{"name": "tool1"}]}, None)):
+                    async with app.test_request_context("/", method="PUT", json={"name": "Hacked Server"}):
+                        update_res = await mcp_api_mod.update("mcp-own")
+                        data = await update_res.get_json() if hasattr(update_res, "get_json") else update_res
+                        self.assertEqual(data["code"], 102)
+                        self.assertIn("Cannot find MCP server", data["message"])
 
                 # Confirm record in DB is unmutated
                 server = MCPServer.get_or_none(MCPServer.id == "mcp-own")
                 self.assertIsNotNone(server)
                 self.assertEqual(server.name, "Alpha Own Server")
+
+                # Positive control: Owner tenant-alpha can successfully update their own server
+                mcp_api_mod.current_user = types.SimpleNamespace(id="tenant-alpha")
+                with patch.object(mcp_api_mod, "_assert_mcp_url_is_safe", return_value=("mcp-alpha.internal", "93.184.216.34", None)), \
+                     patch.object(mcp_api_mod, "get_mcp_tools", return_value=({"Alpha Own Server Updated": [{"name": "tool1"}]}, None)):
+                    async with app.test_request_context("/", method="PUT", json={"name": "Alpha Own Server Updated"}):
+                        update_ok = await mcp_api_mod.update("mcp-own")
+                        data_ok = await update_ok.get_json() if hasattr(update_ok, "get_json") else update_ok
+                        self.assertEqual(data_ok["code"], 0)
+
+                server_updated = MCPServer.get_or_none(MCPServer.id == "mcp-own")
+                self.assertIsNotNone(server_updated)
+                self.assertEqual(server_updated.name, "Alpha Own Server Updated")
+
+                # Restore name for subsequent tests
+                MCPServer.update(name="Alpha Own Server").where(MCPServer.id == "mcp-own").execute()
 
             asyncio.run(_run())
         finally:
@@ -677,6 +798,7 @@ class TestMCPSecurity(unittest.TestCase):
         import importlib.util
         import types
         from quart import Quart
+        import json
 
         app = Quart("test_agent_api_app")
         agent_api_path = os.path.abspath(os.path.join(
@@ -742,7 +864,7 @@ class TestMCPSecurity(unittest.TestCase):
                     }
                 }
 
-                mock_canvas = MagicMock(user_id="tenant-alpha", canvas_category=0, title="Test Canvas", update_time=1234567890)
+                mock_canvas = MagicMock(id="canvas-123", user_id="tenant-alpha", canvas_category=0, title="Test Canvas", update_time=1234567890)
                 agent_api_mod.UserCanvasService.accessible = MagicMock(return_value=True)
                 agent_api_mod.UserCanvasService.get_by_id = MagicMock(return_value=(True, mock_canvas))
                 agent_api_mod.UserCanvasService.update_by_id = MagicMock()
@@ -781,22 +903,69 @@ class TestMCPSecurity(unittest.TestCase):
                             self.assertEqual(data["code"], 101)
                             self.assertIn("Access denied: MCP server 'mcp-foreign-evil'", data["message"])
 
-                        # 4. rerun_agent for caller tenant-beta with beta's own MCP server (mcp-foreign) -> SUCCESS (0)
-                        beta_own_dsl = {
-                            "components": {
-                                "agent_1": {
-                                    "obj": {
-                                        "component_name": "Agent",
-                                        "params": {"mcp": [{"mcp_id": "mcp-foreign"}]}
-                                    }
+                    # 4. rerun_agent for caller tenant-beta with beta's own MCP server (mcp-foreign) -> SUCCESS (0)
+                    beta_own_dsl = {
+                        "components": {
+                            "agent_1": {
+                                "obj": {
+                                    "component_name": "Agent",
+                                    "params": {"mcp": [{"mcp_id": "mcp-foreign"}]}
                                 }
                             }
                         }
+                    }
+                    with patch("rag.advanced_rag.knowlege_compile.dataset_nav.remove_dataset_nav_doc_sync"):
                         async with app.test_request_context("/", method="POST", json={"id": "log-1", "component_id": "c-1", "dsl": beta_own_dsl}):
                             res = await agent_api_mod.rerun_agent()
                             data = await res.get_json() if hasattr(res, "get_json") else res
                             self.assertEqual(data["code"], 0)
                             self.assertEqual(data["data"], True)
+
+                # 5. create_agent_session through real handler wiring:
+                # Team member tenant-beta creates session for canvas owned by tenant-alpha with owner's MCP
+                agent_api_mod.API4ConversationService = MagicMock()
+                agent_api_mod.API4ConversationService.save = MagicMock()
+                agent_api_mod.UserCanvasVersionService.get_latest_version_title = MagicMock(return_value="1.0")
+                canvas_session_dsl = {
+                    "components": {
+                        "begin": {
+                            "obj": {
+                                "component_name": "Begin",
+                                "params": {"prologue": "Hello!", "inputs": {}}
+                            }
+                        },
+                        "agent_1": {
+                            "obj": {
+                                "component_name": "Agent",
+                                "params": {
+                                    "llm_id": "test-llm",
+                                    "mcp": [{"mcp_id": "mcp-own", "tools": {}}],
+                                    "tools": []
+                                }
+                            }
+                        }
+                    },
+                    "history": [],
+                    "retrieval": [],
+                    "path": ["begin", "agent_1"]
+                }
+                agent_api_mod.UserCanvasService.get_agent_dsl_with_release = MagicMock(return_value=(mock_canvas, json.dumps(canvas_session_dsl)))
+
+                def fake_llm_init(this, canvas, id, param):
+                    this._canvas = canvas
+                    this._id = id
+                    this._param = param
+
+                with patch("agent.component.agent_with_tools.LLM.__init__", fake_llm_init), \
+                     patch("agent.component.agent_with_tools.resolve_model_type", return_value=["chat"]), \
+                     patch("agent.component.agent_with_tools.resolve_model_config", return_value={}), \
+                     patch("agent.component.agent_with_tools.LLMBundle"), \
+                     patch("agent.component.agent_with_tools.LLMToolPluginCallSession"), \
+                     patch("agent.component.agent_with_tools.MCPToolCallSession"):
+                    async with app.test_request_context("/", method="POST", json={}):
+                        res_sess = await agent_api_mod.create_agent_session(agent_id="canvas-123", tenant_id="tenant-beta")
+                        data_sess = await res_sess.get_json() if hasattr(res_sess, "get_json") else res_sess
+                        self.assertEqual(data_sess["code"], 0)
 
             asyncio.run(_run_agent_tests())
         finally:

@@ -339,7 +339,8 @@ async def begin_inputs(agent_id, tenant_id=None):
     if not e:
         return get_error_data_result(f"Can't find agent by ID: {agent_id}")
 
-    canvas = Canvas(json.dumps(cvs.dsl), tenant_id, canvas_id=cvs.id)
+    canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
+    canvas = Canvas(json.dumps(cvs.dsl), tenant_id, canvas_id=cvs.id, canvas_owner_tenant=canvas_owner_tenant)
     return get_result(data={"title": cvs.title, "avatar": cvs.avatar, "inputs": canvas.get_component_input_form("begin"), "prologue": canvas.get_prologue(), "mode": canvas.get_mode()})
 
 

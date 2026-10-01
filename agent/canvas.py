@@ -211,6 +211,9 @@ class Graph:
     def get_tenant_id(self):
         return self._tenant_id
 
+    def get_canvas_owner_tenant(self):
+        return getattr(self, "_canvas_owner_tenant", None) or self._tenant_id
+
     def get_value_with_variable(self, value: str) -> Any:
         # Reference the canonical pre-compiled regex from ComponentBase so
         # the source-pattern and the runtime-pattern can never drift apart.
@@ -329,7 +332,7 @@ class Graph:
 
 
 class Canvas(Graph):
-    def __init__(self, dsl: str, tenant_id=None, task_id=None, canvas_id=None, custom_header=None):
+    def __init__(self, dsl: str, tenant_id=None, task_id=None, canvas_id=None, custom_header=None, canvas_owner_tenant=None):
         self.globals = {
             "sys.query": "",
             "sys.user_id": tenant_id,
@@ -344,8 +347,12 @@ class Canvas(Graph):
         # reasoning and the final answer. Populated via the token_usage_sink context
         # variable that each LLMBundle chat call writes to. Reset at run() start.
         self._run_token_usage: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "calls": 0}
+        self._canvas_owner_tenant = canvas_owner_tenant or tenant_id
         super().__init__(dsl, tenant_id, task_id, custom_header=custom_header)
         self._id = canvas_id
+
+    def get_canvas_owner_tenant(self):
+        return self._canvas_owner_tenant or self._tenant_id
 
     def load(self):
         super().load()

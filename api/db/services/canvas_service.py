@@ -371,12 +371,15 @@ async def completion(tenant_id, agent_id, session_id=None, **kwargs):
             conv.message = []
         if not isinstance(conv.dsl, str):
             conv.dsl = json.dumps(conv.dsl, ensure_ascii=False)
-        canvas = Canvas(conv.dsl, tenant_id, task_id=session_id, canvas_id=agent_id, custom_header=custom_header)
+        _, cvs = await thread_pool_exec(UserCanvasService.get_by_id, conv.dialog_id or agent_id)
+        canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
+        canvas = Canvas(conv.dsl, tenant_id, task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant)
     else:
         cvs, dsl = await thread_pool_exec(UserCanvasService.get_agent_dsl_with_release, agent_id, release_mode=release_mode == "true", tenant_id=tenant_id)
+        canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
 
         session_id = get_uuid()
-        canvas = Canvas(dsl, tenant_id, task_id=session_id, canvas_id=cvs.id, custom_header=custom_header)
+        canvas = Canvas(dsl, tenant_id, task_id=session_id, canvas_id=cvs.id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant)
         canvas.reset()
         # Get the version title based on release_mode
         version_title = await thread_pool_exec(UserCanvasVersionService.get_latest_version_title, cvs.id, release_mode=release_mode == "true")

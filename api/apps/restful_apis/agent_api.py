@@ -487,7 +487,8 @@ async def create_agent_session(agent_id, tenant_id):
         return get_data_error_result(message=str(e))
 
     session_id = get_uuid()
-    canvas = Canvas(dsl, tenant_id, agent_id, canvas_id=cvs.id)
+    canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
+    canvas = Canvas(dsl, tenant_id, agent_id, canvas_id=cvs.id, canvas_owner_tenant=canvas_owner_tenant)
     canvas.reset()
 
     cvs.dsl = json.loads(str(canvas))
@@ -1595,7 +1596,8 @@ async def agent_chat_completion(tenant_id, agent_id=None):
                 dsl_str = workflow_dsl
             else:
                 dsl_str = json.dumps(workflow_dsl, ensure_ascii=False)
-            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header)
+            canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
+            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant)
         except Exception as exc:
             return server_error_response(exc)
 
@@ -1716,7 +1718,8 @@ async def agent_chat_completion(tenant_id, agent_id=None):
         try:
             from agent.canvas import Canvas
 
-            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header)
+            canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
+            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant)
             canvas.start_new_session()
         except Exception as exc:
             return server_error_response(exc)
@@ -2132,7 +2135,8 @@ async def _webhook_impl(agent_id: str, is_test: bool):
     try:
         from agent.canvas import Canvas
 
-        canvas = Canvas(dsl, cvs.user_id, agent_id, canvas_id=agent_id)
+        canvas_owner_tenant = getattr(cvs, "user_id", None) or cvs.user_id
+        canvas = Canvas(dsl, cvs.user_id, agent_id, canvas_id=agent_id, canvas_owner_tenant=canvas_owner_tenant)
     except Exception as e:
         resp = get_data_error_result(code=RetCode.BAD_REQUEST, message=str(e))
         resp.status_code = RetCode.BAD_REQUEST
