@@ -13,11 +13,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+import logging
 from typing import Any, Optional
 from peewee import fn
 
 from api.db.db_models import DB, MCPServer
 from api.db.services.common_service import CommonService
+
+logger = logging.getLogger(__name__)
 
 
 class MCPServerService(CommonService):
@@ -104,13 +107,18 @@ class MCPServerService(CommonService):
             mcp_server = cls.model.get_or_none((cls.model.id == mcp_id) & (cls.model.tenant_id == tenant_id))
             if mcp_server:
                 return True, mcp_server
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception("Failed to query MCP server %s for tenant %s: %s", mcp_id, tenant_id, e)
         return False, None
 
     @classmethod
-    def extract_mcp_ids_from_dsl(cls, dsl: Any) -> set[str]:
-        """Recursively scan canvas DSL structure and extract all referenced mcp_ids."""
+    def extract_mcp_ids_from_dsl(cls, dsl: Any, max_depth: int = 32, current_depth: int = 0) -> set[str]:
+        """Recursively scan canvas DSL structure and extract all referenced mcp_ids.
+        
+        Guarded by max_depth to prevent recursion limits / stack exhaustion on deeply nested inputs.
+        """
+        if current_depth > max_depth:
+            return set()
         mcp_ids = set()
         if isinstance(dsl, dict):
             if "mcp_id" in dsl and isinstance(dsl["mcp_id"], str) and dsl["mcp_id"].strip():
@@ -121,10 +129,10 @@ class MCPServerService(CommonService):
                         if item["mcp_id"].strip():
                             mcp_ids.add(item["mcp_id"].strip())
             for v in dsl.values():
-                mcp_ids.update(cls.extract_mcp_ids_from_dsl(v))
+                mcp_ids.update(cls.extract_mcp_ids_from_dsl(v, max_depth=max_depth, current_depth=current_depth + 1))
         elif isinstance(dsl, list):
             for item in dsl:
-                mcp_ids.update(cls.extract_mcp_ids_from_dsl(item))
+                mcp_ids.update(cls.extract_mcp_ids_from_dsl(item, max_depth=max_depth, current_depth=current_depth + 1))
         return mcp_ids
 
     @classmethod

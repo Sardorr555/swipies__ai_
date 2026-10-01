@@ -40,8 +40,8 @@ def _get_mcp_ids_from_args() -> list[str]:
 def _export_mcp_servers(mcp_ids: list[str]) -> dict | None:
     exported_servers = {}
     for mcp_id in mcp_ids:
-        e, mcp_server = MCPServerService.get_by_id(mcp_id)
-        if e and mcp_server.tenant_id == current_user.id:
+        e, mcp_server = MCPServerService.get_by_id_and_tenant(mcp_id, current_user.id)
+        if e:
             server_key = mcp_server.name
             exported_servers[server_key] = {
                 "type": mcp_server.server_type,
@@ -181,8 +181,8 @@ async def create() -> Response:
 async def update(mcp_id: str) -> Response:
     req = await get_request_json()
 
-    e, mcp_server = MCPServerService.get_by_id(mcp_id)
-    if not e or mcp_server.tenant_id != current_user.id:
+    e, mcp_server = MCPServerService.get_by_id_and_tenant(mcp_id, current_user.id)
+    if not e:
         return get_data_error_result(message=f"Cannot find MCP server {mcp_id} for user {current_user.id}")
 
     server_type = req.get("server_type", mcp_server.server_type)
@@ -226,7 +226,7 @@ async def update(mcp_id: str) -> Response:
         if not MCPServerService.filter_update([MCPServer.id == mcp_id, MCPServer.tenant_id == current_user.id], req):
             return get_data_error_result(message="Failed to updated MCP server.")
 
-        e, updated_mcp = MCPServerService.get_by_id(req["id"])
+        e, updated_mcp = MCPServerService.get_by_id_and_tenant(req["id"], current_user.id)
         if not e:
             return get_data_error_result(message="Failed to fetch updated MCP server.")
 
@@ -239,10 +239,11 @@ async def update(mcp_id: str) -> Response:
 @login_required
 async def rm(mcp_id: str) -> Response:
     try:
-        e, mcp_server = MCPServerService.get_by_id(mcp_id)
-        if not e or mcp_server.tenant_id != current_user.id:
+        e, _ = MCPServerService.get_by_id_and_tenant(mcp_id, current_user.id)
+        if not e:
             return get_data_error_result(message=f"Cannot find MCP server {mcp_id} for user {current_user.id}")
-        if not MCPServerService.delete_by_ids([mcp_id]):
+        deleted_count = MCPServerService.filter_delete([MCPServer.id == mcp_id, MCPServer.tenant_id == current_user.id])
+        if not deleted_count:
             return get_data_error_result(message=f"Failed to delete MCP servers {[mcp_id]}")
 
         return get_json_result(data=True)

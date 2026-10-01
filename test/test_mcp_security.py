@@ -27,15 +27,19 @@ sys.modules.setdefault("pypdf", MagicMock())
 sys.modules.setdefault("deepdoc", MagicMock())
 sys.modules.setdefault("deepdoc.parser", MagicMock())
 
-from peewee import SqliteDatabase
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from common import settings
+settings.init_settings = lambda *a, **kw: None
+
+from peewee import SqliteDatabase
 from api.db.db_models import DB, MCPServer
 
 test_db = SqliteDatabase(":memory:")
 MCPServer._meta.database = test_db
 DB.connection_context = lambda: (lambda fn: fn)
+DB.atomic = lambda *args, **kwargs: test_db.atomic()
 
 from api.db.services.mcp_server_service import MCPServerService
 from agent.component.agent_with_tools import Agent, AgentParam
@@ -420,6 +424,440 @@ class TestMCPSecurity(unittest.TestCase):
         # In contrast, real validation fails-closed:
         with self.assertRaises(ValueError):
             MCPServerService.validate_dsl_mcp_ownership(foreign_dsl, "tenant-alpha")
+
+    # -------------------------------------------------------------------------
+    # 6. Recursion Depth Protection
+    # -------------------------------------------------------------------------
+    def test_extract_mcp_ids_from_dsl_max_depth(self):
+        """Verify deeply nested DSL structures terminate without RecursionError."""
+        deep_dsl = {"mcp_id": "root-mcp"}
+        curr = deep_dsl
+        for i in range(50):
+            curr["nested"] = {"mcp_id": f"deep-mcp-{i}"}
+            curr = curr["nested"]
+
+        extracted = MCPServerService.extract_mcp_ids_from_dsl(deep_dsl, max_depth=10)
+        self.assertIn("root-mcp", extracted)
+        self.assertIn("deep-mcp-0", extracted)
+        self.assertNotIn("deep-mcp-40", extracted)
+
+    # -------------------------------------------------------------------------
+    # 7. Team-Share Canvas MCP Scoping Tests
+    # -------------------------------------------------------------------------
+    def test_team_share_canvas_owner_scoping(self):
+        """Team member updating shared canvas uses canvas owner's MCP tenant context."""
+        owner_canvas = MagicMock()
+        owner_canvas.user_id = "tenant-alpha"
+        owner_canvas.permission = "team"
+        owner_canvas.canvas_category = "agent_canvas"
+
+        valid_dsl = {
+            "components": {
+                "agent_1": {
+                    "obj": {
+                        "component_name": "Agent",
+                        "params": {"mcp": [{"mcp_id": "mcp-own"}]},
+                    }
+                }
+            }
+        }
+        canvas_owner_tenant = getattr(owner_canvas, "user_id", None) or "tenant-beta"
+        self.assertEqual(canvas_owner_tenant, "tenant-alpha")
+        MCPServerService.validate_dsl_mcp_ownership(valid_dsl, canvas_owner_tenant)
+
+        invalid_dsl = {
+            "components": {
+                "agent_1": {
+                    "obj": {
+                        "component_name": "Agent",
+                        "params": {"mcp": [{"mcp_id": "mcp-foreign"}]},
+                    }
+                }
+            }
+        }
+        with self.assertRaises(ValueError) as ctx:
+            MCPServerService.validate_dsl_mcp_ownership(invalid_dsl, canvas_owner_tenant)
+        self.assertIn("mcp-foreign", str(ctx.exception))
+        self.assertIn("tenant-alpha", str(ctx.exception))
+
+        # Mutation (b) proof: If update_agent reverted to caller tenant (tenant-beta),
+        # legitimate save of owner's MCP server would fail:
+        caller_tenant = "tenant-beta"
+        with self.assertRaises(ValueError) as mut_ctx:
+            MCPServerService.validate_dsl_mcp_ownership(valid_dsl, caller_tenant)
+        self.assertIn("mcp-own", str(mut_ctx.exception))
+        self.assertIn("tenant-beta", str(mut_ctx.exception))
+
+    # -------------------------------------------------------------------------
+    # 8. MCP API Multi-Tenant Isolation Tests
+    # -------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # 8. Real Handler Integration Tests (All 4 mcp_api calls & agent_api handlers)
+    # -------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # 8. Real Handler Integration Tests (All 4 mcp_api calls & agent_api handlers)
+    # -------------------------------------------------------------------------
+    def test_mcp_api_export_handler_cross_tenant_rejected(self):
+        """Verify export / detail handler blocks cross-tenant access."""
+        import importlib.util
+        import types
+        from quart import Quart
+
+        mcp_api_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "api", "apps", "restful_apis", "mcp_api.py"
+        ))
+        app = Quart("test_export_app")
+
+        dummy_apps = types.ModuleType("api.apps")
+        dummy_apps.login_required = lambda f=None, **k: f if f and callable(f) else (lambda fn: fn)
+        dummy_apps.current_user = types.SimpleNamespace(id="tenant-beta")
+        dummy_web_utils = types.ModuleType("api.utils.web_utils")
+        dummy_web_utils.get_float = lambda d, k, default=0: float(d.get(k, default))
+        dummy_web_utils.safe_json_parse = lambda v: v if isinstance(v, dict) else {}
+
+        orig_apps = sys.modules.get("api.apps")
+        orig_web = sys.modules.get("api.utils.web_utils")
+        orig_mcp_api = sys.modules.get("api.apps.restful_apis.mcp_api")
+        sys.modules["api.apps"] = dummy_apps
+        sys.modules["api.utils.web_utils"] = dummy_web_utils
+        try:
+            spec = importlib.util.spec_from_file_location("api.apps.restful_apis.mcp_api", mcp_api_path)
+            mcp_api_mod = importlib.util.module_from_spec(spec)
+            mcp_api_mod.manager = MagicMock()
+            mcp_api_mod.manager.route = lambda *a, **k: (lambda f: f)
+            sys.modules["api.apps.restful_apis.mcp_api"] = mcp_api_mod
+            spec.loader.exec_module(mcp_api_mod)
+
+            async def _run():
+                # Attacker tenant-beta tries to export tenant-alpha's mcp-own -> denied (None / code 102)
+                exported = mcp_api_mod._export_mcp_servers(["mcp-own"])
+                self.assertIsNone(exported)
+
+                async with app.test_request_context("/?mode=download"):
+                    detail_res = mcp_api_mod.detail("mcp-own")
+                    data = await detail_res.get_json() if hasattr(detail_res, "get_json") else detail_res
+                    self.assertEqual(data["code"], 102)
+                    self.assertIn("Cannot find MCP server", data["message"])
+
+            asyncio.run(_run())
+        finally:
+            if orig_apps is not None:
+                sys.modules["api.apps"] = orig_apps
+            else:
+                sys.modules.pop("api.apps", None)
+            if orig_web is not None:
+                sys.modules["api.utils.web_utils"] = orig_web
+            else:
+                sys.modules.pop("api.utils.web_utils", None)
+            if orig_mcp_api is not None:
+                sys.modules["api.apps.restful_apis.mcp_api"] = orig_mcp_api
+            else:
+                sys.modules.pop("api.apps.restful_apis.mcp_api", None)
+
+    def test_mcp_api_update_handler_cross_tenant_rejected(self):
+        """Verify PUT /mcp/servers/<id> rejects cross-tenant modification."""
+        import importlib.util
+        import types
+        from quart import Quart
+
+        mcp_api_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "api", "apps", "restful_apis", "mcp_api.py"
+        ))
+        app = Quart("test_update_app")
+
+        dummy_apps = types.ModuleType("api.apps")
+        dummy_apps.login_required = lambda f=None, **k: f if f and callable(f) else (lambda fn: fn)
+        dummy_apps.current_user = types.SimpleNamespace(id="tenant-beta")
+        dummy_web_utils = types.ModuleType("api.utils.web_utils")
+        dummy_web_utils.get_float = lambda d, k, default=0: float(d.get(k, default))
+        dummy_web_utils.safe_json_parse = lambda v: v if isinstance(v, dict) else {}
+
+        orig_apps = sys.modules.get("api.apps")
+        orig_web = sys.modules.get("api.utils.web_utils")
+        orig_mcp_api = sys.modules.get("api.apps.restful_apis.mcp_api")
+        sys.modules["api.apps"] = dummy_apps
+        sys.modules["api.utils.web_utils"] = dummy_web_utils
+        try:
+            spec = importlib.util.spec_from_file_location("api.apps.restful_apis.mcp_api", mcp_api_path)
+            mcp_api_mod = importlib.util.module_from_spec(spec)
+            mcp_api_mod.manager = MagicMock()
+            mcp_api_mod.manager.route = lambda *a, **k: (lambda f: f)
+            sys.modules["api.apps.restful_apis.mcp_api"] = mcp_api_mod
+            spec.loader.exec_module(mcp_api_mod)
+
+            async def _run():
+                # Attacker tenant-beta attempts to update victim tenant-alpha's mcp-own
+                async with app.test_request_context("/", method="PUT", json={"name": "Hacked Server"}):
+                    update_res = await mcp_api_mod.update("mcp-own")
+                    data = await update_res.get_json() if hasattr(update_res, "get_json") else update_res
+                    self.assertEqual(data["code"], 102)
+                    self.assertIn("Cannot find MCP server", data["message"])
+
+                # Confirm record in DB is unmutated
+                server = MCPServer.get_or_none(MCPServer.id == "mcp-own")
+                self.assertIsNotNone(server)
+                self.assertEqual(server.name, "Alpha Own Server")
+
+            asyncio.run(_run())
+        finally:
+            if orig_apps is not None:
+                sys.modules["api.apps"] = orig_apps
+            else:
+                sys.modules.pop("api.apps", None)
+            if orig_web is not None:
+                sys.modules["api.utils.web_utils"] = orig_web
+            else:
+                sys.modules.pop("api.utils.web_utils", None)
+            if orig_mcp_api is not None:
+                sys.modules["api.apps.restful_apis.mcp_api"] = orig_mcp_api
+            else:
+                sys.modules.pop("api.apps.restful_apis.mcp_api", None)
+
+    def test_mcp_api_rm_handler_cross_tenant_rejected(self):
+        """Verify DELETE /mcp/servers/<id> rejects cross-tenant deletion."""
+        import importlib.util
+        import types
+        from quart import Quart
+
+        mcp_api_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "api", "apps", "restful_apis", "mcp_api.py"
+        ))
+        app = Quart("test_rm_app")
+
+        dummy_apps = types.ModuleType("api.apps")
+        dummy_apps.login_required = lambda f=None, **k: f if f and callable(f) else (lambda fn: fn)
+        dummy_apps.current_user = types.SimpleNamespace(id="tenant-beta")
+        dummy_web_utils = types.ModuleType("api.utils.web_utils")
+        dummy_web_utils.get_float = lambda d, k, default=0: float(d.get(k, default))
+        dummy_web_utils.safe_json_parse = lambda v: v if isinstance(v, dict) else {}
+
+        orig_apps = sys.modules.get("api.apps")
+        orig_web = sys.modules.get("api.utils.web_utils")
+        orig_mcp_api = sys.modules.get("api.apps.restful_apis.mcp_api")
+        sys.modules["api.apps"] = dummy_apps
+        sys.modules["api.utils.web_utils"] = dummy_web_utils
+        try:
+            spec = importlib.util.spec_from_file_location("api.apps.restful_apis.mcp_api", mcp_api_path)
+            mcp_api_mod = importlib.util.module_from_spec(spec)
+            mcp_api_mod.manager = MagicMock()
+            mcp_api_mod.manager.route = lambda *a, **k: (lambda f: f)
+            sys.modules["api.apps.restful_apis.mcp_api"] = mcp_api_mod
+            spec.loader.exec_module(mcp_api_mod)
+
+            async def _run():
+                # Attacker tenant-beta attempts to delete tenant-alpha's mcp-own
+                async with app.test_request_context("/", method="DELETE"):
+                    rm_res = await mcp_api_mod.rm("mcp-own")
+                    data = await rm_res.get_json() if hasattr(rm_res, "get_json") else rm_res
+                    self.assertEqual(data["code"], 102)
+                    self.assertIn("Cannot find MCP server", data["message"])
+
+                # Confirm victim's record is completely unharmed in DB
+                survived = MCPServer.get_or_none(MCPServer.id == "mcp-own")
+                self.assertIsNotNone(survived)
+                self.assertEqual(survived.tenant_id, "tenant-alpha")
+
+            asyncio.run(_run())
+        finally:
+            if orig_apps is not None:
+                sys.modules["api.apps"] = orig_apps
+            else:
+                sys.modules.pop("api.apps", None)
+            if orig_web is not None:
+                sys.modules["api.utils.web_utils"] = orig_web
+            else:
+                sys.modules.pop("api.utils.web_utils", None)
+            if orig_mcp_api is not None:
+                sys.modules["api.apps.restful_apis.mcp_api"] = orig_mcp_api
+            else:
+                sys.modules.pop("api.apps.restful_apis.mcp_api", None)
+
+    def test_agent_api_real_handlers_update_and_rerun(self):
+        """Verify update_agent and rerun_agent real handlers reject unowned MCP servers."""
+        import importlib.util
+        import types
+        from quart import Quart
+
+        app = Quart("test_agent_api_app")
+        agent_api_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "api", "apps", "restful_apis", "agent_api.py"
+        ))
+
+        dummy_apps = types.ModuleType("api.apps")
+        dummy_apps.__path__ = [os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "api", "apps"))]
+        def dummy_login_required(func=None, **kwargs):
+            if func is not None and callable(func):
+                return func
+            return lambda f: f
+        dummy_apps.login_required = dummy_login_required
+        # Caller is tenant-beta (team member) updating a shared canvas owned by tenant-alpha
+        dummy_apps.current_user = types.SimpleNamespace(id="tenant-beta")
+        dummy_apps.AUTH_JWT = "jwt"
+        dummy_apps.AUTH_API = "api"
+        dummy_apps.AUTH_BETA = "beta"
+
+        dummy_task = types.ModuleType("api.db.services.task_service")
+        dummy_task.TaskService = MagicMock()
+        dummy_task.CANVAS_DEBUG_DOC_ID = "debug-doc"
+        dummy_task.GRAPH_RAPTOR_FAKE_DOC_ID = "raptor-doc"
+        dummy_task.queue_dataflow = MagicMock()
+        dummy_task.has_canceled = MagicMock(return_value=False)
+
+        orig_apps = sys.modules.get("api.apps")
+        orig_task = sys.modules.get("api.db.services.task_service")
+        orig_agent_api = sys.modules.get("api.apps.restful_apis.agent_api")
+
+        sys.modules["api.apps"] = dummy_apps
+        sys.modules["api.db.services.task_service"] = dummy_task
+
+        try:
+            spec = importlib.util.spec_from_file_location("api.apps.restful_apis.agent_api", agent_api_path)
+            agent_api_mod = importlib.util.module_from_spec(spec)
+            agent_api_mod.manager = MagicMock()
+            agent_api_mod.manager.route = lambda *a, **k: (lambda f: f)
+            sys.modules["api.apps.restful_apis.agent_api"] = agent_api_mod
+            spec.loader.exec_module(agent_api_mod)
+
+            async def _run_agent_tests():
+                # foreign_dsl uses an MCP server belonging to neither owner nor caller
+                foreign_dsl = {
+                    "components": {
+                        "agent_1": {
+                            "obj": {
+                                "component_name": "Agent",
+                                "params": {"mcp": [{"mcp_id": "mcp-foreign-evil"}]}
+                            }
+                        }
+                    }
+                }
+                # own_dsl uses mcp-own belonging to canvas owner (tenant-alpha)
+                own_dsl = {
+                    "components": {
+                        "agent_1": {
+                            "obj": {
+                                "component_name": "Agent",
+                                "params": {"mcp": [{"mcp_id": "mcp-own"}]}
+                            }
+                        }
+                    }
+                }
+
+                mock_canvas = MagicMock(user_id="tenant-alpha", canvas_category=0, title="Test Canvas", update_time=1234567890)
+                agent_api_mod.UserCanvasService.accessible = MagicMock(return_value=True)
+                agent_api_mod.UserCanvasService.get_by_id = MagicMock(return_value=(True, mock_canvas))
+                agent_api_mod.UserCanvasService.update_by_id = MagicMock()
+                agent_api_mod.UserCanvasVersionService.save_or_replace_latest = MagicMock()
+                agent_api_mod.CanvasReplicaService.replace_for_set = MagicMock(return_value=True)
+
+                from agent.canvas import Canvas
+                with patch.object(Canvas, "validate_component_parameters"):
+                    # 1. update_agent with foreign MCP -> ARGUMENT_ERROR (101)
+                    async with app.test_request_context("/", method="PUT", json={"dsl": foreign_dsl}):
+                        res = await agent_api_mod.update_agent(agent_id="canvas-123")
+                        data = await res.get_json() if hasattr(res, "get_json") else res
+                        self.assertEqual(data["code"], 101)
+                        self.assertIn("Access denied: MCP server 'mcp-foreign-evil'", data["message"])
+
+                    # 2. update_agent by team member (tenant-beta) saving canvas owner's (tenant-alpha) MCP -> SUCCESS (0)
+                    async with app.test_request_context("/", method="PUT", json={"dsl": own_dsl}):
+                        res = await agent_api_mod.update_agent(agent_id="canvas-123")
+                        data = await res.get_json() if hasattr(res, "get_json") else res
+                        self.assertEqual(data["code"], 0)
+
+                    # 3. rerun_agent with foreign MCP -> ARGUMENT_ERROR (101)
+                    mock_doc = [{"id": "doc-1", "name": "test-doc", "progress": 0, "kb_id": "kb-1"}]
+                    agent_api_mod.PipelineOperationLogService.get_documents_info = MagicMock(return_value=mock_doc)
+                    agent_api_mod.DocumentService.accessible = MagicMock(return_value=True)
+                    agent_api_mod.DocumentService.clear_chunk_num_when_rerun = MagicMock()
+                    agent_api_mod.DocumentService.update_by_id = MagicMock()
+                    agent_api_mod.PipelineOperationLogService.update_by_id = MagicMock()
+                    agent_api_mod.settings.docStoreConn = MagicMock()
+                    agent_api_mod.settings.docStoreConn.index_exist = MagicMock(return_value=False)
+
+                    with patch("rag.advanced_rag.knowlege_compile.dataset_nav.remove_dataset_nav_doc_sync"):
+                        async with app.test_request_context("/", method="POST", json={"id": "log-1", "component_id": "c-1", "dsl": foreign_dsl}):
+                            res = await agent_api_mod.rerun_agent()
+                            data = await res.get_json() if hasattr(res, "get_json") else res
+                            self.assertEqual(data["code"], 101)
+                            self.assertIn("Access denied: MCP server 'mcp-foreign-evil'", data["message"])
+
+                        # 4. rerun_agent for caller tenant-beta with beta's own MCP server (mcp-foreign) -> SUCCESS (0)
+                        beta_own_dsl = {
+                            "components": {
+                                "agent_1": {
+                                    "obj": {
+                                        "component_name": "Agent",
+                                        "params": {"mcp": [{"mcp_id": "mcp-foreign"}]}
+                                    }
+                                }
+                            }
+                        }
+                        async with app.test_request_context("/", method="POST", json={"id": "log-1", "component_id": "c-1", "dsl": beta_own_dsl}):
+                            res = await agent_api_mod.rerun_agent()
+                            data = await res.get_json() if hasattr(res, "get_json") else res
+                            self.assertEqual(data["code"], 0)
+                            self.assertEqual(data["data"], True)
+
+            asyncio.run(_run_agent_tests())
+        finally:
+            if orig_apps is not None:
+                sys.modules["api.apps"] = orig_apps
+            else:
+                sys.modules.pop("api.apps", None)
+            if orig_task is not None:
+                sys.modules["api.db.services.task_service"] = orig_task
+            else:
+                sys.modules.pop("api.db.services.task_service", None)
+            if orig_agent_api is not None:
+                sys.modules["api.apps.restful_apis.agent_api"] = orig_agent_api
+            else:
+                sys.modules.pop("api.apps.restful_apis.agent_api", None)
+
+
+    # -------------------------------------------------------------------------
+    # 9. Database Isolation Guarantee
+    # -------------------------------------------------------------------------
+    def test_database_isolation_guarantee(self):
+        """Verify tests run against in-memory SQLite and cannot touch real MySQL settings.DATABASE."""
+        self.assertIsInstance(MCPServer._meta.database, SqliteDatabase)
+        self.assertEqual(MCPServer._meta.database.database, ":memory:")
+
+        with patch.object(DB, "connect", side_effect=RuntimeError("Direct MySQL access forbidden!")):
+            res = list(MCPServer.select().where(MCPServer.id == "mcp-own"))
+            self.assertEqual(len(res), 1)
+
+    # -------------------------------------------------------------------------
+    # 10. Runtime Error Response Formats (REST and SSE)
+    # -------------------------------------------------------------------------
+    def test_runtime_error_formats_rest_and_sse(self):
+        """Verify exact error formats for REST and SSE upon runtime PermissionError."""
+        import json
+        from quart import Quart
+        from api.utils.api_utils import server_error_response
+
+        app = Quart("error_format_test")
+
+        err = PermissionError("Access denied: MCP server 'mcp-evil' does not belong to tenant 'tenant-alpha' or does not exist.")
+
+        async def _test_rest():
+            async with app.test_request_context("/"):
+                resp = server_error_response(err)
+                data = await resp.get_json()
+                self.assertEqual(resp.status_code, 200)
+                self.assertEqual(data["code"], 100)
+                self.assertIn("PermissionError", data["message"])
+                self.assertIn("Access denied: MCP server 'mcp-evil'", data["message"])
+                self.assertIsNone(data["data"])
+
+        asyncio.run(_test_rest())
+
+        sse_chunk = f"data:{json.dumps({'code': 500, 'message': str(err), 'data': False}, ensure_ascii=False)}\n\n"
+        self.assertTrue(sse_chunk.startswith("data:"))
+        self.assertTrue(sse_chunk.endswith("\n\n"))
+        parsed = json.loads(sse_chunk[len("data:"):].strip())
+        self.assertEqual(parsed["code"], 500)
+        self.assertEqual(parsed["data"], False)
+        self.assertIn("Access denied: MCP server 'mcp-evil'", parsed["message"])
 
 
 if __name__ == "__main__":

@@ -1193,13 +1193,16 @@ async def update_agent(agent_id, tenant_id):
     req["canvas_type"] = req.get("canvas_type", "")
     req["release"] = bool(req.get("release", ""))
 
+    _, current_agent = UserCanvasService.get_by_id(agent_id)
+    canvas_owner_tenant = getattr(current_agent, "user_id", None) or tenant_id
+
     if req.get("dsl") is not None:
         try:
             from agent.canvas import Canvas
 
             req["dsl"] = CanvasReplicaService.normalize_dsl(req["dsl"])
             Canvas.validate_component_parameters(req["dsl"])
-            MCPServerService.validate_dsl_mcp_ownership(req["dsl"], tenant_id)
+            MCPServerService.validate_dsl_mcp_ownership(req["dsl"], canvas_owner_tenant)
         except ValueError as exc:
             return get_json_result(
                 data=False,
@@ -1207,9 +1210,6 @@ async def update_agent(agent_id, tenant_id):
                 code=RetCode.ARGUMENT_ERROR,
             )
 
-
-
-    _, current_agent = UserCanvasService.get_by_id(agent_id)
     if req.get("title") is not None:
         req["title"] = req["title"].strip()
         canvas_category_for_duplicate_check = req.get("canvas_category") or (current_agent.canvas_category if current_agent else CanvasCategory.Agent)
