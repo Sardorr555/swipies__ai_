@@ -203,9 +203,11 @@ export const CampaignsTab: React.FC<CampaignsTabProps> = ({
                             ))
                           )}
                           {Array.isArray(cmp.target_models) && cmp.target_models.length > 0 && !cmp.target_models.includes('all') && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 font-medium">
-                              🤖 {cmp.target_models.join(', ')}
-                            </span>
+                            cmp.target_models.map((m: string) => (
+                              <span key={m} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 font-medium">
+                                🤖 {m}
+                              </span>
+                            ))
                           )}
                         </div>
                       </td>

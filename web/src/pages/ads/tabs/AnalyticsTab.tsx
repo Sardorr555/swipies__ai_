@@ -197,7 +197,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           <div className="h-[280px] w-full">
             {timelineData?.timeline &&
             Array.isArray(timelineData.timeline) &&
-            timelineData.timeline.length > 0 ? (
+            timelineData.timeline.some((p) => p.impressions > 0 || p.clicks > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={Array.isArray(timelineData.timeline) ? timelineData.timeline : []}
@@ -255,8 +255,11 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                За выбранный период данных нет
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2 rounded-lg border border-dashed border-border/60 bg-muted/20">
+                <BarChart3 className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-xs text-muted-foreground">
+                  Tanlangan {timelineDays} kunlik davr uchun real ko'rsatuvlar va bosishlar mavjud emas.
+                </p>
               </div>
             )}
           </div>

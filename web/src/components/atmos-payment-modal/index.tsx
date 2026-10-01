@@ -23,7 +23,6 @@ import {
   RefreshCw,
   Clock,
   Check,
-  Layers,
   Tag,
 } from 'lucide-react';
 import paymentService from '@/services/payment-service';
@@ -60,7 +59,7 @@ export function AtmosPaymentModal({
   const [phoneMasked, setPhoneMasked] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSms102Error, setIsSms102Error] = useState(false);
-  const [successData, setSuccessData] = useState<any>(null);
+  const [, setSuccessData] = useState<any>(null);
 
   // Promo Code State
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -298,7 +297,7 @@ export function AtmosPaymentModal({
   const handleConfirmOtp = async () => {
     const cleanOtp = otp.trim();
     if (cleanOtp.length < 4) {
-      setErrorMessage('Пожалуйста, введите проверочный код из СМС.');
+      setErrorMessage('Пожалуйста, введите проверочный код из СМС, отправленный на ваш телефон.');
       return;
     }
 
@@ -312,7 +311,7 @@ export function AtmosPaymentModal({
       });
 
       if (applyRes.data.code !== 0 || applyRes.data.data?.status !== 'paid') {
-        setErrorMessage(applyRes.data.message || 'Неверный СМС-код. Проверьте код и повторите.');
+        setErrorMessage(applyRes.data.message || 'Неверный СМС-код. Проверьте код, поступивший на телефон, и повторите.');
         setLoading(false);
         return;
       }
@@ -413,7 +412,7 @@ export function AtmosPaymentModal({
           )}
         </div>
 
-        {/* Promo Code Input Row (Step: card) */}
+        {/* Promo Code Input Row */}
         {step === 'card' && !appliedPromo && (
           <div className="flex gap-2 items-center">
             <Input
@@ -451,7 +450,7 @@ export function AtmosPaymentModal({
           </div>
         )}
 
-        {/* STEP 1: Card Input */}
+        {/* STEP 1: Direct Card Input */}
         {step === 'card' && (
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5">
@@ -495,7 +494,7 @@ export function AtmosPaymentModal({
               <div className="space-y-1.5 flex flex-col justify-end">
                 <div className="text-[11px] text-muted-foreground leading-tight flex items-center gap-1.5 p-2 rounded-lg bg-muted/40 border border-border/50">
                   <Lock className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                  <span>256-bit SSL шифрование данных</span>
+                  <span>256-bit SSL шифрование</span>
                 </div>
               </div>
             </div>
@@ -534,7 +533,7 @@ export function AtmosPaymentModal({
                 <span>Подтверждение через СМС</span>
               </div>
               <p className="text-[11px] leading-relaxed">
-                Банк отправил 6-значный код подтверждения на ваш привязанный номер <strong>{phoneMasked}</strong>.
+                Банк отправил 6-значный проверочный код на ваш телефон <strong>{phoneMasked}</strong>. Введите полученный из СМС код:
               </p>
             </div>
 
@@ -612,7 +611,7 @@ export function AtmosPaymentModal({
               <p className="text-xs text-muted-foreground">
                 {purpose === 'subscription_upgrade'
                   ? `Ваш тариф успешно обновлен до ${planId?.toUpperCase()}. Все привилегии активированы.`
-                  : `Баланс рекламодателя успешно пополнен на $${computedUsd.toFixed(2)} USD.`}
+                  : `Баланс рекламодателя успешно пополнен на $${finalUsd.toFixed(2)} USD.`}
               </p>
             </div>
 
@@ -643,7 +642,7 @@ export function AtmosPaymentModal({
               <div className="flex justify-between">
                 <span>Сумма списания:</span>
                 <span className="font-bold text-foreground">
-                  {computedUzs.toLocaleString()} UZS (${computedUsd.toFixed(2)})
+                  {computedUzs.toLocaleString()} UZS (${finalUsd.toFixed(2)})
                 </span>
               </div>
               <div className="flex justify-between">

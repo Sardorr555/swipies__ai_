@@ -74,8 +74,8 @@ export default function AdminPaymentsPage() {
   } = useQuery({
     queryKey: ['admin/payments/summary'],
     queryFn: async () => {
-      const res = await getPaymentAnalytics();
-      return res?.data?.data;
+      const res: any = await getPaymentAnalytics();
+      return res?.data?.data || res?.data || res;
     },
   });
 
@@ -88,14 +88,14 @@ export default function AdminPaymentsPage() {
   } = useQuery({
     queryKey: ['admin/payments/transactions', page, pageSize, search, statusFilter, planFilter],
     queryFn: async () => {
-      const res = await getPaymentTransactions({
+      const res: any = await getPaymentTransactions({
         page,
         size: pageSize,
         search: search.trim() || undefined,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
         plan_type: planFilter === 'ALL' ? undefined : planFilter,
       });
-      return res?.data?.data;
+      return res?.data?.data || res?.data || res;
     },
   });
 

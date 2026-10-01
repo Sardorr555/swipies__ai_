@@ -1323,6 +1323,7 @@ async def admin_get_payment_transactions():
 
 
 @manager.route("/admin/payments/analytics", methods=["GET"])  # noqa: F821
+@manager.route("/admin/payments/summary", methods=["GET"])  # noqa: F821
 @login_required
 async def admin_get_payment_analytics():
     """Payment analytics KPI summary (revenue, conversions, plans breakdown)."""

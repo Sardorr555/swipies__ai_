@@ -96,10 +96,19 @@ class UserService(CommonService):
             User object if authentication successful, None otherwise.
         """
         user = cls.model.select().where((cls.model.email == email), (cls.model.status == StatusEnum.VALID.value)).first()
-        if user and check_password_hash(str(user.password), password):
-            return user
-        else:
-            return None
+        if user:
+            pw_str = str(user.password or "")
+            from api.common.base64 import encode_to_base64
+            b64_pw = encode_to_base64(password)
+            # DB may store: werkzeug_hash(plain), werkzeug_hash(base64), base64, or plain
+            if (
+                check_password_hash(pw_str, password)
+                or check_password_hash(pw_str, b64_pw)
+                or pw_str == b64_pw
+                or pw_str == password
+            ):
+                return user
+        return None
 
     @classmethod
     @DB.connection_context()
