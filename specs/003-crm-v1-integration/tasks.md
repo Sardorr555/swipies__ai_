@@ -62,9 +62,9 @@
 
 ---
 
-### [ ] Phase T4: Bitrix24 Provider 2 Inbound Webhook Adapter (Cloud & On-Premise)
-- [ ] **T4.1**: Implement `api/crm/clients/bitrix24.py` thin client over `transport.py` implementing `CRMProviderBase` (`create_lead` via `crm.lead.add`, `find_contact` via `crm.contact.list`, `refresh_auth` via `crm.lead.fields`). OAuth app flow is strictly **OUT OF SCOPE for v1**; inbound webhook requires minimal `crm` scope.
-- [ ] **T4.2**: Enforce Bitrix24 Cloud hostname validation:
+### [x] Phase T4: Bitrix24 Provider 2 Inbound Webhook Adapter (Cloud & On-Premise)
+- [x] **T4.1**: Implement `api/crm/clients/bitrix24.py` thin client over `transport.py` implementing `CRMProviderBase` (`create_lead` via `crm.lead.add`, `find_contact` via `crm.contact.list`, `refresh_auth` via `crm.lead.fields`). OAuth app flow is strictly **OUT OF SCOPE for v1**; inbound webhook requires minimal `crm` scope.
+- [x] **T4.2**: Enforce Bitrix24 Cloud hostname validation:
   - Parse URL via `urllib.parse.urlsplit(url)`:
     - Scheme must be strictly `https`.
     - Userinfo (`username` / `password`) must be `None` (rejects `https://user:pass@portal.bitrix24.com/`).
@@ -74,11 +74,11 @@
     - Reject punycode / IDN (`xn--...`).
   - Match hostname using `re.escape` with `re.fullmatch`:
     - Allowed zones dynamically loaded from `RAGFLOW_CRM_B24_ZONES`. Confirmed defaults [VERIFY]: `ru,kz,by,uz,com,eu,de,es,fr,it,pl,in,cn,jp,id,vn,ae,mx,uk,com.tr`. Unverified/custom zones (`com.br,ua,co,cl`) are excluded from default and configurable by platform administrator via `RAGFLOW_CRM_B24_ZONES`. Reject lookalikes (`x.bitrix24.evil.com`, `bitrix24.com.evil.net`) and raise explicit error on unknown zone: `"Unsupported Bitrix24 cloud zone '<zone>'. Allowed zones: ..."`
-- [ ] **T4.3**: Enforce Bitrix24 On-Premise validation (`crm_type: bitrix24_onprem`): strictly HTTPS (`https://`), public IPs via `ssrf_guard` + DNS-pinning, no redirects; private IPs (`127.0.0.1`, `169.254.169.254`, `10.0.0.1`, `192.168.x`, `172.16.x`, `0.0.0.0`, DNS-rebinding, redirect to private) all rejected fail-closed unless included in platform admin allowlist `RAGFLOW_CRM_PRIVATE_ALLOWLIST_CIDR`.
-- [ ] **T4.4**: Implement automatic redaction of webhook secret in URL path `/rest/<id>/<key>/` -> `/rest/<id>/********/` in all logs and HTTP error traces, with mutation test verifying test failure if redaction is bypassed.
-- [ ] **T4.5**: Implement centralized rate limiting (~2 req/s per portal) via Redis (`crm:ratelimit:b24:{portal_host}`) with fail-open fallback to local in-memory token-bucket limiter on Redis outage, and handle `QUERY_LIMIT_EXCEEDED` (HTTP 503 / 429) / 5xx as transient with minimum 500ms pause and exponential backoff with jitter.
-- [ ] **T4.6**: Implement international phone normalization to E.164 via `phonenumbers` (Apache-2.0, bundled v9.0.24) with configurable `default_phone_region` and generic dynamic length masking (no hardcoded country prefixes).
-- [ ] **T4.7**: Add comprehensive unit tests and mutation tests covering all Bitrix24 cloud/onprem (including explicit tests for 127.0.0.1, 169.254.169.254, 10.0.0.1, 192.168.x, DNS-rebinding, redirect to private, userinfo, custom port, punycode, trailing dot), rate limit, redaction, and normalization gates.
+- [x] **T4.3**: Enforce Bitrix24 On-Premise validation (`crm_type: bitrix24_onprem`): strictly HTTPS (`https://`), public IPs via `ssrf_guard` + DNS-pinning, no redirects; private IPs (`127.0.0.1`, `169.254.169.254`, `10.0.0.1`, `192.168.x`, `172.16.x`, `0.0.0.0`, DNS-rebinding, redirect to private) all rejected fail-closed unless included in platform admin allowlist `RAGFLOW_CRM_PRIVATE_ALLOWLIST_CIDR`.
+- [x] **T4.4**: Implement automatic redaction of webhook secret in URL path `/rest/<id>/<key>/` -> `/rest/<id>/********/` in all logs and HTTP error traces, with mutation test verifying test failure if redaction is bypassed.
+- [x] **T4.5**: Implement centralized rate limiting (~2 req/s per portal) via Redis (`crm:ratelimit:b24:{portal_host}`) with fail-open fallback to local in-memory token-bucket limiter on Redis outage, and handle `QUERY_LIMIT_EXCEEDED` (HTTP 503 / 429) / 5xx as transient with minimum 500ms pause and exponential backoff with jitter.
+- [x] **T4.6**: Implement international phone normalization to E.164 via `phonenumbers` (Apache-2.0, bundled v9.0.24) with configurable `default_phone_region` and generic dynamic length masking (no hardcoded country prefixes).
+- [x] **T4.7**: Add comprehensive unit tests and mutation tests covering all Bitrix24 cloud/onprem (including explicit tests for 127.0.0.1, 169.254.169.254, 10.0.0.1, 192.168.x, DNS-rebinding, redirect to private, userinfo, custom port, punycode, trailing dot), rate limit, redaction, and normalization gates.
 
 ---
 

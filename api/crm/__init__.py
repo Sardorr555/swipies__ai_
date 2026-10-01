@@ -27,6 +27,19 @@ from api.crm.clients.amocrm import (
     mask_phone_dynamic,
     mask_sensitive_payload,
 )
+from api.crm.clients.bitrix24 import (
+    Bitrix24Client,
+    Bitrix24Error,
+    Bitrix24DomainError,
+    Bitrix24AuthError,
+    Bitrix24RateLimitError,
+    DEFAULT_B24_ZONES,
+    get_allowed_b24_zones,
+    validate_bitrix24_cloud_url,
+    validate_bitrix24_onprem_url,
+    redact_bitrix24_webhook_url,
+    normalize_phone_to_e164,
+)
 
 __all__ = [
     "CRMProviderBase",
@@ -45,4 +58,15 @@ __all__ = [
     "is_valid_amocrm_url",
     "mask_phone_dynamic",
     "mask_sensitive_payload",
+    "Bitrix24Client",
+    "Bitrix24Error",
+    "Bitrix24DomainError",
+    "Bitrix24AuthError",
+    "Bitrix24RateLimitError",
+    "DEFAULT_B24_ZONES",
+    "get_allowed_b24_zones",
+    "validate_bitrix24_cloud_url",
+    "validate_bitrix24_onprem_url",
+    "redact_bitrix24_webhook_url",
+    "normalize_phone_to_e164",
 ]
