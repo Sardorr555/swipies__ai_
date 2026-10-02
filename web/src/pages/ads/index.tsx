@@ -5015,30 +5015,30 @@ async def get_swipies_ad(user_query: str):
               <div className="p-4 rounded-xl border bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-lg ${
-                    biddingInfo?.current_status.is_active_now
+                    biddingInfo?.current_status?.is_active_now
                       ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                       : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
                   }`}>
-                    {biddingInfo?.current_status.is_active_now ? '⚡' : '⏸️'}
+                    {biddingInfo?.current_status?.is_active_now ? '⚡' : '⏸️'}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-sm text-foreground">
-                        {biddingInfo?.current_status.is_active_now ? 'Кампания активна сейчас' : 'Вне расписания показов'}
+                        {biddingInfo?.current_status?.is_active_now ? 'Кампания активна сейчас' : 'Вне расписания показов'}
                       </span>
                       <Badge
                         variant="outline"
                         className={
-                          biddingInfo?.current_status.is_active_now
+                          biddingInfo?.current_status?.is_active_now
                             ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold'
                             : 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400'
                         }
                       >
-                        Множитель: {biddingInfo?.current_status.current_multiplier || 1.0}x
+                        Множитель: {biddingInfo?.current_status?.current_multiplier ?? 1.0}x
                       </Badge>
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Локальное время: <span className="font-mono font-medium text-foreground">{biddingInfo?.current_status.local_time}</span> ({biddingInfo?.current_status.local_day})
+                      Локальное время: <span className="font-mono font-medium text-foreground">{biddingInfo?.current_status?.local_time || '—'}</span> ({biddingInfo?.current_status?.local_day || '—'})
                     </p>
                   </div>
                 </div>
