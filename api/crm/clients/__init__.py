@@ -37,6 +37,13 @@ from .bitrix24 import (
     redact_bitrix24_webhook_url,
     normalize_phone_to_e164,
 )
+from .one_c import (
+    OneCClient,
+    OneCError,
+    OneCAuthError,
+    OneCConnectionError,
+    OneCMethodNotAllowedError,
+)
 
 __all__ = [
     "AmoCRMClient",
@@ -59,4 +66,9 @@ __all__ = [
     "validate_bitrix24_onprem_url",
     "redact_bitrix24_webhook_url",
     "normalize_phone_to_e164",
+    "OneCClient",
+    "OneCError",
+    "OneCAuthError",
+    "OneCConnectionError",
+    "OneCMethodNotAllowedError",
 ]

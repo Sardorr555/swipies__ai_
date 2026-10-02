@@ -97,6 +97,11 @@ class CRMProviderRegistry:
             provider = Bitrix24Client()
             cls._providers[crm_type] = provider
             return provider
+        elif crm_type in ("1c", "1c_odata"):
+            from api.crm.clients.one_c import OneCClient
+            provider = OneCClient()
+            cls._providers[crm_type] = provider
+            return provider
 
         raise ValueError(f"Unsupported or unregistered CRM provider type: '{crm_type}'")
 

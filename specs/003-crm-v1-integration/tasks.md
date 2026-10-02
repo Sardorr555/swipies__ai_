@@ -95,12 +95,12 @@
 
 ---
 
-### [ ] Phase T6: Phase 2 / Provider 3: 1C:Enterprise Stock Checker Tool
-- [ ] **T6.1**: Implement `agent/tools/check_stock.py` for querying 1C:Enterprise inventory balances over OData using thin client on `transport.py`.
-- [ ] **T6.2**: Restrict HTTP methods strictly to `GET` to prevent state modifications in 1C.
-- [ ] **T6.3**: Enforce 5-second strict timeout and SSRF guard with platform admin private IP allowlist (`RAGFLOW_CRM_1C_ALLOWLIST_CIDR`).
-- [ ] **T6.4**: Enforce least privilege: accessible from anonymous channels only when `security.allow_anonymous = True`.
-- [ ] **T6.5**: Add unit tests for stock checking with mock 1C OData responses.
+### [x] Phase T6: Phase 2 / Provider 3: 1C:Enterprise Stock Checker Tool
+- [x] **T6.1**: Implement `agent/tools/check_stock.py` for querying 1C:Enterprise inventory balances over OData using thin client on `transport.py`.
+- [x] **T6.2**: Restrict HTTP methods strictly to `GET` to prevent state modifications in 1C.
+- [x] **T6.3**: Enforce 5-second strict timeout and SSRF guard with platform admin private IP allowlist (`RAGFLOW_CRM_1C_ALLOWLIST_CIDR`).
+- [x] **T6.4**: Enforce least privilege: accessible from anonymous channels only when `security.allow_anonymous = True`.
+- [x] **T6.5**: Add unit tests for stock checking with mock 1C OData responses.
 
 ---
 
