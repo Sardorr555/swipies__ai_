@@ -90,6 +90,7 @@ export enum Routes {
   DataSetSetting = '/configuration',
   DataflowResult = '/dataflow-result',
   Admin = '/admin',
+  AdminDashboard = `${Admin}/dashboard`,
   AdminServices = `${Admin}/services`,
   AdminUserManagement = `${Admin}/users`,
   AdminSandboxSettings = `${Admin}/sandbox-settings`,
@@ -497,7 +498,7 @@ const routeConfigOptions = [
         children: [
           {
             index: true,
-            element: <Navigate to={Routes.AdminServices} replace />,
+            element: <Navigate to={Routes.AdminDashboard} replace />,
           },
           {
             path: 'users/:id',
@@ -506,6 +507,10 @@ const routeConfigOptions = [
           {
             Component: () => import('@/pages/admin/layouts/navigation-layout'),
             children: [
+              {
+                path: 'dashboard',
+                Component: () => import('@/pages/admin/dashboard'),
+              },
               {
                 path: 'services',
                 Component: () => import('@/pages/admin/service-status'),

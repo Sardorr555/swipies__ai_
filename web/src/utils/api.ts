@@ -489,6 +489,7 @@ export default {
   adminListReferrals: `${restAPIv1}/admin/referrals`,
   adminListPaymentTransactions: `${restAPIv1}/admin/payments/transactions`,
   adminGetPaymentAnalytics: `${restAPIv1}/admin/payments/summary`,
+  adminGetDashboardOverview: `${restAPIv1}/admin/dashboard/overview`,
   adminReconcilePayment: `${restAPIv1}/admin/payments/reconcile`,
   adminDeleteUser: (username: string) => `${restAPIv1}/admin/users/${username}`,
   adminListUserDatasets: (username: string) =>
