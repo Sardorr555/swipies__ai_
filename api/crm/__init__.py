@@ -13,7 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-from api.crm.base import CRMProviderBase
+from api.crm.base import CRMProviderBase, CRMProviderRegistry
 from api.crm.transport import CRMTransport, SSRFSecurityException, validate_crm_url_and_resolve
 from api.crm.license_gate import check_crm_license_access, require_crm_license, CRMLicenseAccessError
 from api.crm.clients.amocrm import (
@@ -43,6 +43,7 @@ from api.crm.clients.bitrix24 import (
 
 __all__ = [
     "CRMProviderBase",
+    "CRMProviderRegistry",
     "CRMTransport",
     "SSRFSecurityException",
     "validate_crm_url_and_resolve",

@@ -70,3 +70,38 @@ class CRMProviderBase(ABC):
             Dict containing available stock details.
         """
         pass
+
+
+class CRMProviderRegistry:
+    """Registry and factory for CRM/ERP provider adapters."""
+    _providers: Dict[str, CRMProviderBase] = {}
+
+    @classmethod
+    def register(cls, crm_type: str, provider: CRMProviderBase) -> None:
+        """Register a CRM provider instance for a specific crm_type."""
+        cls._providers[crm_type] = provider
+
+    @classmethod
+    def get(cls, crm_type: str) -> CRMProviderBase:
+        """Retrieve a provider instance, lazily creating defaults if unregistered."""
+        if crm_type in cls._providers:
+            return cls._providers[crm_type]
+
+        if crm_type == "amocrm":
+            from api.crm.clients.amocrm import AmoCRMClient
+            provider = AmoCRMClient()
+            cls._providers[crm_type] = provider
+            return provider
+        elif crm_type in ("bitrix24", "bitrix24_onprem"):
+            from api.crm.clients.bitrix24 import Bitrix24Client
+            provider = Bitrix24Client()
+            cls._providers[crm_type] = provider
+            return provider
+
+        raise ValueError(f"Unsupported or unregistered CRM provider type: '{crm_type}'")
+
+    @classmethod
+    def clear(cls) -> None:
+        """Clear registered providers (for test cleanup)."""
+        cls._providers.clear()
+

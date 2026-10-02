@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 import logging
+import os
+import re
 import time
 from typing import Optional, Tuple, List, Dict, Any
 
@@ -211,15 +213,19 @@ class CRMOutboxService(CommonService):
         batch_size: int = 50,
         lease_duration_seconds: int = 300,
     ) -> List[CRMOutbox]:
-        """Atomically claim a batch of pending/failed outbox tasks for processing."""
+        """Atomically claim a batch of pending/failed/expired outbox tasks for processing."""
         now = current_timestamp()
         lease_expires = now + (lease_duration_seconds * 1000)
 
-        # Candidates eligible for processing
+        # Candidates eligible for processing:
+        # PENDING or FAILED ready for retry, OR PROCESSING whose lease expired
         candidates = (
             cls.model.select()
             .where(
-                (cls.model.status << ["PENDING", "FAILED"])
+                (
+                    (cls.model.status << ["PENDING", "FAILED"])
+                    | (cls.model.status == "PROCESSING")
+                )
                 & ((cls.model.lease_expires_at.is_null()) | (cls.model.lease_expires_at < now))
                 & ((cls.model.next_retry_at.is_null()) | (cls.model.next_retry_at <= now))
             )
@@ -238,7 +244,10 @@ class CRMOutboxService(CommonService):
                 )
                 .where(
                     (cls.model.id == task.id)
-                    & (cls.model.status << ["PENDING", "FAILED"])
+                    & (
+                        (cls.model.status << ["PENDING", "FAILED"])
+                        | (cls.model.status == "PROCESSING")
+                    )
                     & ((cls.model.lease_expires_at.is_null()) | (cls.model.lease_expires_at < now))
                 )
                 .execute()
@@ -253,11 +262,20 @@ class CRMOutboxService(CommonService):
 
     @classmethod
     @DB.connection_context()
-    def complete_task(cls, task_id: str, worker_id: str) -> bool:
+    def complete_task(cls, task_id: str, worker_id: str, external_id: Optional[str] = None) -> bool:
         """Mark a claimed outbox task as successfully dispatched (SENT)."""
+        task = cls.model.select().where((cls.model.id == task_id) & (cls.model.lease_owner == worker_id)).first()
+        if not task:
+            return False
+
+        error_data = task.error_log or {}
+        if external_id:
+            error_data["external_id"] = str(external_id)
+
         rows = (
             cls.model.update(
                 status="SENT",
+                error_log=error_data,
                 lease_owner=None,
                 lease_expires_at=None,
             )
@@ -309,3 +327,50 @@ class CRMOutboxService(CommonService):
             .execute()
         )
         return rows > 0
+
+    @classmethod
+    @DB.connection_context()
+    def purge_expired_pii(cls, days: int = 30) -> int:
+        """Purge customer PII (lead_data) and null out business_key for records older than 30 days (T5.8)."""
+        now = current_timestamp()
+        cutoff = now - (days * 24 * 3600 * 1000)
+        rows = (
+            cls.model.update(
+                lead_data={},
+                business_key=None,
+            )
+            .where(
+                (cls.model.create_time < cutoff)
+                & ((cls.model.business_key.is_null(False)) | (cls.model.lead_data != {}))
+            )
+            .execute()
+        )
+        return rows
+
+    @classmethod
+    @DB.connection_context()
+    def get_oldest_pending_lag_seconds(cls) -> int:
+        """Calculate lag in seconds for the oldest pending outbox record (T5.7)."""
+        now = current_timestamp()
+        oldest = (
+            cls.model.select(cls.model.create_time)
+            .where(cls.model.status == "PENDING")
+            .order_by(cls.model.create_time.asc())
+            .first()
+        )
+        if not oldest or not oldest.create_time:
+            return 0
+        lag_ms = max(0, now - oldest.create_time)
+        return int(lag_ms // 1000)
+
+
+
+def compute_lead_business_key(tenant_id: str, connection_id: str, phone: str, secret: Optional[str] = None) -> str:
+    """Compute deterministic HMAC-SHA256 business key for 24-hour sliding deduplication (T5.5)."""
+    import hashlib
+    import hmac
+    sec = (secret or os.environ.get("RAGFLOW_SECRET_KEY", "ragflow_crm_default_salt")).encode("utf-8")
+    norm_phone = re.sub(r"[^\d+]", "", str(phone).strip())
+    msg = f"{tenant_id}:{connection_id}:{norm_phone}".encode("utf-8")
+    return hmac.new(sec, msg, hashlib.sha256).hexdigest()
+

@@ -82,16 +82,16 @@
 
 ---
 
-### [ ] Phase T5: Canvas Lead Tool & Leased Outbox Worker
-- [ ] **T5.1**: Implement `agent/tools/create_incoming_lead.py` inheriting from `ToolBase` (native implementation).
-- [ ] **T5.2**: Enforce rate limits: strictly **1 lead write per turn** (tracked directly in Canvas graph turn state, independent of Redis, resetting per turn and strictly isolated per session) and **100 leads/hour per tenant** (Redis-backed; [OPEN DECISION for owner]: on Redis outage: fail-open with in-memory fallback for authenticated sessions vs fail-closed).
-- [ ] **T5.3**: Enforce scoped anonymous access: check `self._canvas.get_channel()`; if Webhook or Embed (`AUTH_BETA`), execute ONLY if `security.allow_anonymous = True`.
-- [ ] **T5.4**: Enforce input validation: E.164 phone regex (`^\+[1-9]\d{1,14}$`), max 128 chars for name, 2000 chars for text, control char stripping.
-- [ ] **T5.5**: Implement deduplication: compute `business_key = HMAC_SHA256(server_secret_key, f"{tenant_id}:{connection_id}:{e164_phone}")`, acquire short dedup lock, check 24h sliding window in MySQL.
-- [ ] **T5.6**: Implement outbox background worker in `rag/svr/crm_outbox_worker.py`: 5-minute atomic lease, search-before-create contact, open deal lookup, lead creation, dispatching via `CRMProviderRegistry`, exponential backoff, dead-letter after 5 tries.
-- [ ] **T5.7**: Integrate worker supervision into `docker/entrypoint.sh` and `launch_backend_service.sh` with health status checks and structured logging alert on lag $>15\text{m}$.
-- [ ] **T5.8**: Implement PII retention worker: scheduled cleanup purging customer PII and nulling `business_key` on records older than 30 days.
-- [ ] **T5.9**: Add integration tests for tool execution, turn-limit violation, anonymous restrictions, 24h deduplication, and outbox state machine.
+### [x] Phase T5: Canvas Lead Tool & Leased Outbox Worker
+- [x] **T5.1**: Implement `agent/tools/create_incoming_lead.py` inheriting from `ToolBase` (native implementation).
+- [x] **T5.2**: Enforce rate limits: strictly **1 lead write per turn** (tracked directly in Canvas graph turn state, independent of Redis, resetting per turn and strictly isolated per session) and **100 leads/hour per tenant** (Redis-backed; [OPEN DECISION for owner]: on Redis outage: fail-open with in-memory fallback for authenticated sessions vs fail-closed).
+- [x] **T5.3**: Enforce scoped anonymous access: check `self._canvas.get_channel()`; if Webhook or Embed (`AUTH_BETA`), execute ONLY if `security.allow_anonymous = True`.
+- [x] **T5.4**: Enforce input validation: E.164 phone regex (`^\+[1-9]\d{1,14}$`), max 128 chars for name, 2000 chars for text, control char stripping.
+- [x] **T5.5**: Implement deduplication: compute `business_key = HMAC_SHA256(server_secret_key, f"{tenant_id}:{connection_id}:{e164_phone}")`, acquire short dedup lock, check 24h sliding window in MySQL.
+- [x] **T5.6**: Implement outbox background worker in `rag/svr/crm_outbox_worker.py`: 5-minute atomic lease, search-before-create contact, open deal lookup, lead creation, dispatching via `CRMProviderRegistry`, exponential backoff, dead-letter after 5 tries.
+- [x] **T5.7**: Integrate worker supervision into `docker/entrypoint.sh` and `launch_backend_service.sh` with health status checks and structured logging alert on lag $>15\text{m}$.
+- [x] **T5.8**: Implement PII retention worker: scheduled cleanup purging customer PII and nulling `business_key` on records older than 30 days.
+- [x] **T5.9**: Add integration tests for tool execution, turn-limit violation, anonymous restrictions, 24h deduplication, and outbox state machine.
 
 ---
 
