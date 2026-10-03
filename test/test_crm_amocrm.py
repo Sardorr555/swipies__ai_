@@ -92,10 +92,13 @@ class TestAmoCRMV1(unittest.TestCase):
         CRMOutbox._meta.database = self._orig_db_outbox
         if self._orig_atomic:
             DB.atomic = self._orig_atomic
-        DB.connect = lambda *a, **kw: True
-        DB.close = lambda *a, **kw: None
-        DB.is_closed = lambda: False
-        if not self.test_db.is_closed():
+        if hasattr(self, "_orig_connect"):
+            DB.connect = self._orig_connect
+        if hasattr(self, "_orig_close"):
+            DB.close = self._orig_close
+        if hasattr(self, "_orig_is_closed"):
+            DB.is_closed = self._orig_is_closed
+        if hasattr(self, "test_db") and not self.test_db.is_closed():
             self.test_db.close()
 
     # -------------------------------------------------------------------------
@@ -282,6 +285,45 @@ class TestAmoCRMV1(unittest.TestCase):
         stock_res = client.check_stock(config, "ITEM-123")
         self.assertFalse(stock_res["supported"])
 
+    def test_create_lead_price_pipeline_resilience(self):
+        """Verify create_lead handles string prices, floats, and empty pipeline/status gracefully."""
+        mock_transport = MagicMock()
+        client = AmoCRMClient(transport=mock_transport)
+
+        config = {
+            "subdomain": "testcompany",
+            "zone": "amocrm.ru",
+            "access_token": "valid_token_123",
+            "pipeline_id": "888",
+            "status_id": "invalid_status_str",
+        }
+
+        created_lead_payload = []
+        def mock_post(url, **kwargs):
+            if "/api/v4/leads" in url and "/notes" not in url:
+                created_lead_payload.extend(kwargs.get("json", []))
+                return DummyResponse(status_code=201, json_data={"_embedded": {"leads": [{"id": 555}]}})
+            if "/api/v4/contacts" in url:
+                return DummyResponse(status_code=201, json_data={"_embedded": {"contacts": [{"id": 666}]}})
+            return DummyResponse(status_code=200)
+
+        mock_transport.get.return_value = DummyResponse(status_code=204)
+        mock_transport.post.side_effect = mock_post
+
+        result = client.create_lead(
+            config,
+            {
+                "name": "Price Test",
+                "phone": "+79991234567",
+                "price": "1250.75",  # float as string
+                "pipeline_id": "",     # empty string in lead_data
+            }
+        )
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(created_lead_payload[0]["price"], 1250)
+        self.assertEqual(created_lead_payload[0]["pipeline_id"], 888)
+        self.assertNotIn("status_id", created_lead_payload[0])
+
     # -------------------------------------------------------------------------
     # T3.3 & T3.4 & T3.8: Distributed Lock & Double-Checked Read Concurrency
     # -------------------------------------------------------------------------
@@ -340,6 +382,9 @@ class TestAmoCRMV1(unittest.TestCase):
                 return refreshed
             except Exception as e:
                 return e
+            finally:
+                if not self.test_db.is_closed():
+                    self.test_db.close()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = [executor.submit(worker_task, i) for i in range(5)]

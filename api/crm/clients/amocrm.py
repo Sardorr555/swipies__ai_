@@ -465,19 +465,37 @@ class AmoCRMClient(CRMProviderBase):
         # 2. Lead creation
         create_lead_url = f"{base_url}/api/v4/leads"
         title = lead_data.get("title") or f"Lead from Chat: {name}"
+        price = 0
+        try:
+            price = int(float(lead_data.get("price") or 0))
+        except (ValueError, TypeError):
+            price = 0
+
         lead_payload_item: Dict[str, Any] = {
             "name": title,
-            "price": int(lead_data.get("price", 0)),
+            "price": price,
         }
-        if "pipeline_id" in connection_config:
-            lead_payload_item["pipeline_id"] = int(connection_config["pipeline_id"])
-        elif "pipeline_id" in lead_data:
-            lead_payload_item["pipeline_id"] = int(lead_data["pipeline_id"])
+        if "pipeline_id" in connection_config and connection_config["pipeline_id"]:
+            try:
+                lead_payload_item["pipeline_id"] = int(connection_config["pipeline_id"])
+            except (ValueError, TypeError):
+                pass
+        elif "pipeline_id" in lead_data and lead_data["pipeline_id"]:
+            try:
+                lead_payload_item["pipeline_id"] = int(lead_data["pipeline_id"])
+            except (ValueError, TypeError):
+                pass
 
-        if "status_id" in connection_config:
-            lead_payload_item["status_id"] = int(connection_config["status_id"])
-        elif "status_id" in lead_data:
-            lead_payload_item["status_id"] = int(lead_data["status_id"])
+        if "status_id" in connection_config and connection_config["status_id"]:
+            try:
+                lead_payload_item["status_id"] = int(connection_config["status_id"])
+            except (ValueError, TypeError):
+                pass
+        elif "status_id" in lead_data and lead_data["status_id"]:
+            try:
+                lead_payload_item["status_id"] = int(lead_data["status_id"])
+            except (ValueError, TypeError):
+                pass
 
         if contact_id:
             lead_payload_item["_embedded"] = {
