@@ -363,6 +363,10 @@ async def completion(tenant_id, agent_id, session_id=None, **kwargs):
     custom_header = kwargs.get("custom_header", "")
     release_mode = str(kwargs.get("release", "")).strip().lower()
 
+    from quart import has_request_context, g
+    auth_type = getattr(g, "auth_type", None) if has_request_context() else None
+    auth_channel = "embed" if auth_type == "beta" else ("chat" if auth_type == "jwt" else ("api" if auth_type == "api" else "webhook" if auth_type == "webhook" else None))
+
     if session_id:
         e, conv = await thread_pool_exec(API4ConversationService.get_by_id, session_id)
         if not e:
@@ -373,13 +377,13 @@ async def completion(tenant_id, agent_id, session_id=None, **kwargs):
             conv.dsl = json.dumps(conv.dsl, ensure_ascii=False)
         _, cvs = await thread_pool_exec(UserCanvasService.get_by_id, conv.dialog_id or agent_id)
         canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
-        canvas = Canvas(conv.dsl, tenant_id, task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant)
+        canvas = Canvas(conv.dsl, tenant_id, task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant, channel=auth_channel)
     else:
         cvs, dsl = await thread_pool_exec(UserCanvasService.get_agent_dsl_with_release, agent_id, release_mode=release_mode == "true", tenant_id=tenant_id)
         canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
 
         session_id = get_uuid()
-        canvas = Canvas(dsl, tenant_id, task_id=session_id, canvas_id=cvs.id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant)
+        canvas = Canvas(dsl, tenant_id, task_id=session_id, canvas_id=cvs.id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant, channel=auth_channel)
         canvas.reset()
         # Get the version title based on release_mode
         version_title = await thread_pool_exec(UserCanvasVersionService.get_latest_version_title, cvs.id, release_mode=release_mode == "true")

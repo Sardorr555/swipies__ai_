@@ -488,7 +488,10 @@ async def create_agent_session(agent_id, tenant_id):
 
     session_id = get_uuid()
     canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
-    canvas = Canvas(dsl, tenant_id, agent_id, canvas_id=cvs.id, canvas_owner_tenant=canvas_owner_tenant)
+    from quart import has_request_context, g
+    auth_type = getattr(g, "auth_type", None) if has_request_context() else None
+    auth_channel = "embed" if auth_type == "beta" else ("chat" if auth_type == "jwt" else ("api" if auth_type == "api" else "webhook" if auth_type == "webhook" else None))
+    canvas = Canvas(dsl, tenant_id, agent_id, canvas_id=cvs.id, canvas_owner_tenant=canvas_owner_tenant, channel=auth_channel)
     canvas.reset()
 
     cvs.dsl = json.loads(str(canvas))
@@ -1596,8 +1599,13 @@ async def agent_chat_completion(tenant_id, agent_id=None):
                 dsl_str = workflow_dsl
             else:
                 dsl_str = json.dumps(workflow_dsl, ensure_ascii=False)
+            from quart import g
+            auth_type = getattr(g, "auth_type", None)
+            auth_channel = "embed" if auth_type == "beta" else ("chat" if auth_type == "jwt" else ("api" if auth_type == "api" else "webhook" if auth_type == "webhook" else None))
             canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
-            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant)
+            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant, channel=auth_channel)
+            if auth_type == "beta":
+                canvas.is_embed = True
         except Exception as exc:
             return server_error_response(exc)
 
@@ -1718,8 +1726,13 @@ async def agent_chat_completion(tenant_id, agent_id=None):
         try:
             from agent.canvas import Canvas
 
+            from quart import g
+            auth_type = getattr(g, "auth_type", None)
+            auth_channel = "embed" if auth_type == "beta" else ("chat" if auth_type == "jwt" else ("api" if auth_type == "api" else "webhook" if auth_type == "webhook" else None))
             canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
-            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant)
+            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant, channel=auth_channel)
+            if auth_type == "beta":
+                canvas.is_embed = True
             canvas.start_new_session()
         except Exception as exc:
             return server_error_response(exc)
@@ -2136,7 +2149,7 @@ async def _webhook_impl(agent_id: str, is_test: bool):
         from agent.canvas import Canvas
 
         canvas_owner_tenant = getattr(cvs, "user_id", None)
-        canvas = Canvas(dsl, cvs.user_id, agent_id, canvas_id=agent_id, canvas_owner_tenant=canvas_owner_tenant)
+        canvas = Canvas(dsl, cvs.user_id, agent_id, canvas_id=agent_id, canvas_owner_tenant=canvas_owner_tenant, channel="webhook")
     except Exception as e:
         resp = get_data_error_result(code=RetCode.BAD_REQUEST, message=str(e))
         resp.status_code = RetCode.BAD_REQUEST

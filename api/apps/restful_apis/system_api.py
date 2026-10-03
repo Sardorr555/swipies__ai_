@@ -298,6 +298,27 @@ def healthz():
     return jsonify(result), (200 if all_ok else 500)
 
 
+@manager.route("/crm/health", methods=["GET"])  # noqa: F821
+@login_required
+def crm_health():
+    """Liveness and queue lag monitoring for CRM Outbox subsystem (spec.md:299).
+    Restricted strictly to platform administrators (is_superuser).
+    """
+    if not getattr(current_user, "is_superuser", False):
+        return get_json_result(
+            data=False,
+            message="No authorization. Administrator privilege required.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        ), 401
+    try:
+        from api.db.services.crm_service import CRMOutboxService
+        payload = CRMOutboxService.get_health_metrics()
+        is_degraded = payload.get("status") == "degraded"
+        return jsonify(payload), (503 if is_degraded else 200)
+    except Exception:
+        return jsonify({"status": "error"}), 500
+
+
 @manager.route("/system/tokens", methods=["GET"])  # noqa: F821
 @login_required
 def token_list():

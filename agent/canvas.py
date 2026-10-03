@@ -332,7 +332,7 @@ class Graph:
 
 
 class Canvas(Graph):
-    def __init__(self, dsl: str, tenant_id=None, task_id=None, canvas_id=None, custom_header=None, canvas_owner_tenant=None):
+    def __init__(self, dsl: str, tenant_id=None, task_id=None, canvas_id=None, custom_header=None, canvas_owner_tenant=None, channel=None):
         self.globals = {
             "sys.query": "",
             "sys.user_id": tenant_id,
@@ -348,11 +348,19 @@ class Canvas(Graph):
         # variable that each LLMBundle chat call writes to. Reset at run() start.
         self._run_token_usage: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "calls": 0}
         self._canvas_owner_tenant = canvas_owner_tenant or tenant_id
+        self._turn_lead_count = 0
+        self._channel = channel
         super().__init__(dsl, tenant_id, task_id, custom_header=custom_header)
         self._id = canvas_id
 
+    def get_channel(self):
+        return getattr(self, "_channel", None)
+
+    def set_channel(self, channel):
+        self._channel = channel
+
     def get_canvas_owner_tenant(self):
-        return self._canvas_owner_tenant or self._tenant_id
+        return getattr(self, "_canvas_owner_tenant", None) or getattr(self, "_tenant_id", None)
 
     def load(self):
         super().load()
@@ -391,10 +399,12 @@ class Canvas(Graph):
         self.history = []
         self.globals["sys.history"] = []
         self.path = []
+        self._turn_lead_count = 0
         _logger.debug("Canvas conversation history and execution path reset for a new session")
 
     def reset(self, mem=False):
         super().reset()
+        self._turn_lead_count = 0
         if not mem:
             self.history = []
             self.retrieval = []
@@ -441,6 +451,7 @@ class Canvas(Graph):
         # exception) so later LLM calls in the same task never inherit a previous
         # run's sink or session/user attributes.
         self._run_token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "calls": 0}
+        self._turn_lead_count = 0
         _lf_attrs = {}
         _user_id = kwargs.get("user_id")
         if _user_id:

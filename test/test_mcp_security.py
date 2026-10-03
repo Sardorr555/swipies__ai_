@@ -968,6 +968,46 @@ class TestMCPSecurity(unittest.TestCase):
                         data_sess = await res_sess.get_json() if hasattr(res_sess, "get_json") else res_sess
                         self.assertEqual(data_sess["code"], 0)
 
+                    # 4. agent_chat_completion: verify canvas_owner_tenant and channel resolution directly through handler
+                    captured_run = {}
+                    async def fake_run_workflow_session(**kwargs):
+                        captured_run["canvas"] = kwargs.get("canvas")
+                        return types.SimpleNamespace(status_code=200, headers={}, body=[])
+
+                    agent_api_mod._run_workflow_session = fake_run_workflow_session
+                    mock_conv = types.SimpleNamespace(
+                        id="session-workflow-1",
+                        dialog_id="canvas-123",
+                        source="workflow",
+                        dsl=canvas_session_dsl,
+                        message=[],
+                        reference=[],
+                        to_dict=lambda: {"dsl": canvas_session_dsl, "message": [], "reference": []}
+                    )
+                    agent_api_mod.API4ConversationService.get_by_id = MagicMock(return_value=(True, mock_conv))
+                    agent_api_mod.API4ConversationService.update_by_id = MagicMock(return_value=True)
+
+                    # Test 4A: Beta auth (embed) with malicious spoofing in payload
+                    async with app.test_request_context("/", method="POST", json={"session_id": "session-workflow-1", "query": "hello", "channel": "api", "custom_header": {"channel": "api"}}):
+                        from quart import g
+                        g.auth_type = "beta"
+                        await agent_api_mod.agent_chat_completion(tenant_id="tenant-beta", agent_id="canvas-123")
+                        c = captured_run["canvas"]
+                        self.assertIsNotNone(c)
+                        self.assertEqual(c.get_canvas_owner_tenant(), "tenant-alpha", "Handler MUST wire canvas_owner_tenant from agent owner (tenant-alpha), not caller (tenant-beta)")
+                        self.assertEqual(c.get_channel(), "embed", "Handler MUST derive channel strictly from g.auth_type ('beta' -> 'embed'), ignoring spoofed body")
+                        self.assertTrue(c.is_embed)
+
+                    # Test 4B: API auth
+                    async with app.test_request_context("/", method="POST", json={"session_id": "session-workflow-1", "query": "hello"}):
+                        from quart import g
+                        g.auth_type = "api"
+                        await agent_api_mod.agent_chat_completion(tenant_id="tenant-beta", agent_id="canvas-123")
+                        c = captured_run["canvas"]
+                        self.assertEqual(c.get_canvas_owner_tenant(), "tenant-alpha")
+                        self.assertEqual(c.get_channel(), "api")
+                        self.assertFalse(getattr(c, "is_embed", False))
+
             asyncio.run(_run_agent_tests())
         finally:
             if orig_apps is not None:
