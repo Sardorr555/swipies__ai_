@@ -149,7 +149,7 @@ class TestBitrix24V1(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("punycode", msg)
 
-        # 5. Lookalike domains rejected fail-closed
+        # 5. Lookalike domains and authority spoofing rejected fail-closed
         lookalikes = [
             "https://x.bitrix24.evil.com/rest/1/key",
             "https://bitrix24.com.evil.net/rest/1/key",
@@ -157,10 +157,16 @@ class TestBitrix24V1(unittest.TestCase):
             "https://bitrix24.ru.attacker.com/rest/1/key",
             "https://.mycompany.bitrix24.ru/rest/1/key",
             "https://mycompany.bitrix24.ru./rest/1/key",
+            "https://mycompany.bitrix24.com@evil.com/rest/1/key",
         ]
         for url in lookalikes:
             ok, msg = validate_bitrix24_cloud_url(url)
-            self.assertFalse(ok, f"Lookalike URL '{url}' should be rejected")
+            self.assertFalse(ok, f"Lookalike/spoofed URL '{url}' should be rejected")
+
+        # 6. Case-folding normalization: uppercase host is accepted and normalized to lowercase
+        ok_upper, host_upper = validate_bitrix24_cloud_url("https://MYCOMPANY.bitrix24.ru/rest/1/key")
+        self.assertTrue(ok_upper, "Uppercase domain should be accepted via case-folding normalization")
+        self.assertEqual(host_upper, "mycompany.bitrix24.ru")
 
     # -------------------------------------------------------------------------
     # T4.3: Bitrix24 On-Premise Validation (SSRF Matrix & Private CIDR Allowlist)
@@ -307,7 +313,7 @@ class TestBitrix24V1(unittest.TestCase):
 
         # Mock Redis to simulate connection exception
         with patch("rag.utils.redis_conn.REDIS_CONN", None):
-            res = client.create_lead(config, {"name": "Bob", "phone": "+15551234567"})
+            res = client.create_lead(config, {"name": "Bob", "phone": "+14155552671"})
             self.assertEqual(res["status"], "success")
             self.assertEqual(res["lead_id"], "999")
 
@@ -345,6 +351,28 @@ class TestBitrix24V1(unittest.TestCase):
         # 3. check_stock (unsupported)
         stock_res = client.check_stock(config, "SKU-999")
         self.assertFalse(stock_res["supported"])
+
+    def test_bitrix24_phone_region_fallback(self):
+        """Verify Bitrix24 client resolves phone_region if default_phone_region is absent."""
+        mock_transport = MagicMock()
+        client = Bitrix24Client(transport=mock_transport)
+
+        config = {
+            "crm_type": "bitrix24",
+            "webhook_url": "https://mycompany.bitrix24.ru/rest/1/secretkey",
+            "phone_region": "GB",  # UK region via phone_region key
+        }
+
+        mock_transport.post.return_value = DummyResponse(
+            status_code=200,
+            json_data={"result": 1001}
+        )
+        res = client.create_lead(
+            config,
+            {"name": "UK Lead", "phone": "020 7946 0991"}
+        )
+        self.assertEqual(res["status"], "success")
+        self.assertEqual(res["lead_id"], "1001")
 
 
 if __name__ == "__main__":

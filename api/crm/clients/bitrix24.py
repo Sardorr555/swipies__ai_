@@ -143,25 +143,42 @@ def redact_bitrix24_webhook_url(url_or_text: str) -> str:
     return re.sub(r"(/rest/\d+/)[^/?#]+", r"\g<1>********", url_or_text)
 
 
-def normalize_phone_to_e164(phone: str, default_region: str = "US") -> str:
-    """Normalize phone number to international E.164 format via phonenumbers."""
+def normalize_phone_to_e164(phone: str, default_region: Optional[str] = None) -> str:
+    """Normalize phone number to international E.164 format via phonenumbers.
+    
+    Strict validation without fallback:
+    - If phone has international prefix '+', it is parsed and validated internationally.
+    - If phone is in national format without '+' prefix, it requires an explicit region
+      configured in connection.config. Without a configured region, national format is rejected.
+    """
     if not phone or not isinstance(phone, str):
         return ""
     raw = phone.strip()
     try:
         import phonenumbers
-        region = (default_region or "US").strip().upper()
-        parsed = phonenumbers.parse(raw, region)
-        if phonenumbers.is_valid_number(parsed):
-            return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
-    except Exception:
-        pass
+    except ImportError as e:
+        raise RuntimeError(
+            "The 'phonenumbers' package is required for phone validation. Please install phonenumbers>=9.0.24."
+        ) from e
 
-    # Fallback cleanup
-    cleaned = re.sub(r"[^\d+]", "", raw)
-    if cleaned and not cleaned.startswith("+"):
-        cleaned = "+" + cleaned
-    return cleaned
+    region = (default_region or "").strip().upper() or None
+    if not raw.startswith("+") and not region:
+        raise ValueError(
+            f"Invalid phone number format: '{phone}'. National format without '+' country prefix is rejected because no region is configured in connection settings."
+        )
+
+    try:
+        parsed = phonenumbers.parse(raw, region)
+    except Exception as e:
+        raise ValueError(f"Invalid phone number format: '{phone}' could not be parsed ({e}).") from e
+
+    if not phonenumbers.is_valid_number(parsed):
+        raise ValueError(f"Invalid phone number format: '{phone}' is not a valid telephone number (region={region}).")
+
+    return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+
+
+normalize_phone_e164 = normalize_phone_to_e164
 
 
 def acquire_b24_rate_limit(portal_host: str, max_rate: int = 2) -> None:
@@ -309,7 +326,7 @@ class Bitrix24Client(CRMProviderBase):
 
     def find_contact(self, connection_config: Dict[str, Any], phone: str) -> Optional[Dict[str, Any]]:
         """Find contact by phone in Bitrix24."""
-        default_region = connection_config.get("default_phone_region", "US")
+        default_region = connection_config.get("default_phone_region") or connection_config.get("phone_region") or "US"
         norm_phone = normalize_phone_to_e164(phone, default_region)
         masked_phone = mask_phone_dynamic(norm_phone)
         logger.info("Searching Bitrix24 contact for phone: %s", masked_phone)
@@ -326,7 +343,7 @@ class Bitrix24Client(CRMProviderBase):
 
     def create_lead(self, connection_config: Dict[str, Any], lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create lead in Bitrix24 via crm.lead.add."""
-        default_region = connection_config.get("default_phone_region", "US")
+        default_region = connection_config.get("default_phone_region") or connection_config.get("phone_region") or "US"
         phone = lead_data.get("phone", "")
         norm_phone = normalize_phone_to_e164(phone, default_region) if phone else ""
         masked_phone = mask_phone_dynamic(norm_phone)
