@@ -137,6 +137,17 @@ class CRMConnectionService(CommonService):
         return rows > 0
 
     @classmethod
+    @DB.connection_context()
+    def delete_by_id_and_tenant(cls, connection_id: str, tenant_id: str) -> bool:
+        """Delete a CRM connection owned by the given tenant."""
+        rows = (
+            cls.model.delete()
+            .where((cls.model.id == connection_id) & (cls.model.tenant_id == tenant_id))
+            .execute()
+        )
+        return rows > 0
+
+    @classmethod
     def get_decrypted_config(cls, connection_or_id: Any, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         """Extract and decrypt credentials for a given connection."""
         if isinstance(connection_or_id, str):

@@ -88,6 +88,16 @@ async def update_connector(connector_id):
         elif req.get("status") in [TaskStatus.SCHEDULE, "SCHEDULE"]:
             ConnectorService.schedule_tasks(connector_id)
 
+        if req.get("config"):
+            try:
+                from api.db.services.crm_service import CRMConnectionService
+                raw_cfg = req["config"]
+                creds = raw_cfg.get("credentials") or raw_cfg
+                if creds:
+                    CRMConnectionService.update_config(connector_id, current_user.id, creds)
+            except Exception:
+                pass
+
     if should_sleep:
         await asyncio.sleep(1)
     e, conn = ConnectorService.get_by_id(connector_id)
@@ -117,6 +127,41 @@ async def create_connector():
             "status": TaskStatus.UNSTART,
         }
         ConnectorService.save(**conn)
+
+        crm_sources = {"amocrm", "kommo", "bitrix24", "bitrix24_onprem", "hubspot", "1c_odata"}
+        if req["source"] in crm_sources:
+            try:
+                from api.db.services.crm_service import CRMConnectionService
+                raw_cfg = req.get("config") or {}
+                creds = raw_cfg.get("credentials") or raw_cfg
+                crm_source = req["source"]
+                if crm_source in {"amocrm", "kommo"}:
+                    crm_type = "amocrm"
+                    auth_type = "oauth2"
+                    crm_cfg = dict(creds)
+                    crm_cfg.setdefault("base_domain", creds.get("subdomain", ""))
+                elif crm_source == "1c_odata":
+                    crm_type = "1c_odata"
+                    auth_type = "basic"
+                    crm_cfg = dict(creds)
+                else:
+                    crm_type = "bitrix24"
+                    auth_type = "webhook"
+                    crm_cfg = dict(creds)
+                    webhook_url = creds.get("webhook_url") or creds.get("access_token", "")
+                    crm_cfg["webhook_url"] = webhook_url
+                    crm_cfg.setdefault("default_phone_region", creds.get("phone_region", "RU"))
+
+                CRMConnectionService.save_connection(
+                    tenant_id=current_user.id,
+                    name=req["name"],
+                    crm_type=crm_type,
+                    auth_type=auth_type,
+                    config=crm_cfg,
+                    connection_id=req["id"],
+                )
+            except Exception as ex:
+                LOGGER.warning("Could not mirror connector to CRMConnection: %s", ex)
 
     await asyncio.sleep(1)
     e, conn = ConnectorService.get_by_id(req["id"])
@@ -190,6 +235,11 @@ def rm_connector(connector_id):
 
     ConnectorService.cancel_tasks(connector_id)
     ConnectorService.delete_by_id(connector_id)
+    try:
+        from api.db.services.crm_service import CRMConnectionService
+        CRMConnectionService.delete_by_id_and_tenant(connector_id, current_user.id)
+    except Exception:
+        pass
     return get_json_result(data=True)
 
 
@@ -221,6 +271,23 @@ async def test_connector(connector_id):
             config = decrypt_connector_config(merged_cfg)
     else:
         config = decrypt_connector_config(config)
+
+    crm_sources = {"amocrm", "kommo", "bitrix24", "bitrix24_onprem", "hubspot", "1c_odata"}
+    if source in crm_sources:
+        decrypted_cfg = decrypt_connector_config(config)
+        creds = decrypted_cfg.get("credentials") or decrypted_cfg
+        if source in {"amocrm", "kommo"}:
+            subdomain = creds.get("subdomain") or creds.get("base_domain")
+            if not subdomain:
+                return get_json_result(code=RetCode.DATA_ERROR, message="Subdomain / domain is required.", data=False)
+        elif source in {"bitrix24", "bitrix24_onprem"}:
+            webhook = creds.get("webhook_url") or creds.get("access_token")
+            if not webhook:
+                return get_json_result(code=RetCode.DATA_ERROR, message="Webhook URL is required.", data=False)
+        elif source == "1c_odata":
+            if not creds.get("base_url"):
+                return get_json_result(code=RetCode.DATA_ERROR, message="Base OData URL is required.", data=False)
+        return get_json_result(data=True)
 
     def _validate() -> None:
         decrypted_cfg = decrypt_connector_config(config)

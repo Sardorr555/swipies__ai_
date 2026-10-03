@@ -1869,6 +1869,16 @@ Example: Virtual Hosted Style`,
         'Comma-separated SObject API names to index. Defaults to Account, Contact, Opportunity, Case, Knowledge__kav.',
       salesforceApiVersionTip:
         'Salesforce REST API version (e.g. v59.0). Use the version your org supports.',
+      amocrmDescription:
+        'Connect amoCRM account to sync leads, contacts, deals, and pipeline stages with real-time updates.',
+      kommoDescription:
+        'Connect Kommo CRM for messenger-based lead management, sales pipeline synchronization, and contact activity.',
+      bitrix24Description:
+        'Connect Bitrix24 CRM portal to index leads, deals, companies, and communications through REST API.',
+      hubspotDescription:
+        'Connect HubSpot CRM to index contacts, companies, deals, tickets, and engagement activities.',
+      '1c_odataDescription':
+        'Connect 1C:Enterprise to query inventory balances and stock levels over standard OData REST interface.',
       azure_blobDescription:
         'Index blobs from an Azure Blob Storage container into a knowledge base. Supports account-key, connection-string, and SAS-token auth. Unchanged blobs are skipped via ETag fingerprinting.',
       azureBlobAuthModeTip:

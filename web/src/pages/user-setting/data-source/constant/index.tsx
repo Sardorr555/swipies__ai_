@@ -68,6 +68,11 @@ export enum DataSourceKey {
   ONEDRIVE = 'onedrive',
   OUTLOOK = 'outlook',
   SALESFORCE = 'salesforce',
+  AMOCRM = 'amocrm',
+  KOMMO = 'kommo',
+  BITRIX24 = 'bitrix24',
+  HUBSPOT = 'hubspot',
+  ONE_C = '1c_odata',
   AZURE_BLOB = 'azure_blob',
   TEAMS = 'teams',
   SLACK = 'slack',
@@ -168,6 +173,21 @@ export const DataSourceFeatureVisibilityMap: Partial<
     syncDeletedFiles: true,
   },
   [DataSourceKey.SALESFORCE]: {
+    syncDeletedFiles: true,
+  },
+  [DataSourceKey.AMOCRM]: {
+    syncDeletedFiles: true,
+  },
+  [DataSourceKey.KOMMO]: {
+    syncDeletedFiles: true,
+  },
+  [DataSourceKey.BITRIX24]: {
+    syncDeletedFiles: true,
+  },
+  [DataSourceKey.HUBSPOT]: {
+    syncDeletedFiles: true,
+  },
+  [DataSourceKey.ONE_C]: {
     syncDeletedFiles: true,
   },
   [DataSourceKey.AZURE_BLOB]: {
@@ -396,8 +416,51 @@ export const generateDataSourceInfo = (t: TFunction) => {
     },
     [DataSourceKey.SALESFORCE]: {
       name: 'Salesforce',
-      description: t(`setting.${DataSourceKey.SALESFORCE}Description`),
+      description: t(`setting.${DataSourceKey.SALESFORCE}Description`, {
+        defaultValue:
+          'Connect a Salesforce org and index CRM records (Accounts, Contacts, Opportunities, Cases, Knowledge articles) via SOQL with incremental sync.',
+      }),
       icon: <SvgIcon name={'data-source/salesforce'} width={38} />,
+    },
+    [DataSourceKey.AMOCRM]: {
+      name: 'amoCRM',
+      description: t(`setting.${DataSourceKey.AMOCRM}Description`, {
+        defaultValue:
+          'Connect amoCRM account to sync leads, contacts, deals, and pipeline stages with real-time updates.',
+      }),
+      icon: <SvgIcon name={'data-source/amocrm'} width={38} />,
+    },
+    [DataSourceKey.KOMMO]: {
+      name: 'Kommo',
+      description: t(`setting.${DataSourceKey.KOMMO}Description`, {
+        defaultValue:
+          'Connect Kommo CRM for messenger-based lead management, sales pipeline synchronization, and contact activity.',
+      }),
+      icon: <SvgIcon name={'data-source/kommo'} width={38} />,
+    },
+    [DataSourceKey.BITRIX24]: {
+      name: 'Bitrix24',
+      description: t(`setting.${DataSourceKey.BITRIX24}Description`, {
+        defaultValue:
+          'Connect Bitrix24 CRM portal to index leads, deals, companies, and communications through REST API.',
+      }),
+      icon: <SvgIcon name={'data-source/bitrix24'} width={38} />,
+    },
+    [DataSourceKey.HUBSPOT]: {
+      name: 'HubSpot',
+      description: t(`setting.${DataSourceKey.HUBSPOT}Description`, {
+        defaultValue:
+          'Connect HubSpot CRM to index contacts, companies, deals, tickets, and engagement activities.',
+      }),
+      icon: <SvgIcon name={'data-source/hubspot'} width={38} />,
+    },
+    [DataSourceKey.ONE_C]: {
+      name: '1C:Enterprise',
+      description: t(`setting.${DataSourceKey.ONE_C}Description`, {
+        defaultValue:
+          'Connect 1C:Enterprise to query inventory balances and stock levels over standard OData REST interface.',
+      }),
+      icon: <SvgIcon name={'data-source/1c'} width={38} />,
     },
     [DataSourceKey.AZURE_BLOB]: {
       name: 'Azure Blob Storage',
@@ -644,6 +707,129 @@ const generateDataSourceFormFields = (t: TFunction) => ({
           label: t('setting.dataSourceFieldBatchSize'),
         }),
       },
+    },
+  ],
+  [DataSourceKey.AMOCRM]: [
+    {
+      label: 'Subdomain / Domain',
+      name: 'config.credentials.subdomain',
+      type: FormFieldType.Text,
+      required: true,
+      placeholder: 'your-company.amocrm.ru',
+      tooltip: 'Your amoCRM account domain or subdomain (e.g. your-company.amocrm.ru)',
+    },
+    {
+      label: 'Integration ID (Client ID)',
+      name: 'config.credentials.client_id',
+      type: FormFieldType.Text,
+      required: true,
+      tooltip: 'amoCRM Integration Client ID',
+    },
+    {
+      label: 'Secret Key (Client Secret)',
+      name: 'config.credentials.client_secret',
+      type: FormFieldType.Password,
+      required: true,
+      tooltip: 'amoCRM Integration Secret Key',
+    },
+    {
+      label: 'Authorization Code / Access Token',
+      name: 'config.credentials.access_token',
+      type: FormFieldType.Password,
+      required: false,
+      tooltip: 'Authorization Code or Long-lived Token',
+    },
+  ],
+  [DataSourceKey.KOMMO]: [
+    {
+      label: 'Subdomain / Domain',
+      name: 'config.credentials.subdomain',
+      type: FormFieldType.Text,
+      required: true,
+      placeholder: 'your-company.kommo.com',
+      tooltip: 'Your Kommo account domain or subdomain (e.g. your-company.kommo.com)',
+    },
+    {
+      label: 'Integration ID (Client ID)',
+      name: 'config.credentials.client_id',
+      type: FormFieldType.Text,
+      required: true,
+      tooltip: 'Kommo Integration Client ID',
+    },
+    {
+      label: 'Secret Key (Client Secret)',
+      name: 'config.credentials.client_secret',
+      type: FormFieldType.Password,
+      required: true,
+      tooltip: 'Kommo Integration Secret Key',
+    },
+    {
+      label: 'Authorization Code / Access Token',
+      name: 'config.credentials.access_token',
+      type: FormFieldType.Password,
+      required: false,
+      tooltip: 'Authorization Code or Long-lived Token',
+    },
+  ],
+  [DataSourceKey.BITRIX24]: [
+    {
+      label: 'Bitrix24 Domain',
+      name: 'config.credentials.domain',
+      type: FormFieldType.Text,
+      required: true,
+      placeholder: 'your-company.bitrix24.com',
+      tooltip: 'Your Bitrix24 portal domain (e.g. your-company.bitrix24.com or .ru)',
+    },
+    {
+      label: 'Webhook URL / Access Token',
+      name: 'config.credentials.access_token',
+      type: FormFieldType.Password,
+      required: true,
+      placeholder: 'https://your-company.bitrix24.com/rest/1/webhook_key/',
+      tooltip: 'Bitrix24 inbound webhook URL or OAuth token',
+    },
+  ],
+  [DataSourceKey.HUBSPOT]: [
+    {
+      label: 'Private App Access Token',
+      name: 'config.credentials.access_token',
+      type: FormFieldType.Password,
+      required: true,
+      placeholder: 'pat-na1-...',
+      tooltip: 'HubSpot Private App Access Token',
+    },
+  ],
+  [DataSourceKey.ONE_C]: [
+    {
+      label: 'Base OData URL',
+      name: 'config.credentials.base_url',
+      type: FormFieldType.Text,
+      required: true,
+      placeholder: 'https://1c.yourcompany.com/base/odata/standard.odata/',
+      tooltip: '1C OData service root endpoint URL',
+    },
+    {
+      label: 'Username',
+      name: 'config.credentials.username',
+      type: FormFieldType.Text,
+      required: true,
+      placeholder: 'odata_user',
+      tooltip: '1C User with OData read privileges',
+    },
+    {
+      label: 'Password',
+      name: 'config.credentials.password',
+      type: FormFieldType.Password,
+      required: true,
+      tooltip: '1C User password',
+    },
+    {
+      label: 'Entity Path (Catalog)',
+      name: 'config.credentials.entity_path',
+      type: FormFieldType.Text,
+      required: false,
+      placeholder: 'Catalog_Номенклатура',
+      tooltip: '1C OData entity set name (default: Catalog_Номенклатура)',
     },
   ],
   [DataSourceKey.AZURE_BLOB]: [
@@ -2564,6 +2750,61 @@ export const DataSourceFormDefaultValues = {
         instance_url: '',
         client_id: '',
         client_secret: '',
+      },
+    },
+  },
+  [DataSourceKey.AMOCRM]: {
+    name: '',
+    source: DataSourceKey.AMOCRM,
+    config: {
+      credentials: {
+        subdomain: '',
+        client_id: '',
+        client_secret: '',
+        access_token: '',
+      },
+    },
+  },
+  [DataSourceKey.KOMMO]: {
+    name: '',
+    source: DataSourceKey.KOMMO,
+    config: {
+      credentials: {
+        subdomain: '',
+        client_id: '',
+        client_secret: '',
+        access_token: '',
+      },
+    },
+  },
+  [DataSourceKey.BITRIX24]: {
+    name: '',
+    source: DataSourceKey.BITRIX24,
+    config: {
+      credentials: {
+        domain: '',
+        access_token: '',
+      },
+    },
+  },
+  [DataSourceKey.HUBSPOT]: {
+    name: '',
+    source: DataSourceKey.HUBSPOT,
+    config: {
+      credentials: {
+        access_token: '',
+      },
+    },
+  },
+  [DataSourceKey.ONE_C]: {
+    name: '',
+    source: DataSourceKey.ONE_C,
+    config: {
+      credentials: {
+        base_url: '',
+        username: '',
+        password: '',
+        entity_path: 'Catalog_Номенклатура',
       },
     },
   },

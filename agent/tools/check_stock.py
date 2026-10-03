@@ -157,6 +157,24 @@ class CheckStock(ToolBase, ABC):
                 if c.crm_type in ("1c", "1c_odata"):
                     conn = c
                     break
+            if not conn:
+                try:
+                    from api.db.services.connector_service import ConnectorService
+                    connectors = ConnectorService.query(tenant_id=tenant_id)
+                    for c in connectors:
+                        if getattr(c, "source", None) in ("1c", "1c_odata"):
+                            creds = (c.config or {}).get("credentials") or c.config or {}
+                            conn = CRMConnectionService.save_connection(
+                                tenant_id=tenant_id,
+                                name=c.name or "1C Connector",
+                                crm_type="1c_odata",
+                                auth_type="basic",
+                                config=creds,
+                                connection_id=c.id,
+                            )
+                            break
+                except Exception:
+                    pass
 
         if not conn:
             raise ValueError("No active 1C:Enterprise connection found for tenant.")

@@ -179,6 +179,11 @@ class FileSource(StrEnum):
     OUTLOOK = "outlook"
     SALESFORCE = "salesforce"
     AZURE_BLOB = "azure_blob"
+    AMOCRM = "amocrm"
+    KOMMO = "kommo"
+    BITRIX24 = "bitrix24"
+    HUBSPOT = "hubspot"
+    ONE_C = "1c_odata"
 
 
 class PipelineTaskType(StrEnum):
