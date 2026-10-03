@@ -402,6 +402,19 @@ function AdminUserManagement() {
       columnHelper.accessor('nickname', {
         header: t('admin.nickname'),
       }),
+      columnHelper.accessor('create_date', {
+        header: 'Ro‘yxatdan o‘tgan sana (Created At)',
+        cell: ({ cell }) => {
+          const val = cell.getValue();
+          if (!val) return <span className="text-muted-foreground">-</span>;
+          return (
+            <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+              {String(val).slice(0, 19)}
+            </span>
+          );
+        },
+      }),
+
       columnHelper.accessor('referrals_count', {
         header: t('admin.referrals'),
         cell: ({ cell }) => cell.getValue() || 0,
@@ -614,6 +627,41 @@ function AdminUserManagement() {
     ],
   );
 
+  // Calculate user registration and status summary statistics
+  const userStatsSummary = useMemo(() => {
+    if (!usersList || usersList.length === 0) {
+      return { total: 0, active: 0, inactive: 0, today: 0, thisWeek: 0, thisMonth: 0 };
+    }
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const weekStart = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+    const monthStart = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+
+    let active = 0;
+    let today = 0;
+    let thisWeek = 0;
+    let thisMonth = 0;
+
+    usersList.forEach((u) => {
+      if (parseBooleanish(u.is_active)) active += 1;
+      if (u.create_date) {
+        const t = new Date(u.create_date).getTime();
+        if (t >= todayStart) today += 1;
+        if (t >= weekStart) thisWeek += 1;
+        if (t >= monthStart) thisMonth += 1;
+      }
+    });
+
+    return {
+      total: usersList.length,
+      active,
+      inactive: usersList.length - active,
+      today,
+      thisWeek,
+      thisMonth,
+    };
+  }, [usersList]);
+
   // Pin the current user to the top of the list
   const orderedUsersList = useMemo(() => {
     if (!usersList) {
@@ -659,6 +707,34 @@ function AdminUserManagement() {
         <Spotlight />
 
         <ScrollArea className="size-full">
+          {/* Quick Real-Time User Analytics Strip */}
+          <div className="mx-6 mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="p-3.5 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm">
+              <span className="text-[11px] font-semibold text-muted-foreground block">Jami Foydalanuvchilar</span>
+              <span className="text-xl font-black text-foreground mt-0.5 block">{userStatsSummary.total}</span>
+            </div>
+            <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-sm">
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 block">Faol (Active)</span>
+              <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">{userStatsSummary.active}</span>
+            </div>
+            <div className="p-3.5 rounded-xl border border-zinc-500/20 bg-zinc-500/5 backdrop-blur-sm">
+              <span className="text-[11px] font-semibold text-muted-foreground block">Nofaol (Inactive)</span>
+              <span className="text-xl font-black text-zinc-600 dark:text-zinc-400 mt-0.5 block">{userStatsSummary.inactive}</span>
+            </div>
+            <div className="p-3.5 rounded-xl border border-blue-500/20 bg-blue-500/5 backdrop-blur-sm">
+              <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 block">Bugun Qo'shilgan</span>
+              <span className="text-xl font-black text-blue-600 dark:text-blue-400 mt-0.5 block">+{userStatsSummary.today}</span>
+            </div>
+            <div className="p-3.5 rounded-xl border border-purple-500/20 bg-purple-500/5 backdrop-blur-sm">
+              <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 block">Bu Hafta (7d)</span>
+              <span className="text-xl font-black text-purple-600 dark:text-purple-400 mt-0.5 block">+{userStatsSummary.thisWeek}</span>
+            </div>
+            <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm">
+              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 block">Bu Oy (30d)</span>
+              <span className="text-xl font-black text-amber-600 dark:text-amber-400 mt-0.5 block">+{userStatsSummary.thisMonth}</span>
+            </div>
+          </div>
+
           <CardHeader className="space-y-0 flex flex-row justify-between items-center">
             <CardTitle>{t('admin.userManagement')}</CardTitle>
 

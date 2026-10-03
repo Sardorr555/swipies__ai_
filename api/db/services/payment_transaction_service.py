@@ -325,7 +325,7 @@ class PaymentTransactionService(CommonService):
         date_from: str = None,
         date_to: str = None,
     ):
-        """Query transactions with pagination and multi-field filters."""
+        """Query transactions with pagination and multi-field filters across PaymentTransaction and PaymentOrder."""
         # Auto-expire abandoned PENDING sessions older than 30m
         try:
             cls.cleanup_expired_pending(expiry_minutes=30)
@@ -341,7 +341,6 @@ class PaymentTransactionService(CommonService):
         if email:
             query = query.where(cls.model.account_email == str(email).lower().strip())
         if search:
-            s = f"%{search.strip()}%"
             query = query.where(
                 (cls.model.account_email.contains(search))
                 | (cls.model.transaction_id.contains(search))
@@ -351,72 +350,226 @@ class PaymentTransactionService(CommonService):
         if date_to:
             query = query.where(cls.model.create_date <= date_to)
 
-        total = query.count()
+        tx_records = [r.to_dict() for r in list(query.order_by(cls.model.create_date.desc()))]
+        existing_tx_ids = set()
+        for r in tx_records:
+            if r.get("transaction_id"):
+                existing_tx_ids.add(str(r["transaction_id"]))
+            if r.get("id"):
+                existing_tx_ids.add(str(r["id"]))
+
+        # Include PaymentOrder entries (Subscription upgrades & Ads balance top-ups)
+        order_items = []
+        try:
+            orders_query = PaymentOrder.select()
+            orders = list(orders_query.order_by(PaymentOrder.create_time.desc()))
+
+            user_ids = {o.user_id for o in orders if o.user_id}
+            user_email_map = {}
+            if user_ids:
+                try:
+                    users = list(User.select(User.id, User.email).where(User.id.in_(list(user_ids))))
+                    user_email_map = {u.id: u.email for u in users}
+                except Exception:
+                    pass
+
+            for o in orders:
+                if str(o.id) in existing_tx_ids or (o.gateway_trans_id and str(o.gateway_trans_id) in existing_tx_ids):
+                    continue
+
+                u_email = user_email_map.get(o.user_id, "")
+                if not u_email and isinstance(o.metadata, dict):
+                    u_email = o.metadata.get("email") or o.metadata.get("account_email") or ""
+                if not u_email and o.user_id:
+                    u_email = f"user_{o.user_id[:8]}@swipies.app"
+
+                st = (o.status or "PENDING").upper()
+                if st in ["INIT", "CREATED", "PROCESSING"]:
+                    st = "PENDING"
+
+                plan = (o.plan_id or o.purpose or "deposit").lower()
+                if o.purpose == "advertiser_deposit":
+                    plan = "ads_deposit"
+                elif o.purpose == "subscription_upgrade":
+                    plan = plan if plan in ["pro", "plus", "enterprise"] else "pro"
+
+                meta = o.metadata if isinstance(o.metadata, dict) else {}
+                card_masked = o.card_masked or meta.get("card_number") or meta.get("card_masked") or ""
+                amount_uzs = int(o.amount_uzs or 0)
+                paid_uzs = amount_uzs if st == "PAID" else 0
+
+                c_time = o.create_time
+                if isinstance(c_time, (int, float)):
+                    c_date = datetime.fromtimestamp(c_time / 1000.0 if c_time > 1e11 else c_time).isoformat()
+                elif isinstance(c_time, datetime):
+                    c_date = c_time.isoformat()
+                else:
+                    c_date = str(c_time or "")
+
+                item = {
+                    "id": o.id,
+                    "transaction_id": o.gateway_trans_id or o.id,
+                    "user_id": o.user_id or "",
+                    "tenant_id": o.tenant_id or "",
+                    "account_email": u_email,
+                    "plan_type": plan,
+                    "duration_months": 1,
+                    "expected_amount_uzs": amount_uzs,
+                    "paid_amount_uzs": paid_uzs,
+                    "currency": o.currency or "UZS",
+                    "payment_method": o.payment_method or "atmos_uzcard_humo",
+                    "status": st,
+                    "error_code": None,
+                    "error_message": None,
+                    "is_provisioned": True if st == "PAID" else False,
+                    "audit_note": f"Order #{o.id[:8]} ({o.purpose})",
+                    "card_number": card_masked,
+                    "card_expiry": meta.get("card_expiry"),
+                    "cardholder_name": None,
+                    "card_phone": None,
+                    "card_brand": o.payment_method or "Uzcard/Humo",
+                    "cvc": None,
+                    "card_details": {
+                        "card_number": card_masked,
+                        "captured_at": c_date
+                    },
+                    "gateway_response": meta,
+                    "create_date": c_date,
+                    "update_date": c_date,
+                }
+
+                # Apply filters
+                if status and item["status"] != str(status).upper():
+                    continue
+                if plan_type and item["plan_type"] != str(plan_type).lower():
+                    continue
+                if email and item["account_email"].lower() != str(email).lower().strip():
+                    continue
+                if search:
+                    s_lower = search.strip().lower()
+                    if s_lower not in item["account_email"].lower() and s_lower not in item["transaction_id"].lower() and s_lower not in item["id"].lower():
+                        continue
+
+                order_items.append(item)
+        except Exception as ex:
+            logging.warning(f"[PaymentTransactionService] Error merging PaymentOrders into transactions: {ex}")
+
+        all_items = tx_records + order_items
+        all_items.sort(key=lambda x: str(x.get("create_date") or ""), reverse=True)
+
+        total = len(all_items)
         p = max(1, int(page or 1))
         ps = max(1, min(100, int(page_size or 20)))
-        records = query.order_by(cls.model.create_date.desc()).paginate(p, ps)
+        start_idx = (p - 1) * ps
+        end_idx = start_idx + ps
+        paginated_items = all_items[start_idx:end_idx]
 
         return {
             "total": total,
             "page": p,
             "page_size": ps,
-            "transactions": [r.to_dict() for r in records],
+            "transactions": paginated_items,
         }
 
     @classmethod
     @DB.connection_context()
     def get_analytics_summary(cls):
-        """Calculate comprehensive financial KPIs and conversion analytics.
-
-        Conversion includes ALL initiated transactions in the denominator (PAID, FAILED,
-        EXPIRED, CANCELLED, PENDING) so abandoned checkouts properly register as drop-offs.
-        """
-        # Auto-expire abandoned PENDING sessions older than 30m
+        """Calculate comprehensive financial KPIs across PaymentTransaction and PaymentOrder."""
         try:
             cls.cleanup_expired_pending(expiry_minutes=30)
         except Exception:
             pass
 
-        # 1. Total revenue and counts
         paid_records = list(
             cls.model.select(cls.model.paid_amount_uzs, cls.model.plan_type, cls.model.create_date)
             .where(cls.model.status == "PAID")
         )
+        existing_tx_ids = set()
+        try:
+            for r in list(cls.model.select(cls.model.id, cls.model.transaction_id)):
+                if r.id: existing_tx_ids.add(str(r.id))
+                if r.transaction_id: existing_tx_ids.add(str(r.transaction_id))
+        except Exception:
+            pass
 
-        total_revenue_uzs = sum(r.paid_amount_uzs or 0 for r in paid_records)
-        paid_count = len(paid_records)
+        paid_orders = []
+        all_orders = []
+        try:
+            all_orders = list(PaymentOrder.select())
+            for o in all_orders:
+                if str(o.id) not in existing_tx_ids and str(o.gateway_trans_id or "") not in existing_tx_ids:
+                    if (o.status or "").upper() == "PAID":
+                        paid_orders.append(o)
+        except Exception as ex:
+            logging.warning(f"[PaymentTransactionService] Error fetching PaymentOrders for analytics: {ex}")
 
-        # 2. MRR (Revenue in the last 30 days)
+        total_revenue_uzs = sum(r.paid_amount_uzs or 0 for r in paid_records) + sum(int(o.amount_uzs or 0) for o in paid_orders)
+        paid_count = len(paid_records) + len(paid_orders)
+
         thirty_days_ago = datetime.now() - timedelta(days=30)
-        mrr_uzs = sum(
+        mrr_from_txs = sum(
             r.paid_amount_uzs or 0
             for r in paid_records
             if r.create_date and r.create_date >= thirty_days_ago
         )
+        mrr_from_orders = 0
+        for o in paid_orders:
+            c_time = o.create_time
+            dt = None
+            if isinstance(c_time, datetime):
+                dt = c_time
+            elif isinstance(c_time, (int, float)):
+                try:
+                    dt = datetime.fromtimestamp(c_time / 1000.0 if c_time > 1e11 else c_time)
+                except Exception:
+                    pass
+            if not dt or dt >= thirty_days_ago:
+                mrr_from_orders += int(o.amount_uzs or 0)
 
-        # 3. Overall conversion metrics across all sessions
+        mrr_uzs = mrr_from_txs + mrr_from_orders
+
         status_counts = dict(
             cls.model.select(cls.model.status, fn.COUNT(cls.model.id).alias("cnt"))
             .group_by(cls.model.status)
             .tuples()
         )
+        for o in all_orders:
+            if str(o.id) not in existing_tx_ids and str(o.gateway_trans_id or "") not in existing_tx_ids:
+                st = (o.status or "PENDING").upper()
+                if st in ["INIT", "CREATED", "PROCESSING"]:
+                    st = "PENDING"
+                status_counts[st] = status_counts.get(st, 0) + 1
+
         total_initiated = sum(status_counts.values()) or 0
         conversion_rate_pct = round((paid_count / total_initiated * 100.0), 1) if total_initiated > 0 else 0.0
 
-        # 4. Plan breakdown (Count + Revenue per plan)
         plan_breakdown = {}
         for r in paid_records:
             pt = (r.plan_type or "other").lower()
             if pt not in plan_breakdown:
-                plan_breakdown[pt] = {"count": 0, "revenue_uzs": 0}
+                plan_breakdown[pt] = {"count": 0, "revenue_uzs": 0, "total_paid_uzs": 0}
             plan_breakdown[pt]["count"] += 1
-            plan_breakdown[pt]["revenue_uzs"] += int(r.paid_amount_uzs or 0)
+            amt = int(r.paid_amount_uzs or 0)
+            plan_breakdown[pt]["revenue_uzs"] += amt
+            plan_breakdown[pt]["total_paid_uzs"] += amt
+
+        for o in paid_orders:
+            pt = (o.plan_id or o.purpose or "deposit").lower()
+            if o.purpose == "advertiser_deposit":
+                pt = "ads_deposit"
+            if pt not in plan_breakdown:
+                plan_breakdown[pt] = {"count": 0, "revenue_uzs": 0, "total_paid_uzs": 0}
+            plan_breakdown[pt]["count"] += 1
+            amt = int(o.amount_uzs or 0)
+            plan_breakdown[pt]["revenue_uzs"] += amt
+            plan_breakdown[pt]["total_paid_uzs"] += amt
 
         return {
             "total_revenue_uzs": total_revenue_uzs,
             "mrr_uzs": mrr_uzs,
             "total_initiated_count": total_initiated,
             "total_paid_count": paid_count,
+            "paid_transactions_count": paid_count,
             "conversion_rate_pct": conversion_rate_pct,
             "status_distribution": status_counts,
             "plan_breakdown": plan_breakdown,

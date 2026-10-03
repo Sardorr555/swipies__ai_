@@ -295,4 +295,62 @@ declare namespace AdminService {
     plan_breakdown: Record<string, { count: number; total_paid_uzs: number }>;
     status_distribution: Record<string, number>;
   };
+
+  export type DashboardOverviewData = {
+    user_stats: {
+      total_users: number;
+      active_users: number;
+      inactive_users: number;
+      superuser_count: number;
+      new_users_today: number;
+      new_users_this_week: number;
+      new_users_this_month: number;
+      active_today: number;
+      active_7d: number;
+      active_30d: number;
+      login_channels: Record<string, number>;
+      daily_registration_trend: Array<{ date: string; count: number }>;
+    };
+    revenue_stats: {
+      total_revenue_uzs: number;
+      total_revenue_usd: number;
+      revenue_today_uzs: number;
+      revenue_today_usd: number;
+      revenue_this_week_uzs: number;
+      revenue_this_week_usd: number;
+      revenue_this_month_uzs: number;
+      revenue_this_month_usd: number;
+      paying_users_count: number;
+      paid_transactions_count: number;
+      arppu_uzs: number;
+      conversion_rate_pct: number;
+      daily_revenue_trend: Array<{ date: string; revenue_uzs: number; revenue_usd: number; count: number }>;
+      weekly_revenue_trend: Array<{ week: string; revenue_uzs: number; revenue_usd: number }>;
+      monthly_revenue_trend: Array<{ month: string; revenue_uzs: number; revenue_usd: number }>;
+    };
+    subscription_stats: {
+      plan_breakdown: Record<string, { count: number; revenue_uzs: number; paid_count: number }>;
+      status_distribution: Record<string, number>;
+    };
+    recent_users: Array<{
+      id: string;
+      nickname: string;
+      email: string;
+      create_date: string;
+      is_active: boolean;
+      is_superuser: boolean;
+      plan_type: string;
+      last_login_time: string;
+    }>;
+    recent_payments: Array<{
+      id: string;
+      user_id: string;
+      user_email: string;
+      amount_uzs: number;
+      plan_type: string;
+      status: string;
+      create_date: string;
+      gateway: string;
+    }>;
+  };
 }

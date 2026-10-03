@@ -160,6 +160,11 @@ class AdvertiserService(CommonService):
             adv.save()
         return adv
 
+    @classmethod
+    @DB.connection_context()
+    def get_or_create_advertiser(cls, user_id: str, tenant_id: str = "", company_name: str = "", contact_email: str = "") -> Advertiser:
+        return cls.get_or_create_for_user(user_id=user_id, tenant_id=tenant_id, company_name=company_name, contact_email=contact_email)
+
 
 class AdCampaignService(CommonService):
     model = AdCampaign
@@ -925,9 +930,16 @@ class AdEngineService:
         """Fetch summary metrics and active campaigns for advertiser portal."""
         adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
 
+        adv_ids = {adv.id}
+        try:
+            for a in Advertiser.select().where((Advertiser.user_id == user_id) | (Advertiser.tenant_id == tenant_id)):
+                adv_ids.add(a.id)
+        except Exception:
+            pass
+
         campaigns = list(
             AdCampaign.select()
-            .where(AdCampaign.advertiser_id == adv.id)
+            .where(AdCampaign.advertiser_id.in_(list(adv_ids)))
             .order_by(AdCampaign.create_time.desc())
         )
 
@@ -935,8 +947,8 @@ class AdEngineService:
         active_campaigns = sum(1 for c in campaigns if c.status == "active" and c.moderation_status == "approved")
 
         # Aggregate total impressions and clicks
-        impressions_count = AdImpression.select().where(AdImpression.advertiser_id == adv.id).count()
-        clicks_count = AdClick.select().where(AdClick.advertiser_id == adv.id).count()
+        impressions_count = AdImpression.select().where(AdImpression.advertiser_id.in_(list(adv_ids))).count()
+        clicks_count = AdClick.select().where(AdClick.advertiser_id.in_(list(adv_ids))).count()
         total_spend = sum(c.total_spent for c in campaigns)
         ctr = (clicks_count / impressions_count * 100.0) if impressions_count > 0 else 0.0
 
@@ -979,10 +991,12 @@ class AdEngineService:
                 "created_at": c.create_time,
             })
 
+        total_balance = sum(float(a.balance or 0.0) for a in Advertiser.select().where(Advertiser.id.in_(list(adv_ids))))
+
         return {
             "advertiser_id": adv.id,
             "company_name": adv.company_name,
-            "balance": round(adv.balance, 2),
+            "balance": round(total_balance, 2),
             "currency": adv.currency,
             "active_campaigns": active_campaigns,
             "total_campaigns": total_campaigns,
@@ -994,7 +1008,6 @@ class AdEngineService:
         }
 
     @classmethod
-    @DB.connection_context()
     def deposit_balance(cls, advertiser_id: str, amount: float, description: str = "Balance Top-Up", reference_id: str = "") -> bool:
         """Credit funds to advertiser balance atomically with row lock (BUG-08)."""
         if amount <= 0:
@@ -1009,14 +1022,12 @@ class AdEngineService:
             adv.update_time = current_timestamp()
             adv.save()
 
-            AdTransaction.create(
-                id=uuid.uuid4().hex[:32],
+            AdTransactionService.insert(
                 advertiser_id=adv.id,
                 amount=amount,
                 type="deposit",
                 description=description,
                 reference_id=reference_id,
-                create_time=current_timestamp(),
             )
             return True
 
@@ -1030,7 +1041,11 @@ class AdEngineService:
         pending_moderation = AdCampaign.select().where(AdCampaign.moderation_status == "pending").count()
         total_impressions = AdImpression.select().count()
         total_clicks = AdClick.select().count()
-        total_revenue = sum(c.total_spent for c in AdCampaign.select())
+        total_spent = sum(c.total_spent for c in AdCampaign.select())
+        total_deposits = sum(float(t.amount or 0.0) for t in AdTransaction.select().where(AdTransaction.type == "deposit"))
+        if total_deposits == 0:
+            total_deposits = sum(float(a.balance or 0.0) for a in Advertiser.select())
+        total_revenue = max(total_spent, total_deposits)
         ctr = (total_clicks / total_impressions * 100.0) if total_impressions > 0 else 0.0
 
         return {
@@ -1041,6 +1056,7 @@ class AdEngineService:
             "total_impressions": total_impressions,
             "total_clicks": total_clicks,
             "total_revenue": round(total_revenue, 2),
+            "total_deposits": round(total_deposits, 2),
             "network_ctr": round(ctr, 2),
         }
 

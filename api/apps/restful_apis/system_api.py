@@ -1343,7 +1343,33 @@ async def admin_get_payment_transactions():
     return get_json_result(data=res)
 
 
+@manager.route("/admin/dashboard/overview", methods=["GET"])  # noqa: F821
+@manager.route("/admin/analytics/overview", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_get_dashboard_overview():
+    """Unified Dashboard analytics overview for user growth, activity, revenue and plans."""
+    if not current_user.is_superuser:
+        return get_json_result(
+            data=False,
+            message="No authorization.",
+            code=RetCode.AUTHENTICATION_ERROR,
+        )
+
+    try:
+        from api.db.services.admin_dashboard_service import AdminDashboardService
+        overview = AdminDashboardService.get_dashboard_overview()
+        return get_json_result(data=overview)
+    except Exception as e:
+        logging.exception(f"Error in admin_get_dashboard_overview: {e}")
+        return get_json_result(
+            data=False,
+            message=str(e),
+            code=RetCode.SERVER_ERROR,
+        )
+
+
 @manager.route("/admin/payments/analytics", methods=["GET"])  # noqa: F821
+@manager.route("/admin/payments/summary", methods=["GET"])  # noqa: F821
 @login_required
 async def admin_get_payment_analytics():
     """Payment analytics KPI summary (revenue, conversions, plans breakdown)."""

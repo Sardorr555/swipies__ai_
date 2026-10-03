@@ -129,6 +129,7 @@ const {
   adminListReferrals,
   adminListPaymentTransactions,
   adminGetPaymentAnalytics,
+  adminGetDashboardOverview,
   adminReconcilePayment,
   adminDeleteUser,
   adminListUserDatasets,
@@ -397,6 +398,11 @@ export const getPaymentAnalytics = () =>
     adminGetPaymentAnalytics,
   );
 
+export const getDashboardOverview = () =>
+  request.get<ResponseData<AdminService.DashboardOverviewData>>(
+    adminGetDashboardOverview,
+  );
+
 export const reconcilePayment = (params: {
   transaction_id: string;
   action: 'mark_paid' | 'mark_failed' | 'set_audit_note';
@@ -413,3 +419,4 @@ export const reconcilePayment = (params: {
 
 export const getOnboardingStats = () =>
   request.get<ResponseData<any>>('/api/v1/admin/onboarding/stats');
+

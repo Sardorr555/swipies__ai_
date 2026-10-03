@@ -116,9 +116,16 @@ async def list_campaigns():
         tenant_id = getattr(current_user, "tenant_id", "") or user_id
         adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
 
+        adv_ids = {adv.id}
+        try:
+            for a in Advertiser.select().where((Advertiser.user_id == user_id) | (Advertiser.tenant_id == tenant_id)):
+                adv_ids.add(a.id)
+        except Exception:
+            pass
+
         campaigns = list(
             AdCampaign.select()
-            .where(AdCampaign.advertiser_id == adv.id)
+            .where(AdCampaign.advertiser_id.in_(list(adv_ids)))
             .order_by(AdCampaign.create_time.desc())
         )
 
@@ -660,21 +667,56 @@ async def list_transactions():
         tenant_id = getattr(current_user, "tenant_id", "") or user_id
         adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
 
-        txs = list(
-            AdTransaction.select()
-            .where(AdTransaction.advertiser_id == adv.id)
-            .order_by(AdTransaction.create_time.desc())
-            .limit(100)
-        )
+        result = []
 
-        result = [{
-            "id": t.id,
-            "amount": t.amount,
-            "type": t.type,
-            "description": t.description or "",
-            "reference_id": t.reference_id or "",
-            "created_at": t.create_time,
-        } for t in txs]
+        # 1. Fetch from AdTransaction
+        try:
+            txs = list(
+                AdTransaction.select()
+                .where(AdTransaction.advertiser_id == adv.id)
+                .order_by(AdTransaction.create_time.desc())
+                .limit(100)
+            )
+            for t in txs:
+                result.append({
+                    "id": t.id,
+                    "amount": t.amount,
+                    "type": t.type,
+                    "description": t.description or "",
+                    "reference_id": t.reference_id or "",
+                    "created_at": t.create_time,
+                })
+        except Exception as ex:
+            logger.warning(f"Error querying AdTransaction: {ex}")
+
+        # 2. Fetch from PaymentOrder for advertiser deposits
+        try:
+            orders = list(
+                PaymentOrder.select()
+                .where(
+                    ((PaymentOrder.advertiser_id == adv.id) | (PaymentOrder.user_id == user_id))
+                    & (PaymentOrder.purpose == "advertiser_deposit")
+                    & (PaymentOrder.status == "paid")
+                )
+                .order_by(PaymentOrder.create_time.desc())
+                .limit(50)
+            )
+            existing_ref_ids = {r.get("reference_id") for r in result}
+            for o in orders:
+                if o.id not in existing_ref_ids:
+                    result.append({
+                        "id": f"pay_{o.id[:12]}",
+                        "amount": float(o.amount_usd or 0.0),
+                        "type": "deposit",
+                        "description": f"Atmos карта орқали тўлов ({o.amount_uzs:,} UZS)",
+                        "reference_id": o.id,
+                        "created_at": o.create_time,
+                    })
+        except Exception as ex:
+            logger.warning(f"Error querying PaymentOrder for transactions: {ex}")
+
+        # Sort combined transactions by timestamp desc
+        result.sort(key=lambda x: x.get("created_at") or 0, reverse=True)
 
         return get_json_result(data=result)
     except Exception as e:
@@ -1846,7 +1888,9 @@ async def export_campaigns_csv():
 @login_required
 def get_campaign_variants(campaign_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         variants = AdVariantService.list_variants(campaign_id=campaign_id, advertiser_id=adv.id)
         return get_json_result(data=variants)
     except Exception as e:
@@ -1858,7 +1902,9 @@ def get_campaign_variants(campaign_id):
 @login_required
 def create_campaign_variant(campaign_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         cmp = AdCampaign.get_or_none(AdCampaign.id == campaign_id, AdCampaign.advertiser_id == adv.id)
         if not cmp:
             return get_data_error_result(message="Campaign not found")
@@ -1883,7 +1929,9 @@ def create_campaign_variant(campaign_id):
 @login_required
 def update_campaign_variant(campaign_id, variant_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         req = get_request_json() or {}
         updated = AdVariantService.update_variant(
             variant_id=variant_id,
@@ -1902,7 +1950,9 @@ def update_campaign_variant(campaign_id, variant_id):
 @login_required
 def toggle_campaign_variant(campaign_id, variant_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         toggled = AdVariantService.toggle_variant(
             variant_id=variant_id,
             advertiser_id=adv.id,
@@ -1919,7 +1969,9 @@ def toggle_campaign_variant(campaign_id, variant_id):
 @login_required
 def delete_campaign_variant(campaign_id, variant_id):
     try:
-        adv = AdvertiserService.get_or_create_for_user(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         success = AdVariantService.delete_variant(
             variant_id=variant_id,
             advertiser_id=adv.id,
@@ -1942,7 +1994,9 @@ def delete_campaign_variant(campaign_id, variant_id):
 def get_user_subscription():
     try:
         from api.db.services.recurring_subscription_service import RecurringSubscriptionService
-        sub = RecurringSubscriptionService.get_user_subscription(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        sub = RecurringSubscriptionService.get_user_subscription(user_id, tenant_id)
         return get_json_result(data=sub)
     except Exception as e:
         logger.exception(f"Error fetching subscription: {e}")
@@ -1954,11 +2008,13 @@ def get_user_subscription():
 def cancel_user_subscription():
     try:
         from api.db.services.recurring_subscription_service import RecurringSubscriptionService
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
         req = get_request_json() or {}
         immediate = bool(req.get("immediate", False))
         res = RecurringSubscriptionService.cancel_subscription(
-            user_id=current_user.id,
-            tenant_id=current_user.tenant_id,
+            user_id=user_id,
+            tenant_id=tenant_id,
             cancel_immediately=immediate,
         )
         return get_json_result(data=res)
@@ -1972,9 +2028,11 @@ def cancel_user_subscription():
 def resume_user_subscription():
     try:
         from api.db.services.recurring_subscription_service import RecurringSubscriptionService
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
         res = RecurringSubscriptionService.resume_subscription(
-            user_id=current_user.id,
-            tenant_id=current_user.tenant_id,
+            user_id=user_id,
+            tenant_id=tenant_id,
         )
         return get_json_result(data=res)
     except Exception as e:
@@ -1987,7 +2045,9 @@ def resume_user_subscription():
 def get_user_payment_methods():
     try:
         from api.db.services.recurring_subscription_service import SavedPaymentMethodService
-        cards = SavedPaymentMethodService.list_user_cards(current_user.id, current_user.tenant_id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        cards = SavedPaymentMethodService.list_user_cards(user_id, tenant_id)
         return get_json_result(data=cards)
     except Exception as e:
         logger.exception(f"Error listing payment methods: {e}")
@@ -3121,7 +3181,9 @@ async def get_public_shared_report(share_token):
 async def list_omni_accounts():
     """List connected external ad accounts for the current advertiser."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         accounts = AdOmniChannelBridgeService.list_accounts(advertiser_id=adv.id)
         return get_json_result(data=accounts)
     except Exception as e:
@@ -3134,7 +3196,9 @@ async def list_omni_accounts():
 async def connect_omni_account():
     """Connect a new external ad platform account."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         req = get_request_json()
         res = AdOmniChannelBridgeService.connect_account(advertiser_id=adv.id, data=req)
         return get_json_result(data=res)
@@ -3148,7 +3212,9 @@ async def connect_omni_account():
 async def disconnect_omni_account(account_id):
     """Disconnect an external ad platform account."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         res = AdOmniChannelBridgeService.disconnect_account(advertiser_id=adv.id, account_id=account_id)
         return get_json_result(data=res)
     except Exception as e:
@@ -3161,7 +3227,9 @@ async def disconnect_omni_account(account_id):
 async def test_omni_account_connection(account_id):
     """Test API connection to external ad network."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         res = AdOmniChannelBridgeService.test_connection(advertiser_id=adv.id, account_id=account_id)
         return get_json_result(data=res)
     except Exception as e:
@@ -3174,7 +3242,9 @@ async def test_omni_account_connection(account_id):
 async def export_campaign_to_omnichannel():
     """1-Click export of an AI campaign into Telegram Ads, Meta Ads, Google Ads or TikTok format."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         req = get_request_json()
         account_id = req.get("account_id")
         campaign_id = req.get("campaign_id")
@@ -3200,7 +3270,9 @@ async def export_campaign_to_omnichannel():
 async def sync_audience_to_omnichannel():
     """Sync audience segment to external ad network."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         req = get_request_json()
         account_id = req.get("account_id")
         segment_id = req.get("segment_id")
@@ -3224,7 +3296,9 @@ async def sync_audience_to_omnichannel():
 async def get_cross_platform_analytics():
     """Consolidated cross-platform analytics and Blended ROAS."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         days = int(request.args.get("days", 30))
         analytics = AdOmniChannelBridgeService.pull_cross_platform_analytics(advertiser_id=adv.id, days=days)
         return get_json_result(data=analytics)
@@ -3238,7 +3312,9 @@ async def get_cross_platform_analytics():
 async def get_omni_sync_jobs():
     """List recent synchronization jobs."""
     try:
-        adv = AdvertiserService.get_or_create_advertiser(current_user.id)
+        user_id = current_user.id
+        tenant_id = getattr(current_user, "tenant_id", "") or user_id
+        adv = AdvertiserService.get_or_create_for_user(user_id, tenant_id)
         limit = int(request.args.get("limit", 50))
         jobs = AdOmniChannelBridgeService.list_sync_jobs(advertiser_id=adv.id, limit=limit)
         return get_json_result(data=jobs)

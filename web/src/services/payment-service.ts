@@ -26,6 +26,7 @@ export interface PaymentOrderCreateResult {
   advertiser_id?: string;
   currency: string;
   status: string;
+  checkout_url?: string;
 }
 
 export interface PreApplyCardPayload {
@@ -75,6 +76,7 @@ export interface PaymentOrderItem {
   status: 'pending' | 'waiting_otp' | 'paid' | 'failed' | 'canceled';
   card_masked?: string;
   phone_masked?: string;
+  checkout_url?: string;
   created_at: number;
 }
 

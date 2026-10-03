@@ -169,6 +169,18 @@ export interface SwipiesAdsPageProps {
   onLanguageChange?: (lang: AdLanguage) => void;
 }
 
+function unwrapData<T = any>(res: any): T {
+  if (res === null || res === undefined) return res;
+  if (typeof res === 'object' && 'data' in res) {
+    const inner = res.data;
+    if (inner !== null && typeof inner === 'object' && 'code' in inner && 'data' in inner) {
+      return (inner as any).data !== undefined ? (inner as any).data : inner;
+    }
+    return inner as T;
+  }
+  return res as T;
+}
+
 export default function SwipiesAdsPage({
   currentLang: propLang,
   onLanguageChange: propOnLanguageChange,
@@ -251,8 +263,8 @@ export default function SwipiesAdsPage({
   const fetchAdvSettings = async () => {
     try {
       const res = await adService.getAdvertiserSettings();
-      if (res?.data) {
-        const d = res.data;
+      const d = unwrapData<AdvertiserSettingsData>(res);
+      if (d) {
         setAdvSettings(d);
         if (d.language && ['ru', 'en', 'uz'].includes(d.language)) {
           setInternalLang(d.language as AdLanguage);
@@ -273,7 +285,7 @@ export default function SwipiesAdsPage({
       if (res?.code === 0) {
         message.success(t('settingsSavedSuccess'));
         if (res?.data) {
-          setAdvSettings(res.data);
+          setAdvSettings(unwrapData(res));
         }
       } else {
         message.error(res?.message || t('settingsSaveError'));
@@ -509,15 +521,17 @@ export default function SwipiesAdsPage({
         adService.getAttributionSummary({ model, days }),
         adService.getAttributionPaths({ limit: 20 }),
       ]);
-      if (sumRes?.data) {
-        setMtaSummary(sumRes.data);
+      const sumData = unwrapData(sumRes);
+      const pathsData = unwrapData(pathsRes);
+      if (sumData) {
+        setMtaSummary(sumData);
       }
-      if (pathsRes?.data) {
+      if (pathsData) {
         setMtaPaths(
-          Array.isArray(pathsRes.data)
-            ? pathsRes.data
-            : Array.isArray((pathsRes.data as any)?.paths)
-            ? (pathsRes.data as any).paths
+          Array.isArray(pathsData)
+            ? pathsData
+            : Array.isArray((pathsData as any)?.paths)
+            ? (pathsData as any).paths
             : []
         );
       }
@@ -532,8 +546,9 @@ export default function SwipiesAdsPage({
     setLoadingFunnel(true);
     try {
       const res = await adService.getAttributionFunnel({ days });
-      if (res?.data) {
-        setFunnelData(res.data);
+      const fData = unwrapData(res);
+      if (fData) {
+        setFunnelData(fData);
       }
     } catch (err: any) {
       console.error('Failed to load funnel data', err);
@@ -576,15 +591,14 @@ export default function SwipiesAdsPage({
     setLoadingLookalikes(true);
     try {
       const res = await adService.getLookalikes();
-      if (res?.data) {
-        setLookalikes(
-          Array.isArray(res.data)
-            ? res.data
-            : Array.isArray((res.data as any)?.lookalikes)
-            ? (res.data as any).lookalikes
-            : []
-        );
-      }
+      const raw = unwrapData(res);
+      setLookalikes(
+        Array.isArray(raw)
+          ? raw
+          : Array.isArray((raw as any)?.lookalikes)
+          ? (raw as any).lookalikes
+          : []
+      );
     } catch (err: any) {
       console.error('Failed to load lookalikes', err);
     } finally {
@@ -595,8 +609,9 @@ export default function SwipiesAdsPage({
   const fetchLtvOverview = async () => {
     try {
       const res = await adService.getLtvOverview();
-      if (res?.data) {
-        setLtvOverview(res.data);
+      const data = unwrapData(res);
+      if (data) {
+        setLtvOverview(data);
       }
     } catch (err: any) {
       console.error('Failed to load LTV overview', err);
@@ -717,17 +732,16 @@ export default function SwipiesAdsPage({
     setLoadingFeeds(true);
     try {
       const res = await adService.getProductFeeds();
-      if (res?.data) {
-        const feeds = Array.isArray(res.data)
-          ? res.data
-          : Array.isArray((res.data as any)?.feeds)
-          ? (res.data as any).feeds
-          : [];
-        setProductFeeds(feeds);
-        if (feeds.length > 0 && !selectedFeedId) {
-          setSelectedFeedId(feeds[0].id);
-          fetchFeedItems(feeds[0].id);
-        }
+      const raw = unwrapData(res);
+      const feeds = Array.isArray(raw)
+        ? raw
+        : Array.isArray((raw as any)?.feeds)
+        ? (raw as any).feeds
+        : [];
+      setProductFeeds(feeds);
+      if (feeds.length > 0 && !selectedFeedId) {
+        setSelectedFeedId(feeds[0].id);
+        fetchFeedItems(feeds[0].id);
       }
     } catch (err: any) {
       console.error('Failed to load product feeds', err);
@@ -853,7 +867,7 @@ export default function SwipiesAdsPage({
         save_assets: true,
       });
       if (res?.data) {
-        setMatrixResult(res.data);
+        setMatrixResult(unwrapData(res));
         message.success('Мульти-форматный пакет креативов сгенерирован!');
       }
     } catch (err: any) {
@@ -923,29 +937,32 @@ export default function SwipiesAdsPage({
         adService.getAgencyClients(),
         adService.getAgencyMembers(),
       ]);
-      if (wsRes?.data) {
-        setAgencyWorkspace(wsRes.data);
-        setWsName(wsRes.data.name);
-        setWsLogoUrl(wsRes.data.logo_url || '');
-        setWsBrandColor(wsRes.data.brand_color || '#6366f1');
-        setWsFooterText(wsRes.data.report_footer_text || '');
-        setWsBillingMode(wsRes.data.billing_mode || 'consolidated');
+      const wsData = unwrapData(wsRes);
+      const clientsData = unwrapData(clientsRes);
+      const membersData = unwrapData(membersRes);
+      if (wsData) {
+        setAgencyWorkspace(wsData);
+        setWsName(wsData.name || '');
+        setWsLogoUrl(wsData.logo_url || '');
+        setWsBrandColor(wsData.brand_color || '#6366f1');
+        setWsFooterText(wsData.report_footer_text || '');
+        setWsBillingMode(wsData.billing_mode || 'consolidated');
       }
-      if (clientsRes?.data) {
+      if (clientsData) {
         setAgencyClients(
-          Array.isArray(clientsRes.data)
-            ? clientsRes.data
-            : Array.isArray((clientsRes.data as any)?.clients)
-            ? (clientsRes.data as any).clients
+          Array.isArray(clientsData)
+            ? clientsData
+            : Array.isArray((clientsData as any)?.clients)
+            ? (clientsData as any).clients
             : []
         );
       }
-      if (membersRes?.data) {
+      if (membersData) {
         setAgencyMembers(
-          Array.isArray(membersRes.data)
-            ? membersRes.data
-            : Array.isArray((membersRes.data as any)?.members)
-            ? (membersRes.data as any).members
+          Array.isArray(membersData)
+            ? membersData
+            : Array.isArray((membersData as any)?.members)
+            ? (membersData as any).members
             : []
         );
       }
@@ -969,7 +986,7 @@ export default function SwipiesAdsPage({
         billing_mode: wsBillingMode,
       });
       if (res?.data) {
-        setAgencyWorkspace(res.data);
+        setAgencyWorkspace(unwrapData(res));
         message.success('Настройки агентства и брендинга сохранены!');
         setIsAgencySettingsModalOpen(false);
       }
@@ -1095,7 +1112,7 @@ export default function SwipiesAdsPage({
         days: reportPeriodDays,
       });
       if (res?.data) {
-        setShareLinkData(res.data);
+        setShareLinkData(unwrapData(res));
         const fullUrl = `${window.location.origin}${res.data.share_url}`;
         navigator.clipboard.writeText(fullUrl);
         message.success('Публичная ссылка на отчет создана и скопирована в буфер!');
@@ -1118,9 +1135,9 @@ export default function SwipiesAdsPage({
     setLoading(true);
     try {
       const res = await adService.getDashboard();
-      if (res?.data) {
-        const d = res.data;
-        if (d && !Array.isArray(d.campaigns)) {
+      const d = unwrapData<AdvertiserDashboardData>(res);
+      if (d) {
+        if (!Array.isArray(d.campaigns)) {
           d.campaigns = [];
         }
         setDashboard(d);
@@ -1136,15 +1153,14 @@ export default function SwipiesAdsPage({
     setLoadingTeam(true);
     try {
       const res = await adService.getTeamMembers();
-      if (res?.data) {
-        setTeamMembers(
-          Array.isArray(res.data)
-            ? res.data
-            : Array.isArray((res.data as any)?.members)
-            ? (res.data as any).members
-            : []
-        );
-      }
+      const raw = unwrapData(res);
+      setTeamMembers(
+        Array.isArray(raw)
+          ? raw
+          : Array.isArray((raw as any)?.members)
+          ? (raw as any).members
+          : []
+      );
     } catch (err: any) {
       // silent
     } finally {
@@ -1204,15 +1220,14 @@ export default function SwipiesAdsPage({
     setLoadingAudiences(true);
     try {
       const res = await adService.getAudienceSegments();
-      if (res?.data) {
-        setAudiences(
-          Array.isArray(res.data)
-            ? res.data
-            : Array.isArray((res.data as any)?.segments)
-            ? (res.data as any).segments
-            : []
-        );
-      }
+      const raw = unwrapData(res);
+      setAudiences(
+        Array.isArray(raw)
+          ? raw
+          : Array.isArray((raw as any)?.segments)
+          ? (raw as any).segments
+          : []
+      );
     } catch (err: any) {
       // silent
     } finally {
@@ -1417,7 +1432,7 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getNotificationSettings();
       if (res?.data) {
-        setNotifSettings(res.data);
+        setNotifSettings(unwrapData(res));
       }
     } catch (err: any) {
       // silent
@@ -1430,7 +1445,7 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.updateNotificationSettings(notifSettings);
       if (res?.data) {
-        setNotifSettings(res.data);
+        setNotifSettings(unwrapData(res));
       }
       message.success('Настройки оповещений сохранены');
       setIsNotifSettingsModalOpen(false);
@@ -1458,8 +1473,9 @@ export default function SwipiesAdsPage({
     setLoadingInsights(true);
     try {
       const res = await adService.getAdvertiserInsights();
-      if (res?.data) {
-        setInsightsData(res.data);
+      const data = unwrapData<AdvertiserInsightsData>(res);
+      if (data) {
+        setInsightsData(data);
       }
     } catch (err: any) {
       // silently handle
@@ -1476,8 +1492,9 @@ export default function SwipiesAdsPage({
         insight.type,
         insight.action_payload
       );
-      if (res?.data?.success) {
-        message.success(res.data.message || 'Рекомендация успешно применена!');
+      const resData = unwrapData(res);
+      if (resData?.success || res?.data?.success) {
+        message.success((resData as any)?.message || 'Рекомендация успешно применена!');
         fetchInsights();
         fetchDashboard();
       }
@@ -1492,8 +1509,9 @@ export default function SwipiesAdsPage({
     setLoadingTimeline(true);
     try {
       const res = await adService.getAdvertiserTimeline(days);
-      if (res?.data) {
-        setTimelineData(res.data);
+      const data = unwrapData<TimelineAnalyticsData>(res);
+      if (data) {
+        setTimelineData(data);
       }
     } catch (err: any) {
       console.error('Failed to load timeline analytics', err);
@@ -1505,15 +1523,14 @@ export default function SwipiesAdsPage({
   const fetchTransactions = async () => {
     try {
       const res = await adService.listTransactions();
-      if (res?.data) {
-        setTransactions(
-          Array.isArray(res.data)
-            ? res.data
-            : Array.isArray((res.data as any)?.transactions)
-            ? (res.data as any).transactions
-            : []
-        );
-      }
+      const raw = unwrapData(res);
+      setTransactions(
+        Array.isArray(raw)
+          ? raw
+          : Array.isArray((raw as any)?.transactions)
+          ? (raw as any).transactions
+          : []
+      );
     } catch (err: any) {
       console.error(err);
     }
@@ -1522,8 +1539,9 @@ export default function SwipiesAdsPage({
   const fetchSubscription = async () => {
     try {
       const res = await adService.getUserSubscription();
-      if (res?.data) {
-        setSubscription(res.data);
+      const data = unwrapData<UserSubscriptionData>(res);
+      if (data) {
+        setSubscription(data);
       }
     } catch (err: any) {
       console.error('Failed to load subscription info', err);
@@ -1533,15 +1551,14 @@ export default function SwipiesAdsPage({
   const fetchSavedCards = async () => {
     try {
       const res = await adService.getSavedPaymentMethods();
-      if (res?.data) {
-        setSavedCards(
-          Array.isArray(res.data)
-            ? res.data
-            : Array.isArray((res.data as any)?.cards)
-            ? (res.data as any).cards
-            : []
-        );
-      }
+      const raw = unwrapData(res);
+      setSavedCards(
+        Array.isArray(raw)
+          ? raw
+          : Array.isArray((raw as any)?.cards)
+          ? (raw as any).cards
+          : []
+      );
     } catch (err: any) {
       console.error('Failed to load saved cards', err);
     }
@@ -1991,7 +2008,7 @@ export default function SwipiesAdsPage({
       };
       const res = await adService.previewCampaignDco(targetId, reqData);
       if (res?.data) {
-        setPreviewResult(res.data);
+        setPreviewResult(unwrapData(res));
       }
     } catch (err: any) {
       message.error(err.message || 'Ошибка генерации предпросмотра DCO');
@@ -2340,7 +2357,7 @@ export default function SwipiesAdsPage({
     try {
       const res = await adService.getPixelSnippet();
       if (res?.data && res.data.snippet) {
-        setPixelData(res.data);
+        setPixelData(unwrapData(res));
       } else {
         const pid = advSettings.pixel_id || `px_${dashboard?.advertiser_id?.slice(0, 16) || 'live_swipies'}`;
         setPixelData({
@@ -2571,7 +2588,7 @@ export default function SwipiesAdsPage({
       });
 
       if (res?.data) {
-        setExportResult(res.data);
+        setExportResult(unwrapData(res));
         message.success(res.data.message || 'Кампания успешно экспортирована!');
         fetchOmniChannelData();
       }
@@ -3609,7 +3626,7 @@ export default function SwipiesAdsPage({
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">Быстрый выбор суммы:</label>
               <div className="grid grid-cols-5 gap-2">
-                {['20', '50', '100', '250', '500'].map((amt) => (
+                {['5', '10', '20', '50', '100'].map((amt) => (
                   <Button
                     key={amt}
                     type="button"
@@ -3630,12 +3647,12 @@ export default function SwipiesAdsPage({
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="number"
-                  step="5"
-                  min="5"
+                  step="1"
+                  min="1"
                   value={topUpAmount}
                   onChange={(e) => setTopUpAmount(e.target.value)}
                   className="pl-9 font-mono text-base font-bold h-11"
-                  placeholder="50.00"
+                  placeholder="10.00"
                 />
               </div>
             </div>
@@ -4998,30 +5015,30 @@ async def get_swipies_ad(user_query: str):
               <div className="p-4 rounded-xl border bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-lg ${
-                    biddingInfo?.current_status.is_active_now
+                    biddingInfo?.current_status?.is_active_now
                       ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                       : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
                   }`}>
-                    {biddingInfo?.current_status.is_active_now ? '⚡' : '⏸️'}
+                    {biddingInfo?.current_status?.is_active_now ? '⚡' : '⏸️'}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-sm text-foreground">
-                        {biddingInfo?.current_status.is_active_now ? 'Кампания активна сейчас' : 'Вне расписания показов'}
+                        {biddingInfo?.current_status?.is_active_now ? 'Кампания активна сейчас' : 'Вне расписания показов'}
                       </span>
                       <Badge
                         variant="outline"
                         className={
-                          biddingInfo?.current_status.is_active_now
+                          biddingInfo?.current_status?.is_active_now
                             ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold'
                             : 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400'
                         }
                       >
-                        Множитель: {biddingInfo?.current_status.current_multiplier || 1.0}x
+                        Множитель: {biddingInfo?.current_status?.current_multiplier ?? 1.0}x
                       </Badge>
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Локальное время: <span className="font-mono font-medium text-foreground">{biddingInfo?.current_status.local_time}</span> ({biddingInfo?.current_status.local_day})
+                      Локальное время: <span className="font-mono font-medium text-foreground">{biddingInfo?.current_status?.local_time || '—'}</span> ({biddingInfo?.current_status?.local_day || '—'})
                     </p>
                   </div>
                 </div>
