@@ -23,10 +23,10 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from api.db.services.crm_service import CRMConnectionService, CRMOutboxService
-from api.db.crm_models import CRMOutbox
+from api.db.crm_models import CRMConnection, CRMOutbox
 from api.crm.base import CRMProviderRegistry
 from api.crm.clients.amocrm import AmoCRMTokenRevokedError
-from api.crm.license_gate import check_crm_license_access
+from api.crm.license_gate import check_crm_license_access, CRMLicenseGate
 
 logger = logging.getLogger("CRMOutboxWorker")
 
@@ -59,6 +59,18 @@ class CRMOutboxWorker:
         self.processed_count = 0
         self.failed_count = 0
 
+        self._self_check_dependencies()
+
+    def _self_check_dependencies(self) -> None:
+        """Startup self-check verifying required dependencies like phonenumbers (Point 5)."""
+        try:
+            import phonenumbers
+        except ImportError as e:
+            raise RuntimeError(
+                "CRM Outbox Worker startup self-check failed: 'phonenumbers' package is missing. "
+                "Install 'phonenumbers>=9.0.24' into runtime environment."
+            ) from e
+
     def check_and_alert_lag(self) -> int:
         """Query oldest pending task age and emit high-priority structured alert if lag > 15m (T5.7)."""
         lag = CRMOutboxService.get_oldest_pending_lag_seconds()
@@ -78,8 +90,8 @@ class CRMOutboxWorker:
 
         if conn.status == "reauth_required":
             err_msg = f"CRM connection '{conn.id}' requires re-authentication (status=reauth_required)"
-            logger.warning("%s. Delaying task %s.", err_msg, task.id)
-            CRMOutboxService.fail_task(task.id, self.worker_id, error_msg=err_msg, backoff_base_seconds=10)
+            logger.warning("%s. Parking task %s without consuming retries.", err_msg, task.id)
+            CRMOutboxService.park_task(task.id, self.worker_id, reason=err_msg, delay_seconds=300)
             self.failed_count += 1
             return False
 
@@ -112,8 +124,8 @@ class CRMOutboxWorker:
             return True
 
         except AmoCRMTokenRevokedError as e:
-            logger.error("AmoCRM token revoked for connection %s: %s", conn.id, e)
-            CRMOutboxService.fail_task(task.id, self.worker_id, error_msg=f"AmoCRM token revoked: {e}", backoff_base_seconds=10)
+            logger.error("AmoCRM token revoked for connection %s: %s. Parking task %s.", conn.id, e, task.id)
+            CRMOutboxService.park_task(task.id, self.worker_id, reason=f"AmoCRM token revoked: {e}", delay_seconds=300)
             self.failed_count += 1
             return False
 
@@ -137,6 +149,18 @@ class CRMOutboxWorker:
 
     def run_once(self) -> int:
         """Execute a single processing cycle: claim batch, process tasks, check lag, purge PII."""
+        # 1. License check (Point 10): zero overhead when CRM subsystem is unlicensed
+        if not CRMLicenseGate.is_crm_enabled():
+            return 0
+
+        # Periodic PII retention cleanup (runs even if connections are deactivated)
+        self._maybe_purge_pii()
+
+        # 2. Connection check (Point 10): zero overhead if no active CRM connections exist
+        has_active_conns = CRMConnectionService.has_active_connections()
+        if not has_active_conns:
+            return 0
+
         tasks = CRMOutboxService.claim_batch(
             worker_id=self.worker_id,
             batch_size=self.batch_size,
@@ -146,7 +170,6 @@ class CRMOutboxWorker:
             self.process_task(task)
 
         self.check_and_alert_lag()
-        self._maybe_purge_pii()
         return len(tasks)
 
     def start(self) -> None:

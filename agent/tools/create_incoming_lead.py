@@ -21,6 +21,7 @@ from typing import Any, Dict
 
 from agent.tools.base import ToolParamBase, ToolBase, ToolMeta
 from common.connection_utils import timeout
+from api.db.crm_models import CRMConnection, CRMOutbox
 from api.db.services.crm_service import CRMConnectionService, CRMOutboxService, compute_lead_business_key
 from api.crm.clients.bitrix24 import normalize_phone_to_e164
 
@@ -128,6 +129,12 @@ class CreateIncomingLead(ToolBase, ABC):
                     db.close()
             except Exception:
                 pass
+            try:
+                db_outbox = getattr(CRMOutbox._meta, "database", None)
+                if db_outbox and not db_outbox.is_closed() and db_outbox != db:
+                    db_outbox.close()
+            except Exception:
+                pass
 
     def _do_invoke(self, **kwargs) -> Dict[str, Any]:
         if self.check_if_canceled("CreateIncomingLead processing"):
@@ -138,29 +145,44 @@ class CreateIncomingLead(ToolBase, ABC):
         if turn_count >= 1:
             raise ValueError("Rate limit exceeded: only 1 lead creation is permitted per conversational turn.")
 
-        # 2. Scoped anonymous access (T5.3)
-        channel = getattr(self._canvas, "get_channel", lambda: None)()
-        if not channel and hasattr(self._canvas, "custom_header") and isinstance(self._canvas.custom_header, dict):
-            channel = self._canvas.custom_header.get("channel") or self._canvas.custom_header.get("auth_type")
-        is_anon = str(channel).lower() in ("webhook", "embed", "beta", "auth_beta", "anonymous")
+        # 2. Server-side channel determination based strictly on authentication method (Point 1)
+        # Client request body (custom_header.channel) is UNTRUSTED and NEVER used for authorization.
+        server_channel = getattr(self._canvas, "get_channel", lambda: None)()
+        if not server_channel:
+            server_channel = getattr(self._canvas, "_channel", None)
+
+        server_auth = getattr(self._canvas, "auth_type", None)
+        if not server_channel and server_auth:
+            auth_str = str(server_auth).strip().upper()
+            if auth_str in ("AUTH_API", "API"):
+                server_channel = "api"
+            elif auth_str in ("AUTH_JWT", "JWT"):
+                server_channel = "chat"
+            elif auth_str in ("AUTH_BETA", "BETA", "EMBED"):
+                server_channel = "embed"
+
+        is_embed = (
+            getattr(self._canvas, "is_embed", False)
+            or getattr(self._canvas, "_is_public", False)
+            or str(server_auth).strip().upper() in ("AUTH_BETA", "BETA", "EMBED")
+        )
+
+        norm_channel = str(server_channel).strip().lower() if server_channel is not None else ""
+        if is_embed and norm_channel in ("api", "internal", "admin", "chat", "web", "authenticated"):
+            norm_channel = "embed"
+
+        authenticated_channels = frozenset({"internal", "web", "chat", "authenticated", "api", "admin"})
+        is_authenticated = bool(norm_channel and norm_channel in authenticated_channels)
+        is_anon = not is_authenticated
         if is_anon and not getattr(self._param, "allow_anonymous", False):
             raise PermissionError(
-                "Access denied: Lead creation from anonymous/public channels is forbidden unless 'allow_anonymous' is enabled in tool configuration."
+                f"Access denied: Lead creation from anonymous/public channels is forbidden unless 'allow_anonymous' is enabled in tool configuration (channel='{norm_channel}')."
             )
 
-        # 3. Input validation and sanitization (T5.4)
+        # 3. Parameter validation & sanitization (T5.4)
         raw_phone = kwargs.get("phone") or ""
         if not raw_phone:
             raise ValueError("Missing required parameter 'phone'.")
-
-        default_region = getattr(self._param, "default_phone_region", "US") or "US"
-        phone_e164 = normalize_phone_to_e164(str(raw_phone), default_region)
-
-        # Strict E.164 regex: +[1-9][0-9]{1,14} with minimum subscriber length (total length >= 7)
-        if not re.fullmatch(r"^\+[1-9]\d{1,14}$", phone_e164) or len(phone_e164) < 7:
-            raise ValueError(
-                f"Invalid phone number format: '{raw_phone}'. Must be a valid international phone number in E.164 format (e.g. +14155552671)."
-            )
 
         raw_name = kwargs.get("name") or "Incoming Lead"
         name = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", str(raw_name).strip())[:128]
@@ -178,12 +200,14 @@ class CreateIncomingLead(ToolBase, ABC):
         title = str(kwargs.get("title") or f"Lead from Chat: {name}").strip()[:128]
 
         # 4. Tenant hourly rate limit (T5.2): 100 leads/hour
-        tenant_id = self._canvas.get_canvas_owner_tenant() or self._canvas.get_tenant_id()
+        tenant_id = getattr(self._canvas, "get_canvas_owner_tenant", lambda: None)() or getattr(self._canvas, "get_tenant_id", lambda: None)()
+        if not tenant_id:
+            raise ValueError("Canvas context missing valid tenant ID.")
         hourly_limit = int(os.environ.get("RAGFLOW_CRM_HOURLY_LIMIT", 100))
         if not self._check_hourly_rate_limit(tenant_id, hourly_limit, is_anon):
             raise ValueError(f"Rate limit exceeded: Tenant has reached the maximum of {hourly_limit} leads per hour.")
 
-        # 5. Resolve active CRMConnection
+        # 5. Resolve active CRMConnection & configured region (Point 6)
         conn_id = getattr(self._param, "connection_id", "") or ""
         if conn_id:
             ok, conn = CRMConnectionService.get_by_id_and_tenant(conn_id, tenant_id)
@@ -195,6 +219,16 @@ class CreateIncomingLead(ToolBase, ABC):
                 raise ValueError(f"No active CRM connection found for tenant '{tenant_id}'. Please configure a CRM connection first.")
             conn = conns[0]
             conn_id = conn.id
+
+        conn_cfg = CRMConnectionService.get_decrypted_config(conn)
+        region = conn_cfg.get("default_phone_region") or conn_cfg.get("phone_region") or getattr(self._param, "default_phone_region", None)
+        phone_e164 = normalize_phone_to_e164(str(raw_phone), default_region=region)
+
+        # Strict E.164 regex: +[1-9][0-9]{1,14} with minimum subscriber length (total length >= 7)
+        if not re.fullmatch(r"^\+[1-9]\d{1,14}$", phone_e164) or len(phone_e164) < 7:
+            raise ValueError(
+                f"Invalid phone number format: '{raw_phone}'. Must be a valid international phone number in E.164 format (e.g. +14155552671)."
+            )
 
         # 6. Deduplication & Outbox enqueue (T5.5)
         b_key = compute_lead_business_key(tenant_id, conn_id, phone_e164)

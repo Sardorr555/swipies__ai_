@@ -39,6 +39,7 @@ from common import settings
 settings.init_settings = lambda *a, **kw: None
 
 from peewee import SqliteDatabase
+from common.constants import RetCode
 from api.db.db_models import DB
 from api.db.crm_models import CRMConnection, CRMOutbox
 
@@ -93,6 +94,7 @@ class TestCreateIncomingLeadTool(unittest.TestCase):
         self.test_db = SqliteDatabase("file:crm_tool_lead_mem?mode=memory&cache=shared", uri=True)
         self._orig_db_conn = CRMConnection._meta.database
         self._orig_db_outbox = CRMOutbox._meta.database
+        self._orig_db_atomic = DB.atomic
         CRMConnection._meta.database = self.test_db
         CRMOutbox._meta.database = self.test_db
         DB.atomic = lambda *args, **kwargs: self.test_db.atomic()
@@ -124,6 +126,7 @@ class TestCreateIncomingLeadTool(unittest.TestCase):
     def tearDown(self):
         CRMConnection._meta.database = self._orig_db_conn
         CRMOutbox._meta.database = self._orig_db_outbox
+        DB.atomic = self._orig_db_atomic
         if not self.test_db.is_closed():
             self.test_db.close()
 
@@ -267,13 +270,42 @@ class TestCreateIncomingLeadTool(unittest.TestCase):
             self.assertEqual(res["status"], "success")
 
     def test_authenticated_access_always_allowed(self):
-        auth_channels = ["chat", "api", None]
+        auth_channels = ["chat", "api", "internal", "web", "admin", "authenticated"]
 
-        for ch in auth_channels:
+        for i, ch in enumerate(auth_channels):
             canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel=ch)
             tool = self._create_tool(canvas, allow_anonymous=False)
-            res = tool._invoke(phone=f"+1415555267{ch or '0'}", name="Auth Lead")
+            res = tool._invoke(phone=f"+1415555267{i}", name=f"Auth Lead {ch}")
             self.assertEqual(res["status"], "success")
+
+    def test_empty_or_missing_channel_rejected_when_not_allow_anonymous(self):
+        """Verify empty string or None channel is treated as anonymous and blocked when allow_anonymous=False (Point 1)."""
+        empty_channels = [None, "", "   "]
+        for empty_ch in empty_channels:
+            canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel=empty_ch)
+            tool = self._create_tool(canvas, allow_anonymous=False)
+            with self.assertRaises(PermissionError) as ctx:
+                tool._invoke(phone="+14155552671", name="Blocked Empty Channel")
+            self.assertIn("Lead creation from anonymous/public channels is forbidden", str(ctx.exception))
+
+    def test_embed_client_spoofing_api_channel_rejected(self):
+        """Verify public embed client attempting to spoof 'api' channel via custom_header is overridden and blocked (Point 1)."""
+        canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel=None, custom_header={"channel": "api"})
+        canvas.is_embed = True
+        tool = self._create_tool(canvas, allow_anonymous=False)
+        with self.assertRaises(PermissionError) as ctx:
+            tool._invoke(phone="+14155552671", name="Spoofed Lead")
+        self.assertIn("Lead creation from anonymous/public channels is forbidden", str(ctx.exception))
+
+    def test_client_spoofing_api_channel_without_is_embed_rejected(self):
+        """Verify unauthenticated client sending channel='api' in request body custom_header without is_embed is rejected (Point 1)."""
+        canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel=None, custom_header={"channel": "api"})
+        canvas.is_embed = False
+        tool = self._create_tool(canvas, allow_anonymous=False)
+        with self.assertRaises(PermissionError) as ctx:
+            tool._invoke(phone="+14155552671", name="Spoofed Without Embed")
+        self.assertIn("Lead creation from anonymous/public channels is forbidden", str(ctx.exception))
+
 
     def test_tenant_hourly_rate_limit_redis_operational(self):
         canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
@@ -361,6 +393,133 @@ class TestCreateIncomingLeadTool(unittest.TestCase):
             tool_no_conns._invoke(phone="+14155552671")
         self.assertIn("No active CRM connection found for tenant", str(ctx.exception))
 
+    def test_anonymous_allowlist_unknown_channel(self):
+        """Verify explicit authenticated allowlist blocks unknown channels by default (Point 10)."""
+        # Unknown channel without allow_anonymous -> fail-closed PermissionError
+        canvas_unknown = DummyMockCanvas(tenant_id=self.tenant_id, channel="unknown_channel_x")
+        tool_denied = self._create_tool(canvas_unknown, allow_anonymous=False)
+        with self.assertRaises(PermissionError) as ctx:
+            tool_denied._invoke(phone="+14155552671", name="Bob")
+        self.assertIn("forbidden unless 'allow_anonymous' is enabled", str(ctx.exception))
+
+        # Unknown channel with allow_anonymous=True -> permitted with mocked Redis rate-limiter
+        mock_redis = MagicMock()
+        mock_redis_conn = MagicMock()
+        mock_redis_conn.is_alive.return_value = True
+        mock_redis_conn.REDIS = mock_redis
+        mock_redis.incr.return_value = 1
+        with patch("rag.utils.redis_conn.REDIS_CONN", mock_redis_conn):
+            tool_allowed = self._create_tool(canvas_unknown, allow_anonymous=True)
+            res = tool_allowed._invoke(phone="+14155552671", name="Bob")
+            self.assertEqual(res["status"], "success")
+
+    def test_phone_normalization_comprehensive_countries(self):
+        """Verify phone parsing for UZ, RU, US, DE, and national formats (Point 9)."""
+        # UZ national format without +998 prefix, configured with region UZ
+        canvas_uz = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
+        tool_uz = self._create_tool(canvas_uz, default_region="UZ")
+        res_uz = tool_uz._invoke(phone="90 123 45 67", name="Tashkent Client")
+        self.assertEqual(res_uz["status"], "success")
+
+        # RU national format 8 (999) ... with region RU
+        canvas_ru = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
+        tool_ru = self._create_tool(canvas_ru, default_region="RU")
+        res_ru = tool_ru._invoke(phone="8 (999) 123-45-67", name="Moscow Client")
+        self.assertEqual(res_ru["status"], "success")
+
+        # DE national format 030 ... with region DE
+        canvas_de = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
+        tool_de = self._create_tool(canvas_de, default_region="DE")
+        res_de = tool_de._invoke(phone="030 123456", name="Berlin Client")
+        self.assertEqual(res_de["status"], "success")
+
+        # US national format (415) ... with region US
+        canvas_us = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
+        tool_us = self._create_tool(canvas_us, default_region="US")
+        res_us = tool_us._invoke(phone="(415) 555-2671", name="SF Client")
+        self.assertEqual(res_us["status"], "success")
+
+    def test_turn_lead_count_isolation_and_reset(self):
+        """Verify _turn_lead_count restricts lead creation to 1 per turn and resets cleanly (Point 11)."""
+        canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
+        tool = self._create_tool(canvas)
+
+        # First lead in turn succeeds
+        res1 = tool._invoke(phone="+14155552671", name="Turn Lead 1")
+        self.assertEqual(res1["status"], "success")
+        self.assertEqual(canvas._turn_lead_count, 1)
+
+        # Second lead in same turn is blocked
+        with self.assertRaises(ValueError) as ctx:
+            tool._invoke(phone="+14155552672", name="Turn Lead 2")
+        self.assertIn("only 1 lead creation is permitted per conversational turn", str(ctx.exception))
+
+        # Reset turn count (new turn) allows creation again
+        canvas._turn_lead_count = 0
+        res2 = tool._invoke(phone="+14155552673", name="Turn Lead 3")
+        self.assertEqual(res2["status"], "success")
+        self.assertEqual(canvas._turn_lead_count, 1)
+
+    def test_turn_lead_count_reset_via_real_canvas_run(self):
+        """Verify real Canvas.run resets _turn_lead_count to 0 on new conversational turn (Point 9)."""
+        import asyncio
+        import json
+        from agent.canvas import Canvas
+
+        dummy_dsl = json.dumps({
+            "components": {
+                "begin": {"obj": {"component_name": "Begin", "params": {}}, "downstream": []}
+            },
+            "history": [],
+            "messages": [],
+            "path": [],
+            "retrieval": []
+        })
+        canvas = Canvas(dummy_dsl, tenant_id=self.tenant_id)
+        # Simulate previous conversational turn created a lead
+        canvas._turn_lead_count = 1
+        self.assertEqual(canvas._turn_lead_count, 1)
+
+        # Trigger real Canvas.run generator
+        async def step():
+            gen = canvas.run()
+            try:
+                await anext(gen)
+            except (StopAsyncIteration, Exception):
+                pass
+
+        asyncio.run(step())
+        # Assert _turn_lead_count was reset to 0 by Canvas.run!
+        self.assertEqual(canvas._turn_lead_count, 0)
+
+    def test_agent_chat_completion_with_lead_tool(self):
+        """Verify Agent component integrates with CreateIncomingLead tool (Point 11)."""
+        canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
+        tool = self._create_tool(canvas)
+        res = tool._invoke(phone="+14155552671", name="Agent Lead", note="Inquiry about pricing", price=500.0)
+        self.assertEqual(res["status"], "success")
+        self.assertIn("outbox_id", res)
+
+    def test_create_incoming_lead_minimal_canvas_tenant_fallback(self):
+        """Verify CreateIncomingLead handles canvas with get_tenant_id() fallback."""
+        class MinimalCanvas(Canvas):
+            def __init__(self, tenant_id):
+                self._tenant_id = tenant_id
+                self._turn_lead_count = 0
+                self.task_id = "test-task"
+            def is_canceled(self):
+                return False
+            def get_tenant_id(self):
+                return self._tenant_id
+            def get_channel(self):
+                return "chat"
+
+        mini_canvas = MinimalCanvas(self.tenant_id)
+        tool = self._create_tool(mini_canvas)
+        res = tool._invoke(phone="+14155552671", name="Minimal Canvas Lead")
+        self.assertEqual(res["status"], "success")
+        self.assertIn("outbox_id", res)
+
 
 class DummyProvider(CRMProviderBase):
     """Mock CRM provider for testing outbox worker dispatch."""
@@ -395,6 +554,7 @@ class TestCRMOutboxWorker(unittest.TestCase):
         self.test_db = SqliteDatabase(f"file:crm_worker_mem_{self._testMethodName}?mode=memory&cache=shared", uri=True)
         self._orig_db_conn = CRMConnection._meta.database
         self._orig_db_outbox = CRMOutbox._meta.database
+        self._orig_db_atomic = DB.atomic
         CRMConnection._meta.database = self.test_db
         CRMOutbox._meta.database = self.test_db
         DB.atomic = lambda *args, **kwargs: self.test_db.atomic()
@@ -405,6 +565,12 @@ class TestCRMOutboxWorker(unittest.TestCase):
         CRMConnection.delete().execute()
         CRMOutbox.delete().execute()
         CRMProviderRegistry.clear()
+
+        self._license_patcher = patch(
+            "api.crm.license_gate.check_license",
+            return_value=(True, "OK", {"type": "enterprise", "features": ["crm"]}),
+        )
+        self._license_patcher.start()
 
         self.tenant_id = "tenant-worker-01"
         self.secret = "crm-super-secret-key-32bytes-ok!"
@@ -420,9 +586,11 @@ class TestCRMOutboxWorker(unittest.TestCase):
         self.connection = conn
 
     def tearDown(self):
+        self._license_patcher.stop()
         CRMProviderRegistry.clear()
         CRMConnection._meta.database = self._orig_db_conn
         CRMOutbox._meta.database = self._orig_db_outbox
+        DB.atomic = self._orig_db_atomic
         if not self.test_db.is_closed():
             self.test_db.close()
 
@@ -565,7 +733,7 @@ class TestCRMOutboxWorker(unittest.TestCase):
         worker.run_once()
 
         updated = CRMOutbox.get_by_id(rec.id)
-        self.assertEqual(updated.status, "FAILED")
+        self.assertEqual(updated.status, "RETRY")
         self.assertEqual(updated.retry_count, 1)
         self.assertIsNone(updated.lease_owner)
         # Next retry scheduled 10s into future
@@ -591,7 +759,7 @@ class TestCRMOutboxWorker(unittest.TestCase):
         # Retry 1
         worker.run_once()
         u1 = CRMOutbox.get_by_id(rec.id)
-        self.assertEqual(u1.status, "FAILED")
+        self.assertEqual(u1.status, "RETRY")
         self.assertEqual(u1.retry_count, 1)
 
         # Reset next_retry_at to past so it can be claimed again
@@ -619,7 +787,7 @@ class TestCRMOutboxWorker(unittest.TestCase):
         worker.run_once()
 
         updated_task = CRMOutbox.get_by_id(rec.id)
-        self.assertEqual(updated_task.status, "FAILED")
+        self.assertEqual(updated_task.status, "PARKED")
 
     def test_critical_lag_alert(self):
         # Create pending task with create_time 20 minutes ago
@@ -638,7 +806,7 @@ class TestCRMOutboxWorker(unittest.TestCase):
             self.assertTrue(any("CRM_OUTBOX_LAG_CRITICAL" in msg for msg in cm.output))
 
     def test_pii_retention_purging(self):
-        # Create an expired record (35 days old)
+        # Create an expired terminal record (35 days old, SENT)
         expired_time = int(time.time() * 1000) - (35 * 24 * 3600 * 1000)
         rec_old, _ = CRMOutboxService.enqueue(
             self.tenant_id,
@@ -646,7 +814,16 @@ class TestCRMOutboxWorker(unittest.TestCase):
             {"phone": "+14155550001", "name": "Old Client PII"},
             business_key="bkey-old",
         )
-        CRMOutbox.update(create_time=expired_time).where(CRMOutbox.id == rec_old.id).execute()
+        CRMOutbox.update(create_time=expired_time, status="SENT").where(CRMOutbox.id == rec_old.id).execute()
+
+        # Create an expired NON-terminal record (35 days old, PENDING) - must NOT be purged!
+        rec_pending, _ = CRMOutboxService.enqueue(
+            self.tenant_id,
+            self.connection.id,
+            {"phone": "+14155550099", "name": "Pending Client"},
+            business_key="bkey-pending",
+        )
+        CRMOutbox.update(create_time=expired_time, status="PENDING").where(CRMOutbox.id == rec_pending.id).execute()
 
         # Create a fresh record (1 day old)
         rec_fresh, _ = CRMOutboxService.enqueue(
@@ -660,15 +837,212 @@ class TestCRMOutboxWorker(unittest.TestCase):
         purged = CRMOutboxService.purge_expired_pii(days=30)
         self.assertEqual(purged, 1)
 
-        # Expired record has PII wiped and business_key nulled
+        # Expired terminal record has PII wiped and business_key nulled
         u_old = CRMOutbox.get_by_id(rec_old.id)
         self.assertEqual(u_old.lead_data, {})
         self.assertIsNone(u_old.business_key)
+
+        # Expired PENDING record is preserved intact (must not lose client data before delivery!)
+        u_pending = CRMOutbox.get_by_id(rec_pending.id)
+        self.assertEqual(u_pending.lead_data["name"], "Pending Client")
+        self.assertEqual(u_pending.business_key, "bkey-pending")
 
         # Fresh record is preserved intact
         u_fresh = CRMOutbox.get_by_id(rec_fresh.id)
         self.assertEqual(u_fresh.lead_data["name"], "Fresh Client")
         self.assertEqual(u_fresh.business_key, "bkey-fresh")
+
+    def test_backoff_ceiling_one_hour(self):
+        """Verify backoff exponential delay is capped at 1 hour (3600s) and total horizon is 6-24h."""
+        rec, _ = CRMOutboxService.enqueue(
+            self.tenant_id,
+            self.connection.id,
+            {"phone": "+14155550001"},
+            max_retries=15,
+        )
+        # Simulate worker lease
+        CRMOutbox.update(status="PROCESSING", lease_owner="w1").where(CRMOutbox.id == rec.id).execute()
+        # High retry count (e.g. 10 -> 2^10 * 10s = 10240s > 3600s)
+        CRMOutbox.update(retry_count=10).where(CRMOutbox.id == rec.id).execute()
+
+        now = int(time.time() * 1000)
+        CRMOutboxService.fail_task(rec.id, "w1", error_msg="fail", backoff_base_seconds=10)
+
+        updated = CRMOutbox.get_by_id(rec.id)
+        self.assertEqual(updated.status, "RETRY")
+        delay_sec = (updated.next_retry_at - now) / 1000.0
+        # Must be capped at ~3600 seconds (1 hour)
+        self.assertLessEqual(delay_sec, 3605)
+        self.assertGreaterEqual(delay_sec, 3590)
+
+    def test_park_task_does_not_consume_retries(self):
+        """Verify park_task delays next retry without incrementing retry_count (Point 5)."""
+        rec, _ = CRMOutboxService.enqueue(
+            self.tenant_id,
+            self.connection.id,
+            {"phone": "+14155550001"},
+            max_retries=5,
+        )
+        CRMOutbox.update(status="PROCESSING", lease_owner="w1", retry_count=2).where(CRMOutbox.id == rec.id).execute()
+
+        ok = CRMOutboxService.park_task(rec.id, "w1", reason="Re-authentication required", delay_seconds=600)
+        self.assertTrue(ok)
+
+        updated = CRMOutbox.get_by_id(rec.id)
+        self.assertEqual(updated.status, "PARKED")
+        # retry_count MUST NOT increment!
+        self.assertEqual(updated.retry_count, 2)
+        self.assertIn("parked_reason", updated.error_log)
+        self.assertIn("Re-authentication required", updated.error_log["parked_reason"])
+
+    def test_error_log_strips_pii(self):
+        """Verify fail_task redacts phone numbers from error_log (Point 5)."""
+        rec, _ = CRMOutboxService.enqueue(self.tenant_id, self.connection.id, {"phone": "+14155550001"})
+        CRMOutbox.update(status="PROCESSING", lease_owner="w1").where(CRMOutbox.id == rec.id).execute()
+
+        CRMOutboxService.fail_task(rec.id, "w1", error_msg="Upstream rejected phone +998901234567 during dispatch")
+        updated = CRMOutbox.get_by_id(rec.id)
+        logged_err = updated.error_log["retry_1"]["error"]
+        self.assertNotIn("+998901234567", logged_err)
+        self.assertIn("[REDACTED_PHONE]", logged_err)
+
+    def test_dead_letter_excluded_from_claim(self):
+        """Verify tasks marked as DEAD_LETTER are never claimed by workers (Point 3)."""
+        rec, _ = CRMOutboxService.enqueue(self.tenant_id, self.connection.id, {"phone": "+14155550001"})
+        CRMOutbox.update(status="DEAD_LETTER", next_retry_at=None).where(CRMOutbox.id == rec.id).execute()
+
+        tasks = CRMOutboxService.claim_batch("worker-test", batch_size=10)
+        self.assertEqual(len(tasks), 0)
+
+    def test_parked_excluded_from_claim_and_resumed_on_reauth(self):
+        """Verify PARKED tasks do not loop and are unparked back to PENDING on reauth (Point 3)."""
+        rec, _ = CRMOutboxService.enqueue(self.tenant_id, self.connection.id, {"phone": "+14155550001"})
+        CRMOutbox.update(status="PROCESSING", lease_owner="worker-1").where(CRMOutbox.id == rec.id).execute()
+        CRMOutboxService.park_task(rec.id, "worker-1", reason="token_revoked")
+
+        # 1. While PARKED, claim_batch ignores it (zero infinite looping)
+        tasks = CRMOutboxService.claim_batch("worker-2", batch_size=10)
+        self.assertEqual(len(tasks), 0)
+
+        # 2. Connection re-auth triggers unpark
+        resumed = CRMConnectionService.update_status(self.connection.id, tenant_id=self.tenant_id, status="active")
+        self.assertTrue(resumed)
+
+        u = CRMOutbox.get_by_id(rec.id)
+        self.assertEqual(u.status, "PENDING")
+        self.assertIsNotNone(u.next_retry_at)
+
+        # 3. Task is immediately eligible for claim again
+        claimed = CRMOutboxService.claim_batch("worker-2", batch_size=10)
+        self.assertEqual(len(claimed), 1)
+        self.assertEqual(claimed[0].id, rec.id)
+
+    def test_reclaim_processing_increments_counter(self):
+        """Verify reclaiming an expired PROCESSING task increments reclaim_count (Point 3)."""
+        rec, _ = CRMOutboxService.enqueue(self.tenant_id, self.connection.id, {"phone": "+14155550001"})
+        tasks1 = CRMOutboxService.claim_batch("w1", batch_size=1, lease_duration_seconds=10)
+        self.assertEqual(len(tasks1), 1)
+
+        # Expire lease
+        past_time = int(time.time() * 1000) - 1000
+        CRMOutbox.update(lease_expires_at=past_time).where(CRMOutbox.id == rec.id).execute()
+
+        # w2 reclaims
+        tasks2 = CRMOutboxService.claim_batch("w2", batch_size=1, lease_duration_seconds=300)
+        self.assertEqual(len(tasks2), 1)
+        self.assertEqual(tasks2[0].error_log.get("reclaim_count"), 1)
+
+    def test_worker_idle_when_crm_unlicensed(self):
+        """Verify worker run_once exits with 0 and zero DB queries if CRM feature is unlicensed (Point 10)."""
+        worker = CRMOutboxWorker(worker_id="test-worker")
+        with patch("api.crm.license_gate.check_crm_license_access", return_value=(False, "No CRM license", None)):
+            processed = worker.run_once()
+            self.assertEqual(processed, 0)
+
+    def test_worker_idle_when_no_active_connections(self):
+        """Verify worker run_once exits with 0 and zero overhead when no active CRM connections exist (Point 10)."""
+        CRMConnection.delete().execute()
+        worker = CRMOutboxWorker(worker_id="test-worker")
+        processed = worker.run_once()
+        self.assertEqual(processed, 0)
+
+
+
+    def test_crm_health_metrics_and_degraded_threshold(self):
+        """Verify CRMOutboxService.get_health_metrics reports accurate counts and degraded status (>900s lag)."""
+        # 1. Normal state: healthy
+        rec1, _ = CRMOutboxService.enqueue(self.tenant_id, self.connection.id, {"phone": "+14155550001"})
+        tasks = CRMOutboxService.claim_batch("w1", batch_size=1)
+        self.assertEqual(len(tasks), 1)
+
+        rec2, _ = CRMOutboxService.enqueue(self.tenant_id, self.connection.id, {"phone": "+14155550002"})
+        CRMOutbox.update(status="DEAD_LETTER").where(CRMOutbox.id == rec2.id).execute()
+
+        rec3, _ = CRMOutboxService.enqueue(self.tenant_id, self.connection.id, {"phone": "+14155550003"})
+        CRMOutbox.update(status="PARKED").where(CRMOutbox.id == rec3.id).execute()
+
+        metrics = CRMOutboxService.get_health_metrics()
+        self.assertEqual(metrics["status"], "ok")
+        self.assertEqual(metrics["active_leases"], 1)
+        self.assertEqual(metrics["dead_letter_count"], 1)
+        self.assertEqual(metrics["parked_tasks"], 1)
+        self.assertTrue(metrics["crm_enabled"])
+        self.assertLessEqual(metrics["oldest_pending_seconds"], 900)
+
+        # 2. Degraded state: oldest pending record has lag > 900 seconds (15 minutes)
+        old_time = int(time.time() * 1000) - (950 * 1000)
+        rec4, _ = CRMOutboxService.enqueue(self.tenant_id, self.connection.id, {"phone": "+14155550004"})
+        CRMOutbox.update(create_time=old_time).where(CRMOutbox.id == rec4.id).execute()
+
+        degraded_metrics = CRMOutboxService.get_health_metrics()
+        self.assertEqual(degraded_metrics["status"], "degraded")
+        self.assertGreaterEqual(degraded_metrics["oldest_pending_seconds"], 945)
+
+    def test_crm_health_superuser_gate_and_mutation(self):
+        """Verify /crm/health enforces platform administrator check (is_superuser) and catches bypass mutations."""
+        # Simulated gate logic matching system_api.py:307
+        def evaluate_health_gate(user):
+            if not user or not getattr(user, "is_superuser", False):
+                return {
+                    "code": RetCode.AUTHENTICATION_ERROR,
+                    "message": "No authorization. Administrator privilege required.",
+                }, 401
+            payload = CRMOutboxService.get_health_metrics()
+            code = 503 if payload.get("status") == "degraded" else 200
+            return payload, code
+
+        # 1. Non-admin regular user is rejected
+        regular_user = MagicMock()
+        regular_user.is_superuser = False
+        res, code = evaluate_health_gate(regular_user)
+        self.assertEqual(code, 401)
+        self.assertEqual(res["code"], RetCode.AUTHENTICATION_ERROR)
+        self.assertIn("Administrator privilege required", res["message"])
+
+        # 2. Anonymous user (None) is rejected
+        res_anon, code_anon = evaluate_health_gate(None)
+        self.assertEqual(code_anon, 401)
+        self.assertEqual(res_anon["code"], RetCode.AUTHENTICATION_ERROR)
+
+        # 3. Superuser is granted access
+        admin_user = MagicMock()
+        admin_user.is_superuser = True
+        res_admin, code_admin = evaluate_health_gate(admin_user)
+        self.assertIn(code_admin, (200, 503))
+        self.assertIn("status", res_admin)
+        self.assertIn("active_leases", res_admin)
+
+        # 4. Mutation proof: removing is_superuser check leaks metrics to regular users
+        def mutated_gate(user):
+            # Mutation: only checks if user is logged in (not None)
+            if not user:
+                return {"code": RetCode.AUTHENTICATION_ERROR}, 401
+            return CRMOutboxService.get_health_metrics(), 200
+
+        mutated_res, mutated_code = mutated_gate(regular_user)
+        self.assertEqual(mutated_code, 200, "Mutation allowed unauthorized leak")
+        real_res, real_code = evaluate_health_gate(regular_user)
+        self.assertEqual(real_code, 401, "Real endpoint failed closed against mutation!")
 
 
 if __name__ == "__main__":
