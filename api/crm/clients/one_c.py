@@ -18,7 +18,7 @@ import logging
 import os
 import re
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlencode, quote
+from urllib.parse import urlencode, quote, urlsplit
 
 from api.crm.base import CRMProviderBase
 from api.crm.transport import CRMTransport, SSRFSecurityException
@@ -87,6 +87,25 @@ class OneCClient(CRMProviderBase):
 
     def _execute_get(self, url: str, headers: Dict[str, str], timeout: float = DEFAULT_TIMEOUT_SECONDS) -> Any:
         """Execute strictly GET request over CRMTransport."""
+        parsed = urlsplit(url)
+        if parsed.scheme.lower() == "http":
+            from api.crm.transport import is_ip_allowed_by_cidr_list
+            import socket
+            cidr_list = os.environ.get(ALLOWLIST_CIDR_ENV, "")
+            if not cidr_list.strip():
+                raise SSRFSecurityException(
+                    f"1C HTTP connection to '{parsed.hostname}' is forbidden: HTTP scheme is prohibited unless addresses are explicitly listed in {ALLOWLIST_CIDR_ENV}."
+                )
+            try:
+                addr_info = socket.getaddrinfo(parsed.hostname, None, proto=socket.IPPROTO_TCP)
+                ips = [e[4][0] for e in addr_info] if addr_info else []
+            except Exception as e:
+                raise SSRFSecurityException(f"Cannot resolve 1C host '{parsed.hostname}': {e}") from e
+            if not ips or not any(is_ip_allowed_by_cidr_list(ip, ALLOWLIST_CIDR_ENV) for ip in ips):
+                raise SSRFSecurityException(
+                    f"1C HTTP connection to '{parsed.hostname}' ({ips}) is forbidden: host IP is not within configured CIDR allowlist ({ALLOWLIST_CIDR_ENV})."
+                )
+
         try:
             logger.info("1C OData GET request to %s (timeout=%.1fs)", re.sub(r"://([^:@]+):[^@]+@", r"://\1:********@", url), timeout)
             resp = self.transport.get(url, headers=headers, timeout=timeout)
@@ -172,32 +191,60 @@ class OneCClient(CRMProviderBase):
         entity_path = connection_config.get("entity_path") or "AccumulationRegister_ТоварыНаСкладах/Balance"
         entity_path = entity_path.strip("/")
 
-        # Sanitize item query to prevent OData injection
-        clean_item = re.sub(r"['\"\x00-\x1f\x7f-\x9f]", "", str(item_query).strip())
+        # Validate entity_path against path traversal and dangerous injection (Point 4)
+        if not re.match(r"^[a-zA-Z0-9_\u0400-\u04FF/()]+$", entity_path) or ".." in entity_path or entity_path.startswith("/"):
+            raise ValueError(f"Invalid 1C entity_path '{entity_path}': unsafe characters or path traversal detected.")
+
+        # Sanitize item query and escape single quotes per OData specification (RFC/OData: ' -> '')
+        clean_item = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", str(item_query).strip()).replace("'", "''")
         if not clean_item:
             raise ValueError("Empty or invalid item query.")
 
-        # Construct standard OData $filter and $format
-        odata_filter = (
-            f"(substringof('{clean_item}', Description) or "
-            f"substringof('{clean_item}', SKU) or "
-            f"SKU eq '{clean_item}' or "
-            f"Code eq '{clean_item}')"
-        )
+        # Explicitly configured search filter fields without mixed fallback defaults (Point 7)
+        filter_fields = connection_config.get("filter_fields")
+        if not filter_fields:
+            raise ValueError(
+                "1C connection configuration is missing 'filter_fields'. Search fields must be explicitly configured in connection settings."
+            )
+        if isinstance(filter_fields, str):
+            filter_fields = [f.strip() for f in filter_fields.split(",") if f.strip()]
+
+        for field in filter_fields:
+            if not re.match(r"^[a-zA-Z0-9_\u0400-\u04FF/]+$", field) or ".." in field:
+                raise ValueError(f"Invalid 1C filter field name '{field}': must be a valid identifier.")
+
+        field_clauses = []
+        for field in filter_fields:
+            field_clauses.append(f"substringof('{clean_item}', {field})")
+            field_clauses.append(f"{field} eq '{clean_item}'")
+        odata_filter = f"({' or '.join(field_clauses)})"
+
+        warehouse_field = connection_config.get("warehouse_field") or "Warehouse"
+        if not re.match(r"^[a-zA-Z0-9_\u0400-\u04FF/]+$", warehouse_field) or ".." in warehouse_field:
+            raise ValueError(f"Invalid 1C warehouse field name '{warehouse_field}'.")
+
         if warehouse:
-            clean_wh = re.sub(r"['\"\x00-\x1f\x7f-\x9f]", "", str(warehouse).strip())
+            clean_wh = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", str(warehouse).strip()).replace("'", "''")
             if clean_wh:
-                odata_filter += f" and (substringof('{clean_wh}', Warehouse) or Warehouse eq '{clean_wh}')"
+                odata_filter += f" and (substringof('{clean_wh}', {warehouse_field}) or {warehouse_field} eq '{clean_wh}')"
+
+        # Configurable $top with safety ceiling of 100
+        top = min(max(1, int(connection_config.get("top") or 50)), 100)
 
         params = {
             "$format": "json",
             "$filter": odata_filter,
+            "$top": str(top),
         }
         url = f"{clean_base}/{entity_path}?{urlencode(params)}"
         headers = self._get_auth_headers(connection_config)
 
+        # Configurable timeout with 10.0s safety ceiling
+        cfg_timeout = connection_config.get("timeout")
+        timeout = min(float(cfg_timeout), 10.0) if cfg_timeout else DEFAULT_TIMEOUT_SECONDS
+
         # Enforce strictly GET request
-        data = self._execute_get(url, headers=headers, timeout=DEFAULT_TIMEOUT_SECONDS)
+        data = self._execute_get(url, headers=headers, timeout=timeout)
 
         # Parse standard 1C OData response format: {"value": [...]} or list
         raw_items = data.get("value") if isinstance(data, dict) else (data if isinstance(data, list) else [])
@@ -205,6 +252,8 @@ class OneCClient(CRMProviderBase):
         total_quantity = 0.0
 
         for entry in raw_items:
+            if len(parsed_items) >= 100:
+                break
             if not isinstance(entry, dict):
                 continue
             sku = (

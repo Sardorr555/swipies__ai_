@@ -50,9 +50,9 @@ class CheckStockParam(ToolParamBase):
                 },
             },
         }
-        super().__init__()
         self.connection_id = ""
         self.allow_anonymous = False
+        self.enable_1c_experimental = False
 
     def check(self):
         pass
@@ -83,14 +83,50 @@ class CheckStock(ToolBase, ABC):
         if self.check_if_canceled("CheckStock processing"):
             return {"status": "canceled"}
 
-        # 1. Scoped anonymous access enforcement (T6.4)
-        channel = getattr(self._canvas, "get_channel", lambda: None)()
-        if not channel and hasattr(self._canvas, "custom_header") and isinstance(self._canvas.custom_header, dict):
-            channel = self._canvas.custom_header.get("channel") or self._canvas.custom_header.get("auth_type")
-        is_anon = str(channel).lower() in ("webhook", "embed", "beta", "auth_beta", "anonymous")
+        # 0. Experimental feature flag check (T6 / Point 4)
+        is_experimental_enabled = (
+            getattr(self._param, "experimental", False)
+            or getattr(self._param, "enable_1c_experimental", False)
+            or os.environ.get("RAGFLOW_CRM_1C_EXPERIMENTAL", "false").strip().lower() in ("true", "1", "yes")
+        )
+        if not is_experimental_enabled:
+            raise RuntimeError(
+                "1C:Enterprise stock checking tool is currently experimental and disabled. "
+                "Set 'enable_1c_experimental=True' in tool configuration or RAGFLOW_CRM_1C_EXPERIMENTAL=true in environment."
+            )
+
+        # 1. Server-side channel determination based strictly on authentication method (Point 1)
+        # Client request body (custom_header.channel) is UNTRUSTED and NEVER used for authorization.
+        server_channel = getattr(self._canvas, "get_channel", lambda: None)()
+        if not server_channel:
+            server_channel = getattr(self._canvas, "_channel", None)
+
+        server_auth = getattr(self._canvas, "auth_type", None)
+        if not server_channel and server_auth:
+            auth_str = str(server_auth).strip().upper()
+            if auth_str in ("AUTH_API", "API"):
+                server_channel = "api"
+            elif auth_str in ("AUTH_JWT", "JWT"):
+                server_channel = "chat"
+            elif auth_str in ("AUTH_BETA", "BETA", "EMBED"):
+                server_channel = "embed"
+
+        is_embed = (
+            getattr(self._canvas, "is_embed", False)
+            or getattr(self._canvas, "_is_public", False)
+            or str(server_auth).strip().upper() in ("AUTH_BETA", "BETA", "EMBED")
+        )
+
+        norm_channel = str(server_channel).strip().lower() if server_channel is not None else ""
+        if is_embed and norm_channel in ("api", "internal", "admin", "chat", "web", "authenticated"):
+            norm_channel = "embed"
+
+        authenticated_channels = frozenset({"internal", "web", "chat", "authenticated", "api", "admin"})
+        is_authenticated = bool(norm_channel and norm_channel in authenticated_channels)
+        is_anon = not is_authenticated
         if is_anon and not getattr(self._param, "allow_anonymous", False):
             raise PermissionError(
-                "Access denied: Stock checking from anonymous/public channels is forbidden unless 'allow_anonymous' is enabled in tool configuration."
+                f"Access denied: Stock checking from anonymous/public channels is forbidden unless 'allow_anonymous' is enabled in tool configuration (channel='{norm_channel}')."
             )
 
         # 2. Parameter validation and sanitization
@@ -128,7 +164,7 @@ class CheckStock(ToolBase, ABC):
             raise ValueError(f"1C:Enterprise connection '{conn.id}' is inactive (status={conn.status}).")
 
         # 4. Decrypt config and execute read-only stock query
-        config = CRMConnectionService.get_decrypted_config(conn.id, tenant_id)
+        config = CRMConnectionService.get_decrypted_config(conn)
         client = OneCClient()
         result = client.check_stock(config, clean_query, clean_wh or None)
         return result
