@@ -15,7 +15,7 @@
 #
 from api.crm.base import CRMProviderBase, CRMProviderRegistry
 from api.crm.transport import CRMTransport, SSRFSecurityException, validate_crm_url_and_resolve
-from api.crm.license_gate import check_crm_license_access, require_crm_license, CRMLicenseAccessError
+from api.crm.license_gate import check_crm_license_access, require_crm_license, CRMLicenseAccessError, CRMLicenseGate
 from api.crm.clients.amocrm import (
     AmoCRMClient,
     AmoCRMError,
@@ -50,6 +50,7 @@ __all__ = [
     "check_crm_license_access",
     "require_crm_license",
     "CRMLicenseAccessError",
+    "CRMLicenseGate",
     "AmoCRMClient",
     "AmoCRMError",
     "AmoCRMAuthError",

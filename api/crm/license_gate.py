@@ -34,9 +34,12 @@ def check_crm_license_access(license_payload: Optional[Dict[str, Any]] = None) -
     4. Access is granted ONLY if 'crm' is explicitly in payload.get('features', []).
     """
     if license_payload is None:
-        is_valid, msg, payload = check_license()
-        if not is_valid or not isinstance(payload, dict):
-            return False, f"CRM feature requires valid enterprise license: {msg}", None
+        try:
+            is_valid, msg, payload = check_license()
+            if not is_valid or not isinstance(payload, dict):
+                return False, f"CRM feature requires valid enterprise license: {msg}", None
+        except Exception as exc:
+            return False, f"CRM feature access denied: license verification failed: {exc}", None
     else:
         payload = license_payload
 
@@ -51,9 +54,19 @@ def check_crm_license_access(license_payload: Optional[Dict[str, Any]] = None) -
     return False, "CRM feature is not enabled in license features. Access denied.", payload
 
 
+class CRMLicenseGate:
+    """Convenience gate wrapper for CRM licensing checks."""
+
+    @staticmethod
+    def is_crm_enabled(license_payload: Optional[Dict[str, Any]] = None) -> bool:
+        allowed, _, _ = check_crm_license_access(license_payload)
+        return allowed
+
+
 def require_crm_license() -> Dict[str, Any]:
     """Assertion helper that raises CRMLicenseAccessError if CRM is not licensed."""
     allowed, msg, payload = check_crm_license_access()
     if not allowed:
         raise CRMLicenseAccessError(msg)
     return payload or {}
+

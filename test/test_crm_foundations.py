@@ -71,10 +71,13 @@ class TestCRMFoundations(unittest.TestCase):
         CRMOutbox._meta.database = self._orig_db_outbox
         if self._orig_atomic:
             DB.atomic = self._orig_atomic
-        DB.connect = lambda *a, **kw: True
-        DB.close = lambda *a, **kw: None
-        DB.is_closed = lambda: False
-        if not self.test_db.is_closed():
+        if hasattr(self, "_orig_connect"):
+            DB.connect = self._orig_connect
+        if hasattr(self, "_orig_close"):
+            DB.close = self._orig_close
+        if hasattr(self, "_orig_is_closed"):
+            DB.is_closed = self._orig_is_closed
+        if hasattr(self, "test_db") and not self.test_db.is_closed():
             self.test_db.close()
 
     # -------------------------------------------------------------------------
@@ -150,6 +153,12 @@ class TestCRMFoundations(unittest.TestCase):
         alpha_list = CRMConnectionService.query_by_tenant("tenant-alpha")
         self.assertEqual(len(alpha_list), 1)
         self.assertEqual(alpha_list[0].id, conn_a.id)
+
+        # Platform active connections check
+        self.assertTrue(CRMConnectionService.has_active_connections())
+        CRMConnectionService.update_status(conn_a.id, "tenant-alpha", "disabled")
+        CRMConnectionService.update_status(conn_b.id, "tenant-beta", "disabled")
+        self.assertFalse(CRMConnectionService.has_active_connections())
 
     # -------------------------------------------------------------------------
     # T2.7: AES-256-GCM Encryption At Rest & Helper
@@ -291,6 +300,19 @@ class TestCRMFoundations(unittest.TestCase):
                 require_crm_license()
             self.assertEqual(ctx.exception.code, RetCode.PERMISSION_ERROR)
 
+        # Case 5: check_license raises an unexpected exception (I/O, parsing, etc.) -> Fail-Closed
+        with patch("api.crm.license_gate.check_license", side_effect=IOError("Corrupt license file")):
+            allowed, msg, payload = check_crm_license_access()
+            self.assertFalse(allowed)
+            self.assertIn("license verification failed", msg)
+            self.assertIsNone(payload)
+
+        # Case 6: check_license returns invalid payload structure
+        with patch("api.crm.license_gate.check_license", return_value=(True, "OK", "corrupt_string_not_dict")):
+            allowed, msg, payload = check_crm_license_access()
+            self.assertFalse(allowed)
+            self.assertIsNone(payload)
+
     # -------------------------------------------------------------------------
     # T2.5: SSRF Transport Guard & DNS Pinning
     # -------------------------------------------------------------------------
@@ -346,6 +368,82 @@ class TestCRMFoundations(unittest.TestCase):
         real_result, _, _ = check_crm_license_access(fake_payload)
         self.assertTrue(bypass_result)
         self.assertFalse(real_result, "Real check must fail closed!")
+
+
+
+class TestCRMSecurityVectors(unittest.TestCase):
+    """Specific tests for seven security vectors requested in audit (Point 4)."""
+
+    def test_vector_trailing_dot(self):
+        """Vector 1: Trailing dot in hostname must be rejected fail-closed."""
+        from api.crm.clients.bitrix24 import validate_bitrix24_cloud_url
+        ok, msg = validate_bitrix24_cloud_url("https://mycompany.bitrix24.com./rest/1/key/")
+        self.assertFalse(ok)
+        self.assertIn("Invalid hostname format or punycode domain", msg)
+
+    def test_vector_punycode(self):
+        """Vector 2: Punycode (xn--) domain spoofing must be rejected fail-closed."""
+        from api.crm.clients.bitrix24 import validate_bitrix24_cloud_url
+        ok, msg = validate_bitrix24_cloud_url("https://xn--portal-43a.bitrix24.com/rest/1/key/")
+        self.assertFalse(ok)
+        self.assertIn("punycode", msg)
+
+    def test_vector_userinfo(self):
+        """Vector 3: Embedded userinfo/credentials in URL authority must be rejected."""
+        from api.crm.clients.bitrix24 import validate_bitrix24_cloud_url
+        from api.crm.transport import validate_crm_url_and_resolve, SSRFSecurityException
+        ok, msg = validate_bitrix24_cloud_url("https://admin:pass@mycompany.bitrix24.com/rest/1/key/")
+        self.assertFalse(ok)
+        self.assertIn("User credentials in URL authority are forbidden", msg)
+
+        with self.assertRaises(SSRFSecurityException) as ctx:
+            validate_crm_url_and_resolve("https://admin:pass@example.com/rest/1/key/")
+        self.assertIn("Userinfo in URL is forbidden", str(ctx.exception))
+
+    def test_vector_user_at_evil(self):
+        """Vector 4: Spoofed authority (портал.bitrix24.com@evil.com) must be rejected."""
+        from api.crm.clients.bitrix24 import validate_bitrix24_cloud_url
+        spoofed_cyrillic = "https://портал.bitrix24.com@evil.com/rest/1/key/"
+        ok, msg = validate_bitrix24_cloud_url(spoofed_cyrillic)
+        self.assertFalse(ok)
+
+        spoofed_ascii = "https://mycompany.bitrix24.com@evil.com/rest/1/key/"
+        ok2, msg2 = validate_bitrix24_cloud_url(spoofed_ascii)
+        self.assertFalse(ok2)
+
+    def test_vector_172_16_private_cidr(self):
+        """Vector 5: Private IP space (172.16.0.0/12) must be blocked by SSRF guard."""
+        from api.crm.transport import validate_crm_url_and_resolve, SSRFSecurityException
+        with self.assertRaises(SSRFSecurityException) as ctx:
+            validate_crm_url_and_resolve("https://172.16.0.1/rest/")
+        self.assertIn("SSRF guard blocked access to non-global IP", str(ctx.exception))
+
+        with self.assertRaises(SSRFSecurityException) as ctx:
+            validate_crm_url_and_resolve("https://172.31.255.254/rest/")
+        self.assertIn("SSRF guard blocked access to non-global IP", str(ctx.exception))
+
+    def test_vector_redirect_to_private(self):
+        """Vector 6: HTTP redirects must be forbidden to prevent SSRF redirect to private network."""
+        from api.crm.transport import CRMTransport, SSRFSecurityException
+        transport = CRMTransport()
+        with self.assertRaises(SSRFSecurityException) as ctx:
+            transport.get("https://example.com/api", allow_redirects=True)
+        self.assertIn("HTTP redirects are strictly disabled", str(ctx.exception))
+
+        with patch.object(transport.session, "request") as mock_req, \
+             patch("api.crm.transport.validate_crm_url_and_resolve", return_value=("example.com", "93.184.216.34")):
+            transport.get("https://example.com/redirect")
+            self.assertFalse(mock_req.call_args[1].get("allow_redirects"))
+
+    def test_vector_pin_dns_enforcement(self):
+        """Vector 7: DNS Pinning must be active during HTTP requests to prevent DNS rebinding."""
+        from api.crm.transport import CRMTransport
+        transport = CRMTransport()
+        with patch("api.crm.transport.pin_dns") as mock_pin_dns, \
+             patch.object(transport.session, "request"), \
+             patch("api.crm.transport.validate_crm_url_and_resolve", return_value=("portal.example.com", "93.184.216.34")):
+            transport.get("https://portal.example.com/api")
+            mock_pin_dns.assert_called_once_with("portal.example.com", "93.184.216.34")
 
 
 if __name__ == "__main__":

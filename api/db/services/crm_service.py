@@ -61,6 +61,12 @@ class CRMConnectionService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def has_active_connections(cls) -> bool:
+        """Check if any active CRM connections exist in the platform."""
+        return cls.model.select(cls.model.id).where(cls.model.status == "active").first() is not None
+
+    @classmethod
+    @DB.connection_context()
     def save_connection(
         cls,
         tenant_id: str,
@@ -126,6 +132,8 @@ class CRMConnectionService(CommonService):
             .where((cls.model.id == connection_id) & (cls.model.tenant_id == tenant_id))
             .execute()
         )
+        if rows > 0 and status == "active":
+            CRMOutboxService.unpark_tasks_for_connection(connection_id)
         return rows > 0
 
     @classmethod
@@ -218,12 +226,13 @@ class CRMOutboxService(CommonService):
         lease_expires = now + (lease_duration_seconds * 1000)
 
         # Candidates eligible for processing:
-        # PENDING or FAILED ready for retry, OR PROCESSING whose lease expired
+        # PENDING or RETRY/FAILED ready for retry, OR PROCESSING whose lease expired.
+        # Excludes DEAD_LETTER and PARKED.
         candidates = (
             cls.model.select()
             .where(
                 (
-                    (cls.model.status << ["PENDING", "FAILED"])
+                    (cls.model.status << ["PENDING", "RETRY"])
                     | (cls.model.status == "PROCESSING")
                 )
                 & ((cls.model.lease_expires_at.is_null()) | (cls.model.lease_expires_at < now))
@@ -245,7 +254,7 @@ class CRMOutboxService(CommonService):
                 .where(
                     (cls.model.id == task.id)
                     & (
-                        (cls.model.status << ["PENDING", "FAILED"])
+                        (cls.model.status << ["PENDING", "RETRY"])
                         | (cls.model.status == "PROCESSING")
                     )
                     & ((cls.model.lease_expires_at.is_null()) | (cls.model.lease_expires_at < now))
@@ -253,6 +262,23 @@ class CRMOutboxService(CommonService):
                 .execute()
             )
             if rows > 0:
+                # Increment reclaim counter if recovering an expired PROCESSING task (Point 3)
+                if task.status == "PROCESSING":
+                    err_data = task.error_log or {}
+                    reclaim_cnt = err_data.get("reclaim_count", 0) + 1
+                    err_data["reclaim_count"] = reclaim_cnt
+                    MAX_RECLAIM_CEILING = 5
+                    if reclaim_cnt >= MAX_RECLAIM_CEILING:
+                        err_data["dead_letter_reason"] = f"Exceeded maximum reclaim ceiling ({MAX_RECLAIM_CEILING} uncompleted leases)"
+                        cls.model.update(
+                            status="DEAD_LETTER",
+                            error_log=err_data,
+                            lease_owner=None,
+                            lease_expires_at=None,
+                        ).where(cls.model.id == task.id).execute()
+                        continue
+                    cls.model.update(error_log=err_data).where(cls.model.id == task.id).execute()
+                    task.error_log = err_data
                 task.status = "PROCESSING"
                 task.lease_owner = worker_id
                 task.lease_expires_at = lease_expires
@@ -292,6 +318,7 @@ class CRMOutboxService(CommonService):
         worker_id: str,
         error_msg: str,
         backoff_base_seconds: int = 10,
+        max_delay_seconds: int = 3600,
     ) -> bool:
         """Handle outbox task failure with exponential backoff and dead-letter transition."""
         now = current_timestamp()
@@ -304,14 +331,18 @@ class CRMOutboxService(CommonService):
             new_status = "DEAD_LETTER"
             next_retry = None
         else:
-            new_status = "FAILED"
-            delay_ms = (2 ** task.retry_count) * backoff_base_seconds * 1000
-            next_retry = now + delay_ms
+            new_status = "RETRY"
+            # Exponential backoff in 6-24 hours horizon (capped at 1 hour = 3600s ceiling)
+            delay_seconds = min((2 ** task.retry_count) * backoff_base_seconds, max_delay_seconds)
+            next_retry = now + (delay_seconds * 1000)
+
+        # Sanitize error message to ensure no PII (phone numbers, tokens) is stored in error_log
+        clean_error = re.sub(r"\+?[1-9]\d{6,14}", "[REDACTED_PHONE]", str(error_msg)[:500])
 
         error_data = task.error_log or {}
         error_data[f"retry_{new_retry_count}"] = {
             "timestamp": now,
-            "error": str(error_msg)[:500],
+            "error": clean_error,
         }
 
         rows = (
@@ -330,8 +361,58 @@ class CRMOutboxService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def park_task(
+        cls,
+        task_id: str,
+        worker_id: str,
+        reason: str,
+        delay_seconds: int = 300,
+    ) -> bool:
+        """Park an outbox task without consuming retry attempts (e.g. for reauth_required) (Point 3).
+        
+        Status becomes 'PARKED'. It will NOT be claimed or retried in loop until unparked on reauth.
+        """
+        now = current_timestamp()
+        task = cls.model.select().where((cls.model.id == task_id) & (cls.model.lease_owner == worker_id)).first()
+        if not task:
+            return False
+
+        clean_reason = re.sub(r"\+?[1-9]\d{6,14}", "[REDACTED_PHONE]", str(reason)[:500])
+        error_data = task.error_log or {}
+        error_data["parked_at"] = now
+        error_data["parked_reason"] = clean_reason
+
+        rows = (
+            cls.model.update(
+                status="PARKED",
+                next_retry_at=None,
+                error_log=error_data,
+                lease_owner=None,
+                lease_expires_at=None,
+            )
+            .where((cls.model.id == task_id) & (cls.model.lease_owner == worker_id))
+            .execute()
+        )
+        return rows > 0
+
+    @classmethod
+    @DB.connection_context()
+    def unpark_tasks_for_connection(cls, connection_id: str) -> int:
+        """Resume PARKED outbox tasks when CRM connection is re-authenticated (Point 3)."""
+        now = current_timestamp()
+        return (
+            cls.model.update(
+                status="PENDING",
+                next_retry_at=now,
+            )
+            .where((cls.model.connection_id == connection_id) & (cls.model.status == "PARKED"))
+            .execute()
+        )
+
+    @classmethod
+    @DB.connection_context()
     def purge_expired_pii(cls, days: int = 30) -> int:
-        """Purge customer PII (lead_data) and null out business_key for records older than 30 days (T5.8)."""
+        """Purge customer PII (lead_data) and null out business_key for TERMINAL records older than 30 days (T5.8)."""
         now = current_timestamp()
         cutoff = now - (days * 24 * 3600 * 1000)
         rows = (
@@ -341,6 +422,7 @@ class CRMOutboxService(CommonService):
             )
             .where(
                 (cls.model.create_time < cutoff)
+                & (cls.model.status << ["SENT", "DEAD_LETTER"])
                 & ((cls.model.business_key.is_null(False)) | (cls.model.lead_data != {}))
             )
             .execute()
@@ -362,6 +444,28 @@ class CRMOutboxService(CommonService):
             return 0
         lag_ms = max(0, now - oldest.create_time)
         return int(lag_ms // 1000)
+
+    @classmethod
+    @DB.connection_context()
+    def get_health_metrics(cls) -> Dict[str, Any]:
+        """Return operational health metrics for the CRM outbox subsystem (spec.md:299)."""
+        from api.crm.license_gate import CRMLicenseGate
+
+        is_licensed = CRMLicenseGate.is_crm_enabled()
+        lag = cls.get_oldest_pending_lag_seconds()
+        active_leases = cls.model.select().where(cls.model.status == "PROCESSING").count()
+        dead_letters = cls.model.select().where(cls.model.status == "DEAD_LETTER").count()
+        parked = cls.model.select().where(cls.model.status == "PARKED").count()
+
+        is_degraded = lag > 900  # 15 minutes lag threshold
+        return {
+            "status": "degraded" if is_degraded else "ok",
+            "crm_enabled": is_licensed,
+            "oldest_pending_seconds": lag,
+            "active_leases": active_leases,
+            "parked_tasks": parked,
+            "dead_letter_count": dead_letters,
+        }
 
 
 
