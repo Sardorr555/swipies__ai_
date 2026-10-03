@@ -104,12 +104,12 @@
 
 ---
 
-### [ ] Phase T8: Docker Packaging, Migration & Rollout Verification
-- [ ] **T8.1**: Verify automated table creation via Peewee `create_tables([CRMConnection, CRMOutbox], safe=True)` in `init_database_tables()`.
-- [ ] **T8.2**: Integrate `crm_outbox` into `docker/launch_backend_service.sh` and `docker/entrypoint.sh` with supervisor restart controls.
-- [ ] **T8.3**: Update `docker/.env-go` to include `RAGFLOW_SECRET_KEY=${RAGFLOW_SECRET_KEY}`, and add CRM configuration variables (`RAGFLOW_CRM_HOURLY_LIMIT=100`, `RAGFLOW_CRM_B24_ZONES=`, `RAGFLOW_CRM_PRIVATE_ALLOWLIST_CIDR=`).
-- [ ] **T8.4**: Verify Docker Compose multi-container and unified deployment setups and rollback drills without automated startup backup (Бэкап только вручную перед деплоем).
-- [ ] **T8.5**: Verify `phonenumbers>=9.0.24` dependency in `pyproject.toml` and `uv.lock` via `uv lock --check`, and verify container runtime via `docker run <image> python -c "import phonenumbers"`.
+### [x] Phase T8: Docker Packaging, Migration & Rollout Verification
+- [x] **T8.1**: Verify automated table creation via Peewee `create_tables([CRMConnection, CRMOutbox], safe=True)` in `init_database_tables()`.
+- [x] **T8.2**: Integrate `crm_outbox` into `docker/launch_backend_service.sh` and `docker/entrypoint.sh` (as well as `docker/entrypoint-go.sh`) with supervisor restart controls (`run_with_restart`).
+- [x] **T8.3**: Update `docker/.env-go` to include `RAGFLOW_SECRET_KEY=${RAGFLOW_SECRET_KEY}`, and add CRM configuration variables (`RAGFLOW_CRM_HOURLY_LIMIT=100`, `RAGFLOW_CRM_B24_ZONES=`, `RAGFLOW_CRM_PRIVATE_ALLOWLIST_CIDR=`, `RAGFLOW_CRM_1C_ALLOWLIST_CIDR=`).
+- [x] **T8.4**: Verify Docker Compose multi-container and unified deployment setups and rollback drills without automated startup backup (Бэкап только вручную перед деплоем).
+- [ ] **T8.5**: Verify `phonenumbers>=9.0.24` dependency in `pyproject.toml` and runtime verification via `docker run <image> python -c "import phonenumbers"`; `uv lock --check` noted as environment blocker (requires Gitee access to update `uv.lock`, withheld from standalone commit).
 
 ---
 

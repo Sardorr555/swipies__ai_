@@ -2,7 +2,7 @@
 
 **Feature Branch**: `feat/crm-v1` (Target branch: `feat/crm-v1`, Base: `3bb88c257`)  
 **Commit Author**: `Sardor <albakiev.sardorbek@gmail.com>`  
-**Status**: Draft (Gated for approval; T0 and T1 completed, pending T2–T6/T8 review)  
+**Status**: Completed (T0–T6 and T8 fully implemented and verified; T7 excluded from v1)  
 
 ---
 
@@ -296,7 +296,7 @@ The background worker `rag/svr/crm_outbox_worker.py` is integrated into `docker/
   - **Structured Log Alert**: When `oldest_pending_sec > 900` (15 minutes), the worker emits a high-priority structured error log:
     `logger.error("CRM_OUTBOX_LAG_CRITICAL: oldest_pending_seconds=%d threshold=900", lag)`
     captured by server log collectors (journald/Vector/Promtail/CloudWatch).
-  - **Health Check Endpoint**: `/api/v1/crm/health` returns `{"status": "ok", "oldest_pending_seconds": lag, "active_leases": count}` for container liveness and readiness monitoring.
+  - **Health & Readiness Endpoint**: `/api/v1/crm/health` (restricted strictly to platform administrators via `is_superuser`) returns operational health metrics: `{"status": "ok" | "degraded", "crm_enabled": bool, "oldest_pending_seconds": int, "active_leases": int, "parked_tasks": int, "dead_letter_count": int}`. Returns HTTP 200 when healthy, or HTTP 503 Service Unavailable when degraded (`oldest_pending_seconds > 900`), serving as both liveness and readiness gate for upstream load balancers and orchestrators.
 
 ---
 

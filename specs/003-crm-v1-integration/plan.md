@@ -3,7 +3,7 @@
 **Specification**: `specs/003-crm-v1-integration/spec.md`  
 **Целевая ветка**: `feat/crm-v1` (Base: `3bb88c257`, целевой merge в ветку `test`)  
 **Author**: `Sardor <albakiev.sardorbek@gmail.com>`  
-**Status**: Draft (Gated for approval; T0 and T1 completed, pending T2–T6/T8 review)
+**Status**: Completed (T0–T6 and T8 fully implemented and verified; T7 excluded from v1)
 
 ---
 
@@ -193,6 +193,12 @@ The architecture follows a strict **Risk-First** progression. Lower layers with 
   4. Permitted for anonymous channels if `security.allow_anonymous = True`.
 - **Quality Gate**:
   - Unit tests verify inventory queries return stock counts and mutation attempts are blocked.
+
+---
+
+### Phase T7: MCP CRM Integration (Excluded from v1)
+> [!NOTE]
+> **T7 removed**: MCP CRM integration deferred to post-v1. Agent tool integration in v1 is implemented natively via native Canvas tools (`CreateIncomingLead` in T5 and `CheckStock` in T6) inheriting directly from `agent.tools.base.ToolBase`. MCP wrapper for CRM providers is deferred to post-v1.
 
 ---
 

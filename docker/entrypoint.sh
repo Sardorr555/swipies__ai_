@@ -14,6 +14,7 @@ function usage() {
     echo "  --disable-webserver                     Disables the web server (nginx + ragflow_server)."
     echo "  --disable-taskexecutor                  Disables task executor workers."
     echo "  --disable-datasync                      Disables synchronization of datasource workers."
+    echo "  --disable-crmoutbox                     Disables CRM outbox background worker."
     echo "  --enable-mcpserver                      Enables the MCP server."
     echo "  --enable-adminserver                    Enables the Admin server."
     echo "  --init-model-provider-tables            Run model provider table migrations and exit."
@@ -47,6 +48,7 @@ function usage() {
 ENABLE_WEBSERVER=1 # Default to enable web server
 ENABLE_TASKEXECUTOR=1  # Default to enable task executor
 ENABLE_DATASYNC=1
+ENABLE_CRMOUTBOX=1
 ENABLE_MCP_SERVER=0
 ENABLE_ADMIN_SERVER=0 # Default close admin server
 INIT_SUPERUSER_ARGS="" # Default to not initialize superuser
@@ -92,6 +94,10 @@ for arg in "$@"; do
       ;;
     --disable-datasync)
       ENABLE_DATASYNC=0
+      shift
+      ;;
+    --disable-crmoutbox)
+      ENABLE_CRMOUTBOX=0
       shift
       ;;
     --enable-mcpserver)
@@ -340,6 +346,11 @@ fi
 if [[ "${ENABLE_DATASYNC}" -eq 1 ]]; then
     echo "Starting data sync..."
     run_with_restart "Data sync" "$PY" rag/svr/sync_data_source.py &
+fi
+
+if [[ "${ENABLE_CRMOUTBOX}" -eq 1 ]]; then
+    echo "Starting CRM outbox worker..."
+    run_with_restart "CRM outbox worker" "$PY" rag/svr/crm_outbox_worker.py &
 fi
 
 if [[ "${ENABLE_MCP_SERVER}" -eq 1 ]]; then
