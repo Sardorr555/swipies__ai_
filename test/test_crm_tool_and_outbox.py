@@ -546,6 +546,9 @@ class DummyProvider(CRMProviderBase):
     def check_stock(self, connection_config, item_query):
         return {"supported": False}
 
+    def query_records(self, connection_config, entity, select_fields=None, filters=None, limit=50):
+        return []
+
 
 class TestCRMOutboxWorker(unittest.TestCase):
     def setUp(self):

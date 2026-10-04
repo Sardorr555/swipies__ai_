@@ -40,6 +40,7 @@ from flask import json
 from api.db.services.connector_service import ConnectorService, SyncLogsService, resolve_connector_doc_id
 from api.db.services.document_service import DocumentService
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.crm.schema import auto_populate_crm_field_map, is_crm_source
 from api.utils.key_crypto import decrypt_connector_config
 from common import settings
 from common.constants import ConnectorTaskType, FileSource, TaskStatus
@@ -240,6 +241,9 @@ class SyncBase:
         """
         Executes the core synchronization pipeline for a data source task.
         """
+        if is_crm_source(self.SOURCE_NAME) and task.get("kb_id"):
+            auto_populate_crm_field_map(task["kb_id"], self.SOURCE_NAME)
+
         document_batch_generator = await self._generate(task)
 
         failed_docs = 0

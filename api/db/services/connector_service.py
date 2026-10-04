@@ -27,6 +27,7 @@ from api.db.services.common_service import CommonService
 from api.db.services.document_service import DocumentService
 from api.db.services.document_service import DocMetadataService
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.crm.schema import auto_populate_crm_field_map, is_crm_source
 from api.utils.common import hash128
 from common import settings
 from common.misc_utils import get_uuid
@@ -644,8 +645,11 @@ class Connector2KbService(CommonService):
             cls.save(**{"id": get_uuid(), "connector_id": conn_id, "kb_id": kb_id, "auto_parse": conn.get("auto_parse", "1")})
             SyncLogsService.schedule(conn_id, kb_id, reindex=True, task_type=ConnectorTaskType.SYNC, run_immediately=True)
             e, full_conn = ConnectorService.get_by_id(conn_id)
-            if e and (full_conn.config or {}).get("sync_deleted_files"):
-                SyncLogsService.schedule(conn_id, kb_id, task_type=ConnectorTaskType.PRUNE, run_immediately=True)
+            if e and full_conn:
+                if (full_conn.config or {}).get("sync_deleted_files"):
+                    SyncLogsService.schedule(conn_id, kb_id, task_type=ConnectorTaskType.PRUNE, run_immediately=True)
+                if is_crm_source(getattr(full_conn, "source", None)):
+                    auto_populate_crm_field_map(kb_id, full_conn.source)
 
         errs = []
         for conn_id in old_conn_ids:

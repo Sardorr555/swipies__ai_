@@ -1,0 +1,466 @@
+{
+  "id": 42,
+  "title": {
+    "en": "CRM Sales & Intelligence Agent",
+    "ru": "CRM Sales & Business Intelligence Ассистент",
+    "zh": "CRM 销售与商业智能助手"
+  },
+  "description": {
+    "en": "Unified CRM intelligence and sales automation agent for Bitrix24, amoCRM, Kommo, HubSpot, and 1C. Executes real-time SQL and analytical queries across deals and leads, registers incoming leads, verifies 1C inventory balances, and searches corporate knowledge bases.",
+    "ru": "Универсальный агент для автоматизации продаж и аналитики по Bitrix24, amoCRM, Kommo, HubSpot и 1С. Выполняет аналитические SQL-запросы в реальном времени, регистрирует входящие лиды, проверяет остатки товаров в 1С и ищет регламенты в базе знаний.",
+    "zh": "面向 Bitrix24、amoCRM、Kommo、HubSpot 和 1C 的全能销售与商业智能助手。支持对交易和线索进行实时 SQL 分析查询、自动创建新线索、查询 1C 库存并检索知识库文档。"
+  },
+  "canvas_type": "Recommended",
+  "canvas_types": [
+    "Recommended",
+    "Customer Support"
+  ],
+  "canvas_category": "agent_canvas",
+  "dsl": {
+    "components": {
+      "begin": {
+        "downstream": [
+          "Agent:CrmSalesAgent"
+        ],
+        "obj": {
+          "component_name": "Begin",
+          "params": {
+            "mode": "conversational",
+            "prologue": "Hello! I am your CRM Sales & Business Intelligence Assistant. I can analyze deals and leads across your CRM systems (Bitrix24, amoCRM, Kommo, HubSpot, 1C), register new incoming leads, verify warehouse stock, and search your corporate sales knowledge base. How can I help you today?"
+          }
+        },
+        "upstream": []
+      },
+      "Agent:CrmSalesAgent": {
+        "downstream": [
+          "Message:CrmSalesMessage"
+        ],
+        "obj": {
+          "component_name": "Agent",
+          "params": {
+            "cite": true,
+            "delay_after_error": 1,
+            "description": "Enterprise CRM sales and intelligence assistant with live query, lead creation, stock checking, and retrieval capabilities.",
+            "exception_default_value": "",
+            "exception_goto": [],
+            "exception_method": null,
+            "frequencyPenaltyEnabled": false,
+            "frequency_penalty": 0.7,
+            "llm_id": "",
+            "maxTokensEnabled": false,
+            "max_retries": 3,
+            "max_rounds": 5,
+            "max_tokens": 1024,
+            "mcp": [],
+            "message_history_window_size": 12,
+            "outputs": {
+              "content": {
+                "type": "string",
+                "value": ""
+              }
+            },
+            "presencePenaltyEnabled": false,
+            "presence_penalty": 0.4,
+            "prompts": [
+              {
+                "content": "{sys.query}\n\n",
+                "role": "user"
+              }
+            ],
+            "sys_prompt": "# Role\nYou are the **CRM Sales & Business Intelligence Agent**, an enterprise-grade AI assistant integrated directly with CRM platforms (Bitrix24, amoCRM, Kommo, HubSpot, 1C:Enterprise).\n\n# Capabilities\n1. **Real-time CRM Analytics**: Use `QueryCRMRecords` to run analytical queries over CRM records (deals, leads, contacts, companies, products). You can calculate totals (`SUM(price)`), counts (`COUNT(*)`), averages, and filter by status, pipeline stage, price range, and dates.\n2. **Lead & Deal Management**: Use `CreateIncomingLead` to register incoming client inquiries, new prospects, or callback requests directly into CRM with client details (name, phone, email, notes).\n3. **Inventory & Warehouse Verification**: Use `CheckStock` to query real-time warehouse balances, availability, and pricing in 1C:Enterprise or CRM product catalogs.\n4. **Knowledge Base Retrieval**: Use `Retrieval` to access corporate sales scripts, product catalogs, price lists, SLA guidelines, and contract terms from connected Knowledge Bases.\n\n# Operational Workflow\n1. For analytical or summary questions (\"How many active deals do we have?\", \"What is total pipeline volume in Kommo?\", \"Show deals over $5000\"):\n   - Formulate and execute a query using `QueryCRMRecords`.\n   - Present results in clean Markdown tables with key metrics, totals, and concise business observations.\n2. For inventory and stock questions (\"Do we have item X in stock?\"):\n   - Execute `CheckStock` to confirm quantity and warehouse status before committing to a client.\n3. For lead capture requests (\"Record new client Ivan with phone +123456789\"):\n   - Validate details and invoke `CreateIncomingLead`. Confirm creation with the returned lead ID.\n4. For general product knowledge or contract inquiries:\n   - Call `Retrieval` to fetch verified ground-truth from the Knowledge Base.\n\n# Communication Guidelines\n- Be direct, professional, and data-driven.\n- Always format currency values with appropriate thousand separators and currency symbols.\n- If a query returns no records, state clearly which criteria were searched and suggest broadening the search filters.",
+            "temperature": 0.2,
+            "temperatureEnabled": true,
+            "tools": [
+              {
+                "component_name": "QueryCRMRecords",
+                "id": "QueryCRMRecords:CrmQueryTool",
+                "name": "QueryCRMRecords",
+                "params": {
+                  "description": "Execute analytical SQL-like queries and aggregations across connected CRM systems (Bitrix24, amoCRM, Kommo, HubSpot, 1C) for deals, leads, contacts, companies, products.",
+                  "connection_id": "",
+                  "top_n": 50
+                }
+              },
+              {
+                "component_name": "CreateIncomingLead",
+                "id": "CreateIncomingLead:LeadCaptureTool",
+                "name": "CreateIncomingLead",
+                "params": {
+                  "description": "Create a new lead or incoming contact in the target CRM system with idempotency and duplicate check.",
+                  "connection_id": "",
+                  "target_pipeline_id": ""
+                }
+              },
+              {
+                "component_name": "CheckStock",
+                "id": "CheckStock:InventoryStockTool",
+                "name": "CheckStock",
+                "params": {
+                  "description": "Check real-time stock balances, warehouse availability, and prices in 1C or CRM catalog.",
+                  "connection_id": ""
+                }
+              },
+              {
+                "component_name": "Retrieval",
+                "id": "Retrieval:KnowledgeRetrievalTool",
+                "name": "Retrieval",
+                "params": {
+                  "cross_languages": [],
+                  "description": "Search CRM Knowledge Bases, synced documentation, pricing sheets, sales guidelines, and customer contracts.",
+                  "empty_response": "",
+                  "dataset_ids": [],
+                  "retrieval_from": "dataset",
+                  "keywords_similarity_weight": 0.7,
+                  "outputs": {
+                    "formalized_content": {
+                      "type": "string",
+                      "value": ""
+                    }
+                  },
+                  "rerank_id": "",
+                  "similarity_threshold": 0.2,
+                  "top_n": 8,
+                  "use_kg": false,
+                  "rerank_candidates_count": 64
+                }
+              }
+            ],
+            "topPEnabled": false,
+            "top_p": 0.75,
+            "user_prompt": "",
+            "visual_files_var": ""
+          }
+        },
+        "upstream": [
+          "begin"
+        ]
+      },
+      "Message:CrmSalesMessage": {
+        "downstream": [],
+        "obj": {
+          "component_name": "Message",
+          "params": {
+            "content": [
+              "{Agent:CrmSalesAgent@content}"
+            ]
+          }
+        },
+        "upstream": [
+          "Agent:CrmSalesAgent"
+        ]
+      }
+    },
+    "globals": {
+      "sys.conversation_turns": 0,
+      "sys.files": [],
+      "sys.query": "",
+      "sys.user_id": ""
+    },
+    "graph": {
+      "edges": [
+        {
+          "data": {
+            "isHovered": false
+          },
+          "id": "xy-edge__beginstart-Agent:CrmSalesAgentend",
+          "source": "begin",
+          "sourceHandle": "start",
+          "target": "Agent:CrmSalesAgent",
+          "targetHandle": "end"
+        },
+        {
+          "data": {
+            "isHovered": false
+          },
+          "id": "xy-edge__Agent:CrmSalesAgentstart-Message:CrmSalesMessageend",
+          "source": "Agent:CrmSalesAgent",
+          "sourceHandle": "start",
+          "target": "Message:CrmSalesMessage",
+          "targetHandle": "end"
+        },
+        {
+          "id": "xy-edge__Agent:CrmSalesAgenttool-Tool:QueryCrmRecordsToolNodeend",
+          "source": "Agent:CrmSalesAgent",
+          "sourceHandle": "tool",
+          "target": "Tool:QueryCrmRecordsToolNode",
+          "targetHandle": "end"
+        },
+        {
+          "id": "xy-edge__Agent:CrmSalesAgenttool-Tool:CreateIncomingLeadToolNodeend",
+          "source": "Agent:CrmSalesAgent",
+          "sourceHandle": "tool",
+          "target": "Tool:CreateIncomingLeadToolNode",
+          "targetHandle": "end"
+        },
+        {
+          "id": "xy-edge__Agent:CrmSalesAgenttool-Tool:CheckStockToolNodeend",
+          "source": "Agent:CrmSalesAgent",
+          "sourceHandle": "tool",
+          "target": "Tool:CheckStockToolNode",
+          "targetHandle": "end"
+        },
+        {
+          "id": "xy-edge__Agent:CrmSalesAgenttool-Tool:RetrievalToolNodeend",
+          "source": "Agent:CrmSalesAgent",
+          "sourceHandle": "tool",
+          "target": "Tool:RetrievalToolNode",
+          "targetHandle": "end"
+        }
+      ],
+      "nodes": [
+        {
+          "data": {
+            "form": {
+              "enablePrologue": true,
+              "mode": "conversational",
+              "prologue": "Hello! I am your CRM Sales & Business Intelligence Assistant. I can analyze deals and leads across your CRM systems (Bitrix24, amoCRM, Kommo, HubSpot, 1C), register new incoming leads, verify warehouse stock, and search your corporate sales knowledge base. How can I help you today?"
+            },
+            "label": "Begin",
+            "name": "begin"
+          },
+          "id": "begin",
+          "measured": {
+            "height": 48,
+            "width": 200
+          },
+          "position": {
+            "x": 60,
+            "y": 200
+          },
+          "sourcePosition": "left",
+          "targetPosition": "right",
+          "type": "beginNode"
+        },
+        {
+          "data": {
+            "form": {
+              "cite": true,
+              "delay_after_error": 1,
+              "description": "Enterprise CRM sales and intelligence assistant with live query, lead creation, stock checking, and retrieval capabilities.",
+              "exception_default_value": "",
+              "exception_goto": [],
+              "exception_method": null,
+              "frequencyPenaltyEnabled": false,
+              "frequency_penalty": 0.7,
+              "llm_id": "",
+              "maxTokensEnabled": false,
+              "max_retries": 3,
+              "max_rounds": 5,
+              "max_tokens": 1024,
+              "mcp": [],
+              "message_history_window_size": 12,
+              "outputs": {
+                "content": {
+                  "type": "string",
+                  "value": ""
+                }
+              },
+              "presencePenaltyEnabled": false,
+              "presence_penalty": 0.4,
+              "prompts": [
+                {
+                  "content": "{sys.query}\n\n",
+                  "role": "user"
+                }
+              ],
+              "sys_prompt": "# Role\nYou are the **CRM Sales & Business Intelligence Agent**, an enterprise-grade AI assistant integrated directly with CRM platforms (Bitrix24, amoCRM, Kommo, HubSpot, 1C:Enterprise).\n\n# Capabilities\n1. **Real-time CRM Analytics**: Use `QueryCRMRecords` to run analytical queries over CRM records (deals, leads, contacts, companies, products). You can calculate totals (`SUM(price)`), counts (`COUNT(*)`), averages, and filter by status, pipeline stage, price range, and dates.\n2. **Lead & Deal Management**: Use `CreateIncomingLead` to register incoming client inquiries, new prospects, or callback requests directly into CRM with client details (name, phone, email, notes).\n3. **Inventory & Warehouse Verification**: Use `CheckStock` to query real-time warehouse balances, availability, and pricing in 1C:Enterprise or CRM product catalogs.\n4. **Knowledge Base Retrieval**: Use `Retrieval` to access corporate sales scripts, product catalogs, price lists, SLA guidelines, and contract terms from connected Knowledge Bases.\n\n# Operational Workflow\n1. For analytical or summary questions (\"How many active deals do we have?\", \"What is total pipeline volume in Kommo?\", \"Show deals over $5000\"):\n   - Formulate and execute a query using `QueryCRMRecords`.\n   - Present results in clean Markdown tables with key metrics, totals, and concise business observations.\n2. For inventory and stock questions (\"Do we have item X in stock?\"):\n   - Execute `CheckStock` to confirm quantity and warehouse status before committing to a client.\n3. For lead capture requests (\"Record new client Ivan with phone +123456789\"):\n   - Validate details and invoke `CreateIncomingLead`. Confirm creation with the returned lead ID.\n4. For general product knowledge or contract inquiries:\n   - Call `Retrieval` to fetch verified ground-truth from the Knowledge Base.\n\n# Communication Guidelines\n- Be direct, professional, and data-driven.\n- Always format currency values with appropriate thousand separators and currency symbols.\n- If a query returns no records, state clearly which criteria were searched and suggest broadening the search filters.",
+              "temperature": 0.2,
+              "temperatureEnabled": true,
+              "tools": [
+                {
+                  "component_name": "QueryCRMRecords",
+                  "id": "QueryCRMRecords:CrmQueryTool",
+                  "name": "QueryCRMRecords",
+                  "params": {
+                    "description": "Execute analytical SQL-like queries and aggregations across connected CRM systems (Bitrix24, amoCRM, Kommo, HubSpot, 1C) for deals, leads, contacts, companies, products.",
+                    "connection_id": "",
+                    "top_n": 50
+                  }
+                },
+                {
+                  "component_name": "CreateIncomingLead",
+                  "id": "CreateIncomingLead:LeadCaptureTool",
+                  "name": "CreateIncomingLead",
+                  "params": {
+                    "description": "Create a new lead or incoming contact in the target CRM system with idempotency and duplicate check.",
+                    "connection_id": "",
+                    "target_pipeline_id": ""
+                  }
+                },
+                {
+                  "component_name": "CheckStock",
+                  "id": "CheckStock:InventoryStockTool",
+                  "name": "CheckStock",
+                  "params": {
+                    "description": "Check real-time stock balances, warehouse availability, and prices in 1C or CRM catalog.",
+                    "connection_id": ""
+                  }
+                },
+                {
+                  "component_name": "Retrieval",
+                  "id": "Retrieval:KnowledgeRetrievalTool",
+                  "name": "Retrieval",
+                  "params": {
+                    "cross_languages": [],
+                    "description": "Search CRM Knowledge Bases, synced documentation, pricing sheets, sales guidelines, and customer contracts.",
+                    "empty_response": "",
+                    "dataset_ids": [],
+                    "retrieval_from": "dataset",
+                    "keywords_similarity_weight": 0.7,
+                    "outputs": {
+                      "formalized_content": {
+                        "type": "string",
+                        "value": ""
+                      }
+                    },
+                    "rerank_id": "",
+                    "similarity_threshold": 0.2,
+                    "top_n": 8,
+                    "use_kg": false,
+                    "rerank_candidates_count": 64
+                  }
+                }
+              ],
+              "topPEnabled": false,
+              "top_p": 0.75,
+              "user_prompt": "",
+              "visual_files_var": ""
+            },
+            "label": "Agent",
+            "name": "CRM Sales Agent"
+          },
+          "id": "Agent:CrmSalesAgent",
+          "measured": {
+            "height": 90,
+            "width": 200
+          },
+          "position": {
+            "x": 340,
+            "y": 180
+          },
+          "sourcePosition": "right",
+          "targetPosition": "left",
+          "type": "agentNode"
+        },
+        {
+          "data": {
+            "form": {
+              "content": [
+                "{Agent:CrmSalesAgent@content}"
+              ]
+            },
+            "label": "Message",
+            "name": "Message"
+          },
+          "id": "Message:CrmSalesMessage",
+          "measured": {
+            "height": 48,
+            "width": 200
+          },
+          "position": {
+            "x": 660,
+            "y": 200
+          },
+          "sourcePosition": "right",
+          "targetPosition": "left",
+          "type": "messageNode"
+        },
+        {
+          "data": {
+            "form": {
+              "description": "Execute analytical SQL-like queries and aggregations across connected CRM systems (Bitrix24, amoCRM, Kommo, HubSpot, 1C) for deals, leads, contacts, companies, products.",
+              "user_prompt": "Run CRM SQL query"
+            },
+            "label": "Tool",
+            "name": "QueryCRMRecords"
+          },
+          "id": "Tool:QueryCrmRecordsToolNode",
+          "measured": {
+            "height": 48,
+            "width": 200
+          },
+          "position": {
+            "x": 160,
+            "y": 340
+          },
+          "sourcePosition": "right",
+          "targetPosition": "left",
+          "type": "toolNode"
+        },
+        {
+          "data": {
+            "form": {
+              "description": "Create a new lead or incoming contact in the target CRM system with idempotency and duplicate check.",
+              "user_prompt": "Create new incoming lead"
+            },
+            "label": "Tool",
+            "name": "CreateIncomingLead"
+          },
+          "id": "Tool:CreateIncomingLeadToolNode",
+          "measured": {
+            "height": 48,
+            "width": 200
+          },
+          "position": {
+            "x": 280,
+            "y": 420
+          },
+          "sourcePosition": "right",
+          "targetPosition": "left",
+          "type": "toolNode"
+        },
+        {
+          "data": {
+            "form": {
+              "description": "Check real-time stock balances, warehouse availability, and prices in 1C or CRM catalog.",
+              "user_prompt": "Check warehouse inventory"
+            },
+            "label": "Tool",
+            "name": "CheckStock"
+          },
+          "id": "Tool:CheckStockToolNode",
+          "measured": {
+            "height": 48,
+            "width": 200
+          },
+          "position": {
+            "x": 400,
+            "y": 340
+          },
+          "sourcePosition": "right",
+          "targetPosition": "left",
+          "type": "toolNode"
+        },
+        {
+          "data": {
+            "form": {
+              "description": "Search CRM Knowledge Bases, synced documentation, pricing sheets, sales guidelines, and customer contracts.",
+              "user_prompt": "Search CRM Knowledge Base"
+            },
+            "label": "Tool",
+            "name": "Retrieval"
+          },
+          "id": "Tool:RetrievalToolNode",
+          "measured": {
+            "height": 48,
+            "width": 200
+          },
+          "position": {
+            "x": 520,
+            "y": 420
+          },
+          "sourcePosition": "right",
+          "targetPosition": "left",
+          "type": "toolNode"
+        }
+      ]
+    },
+    "history": [],
+    "memory": [],
+    "messages": [],
+    "path": [],
+    "retrieval": [],
+    "variables": []
+  },
+  "avatar": "data:image/png;base64,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"
+}
