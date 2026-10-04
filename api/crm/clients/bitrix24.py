@@ -399,3 +399,112 @@ class Bitrix24Client(CRMProviderBase):
             "supported": False,
             "message": "Bitrix24 provider does not support inventory or stock balance checks. Use 1C:Enterprise provider.",
         }
+
+    def query_records(
+        self,
+        connection_config: Dict[str, Any],
+        entity: str,
+        query: str = "",
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Query live Bitrix24 CRM entities (deals, leads, contacts, companies, products)."""
+        entity_clean = entity.lower().strip().rstrip("s")
+        if entity_clean in ("deal", "order"):
+            method = "crm.deal.list"
+            select_fields = ["ID", "TITLE", "STAGE_ID", "OPPORTUNITY", "CURRENCY_ID", "DATE_MODIFY", "ASSIGNED_BY_ID", "COMMENTS"]
+        elif entity_clean == "lead":
+            method = "crm.lead.list"
+            select_fields = ["ID", "TITLE", "NAME", "LAST_NAME", "STATUS_ID", "OPPORTUNITY", "PHONE", "EMAIL", "DATE_MODIFY", "COMMENTS"]
+        elif entity_clean == "contact":
+            method = "crm.contact.list"
+            select_fields = ["ID", "NAME", "LAST_NAME", "PHONE", "EMAIL", "DATE_MODIFY", "COMMENTS"]
+        elif entity_clean == "company":
+            method = "crm.company.list"
+            select_fields = ["ID", "TITLE", "COMPANY_TYPE", "PHONE", "EMAIL", "DATE_MODIFY"]
+        elif entity_clean == "product":
+            method = "crm.product.list"
+            select_fields = ["ID", "NAME", "PRICE", "CURRENCY_ID", "DESCRIPTION"]
+        else:
+            method = "crm.deal.list"
+            select_fields = ["ID", "TITLE", "STAGE_ID", "OPPORTUNITY", "CURRENCY_ID", "DATE_MODIFY"]
+
+        b24_filter: Dict[str, Any] = {}
+        if filters:
+            for k, v in filters.items():
+                k_upper = k.upper()
+                if k_upper in ("STAGE", "STATUS", "STAGE_ID", "STATUS_ID"):
+                    if "deal" in method:
+                        b24_filter["STAGE_ID"] = v
+                    elif "lead" in method:
+                        b24_filter["STATUS_ID"] = v
+                elif k_upper in ("MIN_PRICE", "MIN_OPPORTUNITY", "PRICE_GTE"):
+                    b24_filter[">=OPPORTUNITY"] = v
+                elif k_upper in ("MAX_PRICE", "MAX_OPPORTUNITY", "PRICE_LTE"):
+                    b24_filter["<=OPPORTUNITY"] = v
+                else:
+                    b24_filter[k] = v
+
+        if query:
+            q_clean = query.strip()
+            if entity_clean == "contact":
+                if any(c.isdigit() for c in q_clean):
+                    b24_filter["PHONE"] = q_clean
+                elif "@" in q_clean:
+                    b24_filter["EMAIL"] = q_clean
+                else:
+                    b24_filter["%NAME"] = q_clean
+            elif entity_clean == "company":
+                b24_filter["%TITLE"] = q_clean
+            elif entity_clean == "product":
+                b24_filter["%NAME"] = q_clean
+            else:
+                b24_filter["%TITLE"] = q_clean
+
+        payload = {
+            "filter": b24_filter,
+            "select": select_fields,
+            "order": {"DATE_MODIFY": "DESC"},
+        }
+        logger.info("Executing Bitrix24 query_records method=%s filter=%s", method, mask_sensitive_payload(b24_filter))
+        resp = self._execute_api_call(connection_config, method, payload=payload)
+        raw_items = resp.get("result", [])
+        if not isinstance(raw_items, list):
+            raw_items = []
+
+        max_limit = max(1, min(limit, 50))
+        raw_items = raw_items[:max_limit]
+
+        records = []
+        for item in raw_items:
+            # Extract phone/email if list format
+            phone_val = ""
+            email_val = ""
+            if isinstance(item.get("PHONE"), list) and item["PHONE"]:
+                phone_val = item["PHONE"][0].get("VALUE", "")
+            elif isinstance(item.get("PHONE"), str):
+                phone_val = item["PHONE"]
+
+            if isinstance(item.get("EMAIL"), list) and item["EMAIL"]:
+                email_val = item["EMAIL"][0].get("VALUE", "")
+            elif isinstance(item.get("EMAIL"), str):
+                email_val = item["EMAIL"]
+
+            title = item.get("TITLE") or item.get("NAME", "")
+            if item.get("LAST_NAME"):
+                title = f"{title} {item['LAST_NAME']}".strip()
+
+            rec = {
+                "id": str(item.get("ID", "")),
+                "entity": entity_clean,
+                "title": title,
+                "status": item.get("STAGE_ID") or item.get("STATUS_ID", ""),
+                "price": item.get("OPPORTUNITY") or item.get("PRICE", 0),
+                "currency": item.get("CURRENCY_ID", "USD"),
+                "phone": phone_val,
+                "email": email_val,
+                "updated_at": item.get("DATE_MODIFY", ""),
+                "raw": item,
+            }
+            records.append(rec)
+        return records

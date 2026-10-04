@@ -313,3 +313,82 @@ class OneCClient(CRMProviderBase):
             "item_count": len(parsed_items),
             "items": parsed_items,
         }
+
+    def query_records(
+        self,
+        connection_config: Dict[str, Any],
+        entity: str,
+        query: str = "",
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Query 1C:Enterprise catalog or document records via OData."""
+        base_url = (connection_config.get("base_url") or connection_config.get("odata_url", "")).rstrip("/")
+        if not base_url:
+            raise OneCError("Missing base_url / odata_url in 1C connection configuration")
+
+        entity_clean = entity.strip()
+        if entity_clean.lower() in ("product", "nomenclature", "item"):
+            odata_entity = "Catalog_Номенклатура"
+        elif entity_clean.lower() in ("contact", "company", "counterparty", "client"):
+            odata_entity = "Catalog_Контрагенты"
+        elif entity_clean.lower() in ("deal", "order"):
+            odata_entity = "Document_ЗаказПокупателя"
+        elif entity_clean.startswith("Catalog_") or entity_clean.startswith("Document_") or entity_clean.startswith("InformationRegister_"):
+            odata_entity = entity_clean
+        else:
+            odata_entity = "Catalog_Номенклатура"
+
+        headers = self._get_auth_headers(connection_config)
+        max_limit = max(1, min(limit, 50))
+        params: List[str] = ["$format=json", f"$top={max_limit}"]
+
+        if query:
+            clean_q = query.replace("'", "''").strip()
+            # 1C OData supports substringof or contains depending on compatibility version
+            filter_expr = f"substringof('{clean_q}', Description) or substringof('{clean_q}', Code)"
+            params.append(f"$filter={quote(filter_expr)}")
+
+        query_url = f"{base_url}/{quote(odata_entity, safe='_')}?" + "&".join(params)
+        logger.info("Executing 1C query_records url=%s", query_url)
+
+        resp = self._execute_get(query_url, headers)
+        if resp.status_code == 401:
+            raise OneCAuthError("1C OData authentication failed (HTTP 401)")
+        if resp.status_code == 403:
+            raise OneCAuthError("1C OData access forbidden (HTTP 403)")
+        if resp.status_code >= 400:
+            raise OneCError(f"1C OData query returned HTTP {resp.status_code}: {resp.text}")
+
+        try:
+            data = resp.json()
+        except Exception as e:
+            raise OneCError(f"Failed to parse 1C OData JSON response: {e}")
+
+        raw_items = data.get("value", [])
+        if not isinstance(raw_items, list):
+            raw_items = []
+
+        records = []
+        for item in raw_items:
+            ref_key = item.get("Ref_Key") or item.get("Code") or ""
+            desc = item.get("Description") or item.get("Наименование") or item.get("Description_standard") or ""
+            price = item.get("Цена") or item.get("СуммаДокумента") or item.get("Price") or 0
+            status = item.get("Статус") or item.get("Status") or item.get("Состояние") or ""
+            phone = item.get("Телефон") or item.get("Phone") or ""
+            email = item.get("Email") or ""
+
+            rec = {
+                "id": str(ref_key),
+                "entity": entity_clean,
+                "title": str(desc),
+                "status": str(status),
+                "price": price,
+                "currency": "RUB",
+                "phone": str(phone),
+                "email": str(email),
+                "updated_at": item.get("Date") or item.get("Дата") or "",
+                "raw": item,
+            }
+            records.append(rec)
+        return records

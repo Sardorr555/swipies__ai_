@@ -61,6 +61,22 @@ class CRMConnectionService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def resolve_active_connection(cls, tenant_id: str, connection_id: Optional[str] = None) -> Tuple[bool, Optional[CRMConnection]]:
+        """Resolve active CRM connection for tenant by explicit ID or first active connection."""
+        if not tenant_id:
+            return False, None
+        if connection_id:
+            ok, conn = cls.get_by_id_and_tenant(connection_id, tenant_id)
+            if ok and conn and conn.status == "active":
+                return True, conn
+            return False, None
+        conns = cls.query_by_tenant(tenant_id, status="active")
+        if conns:
+            return True, conns[0]
+        return False, None
+
+    @classmethod
+    @DB.connection_context()
     def has_active_connections(cls) -> bool:
         """Check if any active CRM connections exist in the platform."""
         return cls.model.select(cls.model.id).where(cls.model.status == "active").first() is not None

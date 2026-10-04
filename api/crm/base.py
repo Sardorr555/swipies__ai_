@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class CRMProviderBase(ABC):
@@ -71,6 +71,29 @@ class CRMProviderBase(ABC):
         """
         pass
 
+    @abstractmethod
+    def query_records(
+        self,
+        connection_config: Dict[str, Any],
+        entity: str,
+        query: str = "",
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Query existing CRM records (deals, leads, contacts, companies, products, orders).
+        
+        Args:
+            connection_config: Decrypted connection configuration dictionary.
+            entity: Entity type ('deal', 'lead', 'contact', 'company', 'product', 'order').
+            query: Search string (e.g. phone, email, name, ID).
+            filters: Optional dictionary of filter criteria.
+            limit: Maximum number of records to return.
+            
+        Returns:
+            List of dictionaries representing matched records.
+        """
+        pass
+
 
 class CRMProviderRegistry:
     """Registry and factory for CRM/ERP provider adapters."""
@@ -100,6 +123,11 @@ class CRMProviderRegistry:
         elif crm_type in ("1c", "1c_odata"):
             from api.crm.clients.one_c import OneCClient
             provider = OneCClient()
+            cls._providers[crm_type] = provider
+            return provider
+        elif crm_type == "hubspot":
+            from api.crm.clients.hubspot import HubSpotClient
+            provider = HubSpotClient()
             cls._providers[crm_type] = provider
             return provider
 

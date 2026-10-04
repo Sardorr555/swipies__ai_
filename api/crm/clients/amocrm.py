@@ -552,3 +552,104 @@ class AmoCRMClient(CRMProviderBase):
             "supported": False,
             "message": "amoCRM provider does not support inventory or stock balance checks. Use 1C:Enterprise provider.",
         }
+
+    def query_records(
+        self,
+        connection_config: Dict[str, Any],
+        entity: str,
+        query: str = "",
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Query live amoCRM / Kommo entities (leads/deals, contacts, companies)."""
+        base_url = self._get_base_url(connection_config)
+        token = connection_config.get("access_token")
+        if not token:
+            raise AmoCRMAuthError("Missing access_token in amoCRM connection configuration")
+
+        entity_clean = entity.lower().strip().rstrip("s")
+        if entity_clean in ("deal", "lead", "order"):
+            endpoint = "leads"
+        elif entity_clean == "contact":
+            endpoint = "contacts"
+        elif entity_clean == "company":
+            endpoint = "companies"
+        else:
+            endpoint = "leads"
+
+        max_limit = max(1, min(limit, 50))
+        params: List[str] = [f"limit={max_limit}"]
+
+        if query:
+            params.append(f"query={quote(query.strip())}")
+
+        if filters:
+            if "status" in filters:
+                params.append(f"filter[statuses][0][status_id]={quote(str(filters['status']))}")
+            if "pipeline_id" in filters:
+                params.append(f"filter[statuses][0][pipeline_id]={quote(str(filters['pipeline_id']))}")
+
+        url = f"{base_url}/api/v4/{endpoint}?" + "&".join(params)
+        logger.info("Executing amoCRM query_records url=%s", url)
+
+        resp = self.transport.get(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            allow_redirects=False,
+            timeout=15.0,
+        )
+
+        if resp.status_code == 204:
+            return []
+        if resp.status_code == 401:
+            raise AmoCRMAuthError(f"amoCRM unauthorized (HTTP 401): {resp.text}", status_code=401)
+        if resp.status_code >= 400:
+            raise AmoCRMError(f"amoCRM query failed with HTTP {resp.status_code}: {resp.text}")
+
+        data = resp.json()
+        raw_items = data.get("_embedded", {}).get(endpoint, [])
+        if not isinstance(raw_items, list):
+            raw_items = []
+
+        records = []
+        for item in raw_items:
+            phone_val = ""
+            email_val = ""
+            custom_fields = item.get("custom_fields_values") or []
+            if isinstance(custom_fields, list):
+                for cf in custom_fields:
+                    code = str(cf.get("field_code") or "").upper()
+                    vals = cf.get("values") or []
+                    if vals and isinstance(vals, list):
+                        v0 = vals[0].get("value", "")
+                        if code == "PHONE" and not phone_val:
+                            phone_val = str(v0)
+                        elif code == "EMAIL" and not email_val:
+                            email_val = str(v0)
+
+            updated_ts = item.get("updated_at")
+            updated_iso = ""
+            if updated_ts:
+                try:
+                    import datetime
+                    updated_iso = datetime.datetime.fromtimestamp(int(updated_ts), tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    updated_iso = str(updated_ts)
+
+            rec = {
+                "id": str(item.get("id", "")),
+                "entity": entity_clean,
+                "title": item.get("name", f"{entity_clean} #{item.get('id')}"),
+                "status": str(item.get("status_id") or ""),
+                "price": item.get("price", 0),
+                "currency": "RUB",
+                "phone": phone_val,
+                "email": email_val,
+                "updated_at": updated_iso,
+                "raw": item,
+            }
+            records.append(rec)
+        return records
