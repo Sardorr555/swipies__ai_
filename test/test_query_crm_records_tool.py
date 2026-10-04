@@ -362,6 +362,59 @@ class TestQueryCRMRecordsTool(unittest.TestCase):
             res = tool2._invoke(entity="deal", query="test")
             self.assertIn("No deal records found", res)
 
+    def test_sql_count_aggregation(self):
+        """Verify COUNT(*) aggregate via SQL."""
+        canvas = DummyMockCanvas(self.tenant_id, channel="web")
+        param = QueryCRMRecordsParam()
+        param.connection_id = self.connection.id
+        tool = QueryCRMRecords(canvas=canvas, id="agg-count", param=param)
+
+        mock_records = [
+            {"id": "1", "entity": "deal", "title": "D1", "price": 100},
+            {"id": "2", "entity": "deal", "title": "D2", "price": 200},
+            {"id": "3", "entity": "deal", "title": "D3", "price": 300},
+        ]
+        with patch.object(Bitrix24Client, "query_records", return_value=mock_records):
+            out = tool._invoke(sql="SELECT COUNT(*) FROM deals")
+            self.assertIn("Count", out)
+            self.assertIn("3", out)
+            self.assertEqual(tool.output("json"), [{"count": 3}])
+
+    def test_sql_sum_aggregation(self):
+        """Verify SUM(price) aggregate via SQL."""
+        canvas = DummyMockCanvas(self.tenant_id, channel="web")
+        param = QueryCRMRecordsParam()
+        param.connection_id = self.connection.id
+        tool = QueryCRMRecords(canvas=canvas, id="agg-sum", param=param)
+
+        mock_records = [
+            {"id": "1", "entity": "deal", "title": "D1", "price": 1000.0, "currency": "USD"},
+            {"id": "2", "entity": "deal", "title": "D2", "price": 2500.0, "currency": "USD"},
+        ]
+        with patch.object(Bitrix24Client, "query_records", return_value=mock_records):
+            out = tool._invoke(sql="SELECT SUM(price) FROM deals")
+            self.assertIn("SUM (USD)", out)
+            self.assertIn("3500", out)
+            self.assertEqual(tool.output("json"), [{"sum": 3500.0, "currency": "USD"}])
+
+    def test_sql_column_projection(self):
+        """Verify column projection only outputs selected columns."""
+        canvas = DummyMockCanvas(self.tenant_id, channel="web")
+        param = QueryCRMRecordsParam()
+        param.connection_id = self.connection.id
+        tool = QueryCRMRecords(canvas=canvas, id="proj-col", param=param)
+
+        mock_records = [
+            {"id": "1", "entity": "deal", "title": "D1", "price": 1000.0, "phone": "+1234567890", "status": "WON"},
+        ]
+        with patch.object(Bitrix24Client, "query_records", return_value=mock_records):
+            out = tool._invoke(sql="SELECT title, price FROM deals")
+            self.assertIn("Title / Name", out)
+            self.assertIn("Price", out)
+            # phone should not be in the projected markdown columns
+            self.assertNotIn("Phone", out)
+
 
 if __name__ == "__main__":
     unittest.main()
+

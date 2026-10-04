@@ -17,8 +17,9 @@ import json
 import logging
 import os
 import re
+import time
 from abc import ABC
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -30,19 +31,32 @@ from api.crm.base import CRMProviderRegistry
 
 logger = logging.getLogger("QueryCRMRecords")
 
+# Lightweight short-term query cache to avoid hitting external CRM rate limits
+_QUERY_CACHE: Dict[str, Tuple[float, List[Dict[str, Any]]]] = {}
+_CACHE_TTL_SECONDS = 10.0
+
 
 def parse_sql_crm_query(sql: str) -> Dict[str, Any]:
-    """Parse a natural SQL query into CRM entity, query string, status, and limit."""
+    """Parse a natural SQL query into CRM entity, columns, filters, aggregations, order, and limit."""
     parsed: Dict[str, Any] = {
         "entity": "deal",
+        "columns": [],
         "query": "",
         "status": "",
+        "min_price": None,
+        "max_price": None,
+        "aggregate": "",  # "count", "sum", "avg", "min", "max"
+        "aggregate_column": "",
+        "order_by": "",
+        "order_direction": "desc",
         "limit": 10,
     }
     if not sql or not isinstance(sql, str):
         return parsed
 
     clean_sql = sql.strip().rstrip(";")
+
+    # 1. Parse entity from FROM clause
     from_match = re.search(r"\bFROM\s+([a-zA-Z0-9_\u0400-\u04FF]+)", clean_sql, re.IGNORECASE)
     if from_match:
         tbl = from_match.group(1).lower().rstrip("s")
@@ -69,6 +83,19 @@ def parse_sql_crm_query(sql: str) -> Dict[str, Any]:
         }
         parsed["entity"] = tbl_map.get(tbl, tbl)
 
+    # 2. Parse SELECT columns and aggregates
+    select_match = re.search(r"\bSELECT\s+(.+?)\s+\bFROM\b", clean_sql, re.IGNORECASE | re.DOTALL)
+    if select_match:
+        raw_select = select_match.group(1).strip()
+        agg_match = re.search(r"\b(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*([a-zA-Z0-9_\*]+)\s*\)", raw_select, re.IGNORECASE)
+        if agg_match:
+            parsed["aggregate"] = agg_match.group(1).lower()
+            parsed["aggregate_column"] = agg_match.group(2).lower()
+        elif raw_select != "*":
+            cols = [c.strip().lower() for c in raw_select.split(",") if c.strip()]
+            parsed["columns"] = cols
+
+    # 3. Parse LIMIT
     limit_match = re.search(r"\bLIMIT\s+(\d+)", clean_sql, re.IGNORECASE)
     if limit_match:
         try:
@@ -76,22 +103,50 @@ def parse_sql_crm_query(sql: str) -> Dict[str, Any]:
         except Exception:
             pass
 
-    # Extract status / stage
+    # 4. Parse ORDER BY
+    order_match = re.search(r"\bORDER\s+BY\s+([a-zA-Z0-9_]+)(?:\s+(ASC|DESC))?", clean_sql, re.IGNORECASE)
+    if order_match:
+        parsed["order_by"] = order_match.group(1).lower()
+        if order_match.group(2):
+            parsed["order_direction"] = order_match.group(2).lower()
+
+    # 5. Parse Status / Stage
     status_match = re.search(r"(?:status|stage|статус|состояние)\s*(?:=|is|like)\s*['\"]([^'\"]+)['\"]", clean_sql, re.IGNORECASE)
     if status_match:
         parsed["status"] = status_match.group(1).strip()
 
-    # Extract general search term / name / query / phone
+    # 6. Parse numeric price/opportunity comparisons
+    min_price_match = re.search(r"(?:price|opportunity|сумма|цена|amount)\s*(?:>=|>)\s*(\d+(?:\.\d+)?)", clean_sql, re.IGNORECASE)
+    if min_price_match:
+        try:
+            parsed["min_price"] = float(min_price_match.group(1))
+        except Exception:
+            pass
+
+    max_price_match = re.search(r"(?:price|opportunity|сумма|цена|amount)\s*(?:<=|<)\s*(\d+(?:\.\d+)?)", clean_sql, re.IGNORECASE)
+    if max_price_match:
+        try:
+            parsed["max_price"] = float(max_price_match.group(1))
+        except Exception:
+            pass
+
+    # 7. Extract general search term / name / query / phone
     q_match = re.search(r"(?:name|title|query|phone|description|наименование|название|телефон)\s*(?:=|like)\s*['\"]%?([^'\"%]+)%?['\"]", clean_sql, re.IGNORECASE)
     if q_match:
         parsed["query"] = q_match.group(1).strip()
     elif not parsed["status"]:
-        # Check where clause content
-        where_match = re.search(r"\bWHERE\s+(.+)$", clean_sql, re.IGNORECASE)
+        where_match = re.search(r"\bWHERE\s+(.+?)(?:\s+\b(?:ORDER|LIMIT)\b|$)", clean_sql, re.IGNORECASE)
         if where_match:
             raw_where = where_match.group(1)
             raw_text = re.sub(r"[=><'\"]", " ", raw_where)
-            tokens = [t.strip() for t in raw_text.split() if len(t.strip()) > 2 and t.lower() not in ("and", "or", "not", "where", "like", "is", "null", "limit")]
+            tokens = [
+                t.strip()
+                for t in raw_text.split()
+                if len(t.strip()) > 2 and t.lower() not in (
+                    "and", "or", "not", "where", "like", "is", "null", "limit",
+                    "status", "stage", "price", "amount", "order", "by", "desc", "asc"
+                )
+            ]
             if tokens:
                 parsed["query"] = " ".join(tokens)
 
@@ -132,7 +187,7 @@ class QueryCRMRecordsParam(ToolParamBase):
                 },
                 "sql": {
                     "type": "string",
-                    "description": "Optional natural SQL-style query (e.g. \"SELECT * FROM deals WHERE status = 'WON'\"). If supplied, table name and filters are extracted automatically.",
+                    "description": "Optional natural SQL-style query (e.g. \"SELECT title, price FROM deals WHERE status = 'WON'\" or \"SELECT COUNT(*) FROM deals\"). If supplied, table name, columns, and filters are extracted automatically.",
                     "default": "",
                     "required": False,
                 },
@@ -237,19 +292,38 @@ class QueryCRMRecords(ToolBase, ABC):
             crm_type, entity, query, status, limit
         )
 
-        # 5. Execute query via provider registry
-        provider = CRMProviderRegistry.get(crm_type)
-        filters: Dict[str, Any] = {}
-        if status:
-            filters["status"] = status
+        # 5. Check in-memory short-term cache
+        cache_key = f"{tenant_id}:{connection.id}:{entity}:{query}:{status}:{limit}"
+        now = time.time()
+        if cache_key in _QUERY_CACHE:
+            ts, cached_records = _QUERY_CACHE[cache_key]
+            if now - ts < _CACHE_TTL_SECONDS:
+                logger.debug("Serving CRM query from short-term cache: key=%s", cache_key)
+                records = cached_records
+            else:
+                records = None
+        else:
+            records = None
 
-        records = provider.query_records(
-            connection_config=decrypted_config,
-            entity=str(entity),
-            query=str(query or ""),
-            filters=filters,
-            limit=limit,
-        )
+        if records is None:
+            provider = CRMProviderRegistry.get(crm_type)
+            filters: Dict[str, Any] = {}
+            if status:
+                filters["status"] = status
+            if parsed_sql.get("min_price") is not None:
+                filters["min_price"] = parsed_sql["min_price"]
+            if parsed_sql.get("max_price") is not None:
+                filters["max_price"] = parsed_sql["max_price"]
+
+            records = provider.query_records(
+                connection_config=decrypted_config,
+                entity=str(entity),
+                query=str(query or ""),
+                filters=filters,
+                limit=limit,
+            )
+            # Store in cache
+            _QUERY_CACHE[cache_key] = (now, records)
 
         if not records:
             empty_msg = f"No {entity} records found in {crm_type} matching query '{query}'."
@@ -257,8 +331,70 @@ class QueryCRMRecords(ToolBase, ABC):
             self.set_output("formalized_content", empty_msg)
             return self.output("formalized_content")
 
-        # 6. Format Markdown output and structured JSON
+        # 6. Apply in-memory sorting if requested by SQL ORDER BY
+        order_col = parsed_sql.get("order_by")
+        if order_col:
+            reverse = parsed_sql.get("order_direction", "desc") == "desc"
+            try:
+                records = sorted(
+                    records,
+                    key=lambda r: (r.get(order_col) is None, r.get(order_col) or 0),
+                    reverse=reverse,
+                )
+            except Exception:
+                pass
+
+        # 7. Handle SQL Aggregate queries (COUNT, SUM, AVG, MIN, MAX)
+        aggregate = parsed_sql.get("aggregate")
+        if aggregate:
+            if aggregate == "count":
+                count_val = len(records)
+                agg_df = pd.DataFrame([{"Count": count_val}])
+                agg_markdown = agg_df.to_markdown(index=False)
+                self.set_output("json", [{"count": count_val}])
+                self.set_output("formalized_content", agg_markdown)
+                return self.output("formalized_content")
+
+            elif aggregate in ("sum", "avg", "min", "max"):
+                # Extract numeric prices
+                prices = []
+                currency = "RUB"
+                for r in records:
+                    p = r.get("price")
+                    if p is not None:
+                        try:
+                            prices.append(float(p))
+                            if r.get("currency"):
+                                currency = r["currency"]
+                        except (ValueError, TypeError):
+                            pass
+                if not prices:
+                    res_val = 0.0
+                elif aggregate == "sum":
+                    res_val = sum(prices)
+                elif aggregate == "avg":
+                    res_val = sum(prices) / len(prices)
+                elif aggregate == "min":
+                    res_val = min(prices)
+                elif aggregate == "max":
+                    res_val = max(prices)
+
+                agg_col_name = f"{aggregate.upper()} ({currency})"
+                agg_df = pd.DataFrame([{agg_col_name: round(res_val, 2)}])
+                agg_markdown = agg_df.to_markdown(index=False)
+                self.set_output("json", [{aggregate: res_val, "currency": currency}])
+                self.set_output("formalized_content", agg_markdown)
+                return self.output("formalized_content")
+
+        # 8. Format Markdown output and structured JSON with column projections
         display_columns = ["id", "title", "status", "price", "phone", "email", "updated_at"]
+        req_columns = parsed_sql.get("columns", [])
+        if req_columns:
+            # Map requested columns
+            selected_display_cols = [c for c in req_columns if c in display_columns]
+            if selected_display_cols:
+                display_columns = selected_display_cols
+
         clean_rows = []
         for r in records:
             row = {}
@@ -267,7 +403,6 @@ class QueryCRMRecords(ToolBase, ABC):
             clean_rows.append(row)
 
         df = pd.DataFrame(clean_rows)
-        # Rename columns for clear display
         rename_map = {
             "id": "ID",
             "title": "Title / Name",
@@ -277,7 +412,7 @@ class QueryCRMRecords(ToolBase, ABC):
             "email": "Email",
             "updated_at": "Updated At",
         }
-        df.rename(columns=rename_map, inplace=True)
+        df.rename(columns={k: rename_map[k] for k in display_columns if k in rename_map}, inplace=True)
         # Drop columns that are completely empty
         cols_to_keep = [col for col in df.columns if not (df[col] == "").all() and not df[col].isna().all()]
         if cols_to_keep:
