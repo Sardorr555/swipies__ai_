@@ -27,11 +27,25 @@ from botocore.client import Config
 from botocore.credentials import RefreshableCredentials
 from botocore.session import get_session
 from googleapiclient.errors import HttpError
-from mypy_boto3_s3 import S3Client
-from retry import retry
-from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
-from slack_sdk.web import SlackResponse
+try:
+    from mypy_boto3_s3 import S3Client
+except ImportError:
+    S3Client = Any
+try:
+    from retry import retry
+except ImportError:
+    def retry(*args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+try:
+    from slack_sdk import WebClient
+    from slack_sdk.errors import SlackApiError
+    from slack_sdk.web import SlackResponse
+except ImportError:
+    WebClient = Any
+    SlackApiError = Exception
+    SlackResponse = Any
 
 from common.data_source.config import (
     _ITERATION_LIMIT,

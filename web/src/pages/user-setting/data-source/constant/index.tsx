@@ -739,6 +739,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: false,
       tooltip: 'Authorization Code or Long-lived Token',
     },
+    {
+      label: 'Sync Entities (Optional)',
+      name: 'config.entities',
+      type: FormFieldType.Text,
+      required: false,
+      placeholder: 'lead, contact, company',
+      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to lead, contact, company)',
+    },
   ],
   [DataSourceKey.KOMMO]: [
     {
@@ -770,6 +778,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: false,
       tooltip: 'Authorization Code or Long-lived Token',
     },
+    {
+      label: 'Sync Entities (Optional)',
+      name: 'config.entities',
+      type: FormFieldType.Text,
+      required: false,
+      placeholder: 'lead, contact, company',
+      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to lead, contact, company)',
+    },
   ],
   [DataSourceKey.BITRIX24]: [
     {
@@ -788,6 +804,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       placeholder: 'https://your-company.bitrix24.com/rest/1/webhook_key/',
       tooltip: 'Bitrix24 inbound webhook URL or OAuth token',
     },
+    {
+      label: 'Sync Entities (Optional)',
+      name: 'config.entities',
+      type: FormFieldType.Text,
+      required: false,
+      placeholder: 'deal, lead, contact, company, product',
+      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to deal, lead, contact, company, product)',
+    },
   ],
   [DataSourceKey.HUBSPOT]: [
     {
@@ -797,6 +821,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: true,
       placeholder: 'pat-na1-...',
       tooltip: 'HubSpot Private App Access Token',
+    },
+    {
+      label: 'Sync Entities (Optional)',
+      name: 'config.entities',
+      type: FormFieldType.Text,
+      required: false,
+      placeholder: 'deal, contact, company, product',
+      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to deal, contact, company, product)',
     },
   ],
   [DataSourceKey.ONE_C]: [
@@ -822,6 +854,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       type: FormFieldType.Password,
       required: true,
       tooltip: '1C User password',
+    },
+    {
+      label: 'Catalogs / Entities (Optional)',
+      name: 'config.catalogs',
+      type: FormFieldType.Text,
+      required: false,
+      placeholder: 'Catalog_Номенклатура',
+      tooltip: 'Comma-separated 1C OData catalogs or documents to index into Knowledge Base',
     },
     {
       label: 'Entity Path (Catalog)',
