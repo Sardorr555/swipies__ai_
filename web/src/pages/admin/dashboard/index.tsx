@@ -141,14 +141,14 @@ export default function AdminDashboardOverview() {
           <div className="flex items-center gap-2 mb-1">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Jonli Boshqaruv Markazi (Live Admin Hub)
+              Live Operations & Analytics Hub
             </span>
           </div>
           <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">
-            Swipies AI — Asosiy Statistika va Monitoring
+            Swipies AI — Core Analytics & System Telemetry
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Foydalanuvchilar o'sishi, faollik, to'lovlar va daromad tushumlarining to'liq tahlili
+            Real-time analytics for user acquisition, platform activity, subscription plans, and revenue streams
           </p>
         </div>
 
@@ -161,7 +161,7 @@ export default function AdminDashboardOverview() {
             className="h-9 gap-2 shadow-sm font-medium"
           >
             <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin text-primary' : ''}`} />
-            {isFetching ? 'Yangilanmoqda...' : 'Yangilash'}
+            {isFetching ? 'Refreshing...' : 'Refresh'}
           </Button>
 
           <Button
@@ -170,7 +170,7 @@ export default function AdminDashboardOverview() {
             className="h-9 gap-2 bg-primary text-primary-foreground font-semibold shadow-md shadow-primary/20 hover:shadow-lg transition-all"
           >
             <CreditCard className="h-4 w-4" />
-            To'lovlar & Tranzaksiyalar
+            Payments & Transactions
           </Button>
         </div>
       </div>
@@ -182,7 +182,7 @@ export default function AdminDashboardOverview() {
           <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground">
-              Jami Foydalanuvchilar
+              Total Registered Users
             </CardTitle>
             <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
               <Users className="h-5 w-5" />
@@ -194,16 +194,16 @@ export default function AdminDashboardOverview() {
             </div>
             <div className="flex items-center gap-2 mt-2 text-xs">
               <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-medium">
-                <UserCheck className="h-3 w-3 mr-1" /> {userStats?.active_users ?? 0} faol
+                <UserCheck className="h-3 w-3 mr-1" /> {userStats?.active_users ?? 0} active
               </Badge>
               <Badge variant="outline" className="bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20 font-medium">
-                <UserX className="h-3 w-3 mr-1" /> {userStats?.inactive_users ?? 0} nofaol
+                <UserX className="h-3 w-3 mr-1" /> {userStats?.inactive_users ?? 0} inactive
               </Badge>
             </div>
             <div className="mt-3 pt-3 border-t border-border/40 text-[11px] text-muted-foreground flex justify-between">
-              <span>Bugun: <b>+{userStats?.new_users_today ?? 0}</b></span>
-              <span>Hafta: <b>+{userStats?.new_users_this_week ?? 0}</b></span>
-              <span>Oy: <b>+{userStats?.new_users_this_month ?? 0}</b></span>
+              <span>Today: <b>+{userStats?.new_users_today ?? 0}</b></span>
+              <span>7 Days: <b>+{userStats?.new_users_this_week ?? 0}</b></span>
+              <span>30 Days: <b>+{userStats?.new_users_this_month ?? 0}</b></span>
             </div>
           </CardContent>
         </Card>
@@ -213,7 +213,7 @@ export default function AdminDashboardOverview() {
           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground">
-              Jami Daromad (Revenue)
+              Total Gross Revenue
             </CardTitle>
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <DollarSign className="h-5 w-5" />
@@ -225,11 +225,11 @@ export default function AdminDashboardOverview() {
             </div>
             <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
               <TrendingUp className="h-3.5 w-3.5" />
-              {formatUSD(revenueStats?.total_revenue_usd)} ekvivalenti
+              {formatUSD(revenueStats?.total_revenue_usd)} USD Equivalent
             </div>
             <div className="mt-3 pt-3 border-t border-border/40 text-[11px] text-muted-foreground flex justify-between">
-              <span>Bugun: <b>{formatUZS(revenueStats?.revenue_today_uzs)}</b></span>
-              <span>Bu oy: <b>{formatUZS(revenueStats?.revenue_this_month_uzs)}</b></span>
+              <span>Today: <b>{formatUZS(revenueStats?.revenue_today_uzs)}</b></span>
+              <span>This Month: <b>{formatUZS(revenueStats?.revenue_this_month_uzs)}</b></span>
             </div>
           </CardContent>
         </Card>
@@ -239,7 +239,7 @@ export default function AdminDashboardOverview() {
           <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all" />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground">
-              To'lovchi Foydalanuvchilar
+              Paying Customers
             </CardTitle>
             <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
               <CreditCard className="h-5 w-5" />
@@ -251,14 +251,14 @@ export default function AdminDashboardOverview() {
             </div>
             <div className="flex items-center gap-2 mt-2 text-xs">
               <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 font-medium">
-                Konversiya: {revenueStats?.conversion_rate_pct ?? 0}%
+                Conversion: {revenueStats?.conversion_rate_pct ?? 0}%
               </Badge>
               <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-medium">
-                {revenueStats?.paid_transactions_count ?? 0} to'lov
+                {revenueStats?.paid_transactions_count ?? 0} paid orders
               </Badge>
             </div>
             <div className="mt-3 pt-3 border-t border-border/40 text-[11px] text-muted-foreground flex justify-between">
-              <span>O'rtacha chek (ARPPU):</span>
+              <span>Average Revenue Per Paying User (ARPPU):</span>
               <span className="font-bold text-foreground">{formatUZS(revenueStats?.arppu_uzs)}</span>
             </div>
           </CardContent>
@@ -269,7 +269,7 @@ export default function AdminDashboardOverview() {
           <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all" />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground">
-              Faollik va Ulanishlar
+              Active Users & Engagement
             </CardTitle>
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
               <Activity className="h-5 w-5" />
@@ -278,20 +278,20 @@ export default function AdminDashboardOverview() {
           <CardContent>
             <div className="text-3xl font-black tracking-tight text-foreground">
               {isLoading ? '...' : (userStats?.active_today ?? 0).toLocaleString()}
-              <span className="text-xs font-normal text-muted-foreground ml-1.5">bugun faol (DAU)</span>
+              <span className="text-xs font-normal text-muted-foreground ml-1.5">Active Today (DAU)</span>
             </div>
             <div className="flex items-center gap-2 mt-2 text-xs">
               <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 font-medium">
-                7 Kunlik: {userStats?.active_7d ?? 0} (WAU)
+                Weekly: {userStats?.active_7d ?? 0} (WAU)
               </Badge>
               <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 font-medium">
-                30 Kunlik: {userStats?.active_30d ?? 0} (MAU)
+                Monthly: {userStats?.active_30d ?? 0} (MAU)
               </Badge>
             </div>
             <div className="mt-3 pt-3 border-t border-border/40 text-[11px] text-muted-foreground flex justify-between items-center">
-              <span>Adminlar: <b>{userStats?.superuser_count ?? 0} ta</b></span>
+              <span>Superadmins: <b>{userStats?.superuser_count ?? 0}</b></span>
               <span className="text-primary hover:underline cursor-pointer flex items-center gap-0.5" onClick={() => navigate(Routes.AdminUserManagement)}>
-                Boshqarish <ChevronRight className="h-3 w-3" />
+                Manage <ChevronRight className="h-3 w-3" />
               </span>
             </div>
           </CardContent>
@@ -308,10 +308,10 @@ export default function AdminDashboardOverview() {
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
-                  Daromad Dinamikasi va Tushumlar Grafigi
+                  Revenue Inflow & Financial Trends
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Kunlik, haftalik va oylik tushumlar statistikasini alohida ko'rish
+                  Inspect daily, weekly, and monthly gross revenue dynamics
                 </CardDescription>
               </div>
 
@@ -322,7 +322,7 @@ export default function AdminDashboardOverview() {
                   onClick={() => setRevenuePeriod('daily')}
                   className="h-7 text-xs px-3 rounded-lg font-medium"
                 >
-                  Kunlik (14 kun)
+                  Daily (14d)
                 </Button>
                 <Button
                   size="sm"
@@ -330,7 +330,7 @@ export default function AdminDashboardOverview() {
                   onClick={() => setRevenuePeriod('weekly')}
                   className="h-7 text-xs px-3 rounded-lg font-medium"
                 >
-                  Haftalik (8 hafta)
+                  Weekly (8w)
                 </Button>
                 <Button
                   size="sm"
@@ -338,7 +338,7 @@ export default function AdminDashboardOverview() {
                   onClick={() => setRevenuePeriod('monthly')}
                   className="h-7 text-xs px-3 rounded-lg font-medium"
                 >
-                  Oylik (6 oy)
+                  Monthly (6m)
                 </Button>
               </div>
             </CardHeader>
@@ -359,8 +359,8 @@ export default function AdminDashboardOverview() {
                       tickFormatter={(v) => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
                     />
                     <Tooltip
-                      formatter={(val: any) => [formatUZS(val), 'Daromad']}
-                      labelFormatter={(label) => `Vaqt: ${label}`}
+                      formatter={(val: any) => [formatUZS(val), 'Revenue']}
+                      labelFormatter={(label) => `Period: ${label}`}
                       contentStyle={{ borderRadius: '12px', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
                     />
                     <Bar dataKey="revenue_uzs" fill="url(#revenueBarGrad)" radius={[6, 6, 0, 0]} />
@@ -375,10 +375,10 @@ export default function AdminDashboardOverview() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Users className="h-4 w-4 text-blue-500" />
-                Yangi Foydalanuvchilar Qo'shilish Dinamikasi (30 Kun)
+                New User Registration Trajectory (30 Days)
               </CardTitle>
               <CardDescription className="text-xs">
-                Kunlik ro'yxatdan o'tgan yangi foydalanuvchilar soni
+                Daily new user accounts registered on Swipies AI
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
@@ -395,8 +395,8 @@ export default function AdminDashboardOverview() {
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip
-                      formatter={(val: any) => [`${val} ta foydalanuvchi`, 'Yangi qo\'shilgan']}
-                      labelFormatter={(label) => `Sana: ${label}`}
+                      formatter={(val: any) => [`${val} users`, 'New Registrations']}
+                      labelFormatter={(label) => `Date: ${label}`}
                       contentStyle={{ borderRadius: '12px', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
                     />
                     <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2.5} fill="url(#userGrowthGrad)" />
@@ -414,16 +414,16 @@ export default function AdminDashboardOverview() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Coins className="h-4 w-4 text-purple-500" />
-                Tariflar va Obunalar Taqsimoti
+                Plan & Subscription Distribution
               </CardTitle>
               <CardDescription className="text-xs">
-                Foydalanuvchilar qaysi tarif rejasida ekanligi
+                Active user breakdown across subscription tiers
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-48 w-full flex items-center justify-center">
                 {planChartData.length === 0 ? (
-                  <div className="text-xs text-muted-foreground">Ma'lumot mavjud emas</div>
+                  <div className="text-xs text-muted-foreground">No data available</div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -446,7 +446,7 @@ export default function AdminDashboardOverview() {
                       </Pie>
                       <Tooltip
                         formatter={(val: any, name: any, props: any) => [
-                          `${val} ta foydalanuvchi (${formatUZS(props?.payload?.revenue)})`,
+                          `${val} users (${formatUZS(props?.payload?.revenue)})`,
                           name,
                         ]}
                         contentStyle={{ borderRadius: '12px', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
@@ -467,7 +467,7 @@ export default function AdminDashboardOverview() {
                       <span className="font-semibold">{item.name}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-muted-foreground">{item.count} ta</span>
+                      <span className="text-muted-foreground">{item.count} users</span>
                       <span className="font-medium text-foreground">{formatUZS(item.revenue)}</span>
                     </div>
                   </div>
@@ -481,10 +481,10 @@ export default function AdminDashboardOverview() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Zap className="h-4 w-4 text-amber-500" />
-                Ulanish Kanallari (Auth Methods)
+                Authentication Channels & Providers
               </CardTitle>
               <CardDescription className="text-xs">
-                Ro'yxatdan o'tish va kirish usullari bo'yicha taqsimot
+                Distribution of user signup & authentication methods
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -496,7 +496,7 @@ export default function AdminDashboardOverview() {
                     <div key={ch.name} className="space-y-1">
                       <div className="flex justify-between text-xs font-medium">
                         <span className="text-foreground">{ch.name}</span>
-                        <span className="text-muted-foreground">{ch.value} ta ({pct}%)</span>
+                        <span className="text-muted-foreground">{ch.value} ({pct}%)</span>
                       </div>
                       <div className="h-2 w-full bg-muted/60 rounded-full overflow-hidden">
                         <div
@@ -514,7 +514,7 @@ export default function AdminDashboardOverview() {
 
               {/* Quick Navigation Action Box */}
               <div className="mt-6 p-4 rounded-xl bg-muted/40 border border-border/60 space-y-3">
-                <div className="text-xs font-bold text-foreground">Tezkor Boshqaruv Havolalari</div>
+                <div className="text-xs font-bold text-foreground">Quick Admin Shortcuts</div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <Button
                     variant="outline"
@@ -522,7 +522,7 @@ export default function AdminDashboardOverview() {
                     className="justify-start h-8 text-[11px] font-medium"
                     onClick={() => navigate(Routes.AdminUserManagement)}
                   >
-                    <Users className="h-3.5 w-3.5 mr-1 text-blue-500" /> Foydalanuvchilar
+                    <Users className="h-3.5 w-3.5 mr-1 text-blue-500" /> Users
                   </Button>
                   <Button
                     variant="outline"
@@ -530,7 +530,7 @@ export default function AdminDashboardOverview() {
                     className="justify-start h-8 text-[11px] font-medium"
                     onClick={() => navigate(Routes.AdminPayments)}
                   >
-                    <CreditCard className="h-3.5 w-3.5 mr-1 text-emerald-500" /> To'lovlar
+                    <CreditCard className="h-3.5 w-3.5 mr-1 text-emerald-500" /> Payments
                   </Button>
                   <Button
                     variant="outline"
@@ -538,7 +538,7 @@ export default function AdminDashboardOverview() {
                     className="justify-start h-8 text-[11px] font-medium"
                     onClick={() => navigate(Routes.AdminAds)}
                   >
-                    <Megaphone className="h-3.5 w-3.5 mr-1 text-purple-500" /> Reklama
+                    <Megaphone className="h-3.5 w-3.5 mr-1 text-purple-500" /> Swipies Ads
                   </Button>
                   <Button
                     variant="outline"
@@ -546,7 +546,7 @@ export default function AdminDashboardOverview() {
                     className="justify-start h-8 text-[11px] font-medium"
                     onClick={() => navigate(Routes.AdminPricingSettings)}
                   >
-                    <Coins className="h-3.5 w-3.5 mr-1 text-amber-500" /> Narxlar
+                    <Coins className="h-3.5 w-3.5 mr-1 text-amber-500" /> Pricing Plans
                   </Button>
                 </div>
               </div>
@@ -563,10 +563,10 @@ export default function AdminDashboardOverview() {
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
-                So'nggi Ro'yxatdan O'tgan Foydalanuvchilar
+                Recently Registered Users
               </CardTitle>
               <CardDescription className="text-xs">
-                Oxirgi qo'shilgan 10 ta foydalanuvchi va ularning sanalari
+                Latest 10 registered user accounts and timestamps
               </CardDescription>
             </div>
             <Button
@@ -575,7 +575,7 @@ export default function AdminDashboardOverview() {
               className="text-xs font-semibold text-primary hover:bg-primary/10 gap-1"
               onClick={() => navigate(Routes.AdminUserManagement)}
             >
-              Hammasini ko'rish <ArrowRight className="h-3.5 w-3.5" />
+              View All <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </CardHeader>
           <CardContent className="p-0">
@@ -583,17 +583,17 @@ export default function AdminDashboardOverview() {
               <table className="w-full text-xs text-left">
                 <thead className="bg-muted/50 border-y border-border/40 text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                   <tr>
-                    <th className="px-4 py-2.5">Foydalanuvchi</th>
-                    <th className="px-4 py-2.5">Ro'yxatdan o'tgan</th>
-                    <th className="px-4 py-2.5">Tarif</th>
-                    <th className="px-4 py-2.5 text-right">Holat</th>
+                    <th className="px-4 py-2.5">User</th>
+                    <th className="px-4 py-2.5">Registered At</th>
+                    <th className="px-4 py-2.5">Plan</th>
+                    <th className="px-4 py-2.5 text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
                   {recentUsers.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                        Foydalanuvchilar topilmadi
+                        No user records found
                       </td>
                     </tr>
                   ) : (
@@ -622,7 +622,7 @@ export default function AdminDashboardOverview() {
                                 : 'bg-red-500/10 text-red-500 border-red-500/30'
                             }
                           >
-                            {u.is_active ? 'Faol' : 'Nofaol'}
+                            {u.is_active ? 'Active' : 'Inactive'}
                           </Badge>
                         </td>
                       </tr>
@@ -640,10 +640,10 @@ export default function AdminDashboardOverview() {
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-emerald-500" />
-                So'nggi To'lovlar va Tranzaksiyalar
+                Recent Payment Transactions
               </CardTitle>
               <CardDescription className="text-xs">
-                Oxirgi amalga oshirilgan to'lov buyurtmalari
+                Latest orders and subscription payments
               </CardDescription>
             </div>
             <Button
@@ -652,7 +652,7 @@ export default function AdminDashboardOverview() {
               className="text-xs font-semibold text-primary hover:bg-primary/10 gap-1"
               onClick={() => navigate(Routes.AdminPayments)}
             >
-              Hammasini ko'rish <ArrowRight className="h-3.5 w-3.5" />
+              View All <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </CardHeader>
           <CardContent className="p-0">
@@ -660,17 +660,17 @@ export default function AdminDashboardOverview() {
               <table className="w-full text-xs text-left">
                 <thead className="bg-muted/50 border-y border-border/40 text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                   <tr>
-                    <th className="px-4 py-2.5">Foydalanuvchi / Plan</th>
-                    <th className="px-4 py-2.5">Summa</th>
-                    <th className="px-4 py-2.5">Sana</th>
-                    <th className="px-4 py-2.5 text-right">Holat</th>
+                    <th className="px-4 py-2.5">User / Plan</th>
+                    <th className="px-4 py-2.5">Amount</th>
+                    <th className="px-4 py-2.5">Date</th>
+                    <th className="px-4 py-2.5 text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
                   {recentPayments.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                        To'lov tranzaksiyalari topilmadi
+                        No payment transactions found
                       </td>
                     </tr>
                   ) : (

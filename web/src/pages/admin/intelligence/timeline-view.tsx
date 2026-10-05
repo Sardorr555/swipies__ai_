@@ -49,14 +49,14 @@ export function IntelligenceTimelineView() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-2xl">Таймлайн Развития Решений (Decision History Evolution)</h3>
+          <h3 className="font-bold text-2xl">Decision History & Evolution Timeline</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Хронологическая история принятия архитектурных и бизнес решений по всем проектам
+            Chronological log of architectural, engineering, and business decisions across all projects
           </p>
         </div>
         <Button variant="outline" onClick={fetchTimeline} disabled={loading} className="gap-2">
           <LucideRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Обновить
+          Refresh
         </Button>
       </div>
 
@@ -93,7 +93,7 @@ export function IntelligenceTimelineView() {
                   </span>
                   <span className="text-xs text-muted-foreground flex items-center gap-1 font-mono">
                     <LucideClock className="w-3.5 h-3.5" />
-                    {new Date(item.date).toLocaleString('ru-RU')}
+                    {new Date(item.date).toLocaleString('en-US')}
                   </span>
                 </div>
 
@@ -102,15 +102,15 @@ export function IntelligenceTimelineView() {
                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/50">
                   <span className="flex items-center gap-1">
                     <LucideUser className="w-3.5 h-3.5 text-primary" />
-                    Автор: <strong className="text-foreground">{item.owner}</strong>
+                    Author: <strong className="text-foreground">{item.owner}</strong>
                   </span>
-                  <span className="font-mono text-emerald-400">Диалог #{item.conversation_id}</span>
+                  <span className="font-mono text-emerald-400">Dialog #{item.conversation_id}</span>
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <p className="text-xs text-muted-foreground">Решения отобразятся по мере обработки сообщений пользователей.</p>
+          <p className="text-xs text-muted-foreground">Decision items will appear as conversational threads are processed.</p>
         )}
       </div>
     </div>

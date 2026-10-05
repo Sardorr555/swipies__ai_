@@ -53,67 +53,67 @@ const AdminNavigationLayout = () => {
   const navGroups: NavGroup[] = useMemo(
     () => [
       {
-        title: 'ASOSIY BOSHQARUV',
+        title: 'CORE MANAGEMENT',
         items: [
           {
             path: Routes.AdminDashboard,
-            name: 'Boshqaruv Paneli (Dashboard)',
+            name: 'Overview Dashboard',
             icon: <LayoutDashboard className="size-[1.1em] text-primary" />,
             badge: 'Live',
           },
           {
             path: Routes.AdminUserManagement,
-            name: t('admin.userManagement') || 'Foydalanuvchilar',
+            name: 'User Management',
             icon: <LucideUserCog className="size-[1.1em] text-blue-500" />,
           },
           {
             path: Routes.AdminPayments,
-            name: 'To‘lovlar & Daromad',
+            name: 'Payments & Revenue',
             icon: <CreditCard className="size-[1.1em] text-emerald-500" />,
           },
           {
             path: Routes.AdminAds,
-            name: 'Swipies Ads & Moderatsiya',
+            name: 'Swipies Ads & Moderation',
             icon: <Megaphone className="size-[1.1em] text-purple-500" />,
           },
         ],
       },
       {
-        title: 'TIZIM & AI SOZLAMALARI',
+        title: 'SYSTEM & AI CONFIGURATION',
         items: [
           {
             path: Routes.AdminPricingSettings,
-            name: 'Tariflar & Obunalar',
+            name: 'Plans & Subscriptions',
             icon: <Coins className="size-[1.1em] text-amber-500" />,
           },
           {
             path: Routes.AdminAIManagement,
-            name: 'AI Infratuzilma & LLM',
+            name: 'AI Infrastructure & LLM',
             icon: <Bot className="size-[1.1em] text-indigo-500" />,
           },
           {
             path: Routes.AdminSandboxSettings,
-            name: t('admin.sandboxSettings') || 'Sandbox Muhiti',
+            name: 'Sandbox Environment',
             icon: <LucideZap className="size-[1.1em] text-yellow-500" />,
           },
           {
             path: Routes.AdminServices,
-            name: t('admin.serviceStatus') || 'Xizmatlar Holati',
+            name: 'System Service Health',
             icon: <LucideServerCrash className="size-[1.1em] text-red-400" />,
           },
         ],
       },
       {
-        title: 'QO‘SHIMCHA XIZMATLAR',
+        title: 'EXTENSIONS & ENTERPRISE',
         items: [
           {
             path: Routes.AdminReferrals,
-            name: 'Referral Tizimi',
+            name: 'Referral Program',
             icon: <Gift className="size-[1.1em] text-pink-500" />,
           },
           {
             path: Routes.AdminLicenses,
-            name: 'Litsenziyalar',
+            name: 'License Management',
             icon: <Key className="size-[1.1em] text-cyan-500" />,
           },
           {
@@ -125,17 +125,17 @@ const AdminNavigationLayout = () => {
             ? [
                 {
                   path: Routes.AdminWhitelist,
-                  name: t('admin.registrationWhitelist') || 'Oq Ro‘yxat (Whitelist)',
+                  name: 'Registration Whitelist',
                   icon: <LucideUserStar className="size-[1.1em]" />,
                 },
                 {
                   path: Routes.AdminRoles,
-                  name: t('admin.roles') || 'Rollar va Huquqlar',
+                  name: 'Roles & Permissions',
                   icon: <LucideSquareUserRound className="size-[1.1em]" />,
                 },
                 {
                   path: Routes.AdminMonitoring,
-                  name: t('admin.monitoring') || 'Tizim Monitoringi',
+                  name: 'System Monitoring',
                   icon: <LucideMonitor className="size-[1.1em]" />,
                 },
               ]
@@ -143,7 +143,7 @@ const AdminNavigationLayout = () => {
         ],
       },
     ],
-    [t],
+    [],
   );
 
   const logoutMutation = useMutation({
@@ -241,7 +241,7 @@ const AdminNavigationLayout = () => {
             className="w-full text-xs font-semibold h-8 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
             onClick={() => logoutMutation.mutate()}
           >
-            {t('header.logout') || 'Chiqish'}
+            Logout
           </Button>
         </div>
       </aside>

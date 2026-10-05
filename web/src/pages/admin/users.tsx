@@ -170,7 +170,7 @@ function OnboardingStatsBanner() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold flex items-center gap-2 text-white">
-            📊 Onboarding Survey Statistics / Статистика Опросника
+            📊 Onboarding Survey Statistics
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
             Post-registration survey data & user professional background insights
@@ -219,7 +219,7 @@ function OnboardingStatsBanner() {
         {/* Goals Breakdown */}
         <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800">
           <div className="font-semibold text-slate-200 mb-3 flex items-center gap-1.5">
-            🎯 Primary Goals (Цели)
+            🎯 Primary Goals
           </div>
           <div className="space-y-2">
             {Object.keys(goals).length === 0 ? (
@@ -238,7 +238,7 @@ function OnboardingStatsBanner() {
         {/* Roles Breakdown */}
         <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800">
           <div className="font-semibold text-slate-200 mb-3 flex items-center gap-1.5">
-            💼 User Roles (Должности)
+            💼 User Roles
           </div>
           <div className="space-y-2">
             {Object.keys(roles).length === 0 ? (
@@ -257,7 +257,7 @@ function OnboardingStatsBanner() {
         {/* Team Sizes Breakdown */}
         <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800">
           <div className="font-semibold text-slate-200 mb-3 flex items-center gap-1.5">
-            👥 Team Sizes (Команда)
+            👥 Team Sizes
           </div>
           <div className="space-y-2">
             {Object.keys(team_sizes).length === 0 ? (
@@ -403,7 +403,7 @@ function AdminUserManagement() {
         header: t('admin.nickname'),
       }),
       columnHelper.accessor('create_date', {
-        header: 'Ro‘yxatdan o‘tgan sana (Created At)',
+        header: 'Registration Date',
         cell: ({ cell }) => {
           const val = cell.getValue();
           if (!val) return <span className="text-muted-foreground">-</span>;
@@ -710,27 +710,27 @@ function AdminUserManagement() {
           {/* Quick Real-Time User Analytics Strip */}
           <div className="mx-6 mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="p-3.5 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm">
-              <span className="text-[11px] font-semibold text-muted-foreground block">Jami Foydalanuvchilar</span>
+              <span className="text-[11px] font-semibold text-muted-foreground block">Total Users</span>
               <span className="text-xl font-black text-foreground mt-0.5 block">{userStatsSummary.total}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-sm">
-              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 block">Faol (Active)</span>
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 block">Active</span>
               <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">{userStatsSummary.active}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-zinc-500/20 bg-zinc-500/5 backdrop-blur-sm">
-              <span className="text-[11px] font-semibold text-muted-foreground block">Nofaol (Inactive)</span>
+              <span className="text-[11px] font-semibold text-muted-foreground block">Inactive</span>
               <span className="text-xl font-black text-zinc-600 dark:text-zinc-400 mt-0.5 block">{userStatsSummary.inactive}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-blue-500/20 bg-blue-500/5 backdrop-blur-sm">
-              <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 block">Bugun Qo'shilgan</span>
+              <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 block">Joined Today</span>
               <span className="text-xl font-black text-blue-600 dark:text-blue-400 mt-0.5 block">+{userStatsSummary.today}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-purple-500/20 bg-purple-500/5 backdrop-blur-sm">
-              <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 block">Bu Hafta (7d)</span>
+              <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 block">This Week (7d)</span>
               <span className="text-xl font-black text-purple-600 dark:text-purple-400 mt-0.5 block">+{userStatsSummary.thisWeek}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm">
-              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 block">Bu Oy (30d)</span>
+              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 block">This Month (30d)</span>
               <span className="text-xl font-black text-amber-600 dark:text-amber-400 mt-0.5 block">+{userStatsSummary.thisMonth}</span>
             </div>
           </div>

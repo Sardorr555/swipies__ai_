@@ -153,7 +153,7 @@ export default function AdminAdsPage() {
 
   const handleCreatePromo = async () => {
     if (!newPromoForm.code.trim()) {
-      message.error('Укажите код промокода');
+      message.error('Please specify promo code');
       return;
     }
     try {
@@ -166,7 +166,7 @@ export default function AdminAdsPage() {
         max_uses: parseInt(String(newPromoForm.max_uses)),
         expires_days: parseInt(String(newPromoForm.expires_days)),
       });
-      message.success('Промокод успешно создан!');
+      message.success('Promo code created successfully!');
       setIsPromoModalOpen(false);
       setNewPromoForm({
         code: '',
@@ -179,27 +179,27 @@ export default function AdminAdsPage() {
       });
       fetchAdminData();
     } catch (err: any) {
-      message.error(err.message || 'Ошибка создания промокода');
+      message.error(err.message || 'Failed to create promo code');
     }
   };
 
   const handleTogglePromo = async (promoId: string) => {
     try {
       await adService.adminTogglePromoCode(promoId);
-      message.success('Статус промокода изменен');
+      message.success('Promo code status updated');
       fetchAdminData();
     } catch (err: any) {
-      message.error(err.message || 'Ошибка изменения статуса');
+      message.error(err.message || 'Failed to update status');
     }
   };
 
   const handleDeletePromo = async (promoId: string) => {
     try {
       await adService.adminDeletePromoCode(promoId);
-      message.success('Промокод удален');
+      message.success('Promo code deleted');
       fetchAdminData();
     } catch (err: any) {
-      message.error(err.message || 'Ошибка удаления промокода');
+      message.error(err.message || 'Failed to delete promo code');
     }
   };
 

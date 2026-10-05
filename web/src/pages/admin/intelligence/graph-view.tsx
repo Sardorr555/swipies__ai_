@@ -192,7 +192,7 @@ export function IntelligenceGraphView() {
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Поиск сущностей в графе..."
+              placeholder="Search graph entities..."
               className="pl-9 h-9 w-60 text-xs rounded-lg bg-background"
             />
           </div>
@@ -204,7 +204,7 @@ export function IntelligenceGraphView() {
             className="h-9 px-3 gap-1.5 text-xs"
           >
             <LucideRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Обновить
+            Refresh
           </Button>
         </div>
 
@@ -234,7 +234,7 @@ export function IntelligenceGraphView() {
         <div className="bg-background rounded-2xl p-5 border border-border space-y-3 shadow-md">
           <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
             <LucideLayers className="w-4 h-4" />
-            Карточка Сущности
+            Entity Details
           </div>
 
           {selectedNode ? (
@@ -248,13 +248,13 @@ export function IntelligenceGraphView() {
                   {selectedNode.type}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">{selectedNode.description || 'Нет описания.'}</p>
+              <p className="text-xs text-muted-foreground">{selectedNode.description || 'No description provided.'}</p>
               <div className="pt-2 border-t border-border text-[11px] text-muted-foreground font-mono">
                 ID: {selectedNode.id}
               </div>
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">Выберите узел на графе для просмотра связей и метаданных.</p>
+            <p className="text-xs text-muted-foreground">Select a node on the graph to inspect relationships and metadata.</p>
           )}
         </div>
 
@@ -262,25 +262,25 @@ export function IntelligenceGraphView() {
         <div className="bg-background rounded-2xl p-5 border border-border space-y-3 flex-1 overflow-y-auto shadow-md">
           <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
             <LucideAlertTriangle className="w-4 h-4" />
-            Анализ Узких Мест (Bottlenecks)
+            Bottleneck Risk Analysis
           </div>
 
           <div className="space-y-2 text-xs">
             <p className="text-muted-foreground text-[11px]">
-              Мониторинг узлов графа знаний с высоким показателем зависимости (Degree Centrality).
+              Continuous monitoring of graph entities with high degree centrality and single-point dependencies.
             </p>
             {nodes.length > 0 ? (
               nodes.slice(0, 3).map((n) => (
                 <div key={n.id} className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-1">
                   <div className="font-bold text-foreground flex justify-between">
                     <span>{n.label}</span>
-                    <span className="text-amber-400 font-mono">Высокая связность</span>
+                    <span className="text-amber-400 font-mono">High Centrality</span>
                   </div>
-                  <div className="text-[10px] text-muted-foreground">Тип: {n.type}</div>
+                  <div className="text-[10px] text-muted-foreground">Type: {n.type}</div>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground">Сущности появятся по мере работы пользователей.</p>
+              <p className="text-xs text-muted-foreground">Entities will populate automatically as users interact with the system.</p>
             )}
           </div>
         </div>

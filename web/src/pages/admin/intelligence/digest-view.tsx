@@ -49,12 +49,12 @@ export function IntelligenceDigestView() {
       setDigest({
         decisions_count: 3,
         decisions: [
-          { decision: 'Переход на асинхронную шину событий Redis Streams', owner: 'Иван Иванов', conversation_id: 'conv_1' },
-          { decision: 'Внедрение модуля анонимизации PII для защиты личных данных', owner: 'Петр Сидоров', conversation_id: 'conv_2' },
+          { decision: 'Migrated to asynchronous Redis Streams event bus', owner: 'Dev Team', conversation_id: 'conv_1' },
+          { decision: 'Implemented PII anonymization module for sensitive data protection', owner: 'Security Team', conversation_id: 'conv_2' },
         ],
         risks_count: 2,
         risks: [
-          { risk: 'Узкое место знаний по алгоритму HNSW индексов на одном человеке', risk_level: 'High', conversation_id: 'conv_4' },
+          { risk: 'Knowledge bottleneck on HNSW vector index algorithms', risk_level: 'High', conversation_id: 'conv_4' },
         ],
         trending_topics: [
           { topic: 'Enterprise Intelligence Layer', count: 42 },
@@ -75,9 +75,9 @@ export function IntelligenceDigestView() {
   const handleExportExcel = async () => {
     try {
       window.open('/api/v1/intelligence/export/excel?global=true', '_blank');
-      message.success('Экспорт анкет онбординга в Excel/CSV успешно запущен!');
+      message.success('Exporting onboarding surveys to Excel/CSV...');
     } catch {
-      message.error('Ошибка выгрузки файла');
+      message.error('Failed to export file');
     }
   };
 
@@ -89,9 +89,9 @@ export function IntelligenceDigestView() {
     <div className="flex flex-col gap-6 w-full max-w-6xl mx-auto space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-2xl">Глобальные Дайджесты Платформы (Executive Digest)</h3>
+          <h3 className="font-bold text-2xl">Executive Intelligence Digest</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Сводный анализ всех решений, рисков, трендов и анкет онбординга всех пользователей
+            Aggregated analysis of decisions, architectural risks, platform trends, and user onboarding surveys
           </p>
         </div>
 
@@ -103,7 +103,7 @@ export function IntelligenceDigestView() {
             className="gap-1.5 text-xs text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20"
           >
             <LucideFileSpreadsheet className="w-4 h-4" />
-            Скачать Excel Анкет
+            Download Surveys Excel
           </Button>
 
           <Button
@@ -113,7 +113,7 @@ export function IntelligenceDigestView() {
             className="gap-1.5 text-xs"
           >
             <LucidePrinter className="w-4 h-4" />
-            Печать / PDF Отчет
+            Print / PDF Report
           </Button>
 
           <Button
@@ -124,7 +124,7 @@ export function IntelligenceDigestView() {
             className="gap-1.5 text-xs"
           >
             <LucideRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Обновить
+            Refresh
           </Button>
         </div>
       </div>
@@ -132,29 +132,29 @@ export function IntelligenceDigestView() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div className="bg-background rounded-2xl p-5 border border-emerald-500/30 bg-emerald-500/5 space-y-1">
           <div className="flex items-center justify-between text-emerald-400 font-bold text-xs uppercase">
-            <span>Решения по всей платформе</span>
+            <span>Platform Decisions</span>
             <LucideRocket className="w-5 h-5" />
           </div>
           <div className="text-3xl font-extrabold">{digest?.decisions_count || 0}</div>
-          <div className="text-xs text-muted-foreground">Принятых решений</div>
+          <div className="text-xs text-muted-foreground">Recorded Decisions</div>
         </div>
 
         <div className="bg-background rounded-2xl p-5 border border-amber-500/30 bg-amber-500/5 space-y-1">
           <div className="flex items-center justify-between text-amber-400 font-bold text-xs uppercase">
-            <span>Риски на Платформе</span>
+            <span>Identified Risks</span>
             <LucideAlertTriangle className="w-5 h-5" />
           </div>
           <div className="text-3xl font-extrabold">{digest?.risks_count || 0}</div>
-          <div className="text-xs text-muted-foreground">Нерешенных вопросов</div>
+          <div className="text-xs text-muted-foreground">Pending Items</div>
         </div>
 
         <div className="bg-background rounded-2xl p-5 border border-purple-500/30 bg-purple-500/5 space-y-1">
           <div className="flex items-center justify-between text-purple-400 font-bold text-xs uppercase">
-            <span>Тренды Платформы</span>
+            <span>Platform Trends</span>
             <LucideTrendingUp className="w-5 h-5" />
           </div>
           <div className="text-3xl font-extrabold">{digest?.trending_topics.length || 0}</div>
-          <div className="text-xs text-muted-foreground">Обсуждаемых стеков</div>
+          <div className="text-xs text-muted-foreground">Active Topics</div>
         </div>
       </div>
 
@@ -162,7 +162,7 @@ export function IntelligenceDigestView() {
         <div className="bg-background rounded-2xl p-5 border border-border space-y-4">
           <h4 className="font-bold text-base flex items-center gap-2 text-emerald-400">
             <LucideRocket className="w-5 h-5" />
-            🚀 Принятые Архитектурные Решения
+            🚀 Accepted Architectural Decisions
           </h4>
           <div className="space-y-3">
             {digest?.decisions && digest.decisions.length > 0 ? (
@@ -170,13 +170,13 @@ export function IntelligenceDigestView() {
                 <div key={i} className="p-3.5 rounded-xl border border-border bg-background/50 space-y-1">
                   <div className="font-bold text-sm">{dec.decision}</div>
                   <div className="text-xs text-muted-foreground flex justify-between">
-                    <span>Автор: <strong className="text-foreground">{dec.owner}</strong></span>
-                    <span className="font-mono text-emerald-400">#Подтверждено ИИ</span>
+                    <span>Author: <strong className="text-foreground">{dec.owner}</strong></span>
+                    <span className="font-mono text-emerald-400">#AI Verified</span>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground">Решения пока не зафиксированы.</p>
+              <p className="text-xs text-muted-foreground">No decisions recorded yet.</p>
             )}
           </div>
         </div>
@@ -184,7 +184,7 @@ export function IntelligenceDigestView() {
         <div className="bg-background rounded-2xl p-5 border border-border space-y-4">
           <h4 className="font-bold text-base flex items-center gap-2 text-amber-400">
             <LucideAlertTriangle className="w-5 h-5" />
-            ⚠️ Выявленные Риски и Вопросы
+            ⚠️ Identified Risks & Bottlenecks
           </h4>
           <div className="space-y-3">
             {digest?.risks && digest.risks.length > 0 ? (
@@ -192,13 +192,13 @@ export function IntelligenceDigestView() {
                 <div key={i} className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-1">
                   <div className="font-bold text-sm">{r.risk}</div>
                   <div className="text-xs text-amber-300 font-semibold flex justify-between">
-                    <span>Уровень риска: {r.risk_level}</span>
-                    <span className="font-mono text-muted-foreground">Диалог #{r.conversation_id}</span>
+                    <span>Risk Level: {r.risk_level}</span>
+                    <span className="font-mono text-muted-foreground">Dialog #{r.conversation_id}</span>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground">Критичные риски не выявлены.</p>
+              <p className="text-xs text-muted-foreground">No critical risks identified.</p>
             )}
           </div>
         </div>
@@ -209,7 +209,7 @@ export function IntelligenceDigestView() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-primary font-bold text-lg">
             <LucideUsers className="w-6 h-6" />
-            👤 Таблица Онбординг-Анкет Всех Пользователей Платформы
+            👤 User Onboarding Survey Records
           </div>
 
           <Button
@@ -219,7 +219,7 @@ export function IntelligenceDigestView() {
             className="gap-1.5 text-xs text-emerald-400 border-emerald-500/30"
           >
             <LucideFileSpreadsheet className="w-3.5 h-3.5" />
-            Выгрузить в Excel
+            Export to Excel
           </Button>
         </div>
 
@@ -228,11 +228,11 @@ export function IntelligenceDigestView() {
             <table className="w-full text-left text-xs">
               <thead className="bg-background border-b border-border text-muted-foreground uppercase">
                 <tr>
-                  <th className="p-3">Пользователь / Email</th>
-                  <th className="p-3">Компания / Сфера</th>
-                  <th className="p-3">Роль / Должность</th>
-                  <th className="p-3">Главная цель</th>
-                  <th className="p-3">Планируемое использование</th>
+                  <th className="p-3">User / Email</th>
+                  <th className="p-3">Company / Industry</th>
+                  <th className="p-3">Role / Title</th>
+                  <th className="p-3">Primary Goal</th>
+                  <th className="p-3">Intended Use</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -243,7 +243,7 @@ export function IntelligenceDigestView() {
                       <div className="text-[10px] text-muted-foreground">{o.user_email}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-semibold text-foreground">{o.company_name || 'Не указана'}</div>
+                      <div className="font-semibold text-foreground">{o.company_name || 'Not specified'}</div>
                       <div className="text-[10px] text-muted-foreground">{o.industry} ({o.company_size})</div>
                     </td>
                     <td className="p-3 font-semibold text-primary">{o.role || '—'}</td>
@@ -255,7 +255,7 @@ export function IntelligenceDigestView() {
             </table>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">Анкеты пользователей отобразятся здесь по мере прохождения Онбординга.</p>
+          <p className="text-xs text-muted-foreground">User survey submissions will appear here as users complete onboarding.</p>
         )}
       </div>
     </div>
