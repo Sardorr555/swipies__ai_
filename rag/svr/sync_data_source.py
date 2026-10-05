@@ -2418,6 +2418,7 @@ class Kommo(SyncBase):
         self.connector = AmoCRMConnector(
             batch_size=batch_size,
             entities=entities,
+            is_kommo=True,
         )
         self.connector.load_credentials(self.conf.get("credentials") or {})
         self.connector.validate_connector_settings()
@@ -2513,7 +2514,8 @@ class OneC(SyncBase):
             document_generator = self.connector.poll_source(poll_start.timestamp(), end_time)
             _begin_info = f"from {poll_start}"
 
-        base_url = (self.conf.get("credentials") or {}).get("odata_base_url", "")
+        creds = self.conf.get("credentials") or {}
+        base_url = creds.get("base_url") or creds.get("odata_base_url", "")
         self.log_connection("1C", f"{base_url} catalogs({','.join(self.connector.catalogs)})", task)
         return document_generator
 

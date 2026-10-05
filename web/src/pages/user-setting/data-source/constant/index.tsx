@@ -744,8 +744,22 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       name: 'config.entities',
       type: FormFieldType.Text,
       required: false,
-      placeholder: 'lead, contact, company',
-      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to lead, contact, company)',
+      placeholder: 'leads, contacts, companies',
+      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to leads, contacts, companies)',
+    },
+    {
+      label: t('setting.dataSourceFieldBatchSize'),
+      name: 'config.batch_size',
+      type: FormFieldType.Number,
+      required: false,
+      tooltip: 'Batch size for fetching CRM records (1-250, default: 50)',
+      validation: {
+        min: 1,
+        max: 250,
+        message: t('setting.dataSourceValidationMinOne', {
+          label: t('setting.dataSourceFieldBatchSize'),
+        }),
+      },
     },
   ],
   [DataSourceKey.KOMMO]: [
@@ -783,8 +797,22 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       name: 'config.entities',
       type: FormFieldType.Text,
       required: false,
-      placeholder: 'lead, contact, company',
-      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to lead, contact, company)',
+      placeholder: 'leads, contacts, companies',
+      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to leads, contacts, companies)',
+    },
+    {
+      label: t('setting.dataSourceFieldBatchSize'),
+      name: 'config.batch_size',
+      type: FormFieldType.Number,
+      required: false,
+      tooltip: 'Batch size for fetching CRM records (1-250, default: 50)',
+      validation: {
+        min: 1,
+        max: 250,
+        message: t('setting.dataSourceValidationMinOne', {
+          label: t('setting.dataSourceFieldBatchSize'),
+        }),
+      },
     },
   ],
   [DataSourceKey.BITRIX24]: [
@@ -812,6 +840,20 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       placeholder: 'deal, lead, contact, company, product',
       tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to deal, lead, contact, company, product)',
     },
+    {
+      label: t('setting.dataSourceFieldBatchSize'),
+      name: 'config.batch_size',
+      type: FormFieldType.Number,
+      required: false,
+      tooltip: 'Batch size for fetching CRM records (1-50, default: 50)',
+      validation: {
+        min: 1,
+        max: 50,
+        message: t('setting.dataSourceValidationMinOne', {
+          label: t('setting.dataSourceFieldBatchSize'),
+        }),
+      },
+    },
   ],
   [DataSourceKey.HUBSPOT]: [
     {
@@ -827,8 +869,22 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       name: 'config.entities',
       type: FormFieldType.Text,
       required: false,
-      placeholder: 'deal, contact, company, product',
-      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to deal, contact, company, product)',
+      placeholder: 'deals, contacts, companies, products',
+      tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to deals, contacts, companies, products)',
+    },
+    {
+      label: t('setting.dataSourceFieldBatchSize'),
+      name: 'config.batch_size',
+      type: FormFieldType.Number,
+      required: false,
+      tooltip: 'Batch size for fetching CRM records (1-100, default: 50)',
+      validation: {
+        min: 1,
+        max: 100,
+        message: t('setting.dataSourceValidationMinOne', {
+          label: t('setting.dataSourceFieldBatchSize'),
+        }),
+      },
     },
   ],
   [DataSourceKey.ONE_C]: [
@@ -860,7 +916,7 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       name: 'config.catalogs',
       type: FormFieldType.Text,
       required: false,
-      placeholder: 'Catalog_Номенклатура',
+      placeholder: 'Catalog_Номенклатура, Document_ЗаказКлиента',
       tooltip: 'Comma-separated 1C OData catalogs or documents to index into Knowledge Base',
     },
     {
@@ -870,6 +926,20 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: false,
       placeholder: 'Catalog_Номенклатура',
       tooltip: '1C OData entity set name (default: Catalog_Номенклатура)',
+    },
+    {
+      label: t('setting.dataSourceFieldBatchSize'),
+      name: 'config.batch_size',
+      type: FormFieldType.Number,
+      required: false,
+      tooltip: 'Batch size for fetching 1C records (1-200, default: 50)',
+      validation: {
+        min: 1,
+        max: 200,
+        message: t('setting.dataSourceValidationMinOne', {
+          label: t('setting.dataSourceFieldBatchSize'),
+        }),
+      },
     },
   ],
   [DataSourceKey.AZURE_BLOB]: [
@@ -2797,6 +2867,8 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.AMOCRM,
     config: {
+      entities: 'leads, contacts, companies',
+      batch_size: 50,
       credentials: {
         subdomain: '',
         client_id: '',
@@ -2809,6 +2881,8 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.KOMMO,
     config: {
+      entities: 'leads, contacts, companies',
+      batch_size: 50,
       credentials: {
         subdomain: '',
         client_id: '',
@@ -2821,6 +2895,8 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.BITRIX24,
     config: {
+      entities: 'deal, lead, contact, company, product',
+      batch_size: 50,
       credentials: {
         domain: '',
         access_token: '',
@@ -2831,6 +2907,8 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.HUBSPOT,
     config: {
+      entities: 'deals, contacts, companies, products',
+      batch_size: 50,
       credentials: {
         access_token: '',
       },
@@ -2840,6 +2918,8 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.ONE_C,
     config: {
+      catalogs: 'Catalog_Номенклатура',
+      batch_size: 50,
       credentials: {
         base_url: '',
         username: '',

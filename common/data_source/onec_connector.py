@@ -52,17 +52,20 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
         username: str = "",
         password: str = "",
         entity_path: Optional[str | List[str]] = None,
+        catalogs: Optional[str | List[str]] = None,
         batch_size: int = 50,
     ) -> None:
         self.base_url = (base_url or "").strip().rstrip("/")
         self.username = (username or "").strip()
         self.password = password or ""
-        if isinstance(entity_path, str):
-            self.entity_paths = [p.strip() for p in entity_path.split(",") if p.strip()]
-        elif isinstance(entity_path, list):
-            self.entity_paths = [str(p).strip() for p in entity_path if str(p).strip()]
+        raw_path = entity_path if entity_path is not None else catalogs
+        if isinstance(raw_path, str):
+            self.entity_paths = [p.strip() for p in raw_path.split(",") if p.strip()]
+        elif isinstance(raw_path, list):
+            self.entity_paths = [str(p).strip() for p in raw_path if str(p).strip()]
         else:
             self.entity_paths = [DEFAULT_ENTITY]
+        self.catalogs = list(self.entity_paths)
         self.batch_size = max(1, min(int(batch_size or 50), 200))
         self.transport = CRMTransport(
             private_cidr_allowlist_env="RAGFLOW_CRM_PRIVATE_ALLOWLIST_CIDR",
@@ -76,7 +79,13 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
         base_url = creds.get("base_url") or ""
         username = creds.get("username") or ""
         password = creds.get("password") or ""
-        entity_path = config.get("entity_path") or creds.get("entity_path") or DEFAULT_ENTITY
+        entity_path = (
+            config.get("catalogs")
+            or config.get("entity_path")
+            or creds.get("catalogs")
+            or creds.get("entity_path")
+            or DEFAULT_ENTITY
+        )
         batch_size = int(config.get("batch_size") or 50)
         connector = cls(
             base_url=base_url,
@@ -89,7 +98,7 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
         return connector
 
     def load_credentials(self, credentials: Dict[str, Any]) -> Dict[str, Any] | None:
-        url = credentials.get("base_url")
+        url = credentials.get("base_url") or credentials.get("odata_base_url")
         if url:
             self.base_url = url.strip().rstrip("/")
         user = credentials.get("username")
@@ -98,12 +107,13 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
         pwd = credentials.get("password")
         if pwd is not None:
             self.password = pwd
-        epath = credentials.get("entity_path")
+        epath = credentials.get("catalogs") or credentials.get("entity_path")
         if epath:
             if isinstance(epath, str):
                 self.entity_paths = [p.strip() for p in epath.split(",") if p.strip()]
             elif isinstance(epath, list):
                 self.entity_paths = [str(p).strip() for p in epath if str(p).strip()]
+            self.catalogs = list(self.entity_paths)
         return None
 
     def _headers(self) -> Dict[str, str]:

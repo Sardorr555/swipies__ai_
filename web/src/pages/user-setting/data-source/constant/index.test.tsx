@@ -119,3 +119,53 @@ describe('Sitemap data source', () => {
     expect(batchSize?.validation?.min).toBe(1);
   });
 });
+
+describe('CRM data sources', () => {
+  const crmKeys = [
+    DataSourceKey.BITRIX24,
+    DataSourceKey.AMOCRM,
+    DataSourceKey.KOMMO,
+    DataSourceKey.HUBSPOT,
+    DataSourceKey.ONE_C,
+  ];
+
+  it('registers all 5 CRM platforms in catalog info', () => {
+    const info = generateDataSourceInfo(translate);
+    crmKeys.forEach((key) => {
+      expect(info[key]).toBeDefined();
+      expect(info[key].name).toBeTruthy();
+      expect(info[key].description).toBeTruthy();
+    });
+  });
+
+  it('defines default batch_size and entity configurations', () => {
+    crmKeys.forEach((key) => {
+      const defaults = DataSourceFormDefaultValues[key];
+      expect(defaults).toBeDefined();
+      expect(defaults.source).toBe(key);
+      expect(defaults.config.batch_size).toBe(50);
+      expect(defaults.config.credentials).toBeDefined();
+    });
+  });
+
+  it('protects sensitive tokens/secrets with Password field type and bounds batch sizes', () => {
+    crmKeys.forEach((key) => {
+      const fields = getDataSourceFieldsWithExtras(translate, key) as Array<{
+        name: string;
+        type?: FormFieldType;
+        required?: boolean;
+        validation?: { min?: number; max?: number };
+      }>;
+
+      const passwordFields = fields.filter((f) => f.type === FormFieldType.Password);
+      expect(passwordFields.length).toBeGreaterThan(0);
+
+      const batchSizeField = fields.find((f) => f.name === 'config.batch_size');
+      expect(batchSizeField).toBeDefined();
+      expect(batchSizeField?.type).toBe(FormFieldType.Number);
+      expect(batchSizeField?.validation?.min).toBe(1);
+      expect(batchSizeField?.validation?.max).toBeGreaterThan(1);
+    });
+  });
+});
+

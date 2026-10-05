@@ -94,6 +94,17 @@ CRM_SOURCE_FIELD_MAPS: dict[str, dict[str, str]] = {
         "date": "Document Date",
         "posted": "Document Posted Status",
     },
+    FileSource.SALESFORCE: {
+        "id": "Salesforce Object ID",
+        "name": "Record Name",
+        "amount": "Opportunity Amount",
+        "stage_name": "Opportunity Stage Name",
+        "close_date": "Expected Close Date",
+        "email": "Contact Email",
+        "phone": "Phone Number",
+        "account_id": "Associated Account ID",
+        "entity_type": "Salesforce Object Type",
+    },
 }
 
 CRM_SOURCES: frozenset[str] = frozenset(CRM_SOURCE_FIELD_MAPS.keys())
@@ -107,6 +118,7 @@ _CRM_SOURCE_ALIASES: dict[str, str] = {
     "onec": FileSource.ONE_C,
     "one_c": FileSource.ONE_C,
     "1c": FileSource.ONE_C,
+    "salesforce": FileSource.SALESFORCE,
 }
 
 
