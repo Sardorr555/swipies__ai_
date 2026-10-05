@@ -231,10 +231,15 @@ class AmoCRMClient(CRMProviderBase):
             url = str(config["base_url"]).strip().rstrip("/")
         else:
             subdomain = str(config.get("subdomain", "")).strip().lower()
-            zone = str(config.get("zone", "amocrm.ru")).strip().lower()
             if not subdomain:
                 raise AmoCRMDomainError("Missing 'subdomain' or 'base_url' in amoCRM connection configuration.")
-            url = f"https://{subdomain}.{zone}"
+            if subdomain.startswith("https://") or subdomain.startswith("http://"):
+                url = subdomain.rstrip("/")
+            elif "." in subdomain:
+                url = f"https://{subdomain}".rstrip("/")
+            else:
+                zone = str(config.get("zone", "amocrm.ru")).strip().lower().lstrip(".")
+                url = f"https://{subdomain}.{zone}"
 
         valid, err_or_host = is_valid_amocrm_url(url)
         if not valid:

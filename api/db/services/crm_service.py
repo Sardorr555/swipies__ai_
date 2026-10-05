@@ -60,20 +60,95 @@ class CRMConnectionService(CommonService):
         return list(query.order_by(cls.model.create_time.desc()))
 
     @classmethod
+    def _mirror_connector_to_connection(cls, connector: Any, tenant_id: str) -> Optional[CRMConnection]:
+        """Helper to mirror a Connector from ConnectorService into a CRMConnection record."""
+        try:
+            conn_id = getattr(connector, "id", None)
+            if conn_id:
+                ok, existing = cls.get_by_id_and_tenant(conn_id, tenant_id)
+                if ok and existing:
+                    return existing
+
+            creds = (connector.config or {}).get("credentials") or connector.config or {}
+            source = getattr(connector, "source", "")
+            crm_type = "amocrm" if source in {"amocrm", "kommo"} else ("1c_odata" if source in {"1c_odata", "1c"} else ("hubspot" if source == "hubspot" else "bitrix24"))
+            auth_type = "oauth2" if crm_type in {"amocrm", "hubspot"} else ("basic" if crm_type == "1c_odata" else "webhook")
+            crm_cfg = dict(creds)
+            if isinstance(connector.config, dict) and "management_enabled" in connector.config:
+                crm_cfg["management_enabled"] = connector.config["management_enabled"]
+
+            if crm_type == "amocrm":
+                crm_cfg.setdefault("base_domain", creds.get("subdomain", ""))
+            elif crm_type == "bitrix24":
+                crm_cfg["webhook_url"] = creds.get("webhook_url") or creds.get("access_token", "")
+                crm_cfg.setdefault("default_phone_region", creds.get("phone_region", "RU"))
+
+            return cls.save_connection(
+                tenant_id=tenant_id,
+                name=getattr(connector, "name", None) or f"{crm_type.upper()} Connector",
+                crm_type=crm_type,
+                auth_type=auth_type,
+                config=crm_cfg,
+                connection_id=conn_id,
+            )
+        except Exception as e:
+            logger.warning("Failed to mirror connector %s to CRMConnection: %s", getattr(connector, "id", None), e)
+            return None
+
+    @classmethod
     @DB.connection_context()
-    def resolve_active_connection(cls, tenant_id: str, connection_id: Optional[str] = None) -> Tuple[bool, Optional[CRMConnection]]:
-        """Resolve active CRM connection for tenant by explicit ID or first active connection."""
+    def resolve_active_connection(
+        cls,
+        tenant_id: str,
+        connection_id: Optional[str] = None,
+        require_management: bool = False,
+    ) -> Tuple[bool, Optional[CRMConnection]]:
+        """Resolve active CRM connection for tenant by explicit ID or first active connection.
+        
+        If not found directly in CRMConnection, automatically attempts discovery and fallback
+        from ConnectorService (Data Source UI).
+        """
         if not tenant_id:
             return False, None
+
+        conn: Optional[CRMConnection] = None
+
         if connection_id:
-            ok, conn = cls.get_by_id_and_tenant(connection_id, tenant_id)
-            if ok and conn and conn.status == "active":
-                return True, conn
+            ok, found_conn = cls.get_by_id_and_tenant(connection_id, tenant_id)
+            if ok and found_conn and found_conn.status == "active":
+                conn = found_conn
+            else:
+                try:
+                    from api.db.services.connector_service import ConnectorService
+                    ok_c, connector = ConnectorService.get_by_id(connection_id)
+                    if ok_c and connector and getattr(connector, "tenant_id", None) == tenant_id:
+                        conn = cls._mirror_connector_to_connection(connector, tenant_id)
+                except Exception as e:
+                    logger.debug("Connector fallback by id failed: %s", e)
+        else:
+            conns = cls.query_by_tenant(tenant_id, status="active")
+            if conns:
+                conn = conns[0]
+            else:
+                try:
+                    from api.db.services.connector_service import ConnectorService
+                    connectors = ConnectorService.query(tenant_id=tenant_id)
+                    crm_connectors = [
+                        c for c in connectors
+                        if getattr(c, "source", None) in {"amocrm", "bitrix24", "bitrix24_onprem", "1c_odata", "1c", "kommo", "hubspot"}
+                    ]
+                    if crm_connectors:
+                        conn = cls._mirror_connector_to_connection(crm_connectors[0], tenant_id)
+                except Exception as e:
+                    logger.debug("Connector discovery fallback failed: %s", e)
+
+        if not conn:
             return False, None
-        conns = cls.query_by_tenant(tenant_id, status="active")
-        if conns:
-            return True, conns[0]
-        return False, None
+
+        if require_management and not cls.is_management_enabled(conn):
+            return False, None
+
+        return True, conn
 
     @classmethod
     @DB.connection_context()

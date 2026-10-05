@@ -209,43 +209,12 @@ class CreateIncomingLead(ToolBase, ABC):
 
         # 5. Resolve active CRMConnection & configured region (Point 6)
         conn_id = getattr(self._param, "connection_id", "") or ""
-        if conn_id:
-            ok, conn = CRMConnectionService.get_by_id_and_tenant(conn_id, tenant_id)
-            if not ok or not conn:
+        ok, conn = CRMConnectionService.resolve_active_connection(tenant_id, conn_id if conn_id else None)
+        if not ok or not conn:
+            if conn_id:
                 raise ValueError(f"Configured CRM connection '{conn_id}' was not found for tenant '{tenant_id}'.")
-        else:
-            conns = CRMConnectionService.query_by_tenant(tenant_id, status="active")
-            if not conns:
-                try:
-                    from api.db.services.connector_service import ConnectorService
-                    connectors = ConnectorService.query(tenant_id=tenant_id)
-                    crm_connectors = [c for c in connectors if getattr(c, "source", None) in {"amocrm", "bitrix24", "bitrix24_onprem", "1c_odata", "kommo"}]
-                    if crm_connectors:
-                        c = crm_connectors[0]
-                        creds = (c.config or {}).get("credentials") or c.config or {}
-                        crm_type = "amocrm" if c.source in {"amocrm", "kommo"} else ("1c_odata" if c.source == "1c_odata" else "bitrix24")
-                        auth_type = "oauth2" if crm_type == "amocrm" else ("basic" if crm_type == "1c_odata" else "webhook")
-                        crm_cfg = dict(creds)
-                        if crm_type == "amocrm":
-                            crm_cfg.setdefault("base_domain", creds.get("subdomain", ""))
-                        elif crm_type == "bitrix24":
-                            crm_cfg["webhook_url"] = creds.get("webhook_url") or creds.get("access_token", "")
-                            crm_cfg.setdefault("default_phone_region", creds.get("phone_region", "RU"))
-                        conn = CRMConnectionService.save_connection(
-                            tenant_id=tenant_id,
-                            name=c.name or "CRM Connector",
-                            crm_type=crm_type,
-                            auth_type=auth_type,
-                            config=crm_cfg,
-                            connection_id=c.id,
-                        )
-                        conns = [conn]
-                except Exception:
-                    pass
-            if not conns:
-                raise ValueError(f"No active CRM connection found for tenant '{tenant_id}'. Please configure a CRM connection first.")
-            conn = conns[0]
-            conn_id = conn.id
+            raise ValueError(f"No active CRM connection found for tenant '{tenant_id}'. Please configure a CRM connection first.")
+        conn_id = conn.id
 
         # Enforce CRM management/write permission check
         if not CRMConnectionService.is_management_enabled(conn):

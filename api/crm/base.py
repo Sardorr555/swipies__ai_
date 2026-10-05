@@ -129,7 +129,7 @@ class CRMProviderRegistry:
         if crm_type in cls._providers:
             return cls._providers[crm_type]
 
-        if crm_type == "amocrm":
+        if crm_type in ("amocrm", "kommo"):
             from api.crm.clients.amocrm import AmoCRMClient
             provider = AmoCRMClient()
             cls._providers[crm_type] = provider

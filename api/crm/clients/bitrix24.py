@@ -212,14 +212,23 @@ class Bitrix24Client(CRMProviderBase):
         webhook_url = config.get("webhook_url") or config.get("base_url")
 
         if not webhook_url:
-            portal_url = config.get("portal_url", "").strip().rstrip("/")
+            portal_url = (config.get("portal_url") or config.get("domain") or "").strip().rstrip("/")
+            if portal_url and not portal_url.startswith("http"):
+                portal_url = f"https://{portal_url}"
             user_id = str(config.get("user_id", "")).strip()
-            secret = str(config.get("webhook_secret") or config.get("webhook_key", "")).strip()
-            if not portal_url or not user_id or not secret:
+            secret = str(config.get("webhook_secret") or config.get("webhook_key") or config.get("access_token") or "").strip()
+
+            if portal_url and secret and not user_id and "/" in secret:
+                secret_clean = secret.lstrip("/").replace("rest/", "")
+                webhook_url = f"{portal_url}/rest/{secret_clean}"
+            elif portal_url and user_id and secret:
+                webhook_url = f"{portal_url}/rest/{user_id}/{secret}"
+            elif portal_url and secret and not user_id:
+                webhook_url = f"{portal_url}/rest/1/{secret}"
+            else:
                 raise Bitrix24DomainError(
                     "Missing 'webhook_url' or ('portal_url', 'user_id', 'webhook_secret') in configuration."
                 )
-            webhook_url = f"{portal_url}/rest/{user_id}/{secret}"
 
         webhook_url = webhook_url.strip().rstrip("/")
 
