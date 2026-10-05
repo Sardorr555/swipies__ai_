@@ -746,6 +746,27 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: false,
       placeholder: 'leads, contacts, companies',
       tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to leads, contacts, companies)',
+      options: [
+        { label: 'Leads / Deals (Сделки)', value: 'leads' },
+        { label: 'Contacts (Контакты)', value: 'contacts' },
+        { label: 'Companies (Компании)', value: 'companies' },
+        { label: 'Customers (Покупатели)', value: 'customers' },
+      ],
+    },
+    {
+      label: 'Sync Frequency / Interval',
+      name: 'config.sync_frequency',
+      type: FormFieldType.Select,
+      required: false,
+      defaultValue: '1h',
+      tooltip: 'How often RAGFlow checks and synchronizes new/updated records from CRM',
+      options: [
+        { label: 'Every 15 minutes (15 минут)', value: '15m' },
+        { label: 'Hourly (Каждый час)', value: '1h' },
+        { label: 'Every 6 hours (Каждые 6 часов)', value: '6h' },
+        { label: 'Daily (Раз в сутки)', value: '24h' },
+        { label: 'Manual only (Только вручную)', value: 'manual' },
+      ],
     },
     {
       label: t('setting.dataSourceFieldBatchSize'),
@@ -799,6 +820,27 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: false,
       placeholder: 'leads, contacts, companies',
       tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to leads, contacts, companies)',
+      options: [
+        { label: 'Leads / Deals (Сделки)', value: 'leads' },
+        { label: 'Contacts (Контакты)', value: 'contacts' },
+        { label: 'Companies (Компании)', value: 'companies' },
+        { label: 'Customers (Покупатели)', value: 'customers' },
+      ],
+    },
+    {
+      label: 'Sync Frequency / Interval',
+      name: 'config.sync_frequency',
+      type: FormFieldType.Select,
+      required: false,
+      defaultValue: '1h',
+      tooltip: 'How often RAGFlow checks and synchronizes new/updated records from CRM',
+      options: [
+        { label: 'Every 15 minutes (15 минут)', value: '15m' },
+        { label: 'Hourly (Каждый час)', value: '1h' },
+        { label: 'Every 6 hours (Каждые 6 часов)', value: '6h' },
+        { label: 'Daily (Раз в сутки)', value: '24h' },
+        { label: 'Manual only (Только вручную)', value: 'manual' },
+      ],
     },
     {
       label: t('setting.dataSourceFieldBatchSize'),
@@ -839,6 +881,28 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: false,
       placeholder: 'deal, lead, contact, company, product',
       tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to deal, lead, contact, company, product)',
+      options: [
+        { label: 'Deals (Сделки)', value: 'deal' },
+        { label: 'Leads (Лиды)', value: 'lead' },
+        { label: 'Contacts (Контакты)', value: 'contact' },
+        { label: 'Companies (Компании)', value: 'company' },
+        { label: 'Products (Товары)', value: 'product' },
+      ],
+    },
+    {
+      label: 'Sync Frequency / Interval',
+      name: 'config.sync_frequency',
+      type: FormFieldType.Select,
+      required: false,
+      defaultValue: '1h',
+      tooltip: 'How often RAGFlow checks and synchronizes new/updated records from CRM',
+      options: [
+        { label: 'Every 15 minutes (15 минут)', value: '15m' },
+        { label: 'Hourly (Каждый час)', value: '1h' },
+        { label: 'Every 6 hours (Каждые 6 часов)', value: '6h' },
+        { label: 'Daily (Раз в сутки)', value: '24h' },
+        { label: 'Manual only (Только вручную)', value: 'manual' },
+      ],
     },
     {
       label: t('setting.dataSourceFieldBatchSize'),
@@ -871,6 +935,28 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: false,
       placeholder: 'deals, contacts, companies, products',
       tooltip: 'Comma-separated CRM entities to index into Knowledge Base (defaults to deals, contacts, companies, products)',
+      options: [
+        { label: 'Deals (Сделки)', value: 'deals' },
+        { label: 'Contacts (Контакты)', value: 'contacts' },
+        { label: 'Companies (Компании)', value: 'companies' },
+        { label: 'Products (Товары)', value: 'products' },
+        { label: 'Tickets (Тикеты)', value: 'tickets' },
+      ],
+    },
+    {
+      label: 'Sync Frequency / Interval',
+      name: 'config.sync_frequency',
+      type: FormFieldType.Select,
+      required: false,
+      defaultValue: '1h',
+      tooltip: 'How often RAGFlow checks and synchronizes new/updated records from CRM',
+      options: [
+        { label: 'Every 15 minutes (15 минут)', value: '15m' },
+        { label: 'Hourly (Каждый час)', value: '1h' },
+        { label: 'Every 6 hours (Каждые 6 часов)', value: '6h' },
+        { label: 'Daily (Раз в сутки)', value: '24h' },
+        { label: 'Manual only (Только вручную)', value: 'manual' },
+      ],
     },
     {
       label: t('setting.dataSourceFieldBatchSize'),
@@ -918,6 +1004,27 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: false,
       placeholder: 'Catalog_Номенклатура, Document_ЗаказКлиента',
       tooltip: 'Comma-separated 1C OData catalogs or documents to index into Knowledge Base',
+      options: [
+        { label: 'Catalog_Номенклатура (Товары и услуги)', value: 'Catalog_Номенклатура' },
+        { label: 'Catalog_Контрагенты (Клиенты и партнеры)', value: 'Catalog_Контрагенты' },
+        { label: 'Document_ЗаказКлиента (Заказы клиентов)', value: 'Document_ЗаказКлиента' },
+        { label: 'Document_РеализацияТоваровУслуг (Реализации)', value: 'Document_РеализацияТоваровУслуг' },
+      ],
+    },
+    {
+      label: 'Sync Frequency / Interval',
+      name: 'config.sync_frequency',
+      type: FormFieldType.Select,
+      required: false,
+      defaultValue: '1h',
+      tooltip: 'How often RAGFlow checks and synchronizes new/updated records from CRM',
+      options: [
+        { label: 'Every 15 minutes (15 минут)', value: '15m' },
+        { label: 'Hourly (Каждый час)', value: '1h' },
+        { label: 'Every 6 hours (Каждые 6 часов)', value: '6h' },
+        { label: 'Daily (Раз в сутки)', value: '24h' },
+        { label: 'Manual only (Только вручную)', value: 'manual' },
+      ],
     },
     {
       label: 'Entity Path (Catalog)',
@@ -2868,6 +2975,7 @@ export const DataSourceFormDefaultValues = {
     source: DataSourceKey.AMOCRM,
     config: {
       entities: 'leads, contacts, companies',
+      sync_frequency: '1h',
       batch_size: 50,
       credentials: {
         subdomain: '',
@@ -2882,6 +2990,7 @@ export const DataSourceFormDefaultValues = {
     source: DataSourceKey.KOMMO,
     config: {
       entities: 'leads, contacts, companies',
+      sync_frequency: '1h',
       batch_size: 50,
       credentials: {
         subdomain: '',
@@ -2896,6 +3005,7 @@ export const DataSourceFormDefaultValues = {
     source: DataSourceKey.BITRIX24,
     config: {
       entities: 'deal, lead, contact, company, product',
+      sync_frequency: '1h',
       batch_size: 50,
       credentials: {
         domain: '',
@@ -2908,6 +3018,7 @@ export const DataSourceFormDefaultValues = {
     source: DataSourceKey.HUBSPOT,
     config: {
       entities: 'deals, contacts, companies, products',
+      sync_frequency: '1h',
       batch_size: 50,
       credentials: {
         access_token: '',
@@ -2919,6 +3030,7 @@ export const DataSourceFormDefaultValues = {
     source: DataSourceKey.ONE_C,
     config: {
       catalogs: 'Catalog_Номенклатура',
+      sync_frequency: '1h',
       batch_size: 50,
       credentials: {
         base_url: '',

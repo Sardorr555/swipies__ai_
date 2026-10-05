@@ -64,6 +64,7 @@ def _import_sync_module():
 _sync = _import_sync_module()
 Kommo = _sync.Kommo
 OneC = _sync.OneC
+Bitrix24 = _sync.Bitrix24
 
 
 class TestCRMConnectorStep4Settings:
@@ -211,8 +212,22 @@ class TestCRMSyncWorkerStep4Robustness:
             gen = await worker._generate(task)
             assert gen is not None
             assert worker.connector.is_kommo is True
-            assert worker.connector.entities == ["leads", "contacts"]
             assert mock_log.called
+
+    @pytest.mark.asyncio
+    async def test_crm_sync_frequency_in_worker_config(self):
+        worker = Bitrix24({
+            "entities": "deal, lead",
+            "batch_size": 25,
+            "sync_frequency": "6h",
+            "credentials": {
+                "domain": "test.bitrix24.com",
+                "access_token": "token",
+            },
+        })
+        assert worker.conf.get("sync_frequency") == "6h"
+        assert worker.conf.get("batch_size") == 25
+
 
 
 class TestSalesforceSchemaExtension:

@@ -138,12 +138,13 @@ describe('CRM data sources', () => {
     });
   });
 
-  it('defines default batch_size and entity configurations', () => {
+  it('defines default batch_size, entity configurations, and sync_frequency', () => {
     crmKeys.forEach((key) => {
-      const defaults = DataSourceFormDefaultValues[key];
+      const defaults = DataSourceFormDefaultValues[key] as any;
       expect(defaults).toBeDefined();
       expect(defaults.source).toBe(key);
       expect(defaults.config.batch_size).toBe(50);
+      expect(defaults.config.sync_frequency).toBe('1h');
       expect(defaults.config.credentials).toBeDefined();
     });
   });
@@ -154,6 +155,7 @@ describe('CRM data sources', () => {
         name: string;
         type?: FormFieldType;
         required?: boolean;
+        options?: Array<{ label: string; value: string }>;
         validation?: { min?: number; max?: number };
       }>;
 
@@ -165,6 +167,17 @@ describe('CRM data sources', () => {
       expect(batchSizeField?.type).toBe(FormFieldType.Number);
       expect(batchSizeField?.validation?.min).toBe(1);
       expect(batchSizeField?.validation?.max).toBeGreaterThan(1);
+
+      const syncFrequencyField = fields.find((f) => f.name === 'config.sync_frequency');
+      expect(syncFrequencyField).toBeDefined();
+      expect(syncFrequencyField?.type).toBe(FormFieldType.Select);
+      expect(syncFrequencyField?.options?.length).toBeGreaterThanOrEqual(4);
+
+      const entityField = fields.find(
+        (f) => f.name === 'config.entities' || f.name === 'config.catalogs',
+      );
+      expect(entityField).toBeDefined();
+      expect(entityField?.options?.length).toBeGreaterThanOrEqual(3);
     });
   });
 });
