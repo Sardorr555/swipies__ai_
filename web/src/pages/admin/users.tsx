@@ -397,10 +397,10 @@ function AdminUserManagement() {
   const columnDefs = useMemo(
     () => [
       columnHelper.accessor('email', {
-        header: t('admin.email'),
+        header: 'Email',
       }),
       columnHelper.accessor('nickname', {
-        header: t('admin.nickname'),
+        header: 'Nickname',
       }),
       columnHelper.accessor('create_date', {
         header: 'Registration Date',
@@ -416,18 +416,18 @@ function AdminUserManagement() {
       }),
 
       columnHelper.accessor('referrals_count', {
-        header: t('admin.referrals'),
+        header: 'Referrals',
         cell: ({ cell }) => cell.getValue() || 0,
       }),
       columnHelper.accessor('referred_by_email', {
-        header: t('admin.referredBy'),
+        header: 'Referred By',
         cell: ({ cell }) => cell.getValue() || '-',
       }),
 
       ...(IS_ENTERPRISE
         ? [
             columnHelper.accessor('role', {
-              header: t('admin.role'),
+              header: 'Role',
               cell: ({ row, cell }) => (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -464,7 +464,7 @@ function AdminUserManagement() {
         : []),
 
       columnHelper.accessor('is_active', {
-        header: t('admin.status'),
+        header: 'Status',
         cell: ({ cell, row }) => {
           const isMe = row.original.email === userInfo?.email;
 
@@ -476,9 +476,7 @@ function AdminUserManagement() {
                 }
               >
                 <LucideDot className="size-[1em] stroke-[8] mr-1" />
-                {parseBooleanish(cell.getValue())
-                  ? t('admin.active')
-                  : t('admin.inactive')}
+                {parseBooleanish(cell.getValue()) ? 'Active' : 'Inactive'}
               </Badge>
             );
           }
@@ -502,14 +500,14 @@ function AdminUserManagement() {
                 <SelectItem value="0">
                   <div className="flex items-center">
                     <LucideDot className="size-[1em] stroke-[8] mr-1" />
-                    {t('admin.inactive')}
+                    Inactive
                   </div>
                 </SelectItem>
 
                 <SelectItem value="1">
                   <div className="flex items-center text-state-success">
                     <LucideDot className="size-[1em] stroke-[8] mr-1" />
-                    {t('admin.active')}
+                    Active
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -527,12 +525,12 @@ function AdminUserManagement() {
       }),
 
       columnHelper.accessor('is_superuser', {
-        header: t('admin.userType'),
+        header: 'User Type',
         cell: ({ cell, row }) => {
           const isMe = row.original.email === userInfo?.email;
 
           if (isMe) {
-            return <Badge variant="secondary">{t('admin.superuser')}</Badge>;
+            return <Badge variant="secondary">Superuser</Badge>;
           }
 
           return (
@@ -554,10 +552,8 @@ function AdminUserManagement() {
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="normal">{t('admin.normalUser')}</SelectItem>
-                <SelectItem value="superuser">
-                  {t('admin.superuser')}
-                </SelectItem>
+                <SelectItem value="normal">Normal User</SelectItem>
+                <SelectItem value="superuser">Superuser</SelectItem>
               </SelectContent>
             </Select>
           );
@@ -566,7 +562,7 @@ function AdminUserManagement() {
 
       columnHelper.display({
         id: 'actions',
-        header: t('admin.actions'),
+        header: 'Actions',
         cell: ({ row }) => {
           const isMe = row.original.email === userInfo?.email;
 
@@ -617,7 +613,12 @@ function AdminUserManagement() {
       }),
     ],
     [
-      t,
+      userInfo?.email,
+      roleList,
+      updateUserRoleMutation,
+      updateUserStatusMutation,
+      setSuperuserMutation,
+      navigate,
       roleList,
       updateUserRoleMutation,
       userInfo?.email,
@@ -736,7 +737,7 @@ function AdminUserManagement() {
           </div>
 
           <CardHeader className="space-y-0 flex flex-row justify-between items-center">
-            <CardTitle>{t('admin.userManagement')}</CardTitle>
+            <CardTitle>User Management</CardTitle>
 
             <div className="ml-auto flex justify-end gap-4">
               <Popover>
@@ -754,9 +755,7 @@ function AdminUserManagement() {
                     <EnterpriseFeature>
                       {() => (
                         <section>
-                          <div className="font-bold mb-3">
-                            {t('admin.role')}
-                          </div>
+                          <div className="font-bold mb-3">Role</div>
 
                           <RadioGroup
                             value={
@@ -770,7 +769,7 @@ function AdminUserManagement() {
                           >
                             <Label className="flex items-center space-x-2">
                               <RadioGroupItem value="" />
-                              <span>{t('admin.all')}</span>
+                              <span>All</span>
                             </Label>
 
                             {roleList?.map(({ id, role_name }) => (
@@ -791,7 +790,7 @@ function AdminUserManagement() {
                     </EnterpriseFeature>
 
                     <section>
-                      <div className="font-bold mb-3">{t('admin.status')}</div>
+                      <div className="font-bold mb-3">Status</div>
 
                       <RadioGroup
                         value={
@@ -803,18 +802,18 @@ function AdminUserManagement() {
                           table.getColumn('is_active')?.setFilterValue(value)
                         }
                       >
-                        {STATUS_FILTER_OPTIONS.map(({ label, value }) => (
-                          <Label
-                            key={value}
-                            className="flex items-center space-x-2"
-                          >
-                            <RadioGroupItem
-                              className="bg-bg-input border-border-button"
-                              value={value}
-                            />
-                            <span>{t(label)}</span>
-                          </Label>
-                        ))}
+                        <Label className="flex items-center space-x-2">
+                          <RadioGroupItem className="bg-bg-input border-border-button" value="" />
+                          <span>All</span>
+                        </Label>
+                        <Label className="flex items-center space-x-2">
+                          <RadioGroupItem className="bg-bg-input border-border-button" value="active" />
+                          <span>Active</span>
+                        </Label>
+                        <Label className="flex items-center space-x-2">
+                          <RadioGroupItem className="bg-bg-input border-border-button" value="inactive" />
+                          <span>Inactive</span>
+                        </Label>
                       </RadioGroup>
                     </section>
                   </div>
@@ -825,7 +824,7 @@ function AdminUserManagement() {
                       className="dark:bg-bg-input dark:border-border-button text-text-secondary"
                       onClick={() => table.resetColumnFilters()}
                     >
-                      {t('admin.reset')}
+                      Reset Filter
                     </Button>
                   </div>
                 </PopoverContent>
@@ -836,7 +835,7 @@ function AdminUserManagement() {
 
                 <Input
                   className="pl-10 h-10 bg-bg-input border-border-button"
-                  placeholder={t('header.search')}
+                  placeholder="Search users..."
                   value={table.getState().globalFilter}
                   onChange={(e) => table.setGlobalFilter(e.target.value)}
                 />
@@ -847,7 +846,7 @@ function AdminUserManagement() {
                 onClick={() => setCreateUserModalOpen(true)}
               >
                 <LucideUserPlus />
-                {t('admin.newUser')}
+                New User
               </Button>
             </div>
           </CardHeader>
@@ -929,12 +928,12 @@ function AdminUserManagement() {
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('admin.deleteUser')}</DialogTitle>
+            <DialogTitle>Delete User</DialogTitle>
           </DialogHeader>
 
           <section className="px-6">
             <DialogDescription>
-              {t('admin.deleteUserConfirmation')}
+              Are you sure you want to delete this user? This action cannot be undone.
             </DialogDescription>
 
             <div className="rounded-lg mt-6 p-4 border-0.5 border-border-button">
@@ -949,7 +948,7 @@ function AdminUserManagement() {
               onClick={() => setDeleteModalOpen(false)}
               disabled={deleteUserMutation.isPending}
             >
-              {t('admin.cancel')}
+              Cancel
             </Button>
 
             <Button
@@ -962,7 +961,7 @@ function AdminUserManagement() {
               disabled={deleteUserMutation.isPending}
               loading={deleteUserMutation.isPending}
             >
-              {t('admin.delete')}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -978,7 +977,7 @@ function AdminUserManagement() {
           }}
         >
           <DialogHeader>
-            <DialogTitle>{t('admin.changePassword')}</DialogTitle>
+            <DialogTitle>Change Password</DialogTitle>
           </DialogHeader>
 
           <section className="px-6">
@@ -1006,7 +1005,7 @@ function AdminUserManagement() {
               }}
               disabled={changePasswordMutation.isPending}
             >
-              {t('admin.cancel')}
+              Cancel
             </Button>
 
             <Button
@@ -1017,7 +1016,7 @@ function AdminUserManagement() {
               disabled={changePasswordMutation.isPending}
               loading={changePasswordMutation.isPending}
             >
-              {t('admin.changePassword')}
+              Change Password
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1033,7 +1032,7 @@ function AdminUserManagement() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('admin.createNewUser')}</DialogTitle>
+            <DialogTitle>Create New User</DialogTitle>
           </DialogHeader>
 
           <section className="px-6">
@@ -1053,7 +1052,7 @@ function AdminUserManagement() {
               }}
               disabled={createUserMutation.isPending}
             >
-              {t('admin.cancel')}
+              Cancel
             </Button>
 
             <Button
@@ -1064,7 +1063,7 @@ function AdminUserManagement() {
               disabled={createUserMutation.isPending}
               loading={createUserMutation.isPending}
             >
-              {t('admin.confirm')}
+              Confirm
             </Button>
           </DialogFooter>
         </DialogContent>
