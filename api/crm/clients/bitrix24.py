@@ -343,6 +343,7 @@ class Bitrix24Client(CRMProviderBase):
 
     def create_lead(self, connection_config: Dict[str, Any], lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create lead in Bitrix24 via crm.lead.add."""
+        CRMProviderBase.check_management_allowed(connection_config, action_name="create_lead")
         default_region = connection_config.get("default_phone_region") or connection_config.get("phone_region") or "US"
         phone = lead_data.get("phone", "")
         norm_phone = normalize_phone_to_e164(phone, default_region) if phone else ""

@@ -419,6 +419,7 @@ class AmoCRMClient(CRMProviderBase):
 
     def create_lead(self, connection_config: Dict[str, Any], lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create contact and lead in amoCRM, linking notes."""
+        CRMProviderBase.check_management_allowed(connection_config, action_name="create_lead")
         base_url = self._get_base_url(connection_config)
         token = connection_config.get("access_token")
         if not token:

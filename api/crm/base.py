@@ -20,6 +20,25 @@ from typing import Any, Dict, List, Optional
 class CRMProviderBase(ABC):
     """Abstract interface for all CRM and ERP system adapters."""
 
+    @staticmethod
+    def is_management_enabled(connection_config: Dict[str, Any]) -> bool:
+        """Check if management/write actions are enabled for this provider configuration."""
+        if not connection_config or not isinstance(connection_config, dict):
+            return True
+        for key in ("management_enabled", "enable_management", "allow_write", "allow_crm_actions"):
+            if key in connection_config:
+                return bool(connection_config[key])
+        return True
+
+    @classmethod
+    def check_management_allowed(cls, connection_config: Dict[str, Any], action_name: str = "write") -> None:
+        """Enforce that CRM management is enabled before executing any write/mutate action."""
+        if not cls.is_management_enabled(connection_config):
+            raise PermissionError(
+                f"CRM management is disabled for this provider. "
+                f"Action '{action_name}' is blocked. Data extraction and reading remain active."
+            )
+
     @abstractmethod
     def create_lead(self, connection_config: Dict[str, Any], lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create lead/deal in external CRM system.

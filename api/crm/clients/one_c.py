@@ -136,6 +136,7 @@ class OneCClient(CRMProviderBase):
 
     def create_lead(self, connection_config: Dict[str, Any], lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """1C is a stock/ERP provider and does not support lead creation in v1."""
+        CRMProviderBase.check_management_allowed(connection_config, action_name="create_lead")
         return {
             "supported": False,
             "message": "1C:Enterprise provider is read-only inventory checking and does not support create_lead.",

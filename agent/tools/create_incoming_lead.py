@@ -247,6 +247,13 @@ class CreateIncomingLead(ToolBase, ABC):
             conn = conns[0]
             conn_id = conn.id
 
+        # Enforce CRM management/write permission check
+        if not CRMConnectionService.is_management_enabled(conn):
+            raise PermissionError(
+                f"CRM management is disabled for provider '{conn.name or conn.crm_type}'. "
+                f"Data extraction and search remain active, but write actions (creating/updating leads) are disabled."
+            )
+
         conn_cfg = CRMConnectionService.get_decrypted_config(conn)
         region = conn_cfg.get("default_phone_region") or conn_cfg.get("phone_region") or getattr(self._param, "default_phone_region", None)
         phone_e164 = normalize_phone_to_e164(str(raw_phone), default_region=region)

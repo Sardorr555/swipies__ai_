@@ -108,6 +108,7 @@ class HubSpotClient(CRMProviderBase):
 
     def create_lead(self, connection_config: Dict[str, Any], lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create deal / lead in HubSpot."""
+        CRMProviderBase.check_management_allowed(connection_config, action_name="create_lead")
         headers = self._get_headers(connection_config)
         url = f"{self.base_url}/crm/v3/objects/deals"
 

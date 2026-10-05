@@ -102,6 +102,13 @@ class CRMOutboxWorker:
             self.failed_count += 1
             return False
 
+        if not CRMConnectionService.is_management_enabled(conn):
+            err_msg = f"CRM management is disabled for connection '{conn.id}'. Write actions are paused while extraction remains active."
+            logger.warning("%s. Parking task %s without consuming retries.", err_msg, task.id)
+            CRMOutboxService.park_task(task.id, self.worker_id, reason=err_msg, delay_seconds=300)
+            self.failed_count += 1
+            return False
+
         try:
             config = CRMConnectionService.get_decrypted_config(conn)
             config["id"] = conn.id

@@ -30,6 +30,18 @@ class CRMConnection(DataBaseModel):
     def __str__(self):
         return self.name
 
+    def is_management_enabled(self) -> bool:
+        """Check if CRM write/management is enabled for this connection (defaults to True)."""
+        if isinstance(self.config, dict):
+            for k in ("management_enabled", "enable_management", "allow_write", "allow_crm_actions"):
+                if k in self.config:
+                    return bool(self.config[k])
+        try:
+            from api.db.services.crm_service import CRMConnectionService
+            return CRMConnectionService.is_management_enabled(self)
+        except Exception:
+            return True
+
     class Meta:
         db_table = "crm_connection"
         indexes = (

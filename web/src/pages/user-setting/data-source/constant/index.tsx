@@ -740,6 +740,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       tooltip: 'Authorization Code or Long-lived Token',
     },
     {
+      label: 'CRM Management (Write / Actions)',
+      name: 'config.management_enabled',
+      type: FormFieldType.Switch,
+      required: false,
+      defaultValue: true,
+      tooltip: 'Enable or disable CRM management (creating and updating leads, deals, contacts). When disabled, CRM data extraction and sync to Knowledge Base remain active (read-only mode).',
+    },
+    {
       label: 'Sync Entities (Optional)',
       name: 'config.entities',
       type: FormFieldType.Text,
@@ -814,6 +822,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       tooltip: 'Authorization Code or Long-lived Token',
     },
     {
+      label: 'CRM Management (Write / Actions)',
+      name: 'config.management_enabled',
+      type: FormFieldType.Switch,
+      required: false,
+      defaultValue: true,
+      tooltip: 'Enable or disable CRM management (creating and updating leads, deals, contacts). When disabled, CRM data extraction and sync to Knowledge Base remain active (read-only mode).',
+    },
+    {
       label: 'Sync Entities (Optional)',
       name: 'config.entities',
       type: FormFieldType.Text,
@@ -875,6 +891,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       tooltip: 'Bitrix24 inbound webhook URL or OAuth token',
     },
     {
+      label: 'CRM Management (Write / Actions)',
+      name: 'config.management_enabled',
+      type: FormFieldType.Switch,
+      required: false,
+      defaultValue: true,
+      tooltip: 'Enable or disable CRM management (creating and updating leads, deals, contacts). When disabled, CRM data extraction and sync to Knowledge Base remain active (read-only mode).',
+    },
+    {
       label: 'Sync Entities (Optional)',
       name: 'config.entities',
       type: FormFieldType.Text,
@@ -927,6 +951,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       required: true,
       placeholder: 'pat-na1-...',
       tooltip: 'HubSpot Private App Access Token',
+    },
+    {
+      label: 'CRM Management (Write / Actions)',
+      name: 'config.management_enabled',
+      type: FormFieldType.Switch,
+      required: false,
+      defaultValue: true,
+      tooltip: 'Enable or disable CRM management (creating and updating leads, deals, contacts). When disabled, CRM data extraction and sync to Knowledge Base remain active (read-only mode).',
     },
     {
       label: 'Sync Entities (Optional)',
@@ -996,6 +1028,14 @@ const generateDataSourceFormFields = (t: TFunction) => ({
       type: FormFieldType.Password,
       required: true,
       tooltip: '1C User password',
+    },
+    {
+      label: 'CRM Management (Write / Actions)',
+      name: 'config.management_enabled',
+      type: FormFieldType.Switch,
+      required: false,
+      defaultValue: true,
+      tooltip: 'Enable or disable CRM management (creating and updating leads, deals, contacts). When disabled, CRM data extraction and sync to Knowledge Base remain active (read-only mode).',
     },
     {
       label: 'Catalogs / Entities (Optional)',
@@ -2974,6 +3014,7 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.AMOCRM,
     config: {
+      management_enabled: true,
       entities: 'leads, contacts, companies',
       sync_frequency: '1h',
       batch_size: 50,
@@ -2989,6 +3030,7 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.KOMMO,
     config: {
+      management_enabled: true,
       entities: 'leads, contacts, companies',
       sync_frequency: '1h',
       batch_size: 50,
@@ -3004,6 +3046,7 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.BITRIX24,
     config: {
+      management_enabled: true,
       entities: 'deal, lead, contact, company, product',
       sync_frequency: '1h',
       batch_size: 50,
@@ -3017,6 +3060,7 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.HUBSPOT,
     config: {
+      management_enabled: true,
       entities: 'deals, contacts, companies, products',
       sync_frequency: '1h',
       batch_size: 50,
@@ -3029,6 +3073,7 @@ export const DataSourceFormDefaultValues = {
     name: '',
     source: DataSourceKey.ONE_C,
     config: {
+      management_enabled: true,
       catalogs: 'Catalog_Номенклатура',
       sync_frequency: '1h',
       batch_size: 50,

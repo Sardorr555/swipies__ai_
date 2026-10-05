@@ -138,13 +138,14 @@ describe('CRM data sources', () => {
     });
   });
 
-  it('defines default batch_size, entity configurations, and sync_frequency', () => {
+  it('defines default batch_size, entity configurations, sync_frequency, and management_enabled', () => {
     crmKeys.forEach((key) => {
       const defaults = DataSourceFormDefaultValues[key] as any;
       expect(defaults).toBeDefined();
       expect(defaults.source).toBe(key);
       expect(defaults.config.batch_size).toBe(50);
       expect(defaults.config.sync_frequency).toBe('1h');
+      expect(defaults.config.management_enabled).toBe(true);
       expect(defaults.config.credentials).toBeDefined();
     });
   });
@@ -161,6 +162,10 @@ describe('CRM data sources', () => {
 
       const passwordFields = fields.filter((f) => f.type === FormFieldType.Password);
       expect(passwordFields.length).toBeGreaterThan(0);
+
+      const managementField = fields.find((f) => f.name === 'config.management_enabled');
+      expect(managementField).toBeDefined();
+      expect(managementField?.type).toBe(FormFieldType.Switch);
 
       const batchSizeField = fields.find((f) => f.name === 'config.batch_size');
       expect(batchSizeField).toBeDefined();

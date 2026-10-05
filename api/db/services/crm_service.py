@@ -118,11 +118,23 @@ class CRMConnectionService(CommonService):
         tenant_id: str,
         config: Dict[str, Any],
         expected_token_version: Optional[int] = None,
+        merge: bool = True,
     ) -> bool:
         """Update connection configuration with encryption and monotonic fencing check.
         
         If expected_token_version is provided, performs atomic compare-and-swap (CAS).
         """
+        if merge:
+            ok, conn = cls.get_by_id_and_tenant(connection_id, tenant_id)
+            if ok and conn:
+                try:
+                    existing_cfg = cls.get_decrypted_config(conn)
+                    merged = dict(existing_cfg)
+                    merged.update(config)
+                    config = merged
+                except Exception:
+                    pass
+
         enc_config = encrypt_connector_config(config)
         where_cond = (cls.model.id == connection_id) & (cls.model.tenant_id == tenant_id)
 
@@ -138,6 +150,51 @@ class CRMConnectionService(CommonService):
             .execute()
         )
         return rows > 0
+
+    @classmethod
+    @DB.connection_context()
+    def set_management_enabled(cls, connection_id: str, tenant_id: str, enabled: bool) -> bool:
+        """Enable or disable management (write/actions) for a CRM connection.
+        
+        When re-enabled, automatically unparks any queued outbox tasks for this connection.
+        """
+        res = cls.update_config(
+            connection_id=connection_id,
+            tenant_id=tenant_id,
+            config={"management_enabled": bool(enabled)},
+            merge=True,
+        )
+        if res and enabled:
+            CRMOutboxService.unpark_tasks_for_connection(connection_id)
+        return res
+
+    @classmethod
+    def is_management_enabled(cls, conn: CRMConnection) -> bool:
+        """Check if CRM write/management operations are enabled for this connection or connector."""
+        if not conn:
+            return False
+        # 1. Check direct config on connection
+        try:
+            cfg = cls.get_decrypted_config(conn)
+            for key in ("management_enabled", "enable_management", "allow_write", "allow_crm_actions"):
+                if key in cfg:
+                    return bool(cfg[key])
+        except Exception:
+            pass
+
+        # 2. Check if linked to a Connector in ConnectorService
+        try:
+            from api.db.services.connector_service import ConnectorService
+            ok, connector = ConnectorService.get_by_id(conn.id)
+            if ok and connector and connector.config:
+                c_cfg = connector.config if isinstance(connector.config, dict) else {}
+                for key in ("management_enabled", "enable_management", "allow_write", "allow_crm_actions"):
+                    if key in c_cfg:
+                        return bool(c_cfg[key])
+        except Exception:
+            pass
+
+        return True
 
     @classmethod
     @DB.connection_context()
@@ -201,6 +258,13 @@ class CRMOutboxService(CommonService):
         Returns:
             (record, was_created): was_created is False if a duplicate was found within 24h.
         """
+        # Enforce CRM management permission check
+        ok, conn = CRMConnectionService.get_by_id_and_tenant(connection_id, tenant_id)
+        if ok and conn and not CRMConnectionService.is_management_enabled(conn):
+            raise PermissionError(
+                f"CRM management is disabled for connection '{connection_id}'. Write operations are blocked while data extraction remains active."
+            )
+
         now = current_timestamp()
 
         # Sliding 24-hour deduplication check

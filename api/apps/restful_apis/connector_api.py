@@ -94,7 +94,11 @@ async def update_connector(connector_id):
                 raw_cfg = req["config"]
                 creds = raw_cfg.get("credentials") or raw_cfg
                 if creds:
-                    CRMConnectionService.update_config(connector_id, current_user.id, creds)
+                    update_payload = dict(creds)
+                    for k in ("management_enabled", "enable_management", "allow_write", "allow_crm_actions"):
+                        if k in raw_cfg:
+                            update_payload[k] = raw_cfg[k]
+                    CRMConnectionService.update_config(connector_id, current_user.id, update_payload, merge=True)
             except Exception:
                 pass
 
@@ -144,6 +148,10 @@ async def create_connector():
                     crm_type = "1c_odata"
                     auth_type = "basic"
                     crm_cfg = dict(creds)
+                elif crm_source == "hubspot":
+                    crm_type = "hubspot"
+                    auth_type = "oauth2"
+                    crm_cfg = dict(creds)
                 else:
                     crm_type = "bitrix24"
                     auth_type = "webhook"
@@ -151,6 +159,10 @@ async def create_connector():
                     webhook_url = creds.get("webhook_url") or creds.get("access_token", "")
                     crm_cfg["webhook_url"] = webhook_url
                     crm_cfg.setdefault("default_phone_region", creds.get("phone_region", "RU"))
+
+                for k in ("management_enabled", "enable_management", "allow_write", "allow_crm_actions"):
+                    if k in raw_cfg:
+                        crm_cfg[k] = raw_cfg[k]
 
                 CRMConnectionService.save_connection(
                     tenant_id=current_user.id,

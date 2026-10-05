@@ -25,10 +25,18 @@ import json
 from unittest.mock import MagicMock, patch
 import pytest
 
+import sys
+sys.modules.setdefault("api.db.services.dialog_service", MagicMock())
+sys.modules.setdefault("xgboost", MagicMock())
+sys.modules.setdefault("pypdf", MagicMock())
+sys.modules.setdefault("api.db.services.file_service", MagicMock())
+sys.modules.setdefault("api.db.services.task_service", MagicMock())
+
 from api.db.db_models import DB
 DB.connect = lambda *a, **kw: True
 DB.connection_context = lambda: (lambda fn: fn)
 
+from peewee import SqliteDatabase
 from common.constants import FileSource
 from common.data_source.config import DocumentSource
 from common.data_source.exceptions import (
@@ -41,6 +49,11 @@ from common.data_source.bitrix24_connector import Bitrix24Connector
 from common.data_source.amocrm_connector import AmoCRMConnector
 from common.data_source.hubspot_connector import HubSpotConnector
 from common.data_source.onec_connector import OneCConnector
+from api.db.crm_models import CRMConnection, CRMOutbox
+from api.db.services.crm_service import CRMConnectionService, CRMOutboxService
+from api.crm.base import CRMProviderBase, CRMProviderRegistry
+from rag.svr.crm_outbox_worker import CRMOutboxWorker
+from agent.tools.create_incoming_lead import CreateIncomingLead, CreateIncomingLeadParam
 
 import importlib
 import sys
@@ -462,4 +475,297 @@ class TestSyncWorkersExecutionStep5:
                 gen = await worker._generate(task)
                 assert gen is not None
                 assert mock_log.called
+
+
+from agent.canvas import Canvas
+
+
+class DummyStep5Canvas(Canvas):
+    def __init__(self, tenant_id="tenant_step5", channel="chat"):
+        self.tenant_id = tenant_id
+        self._tenant_id = tenant_id
+        self._canvas_owner_tenant = tenant_id
+        self._channel = channel
+        self._turn_lead_count = 0
+        self.is_embed = False
+        self._is_public = False
+        self.auth_type = "AUTH_JWT"
+        self.task_id = "test-task-id"
+        self.dsl = {"components": {}, "history": [], "path": []}
+        self.components = {}
+
+    def get_channel(self):
+        return self._channel
+
+    def get_canvas_owner_tenant(self):
+        return self._tenant_id
+
+    def get_tenant_id(self):
+        return self._tenant_id
+
+    def is_canceled(self):
+        return False
+
+    def check_if_canceled(self, *a, **kw):
+        return False
+
+
+class TestCRMManagementToggleAndIsolation:
+    """Validate enabling/disabling CRM management per provider while data extraction remains active."""
+
+    def test_crm_provider_management_permission_checks(self):
+        """Verify CRMProviderBase detects management_enabled flag and gates actions."""
+        # 1. Defaults to True if omitted
+        assert CRMProviderBase.is_management_enabled({}) is True
+        assert CRMProviderBase.is_management_enabled({"foo": "bar"}) is True
+
+        # 2. Disabled states
+        assert CRMProviderBase.is_management_enabled({"management_enabled": False}) is False
+        assert CRMProviderBase.is_management_enabled({"enable_management": False}) is False
+        assert CRMProviderBase.is_management_enabled({"allow_write": False}) is False
+        assert CRMProviderBase.is_management_enabled({"allow_crm_actions": False}) is False
+
+        # 3. Enabled states
+        assert CRMProviderBase.is_management_enabled({"management_enabled": True}) is True
+
+        # 4. Gating check raises PermissionError on disabled
+        with pytest.raises(PermissionError) as exc_info:
+            CRMProviderBase.check_management_allowed({"management_enabled": False}, action_name="test_write")
+        assert "CRM management is disabled" in str(exc_info.value)
+        assert "Data extraction and reading remain active" in str(exc_info.value)
+
+        # 5. Gating check passes when enabled
+        CRMProviderBase.check_management_allowed({"management_enabled": True}, action_name="test_write")
+
+    def test_all_crm_provider_clients_enforce_management_check(self):
+        """Verify AmoCRM, Bitrix24, HubSpot, and 1C clients block create_lead when management is disabled."""
+        disabled_cfg = {"management_enabled": False}
+
+        for p_name in ("amocrm", "bitrix24", "hubspot", "1c_odata"):
+            provider = CRMProviderRegistry.get(p_name)
+            with pytest.raises(PermissionError) as exc_info:
+                provider.create_lead(disabled_cfg, {"phone": "+14155552671", "name": "Alice"})
+            assert "CRM management is disabled" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_data_extraction_and_sync_always_active_when_management_disabled(self):
+        """Verify that all 5 CRM sync workers extract data without interruption even when management is disabled."""
+        configs = [
+            (Bitrix24Worker, Bitrix24Connector, {"credentials": {"webhook_url": "https://test.bitrix24.com/rest/1/k/"}, "management_enabled": False}),
+            (AmoCRMWorker, AmoCRMConnector, {"credentials": {"subdomain": "test.amocrm.ru", "access_token": "tok"}, "management_enabled": False}),
+            (KommoWorker, AmoCRMConnector, {"credentials": {"subdomain": "test.kommo.com", "access_token": "tok"}, "management_enabled": False}),
+            (HubSpotWorker, HubSpotConnector, {"credentials": {"access_token": "pat-tok"}, "management_enabled": False}),
+            (OneCWorker, OneCConnector, {"credentials": {"base_url": "https://1c.example.com/odata/"}, "management_enabled": False}),
+        ]
+
+        task = {
+            "kb_id": "kb_step5_readonly",
+            "connector_id": "conn_step5_readonly",
+            "tenant_id": "tenant_readonly",
+            "poll_range_start": None,
+            "reindex": "1",
+        }
+
+        for worker_cls, conn_cls, conf in configs:
+            worker = worker_cls(conf)
+            with patch.object(conn_cls, "validate_connector_settings", return_value=True), \
+                 patch.object(conn_cls, "load_from_state", return_value=(iter([]))), \
+                 patch.object(worker, "log_connection") as mock_log:
+                # Sync / extraction succeeds completely
+                gen = await worker._generate(task)
+                assert gen is not None
+                assert mock_log.called
+
+    def test_connection_service_and_outbox_management_lifecycle(self):
+        """Verify CRMConnectionService toggling and CRMOutboxService gating."""
+        import os
+        os.environ["RAGFLOW_SECRET_KEY"] = "crm-super-secret-key-32bytes-ok!"
+        test_db = SqliteDatabase(":memory:")
+        orig_conn_db = CRMConnection._meta.database
+        orig_outbox_db = CRMOutbox._meta.database
+        CRMConnection._meta.database = test_db
+        CRMOutbox._meta.database = test_db
+        DB.atomic = lambda *a, **kw: test_db.atomic()
+        test_db.bind([CRMConnection, CRMOutbox])
+        test_db.connect()
+        test_db.create_tables([CRMConnection, CRMOutbox], safe=True)
+
+        tenant_id = "tenant_mgmt_test"
+        try:
+            # 1. Save connection with management enabled
+            conn = CRMConnectionService.save_connection(
+                tenant_id=tenant_id,
+                name="Mgmt amoCRM",
+                crm_type="amocrm",
+                auth_type="oauth2",
+                config={"management_enabled": True, "access_token": "tok"},
+            )
+            assert CRMConnectionService.is_management_enabled(conn) is True
+            assert conn.is_management_enabled() is True
+
+            # 2. Enqueue succeeds when enabled
+            rec, created = CRMOutboxService.enqueue(
+                tenant_id=tenant_id,
+                connection_id=conn.id,
+                lead_data={"phone": "+14155551111", "name": "Client 1"},
+            )
+            assert created is True
+            assert rec.status == "PENDING"
+
+            # 3. Disable management via set_management_enabled
+            ok = CRMConnectionService.set_management_enabled(conn.id, tenant_id, False)
+            assert ok is True
+
+            _, reloaded = CRMConnectionService.get_by_id_and_tenant(conn.id, tenant_id)
+            assert CRMConnectionService.is_management_enabled(reloaded) is False
+            assert reloaded.is_management_enabled() is False
+
+            # 4. Enqueue fails with PermissionError when management disabled
+            with pytest.raises(PermissionError) as exc_info:
+                CRMOutboxService.enqueue(
+                    tenant_id=tenant_id,
+                    connection_id=conn.id,
+                    lead_data={"phone": "+14155552222", "name": "Client 2"},
+                )
+            assert "CRM management is disabled" in str(exc_info.value)
+            assert "data extraction remains active" in str(exc_info.value)
+
+            # 5. Re-enable management
+            ok_re = CRMConnectionService.set_management_enabled(conn.id, tenant_id, True)
+            assert ok_re is True
+            _, reloaded2 = CRMConnectionService.get_by_id_and_tenant(conn.id, tenant_id)
+            assert CRMConnectionService.is_management_enabled(reloaded2) is True
+
+            # 6. Enqueue succeeds again
+            rec2, created2 = CRMOutboxService.enqueue(
+                tenant_id=tenant_id,
+                connection_id=conn.id,
+                lead_data={"phone": "+14155553333", "name": "Client 3"},
+            )
+            assert created2 is True
+        finally:
+            CRMConnection._meta.database = orig_conn_db
+            CRMOutbox._meta.database = orig_outbox_db
+            if not test_db.is_closed():
+                test_db.close()
+
+    def test_create_incoming_lead_tool_management_toggle(self):
+        """Verify CreateIncomingLead agent tool rejects lead creation when CRM management is disabled."""
+        import os
+        os.environ["RAGFLOW_SECRET_KEY"] = "crm-super-secret-key-32bytes-ok!"
+        test_db = SqliteDatabase("file:crm_step5_tool_mem?mode=memory&cache=shared", uri=True)
+        orig_conn_db = CRMConnection._meta.database
+        orig_outbox_db = CRMOutbox._meta.database
+        CRMConnection._meta.database = test_db
+        CRMOutbox._meta.database = test_db
+        DB.atomic = lambda *a, **kw: test_db.atomic()
+        test_db.bind([CRMConnection, CRMOutbox])
+        test_db.connect()
+        test_db.create_tables([CRMConnection, CRMOutbox], safe=True)
+        orig_close = test_db.close
+        test_db.close = lambda *a, **kw: None
+
+        tenant_id = "tenant_tool_mgmt"
+        canvas = DummyStep5Canvas(tenant_id=tenant_id, channel="chat")
+
+        mock_redis = MagicMock()
+        mock_redis_conn = MagicMock()
+        mock_redis_conn.is_alive.return_value = True
+        mock_redis_conn.REDIS = mock_redis
+        mock_redis.incr.return_value = 1
+
+        try:
+            with patch("rag.utils.redis_conn.REDIS_CONN", mock_redis_conn):
+                # 1. Connection with management disabled
+                conn = CRMConnectionService.save_connection(
+                    tenant_id=tenant_id,
+                    name="Readonly amoCRM",
+                    crm_type="amocrm",
+                    auth_type="oauth2",
+                    config={"management_enabled": False, "subdomain": "sales.amocrm.ru"},
+                )
+
+                param = CreateIncomingLeadParam()
+                param.connection_id = conn.id
+                tool = CreateIncomingLead(id="tool-step5", param=param, canvas=canvas)
+
+                # Tool call fails with PermissionError
+                with pytest.raises(PermissionError) as exc_info:
+                    tool._invoke(phone="+14155552671", name="Bob")
+                assert "CRM management is disabled" in str(exc_info.value)
+                assert "Data extraction and search remain active" in str(exc_info.value)
+
+                # 2. Enable management on connection
+                CRMConnectionService.set_management_enabled(conn.id, tenant_id, True)
+
+                # Tool call now succeeds
+                res = tool._invoke(phone="+14155552671", name="Bob")
+                assert res["status"] == "success"
+                assert "outbox_id" in res
+        finally:
+            CRMConnection._meta.database = orig_conn_db
+            CRMOutbox._meta.database = orig_outbox_db
+            test_db.close = orig_close
+            if not test_db.is_closed():
+                test_db.close()
+
+    def test_outbox_worker_parks_tasks_when_management_disabled(self):
+        """Verify CRMOutboxWorker parks tasks safely without consuming retries when management is disabled."""
+        import os
+        import time
+        os.environ["RAGFLOW_SECRET_KEY"] = "crm-super-secret-key-32bytes-ok!"
+        test_db = SqliteDatabase(":memory:")
+        orig_conn_db = CRMConnection._meta.database
+        orig_outbox_db = CRMOutbox._meta.database
+        CRMConnection._meta.database = test_db
+        CRMOutbox._meta.database = test_db
+        DB.atomic = lambda *a, **kw: test_db.atomic()
+        test_db.bind([CRMConnection, CRMOutbox])
+        test_db.connect()
+        test_db.create_tables([CRMConnection, CRMOutbox], safe=True)
+
+        tenant_id = "tenant_worker_mgmt"
+        worker_id = "test-mgmt-worker-1"
+        try:
+            conn = CRMConnectionService.save_connection(
+                tenant_id=tenant_id,
+                name="Managed amoCRM",
+                crm_type="amocrm",
+                auth_type="oauth2",
+                config={"management_enabled": False, "subdomain": "sales.amocrm.ru"},
+            )
+
+            # Insert outbox task directly with active worker lease
+            task = CRMOutbox.create(
+                id="outbox_task_step5_1",
+                tenant_id=tenant_id,
+                connection_id=conn.id,
+                status="PROCESSING",
+                lease_owner=worker_id,
+                lease_expires_at=int(time.time() * 1000) + 300000,
+                retry_count=0,
+                max_retries=5,
+                lead_data={"phone": "+14155559999", "name": "Parked Lead"},
+            )
+
+            worker = CRMOutboxWorker(worker_id=worker_id)
+            success = worker.process_task(task)
+
+            # Task was not dispatched, but parked without burning retry counts
+            assert success is False
+            reloaded_task = CRMOutbox.get_by_id(task.id)
+            assert reloaded_task.status == "PARKED"
+            assert reloaded_task.retry_count == 0
+            assert "management is disabled" in reloaded_task.error_log.get("parked_reason", "")
+
+            # When management is re-enabled, tasks are unparked
+            CRMConnectionService.set_management_enabled(conn.id, tenant_id, True)
+            unparked_task = CRMOutbox.get_by_id(task.id)
+            assert unparked_task.status == "PENDING"
+        finally:
+            CRMConnection._meta.database = orig_conn_db
+            CRMOutbox._meta.database = orig_outbox_db
+            if not test_db.is_closed():
+                test_db.close()
+
 
