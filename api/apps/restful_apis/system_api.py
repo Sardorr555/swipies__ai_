@@ -598,11 +598,8 @@ async def system_provision():
     elif plan == "license":
         credits = 999999 * months
         try:
-            from generate_license import generate_license
+            from api.utils.generate_license import generate_license
         except ImportError:
-            import sys
-            from pathlib import Path
-            sys.path.append(str(Path(__file__).resolve().parents[3]))
             from generate_license import generate_license
         from api.db.services.license_key_service import LicenseKeyService
         import uuid
@@ -1023,11 +1020,8 @@ async def system_payment_finalize():
             elif plan == "license":
                 credits = 999999 * months
                 try:
-                    from generate_license import generate_license
+                    from api.utils.generate_license import generate_license
                 except ImportError:
-                    import sys
-                    from pathlib import Path
-                    sys.path.append(str(Path(__file__).resolve().parents[3]))
                     from generate_license import generate_license
                 from api.db.services.license_key_service import LicenseKeyService
                 import uuid
