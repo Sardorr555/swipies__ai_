@@ -80,6 +80,11 @@ class DocumentSource(str, Enum):
     SALESFORCE = "salesforce"
     AZURE_BLOB = "azure_blob"
     AZURE_DEVOPS = "azure_devops"
+    AMOCRM = "amocrm"
+    KOMMO = "kommo"
+    BITRIX24 = "bitrix24"
+    HUBSPOT = "hubspot"
+    ONE_C = "1c_odata"
 
 
 class FileOrigin(str, Enum):

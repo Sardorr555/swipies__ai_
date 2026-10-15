@@ -5,7 +5,7 @@ set -e
 
 usage() {
     local exit_code=${1:-1}
-    echo "Usage: $0 [OPTIONS] [ragflow|task_executor|admin|data_sync]..."
+    echo "Usage: $0 [OPTIONS] [ragflow|task_executor|admin|data_sync|crm_outbox]..."
     echo
     echo "Without arguments, starts ragflow and task_executor."
     echo "Options:"
@@ -16,6 +16,7 @@ usage() {
     echo "  task_executor   Start task workers based on API_PROXY_SCHEME"
     echo "  admin           Start Admin server based on API_PROXY_SCHEME"
     echo "  data_sync       Start rag/svr/sync_data_source.py"
+    echo "  crm_outbox      Start rag/svr/crm_outbox_worker.py"
     echo
     echo "Examples:"
     echo "  $0"
@@ -24,6 +25,7 @@ usage() {
     echo "  $0 task_executor"
     echo "  $0 admin"
     echo "  $0 data_sync"
+    echo "  $0 crm_outbox"
     exit "$exit_code"
 }
 
@@ -220,6 +222,29 @@ run_data_sync(){
     fi
 }
 
+# Function to execute crm_outbox_worker with retry logic
+run_crm_outbox(){
+    local retry_count=0
+    while ! $STOP && [ $retry_count -lt $MAX_RETRIES ]; do
+        echo "Starting crm_outbox_worker.py (Attempt $((retry_count+1)))"
+        EXIT_CODE=0
+        $PY rag/svr/crm_outbox_worker.py || EXIT_CODE=$?
+        if [ $EXIT_CODE -eq 0 ]; then
+            echo "crm_outbox_worker.py exited successfully."
+            break
+        else
+            echo "crm_outbox_worker.py failed with exit code $EXIT_CODE. Retrying..." >&2
+            retry_count=$((retry_count + 1))
+            sleep 2
+        fi
+    done
+
+    if [ $retry_count -ge $MAX_RETRIES ]; then
+        echo "crm_outbox_worker.py failed after $MAX_RETRIES attempts. Exiting..." >&2
+        cleanup
+    fi
+}
+
 ensure_db_init() {
     echo "Initializing database tables..."
     "$PY" -c "from api.db.db_models import init_database_tables as init_web_db; init_web_db()"
@@ -258,6 +283,7 @@ START_RAGFLOW=0
 START_TASK_EXECUTOR=0
 START_ADMIN=0
 START_DATA_SYNC=0
+START_CRM_OUTBOX=0
 DEBUG_MODE=0
 SERVICE_SELECTED=0
 
@@ -279,11 +305,16 @@ for arg in "$@"; do
       START_DATA_SYNC=1
       SERVICE_SELECTED=1
       ;;
+    crm_outbox|crm-outbox|crmoutbox)
+      START_CRM_OUTBOX=1
+      SERVICE_SELECTED=1
+      ;;
     all)
       START_RAGFLOW=1
       START_TASK_EXECUTOR=1
       START_ADMIN=1
       START_DATA_SYNC=1
+      START_CRM_OUTBOX=1
       SERVICE_SELECTED=1
       ;;
     --debug)
@@ -337,6 +368,12 @@ fi
 # Start the data sync server
 if [[ "$START_DATA_SYNC" -eq 1 ]]; then
   run_data_sync &
+  PIDS+=($!)
+fi
+
+# Start the CRM outbox worker
+if [[ "$START_CRM_OUTBOX" -eq 1 ]]; then
+  run_crm_outbox &
   PIDS+=($!)
 fi
 

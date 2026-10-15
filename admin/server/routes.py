@@ -926,6 +926,21 @@ def get_payment_transactions():
         return error_response(str(e), 500)
 
 
+@admin_bp.route("/dashboard/overview", methods=["GET"])
+@admin_bp.route("/analytics/overview", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_admin_dashboard_overview():
+    """Get complete real-time dashboard analytics across users, activity, revenue and plans."""
+    try:
+        from api.db.services.admin_dashboard_service import AdminDashboardService
+        overview = AdminDashboardService.get_dashboard_overview()
+        return success_response(overview)
+    except Exception as e:
+        logging.exception(f"Error fetching dashboard overview: {e}")
+        return error_response(str(e), 500)
+
+
 @admin_bp.route("/payments/summary", methods=["GET"])
 @admin_bp.route("/payments/analytics", methods=["GET"])
 @login_required

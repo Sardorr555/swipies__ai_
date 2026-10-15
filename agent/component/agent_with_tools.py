@@ -103,7 +103,14 @@ class Agent(LLM, ToolBase):
 
         tool_idx = len(self.tools)
         for mcp in self._param.mcp:
-            _, mcp_server = MCPServerService.get_by_id(mcp["mcp_id"])
+            mcp_id = mcp.get("mcp_id")
+            get_owner = getattr(self._canvas, "get_canvas_owner_tenant", None)
+            mcp_owner_tenant = (get_owner() if callable(get_owner) else None)
+            if not mcp_owner_tenant or not isinstance(mcp_owner_tenant, str):
+                mcp_owner_tenant = self._canvas.get_tenant_id()
+            ok, mcp_server = MCPServerService.get_by_id_and_tenant(mcp_id, mcp_owner_tenant)
+            if not ok or not mcp_server:
+                raise PermissionError(f"Access denied: MCP server '{mcp_id}' does not belong to tenant '{mcp_owner_tenant}' or does not exist.")
             custom_header = self._param.custom_header
             tool_call_session = MCPToolCallSession(mcp_server, mcp_server.variables, custom_header)
             for tnm, meta in mcp["tools"].items():

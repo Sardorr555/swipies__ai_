@@ -416,7 +416,7 @@ func (h *UserHandler) Info(c *gin.Context) {
 func (h *UserHandler) GetReferrals(c *gin.Context) {
 	user, errorCode, errorMessage := GetUser(c)
 	if errorCode != common.CodeSuccess {
-		jsonError(c, errorCode, errorMessage)
+		common.ErrorWithCode(c, errorCode, errorMessage)
 		return
 	}
 

@@ -119,3 +119,71 @@ describe('Sitemap data source', () => {
     expect(batchSize?.validation?.min).toBe(1);
   });
 });
+
+describe('CRM data sources', () => {
+  const crmKeys = [
+    DataSourceKey.BITRIX24,
+    DataSourceKey.AMOCRM,
+    DataSourceKey.KOMMO,
+    DataSourceKey.HUBSPOT,
+    DataSourceKey.ONE_C,
+  ];
+
+  it('registers all 5 CRM platforms in catalog info', () => {
+    const info = generateDataSourceInfo(translate);
+    crmKeys.forEach((key) => {
+      expect(info[key]).toBeDefined();
+      expect(info[key].name).toBeTruthy();
+      expect(info[key].description).toBeTruthy();
+    });
+  });
+
+  it('defines default batch_size, entity configurations, sync_frequency, and management_enabled', () => {
+    crmKeys.forEach((key) => {
+      const defaults = DataSourceFormDefaultValues[key] as any;
+      expect(defaults).toBeDefined();
+      expect(defaults.source).toBe(key);
+      expect(defaults.config.batch_size).toBe(50);
+      expect(defaults.config.sync_frequency).toBe('1h');
+      expect(defaults.config.management_enabled).toBe(true);
+      expect(defaults.config.credentials).toBeDefined();
+    });
+  });
+
+  it('protects sensitive tokens/secrets with Password field type and bounds batch sizes', () => {
+    crmKeys.forEach((key) => {
+      const fields = getDataSourceFieldsWithExtras(translate, key) as Array<{
+        name: string;
+        type?: FormFieldType;
+        required?: boolean;
+        options?: Array<{ label: string; value: string }>;
+        validation?: { min?: number; max?: number };
+      }>;
+
+      const passwordFields = fields.filter((f) => f.type === FormFieldType.Password);
+      expect(passwordFields.length).toBeGreaterThan(0);
+
+      const managementField = fields.find((f) => f.name === 'config.management_enabled');
+      expect(managementField).toBeDefined();
+      expect(managementField?.type).toBe(FormFieldType.Switch);
+
+      const batchSizeField = fields.find((f) => f.name === 'config.batch_size');
+      expect(batchSizeField).toBeDefined();
+      expect(batchSizeField?.type).toBe(FormFieldType.Number);
+      expect(batchSizeField?.validation?.min).toBe(1);
+      expect(batchSizeField?.validation?.max).toBeGreaterThan(1);
+
+      const syncFrequencyField = fields.find((f) => f.name === 'config.sync_frequency');
+      expect(syncFrequencyField).toBeDefined();
+      expect(syncFrequencyField?.type).toBe(FormFieldType.Select);
+      expect(syncFrequencyField?.options?.length).toBeGreaterThanOrEqual(4);
+
+      const entityField = fields.find(
+        (f) => f.name === 'config.entities' || f.name === 'config.catalogs',
+      );
+      expect(entityField).toBeDefined();
+      expect(entityField?.options?.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+});
+

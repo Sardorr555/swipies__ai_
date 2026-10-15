@@ -147,13 +147,13 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) (*enti
 	var referredByID *string
 	if req.ReferredByID != "" {
 		// First try by ID
-		referrer, err := s.userDAO.GetByTenantID(req.ReferredByID)
+		referrer, err := s.userDAO.GetByTenantID(ctx, dao.DB, req.ReferredByID)
 		if err == nil && referrer != nil {
 			refID := referrer.ID
 			referredByID = &refID
 		} else {
 			// Try by Email
-			referrer, err = s.userDAO.GetByEmail(req.ReferredByID)
+			referrer, err = s.userDAO.GetByEmail(ctx, dao.DB, req.ReferredByID)
 			if err == nil && referrer != nil {
 				refID := referrer.ID
 				referredByID = &refID

@@ -40,6 +40,7 @@ from flask import json
 from api.db.services.connector_service import ConnectorService, SyncLogsService, resolve_connector_doc_id
 from api.db.services.document_service import DocumentService
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.crm.schema import auto_populate_crm_field_map, is_crm_source
 from api.utils.key_crypto import decrypt_connector_config
 from common import settings
 from common.constants import ConnectorTaskType, FileSource, TaskStatus
@@ -72,6 +73,10 @@ from common.data_source import (
     TeamsConnector,
     SlackConnector,
     SharePointConnector,
+    Bitrix24Connector,
+    AmoCRMConnector,
+    HubSpotConnector,
+    OneCConnector,
 )
 from common.data_source.models import ConnectorFailure, SeafileSyncScope
 from common.data_source.webdav_connector import WebDAVConnector
@@ -236,6 +241,9 @@ class SyncBase:
         """
         Executes the core synchronization pipeline for a data source task.
         """
+        if is_crm_source(self.SOURCE_NAME) and task.get("kb_id"):
+            auto_populate_crm_field_map(task["kb_id"], self.SOURCE_NAME)
+
         document_batch_generator = await self._generate(task)
 
         failed_docs = 0
@@ -2305,6 +2313,213 @@ class Xquik(SyncBase):
         return document_generator
 
 
+class Bitrix24(SyncBase):
+    SOURCE_NAME: str = FileSource.BITRIX24
+
+    async def _generate(self, task: dict):
+        raw_batch_size = self.conf.get("batch_size", INDEX_BATCH_SIZE)
+        try:
+            batch_size = int(raw_batch_size)
+        except (TypeError, ValueError):
+            batch_size = INDEX_BATCH_SIZE
+        if batch_size <= 0:
+            batch_size = INDEX_BATCH_SIZE
+
+        raw_entities = self.conf.get("entities")
+        if isinstance(raw_entities, str):
+            entities = [e.strip() for e in raw_entities.split(",") if e.strip()]
+        elif isinstance(raw_entities, list):
+            entities = [str(e).strip() for e in raw_entities if str(e).strip()]
+        else:
+            entities = None
+
+        self.connector = Bitrix24Connector(
+            batch_size=batch_size,
+            entities=entities,
+        )
+        self.connector.load_credentials(self.conf.get("credentials") or {})
+        self.connector.validate_connector_settings()
+
+        poll_start = task.get("poll_range_start")
+        if task.get("reindex") == "1" or not poll_start:
+            document_generator = self.connector.load_from_state()
+            _begin_info = "totally"
+        else:
+            end_time = datetime.now(timezone.utc).timestamp()
+            document_generator = self.connector.poll_source(poll_start.timestamp(), end_time)
+            _begin_info = f"from {poll_start}"
+
+        domain = (self.conf.get("credentials") or {}).get("domain", "")
+        self.log_connection("Bitrix24", f"{domain} entities({','.join(self.connector.entities)})", task)
+        return document_generator
+
+
+class AmoCRM(SyncBase):
+    SOURCE_NAME: str = FileSource.AMOCRM
+
+    async def _generate(self, task: dict):
+        raw_batch_size = self.conf.get("batch_size", INDEX_BATCH_SIZE)
+        try:
+            batch_size = int(raw_batch_size)
+        except (TypeError, ValueError):
+            batch_size = INDEX_BATCH_SIZE
+        if batch_size <= 0:
+            batch_size = INDEX_BATCH_SIZE
+
+        raw_entities = self.conf.get("entities")
+        if isinstance(raw_entities, str):
+            entities = [e.strip() for e in raw_entities.split(",") if e.strip()]
+        elif isinstance(raw_entities, list):
+            entities = [str(e).strip() for e in raw_entities if str(e).strip()]
+        else:
+            entities = None
+
+        self.connector = AmoCRMConnector(
+            batch_size=batch_size,
+            entities=entities,
+        )
+        self.connector.load_credentials(self.conf.get("credentials") or {})
+        self.connector.validate_connector_settings()
+
+        poll_start = task.get("poll_range_start")
+        if task.get("reindex") == "1" or not poll_start:
+            document_generator = self.connector.load_from_state()
+            _begin_info = "totally"
+        else:
+            end_time = datetime.now(timezone.utc).timestamp()
+            document_generator = self.connector.poll_source(poll_start.timestamp(), end_time)
+            _begin_info = f"from {poll_start}"
+
+        subdomain = (self.conf.get("credentials") or {}).get("subdomain", "")
+        self.log_connection("AmoCRM", f"{subdomain} entities({','.join(self.connector.entities)})", task)
+        return document_generator
+
+
+class Kommo(SyncBase):
+    SOURCE_NAME: str = FileSource.KOMMO
+
+    async def _generate(self, task: dict):
+        raw_batch_size = self.conf.get("batch_size", INDEX_BATCH_SIZE)
+        try:
+            batch_size = int(raw_batch_size)
+        except (TypeError, ValueError):
+            batch_size = INDEX_BATCH_SIZE
+        if batch_size <= 0:
+            batch_size = INDEX_BATCH_SIZE
+
+        raw_entities = self.conf.get("entities")
+        if isinstance(raw_entities, str):
+            entities = [e.strip() for e in raw_entities.split(",") if e.strip()]
+        elif isinstance(raw_entities, list):
+            entities = [str(e).strip() for e in raw_entities if str(e).strip()]
+        else:
+            entities = None
+
+        self.connector = AmoCRMConnector(
+            batch_size=batch_size,
+            entities=entities,
+            is_kommo=True,
+        )
+        self.connector.load_credentials(self.conf.get("credentials") or {})
+        self.connector.validate_connector_settings()
+
+        poll_start = task.get("poll_range_start")
+        if task.get("reindex") == "1" or not poll_start:
+            document_generator = self.connector.load_from_state()
+            _begin_info = "totally"
+        else:
+            end_time = datetime.now(timezone.utc).timestamp()
+            document_generator = self.connector.poll_source(poll_start.timestamp(), end_time)
+            _begin_info = f"from {poll_start}"
+
+        subdomain = (self.conf.get("credentials") or {}).get("subdomain", "")
+        self.log_connection("Kommo", f"{subdomain} entities({','.join(self.connector.entities)})", task)
+        return document_generator
+
+
+class HubSpot(SyncBase):
+    SOURCE_NAME: str = FileSource.HUBSPOT
+
+    async def _generate(self, task: dict):
+        raw_batch_size = self.conf.get("batch_size", INDEX_BATCH_SIZE)
+        try:
+            batch_size = int(raw_batch_size)
+        except (TypeError, ValueError):
+            batch_size = INDEX_BATCH_SIZE
+        if batch_size <= 0:
+            batch_size = INDEX_BATCH_SIZE
+
+        raw_entities = self.conf.get("entities")
+        if isinstance(raw_entities, str):
+            entities = [e.strip() for e in raw_entities.split(",") if e.strip()]
+        elif isinstance(raw_entities, list):
+            entities = [str(e).strip() for e in raw_entities if str(e).strip()]
+        else:
+            entities = None
+
+        self.connector = HubSpotConnector(
+            batch_size=batch_size,
+            entities=entities,
+        )
+        self.connector.load_credentials(self.conf.get("credentials") or {})
+        self.connector.validate_connector_settings()
+
+        poll_start = task.get("poll_range_start")
+        if task.get("reindex") == "1" or not poll_start:
+            document_generator = self.connector.load_from_state()
+            _begin_info = "totally"
+        else:
+            end_time = datetime.now(timezone.utc).timestamp()
+            document_generator = self.connector.poll_source(poll_start.timestamp(), end_time)
+            _begin_info = f"from {poll_start}"
+
+        portal_id = (self.conf.get("credentials") or {}).get("portal_id", "")
+        self.log_connection("HubSpot", f"portal({portal_id}) entities({','.join(self.connector.entities)})", task)
+        return document_generator
+
+
+class OneC(SyncBase):
+    SOURCE_NAME: str = FileSource.ONE_C
+
+    async def _generate(self, task: dict):
+        raw_batch_size = self.conf.get("batch_size", INDEX_BATCH_SIZE)
+        try:
+            batch_size = int(raw_batch_size)
+        except (TypeError, ValueError):
+            batch_size = INDEX_BATCH_SIZE
+        if batch_size <= 0:
+            batch_size = INDEX_BATCH_SIZE
+
+        raw_catalogs = self.conf.get("catalogs") or self.conf.get("entities")
+        if isinstance(raw_catalogs, str):
+            catalogs = [c.strip() for c in raw_catalogs.split(",") if c.strip()]
+        elif isinstance(raw_catalogs, list):
+            catalogs = [str(c).strip() for c in raw_catalogs if str(c).strip()]
+        else:
+            catalogs = None
+
+        self.connector = OneCConnector(
+            batch_size=batch_size,
+            catalogs=catalogs,
+        )
+        self.connector.load_credentials(self.conf.get("credentials") or {})
+        self.connector.validate_connector_settings()
+
+        poll_start = task.get("poll_range_start")
+        if task.get("reindex") == "1" or not poll_start:
+            document_generator = self.connector.load_from_state()
+            _begin_info = "totally"
+        else:
+            end_time = datetime.now(timezone.utc).timestamp()
+            document_generator = self.connector.poll_source(poll_start.timestamp(), end_time)
+            _begin_info = f"from {poll_start}"
+
+        creds = self.conf.get("credentials") or {}
+        base_url = creds.get("base_url") or creds.get("odata_base_url", "")
+        self.log_connection("1C", f"{base_url} catalogs({','.join(self.connector.catalogs)})", task)
+        return document_generator
+
+
 func_factory = {
     FileSource.RSS: RSS,
     FileSource.SITEMAP: Sitemap,
@@ -2344,7 +2559,13 @@ func_factory = {
     FileSource.DINGTALK_AI_TABLE: DingTalkAITable,
     FileSource.REST_API: REST_API,
     FileSource.XQUIK: Xquik,
+    FileSource.BITRIX24: Bitrix24,
+    FileSource.AMOCRM: AmoCRM,
+    FileSource.KOMMO: Kommo,
+    FileSource.HUBSPOT: HubSpot,
+    FileSource.ONE_C: OneC,
 }
+
 
 
 async def dispatch_tasks():

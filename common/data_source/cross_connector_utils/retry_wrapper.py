@@ -5,7 +5,13 @@ from typing import Any
 from typing import cast
 from typing import TypeVar
 import requests
-from retry import retry
+try:
+    from retry import retry
+except ImportError:
+    def retry(*args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
 
 from common.data_source.config import REQUEST_TIMEOUT_SECONDS
 

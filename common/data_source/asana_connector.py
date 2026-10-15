@@ -3,7 +3,10 @@ import time
 from datetime import datetime, timezone
 import logging
 from typing import Any, Dict
-import asana
+try:
+    import asana
+except ImportError:
+    asana = Any
 import requests
 from common.data_source.config import CONTINUE_ON_CONNECTOR_FAILURE, INDEX_BATCH_SIZE, DocumentSource
 from common.data_source.exceptions import ConnectorMissingCredentialError, ConnectorValidationError

@@ -49,6 +49,7 @@ from api.db.services.canvas_service import (
 from api.db.services.document_service import DocumentService
 from api.db.services.file_service import FileService
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.db.services.mcp_server_service import MCPServerService
 from api.db.services.pipeline_operation_log_service import PipelineOperationLogService
 from api.db.services.task_service import CANVAS_DEBUG_DOC_ID, TaskService, queue_dataflow
 from api.db.services.user_service import TenantService, UserService
@@ -486,7 +487,11 @@ async def create_agent_session(agent_id, tenant_id):
         return get_data_error_result(message=str(e))
 
     session_id = get_uuid()
-    canvas = Canvas(dsl, tenant_id, agent_id, canvas_id=cvs.id)
+    canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
+    from quart import has_request_context, g
+    auth_type = getattr(g, "auth_type", None) if has_request_context() else None
+    auth_channel = "embed" if auth_type == "beta" else ("chat" if auth_type == "jwt" else ("api" if auth_type == "api" else "webhook" if auth_type == "webhook" else None))
+    canvas = Canvas(dsl, tenant_id, agent_id, canvas_id=cvs.id, canvas_owner_tenant=canvas_owner_tenant, channel=auth_channel)
     canvas.reset()
 
     cvs.dsl = json.loads(str(canvas))
@@ -949,6 +954,7 @@ async def create_agent(tenant_id):
 
     try:
         req["dsl"] = CanvasReplicaService.normalize_dsl(req["dsl"])
+        MCPServerService.validate_dsl_mcp_ownership(req["dsl"], tenant_id)
     except ValueError as exc:
         return get_json_result(
             data=False,
@@ -1191,12 +1197,16 @@ async def update_agent(agent_id, tenant_id):
     req["canvas_type"] = req.get("canvas_type", "")
     req["release"] = bool(req.get("release", ""))
 
+    _, current_agent = UserCanvasService.get_by_id(agent_id)
+    canvas_owner_tenant = getattr(current_agent, "user_id", None) or tenant_id
+
     if req.get("dsl") is not None:
         try:
             from agent.canvas import Canvas
 
             req["dsl"] = CanvasReplicaService.normalize_dsl(req["dsl"])
             Canvas.validate_component_parameters(req["dsl"])
+            MCPServerService.validate_dsl_mcp_ownership(req["dsl"], canvas_owner_tenant)
         except ValueError as exc:
             return get_json_result(
                 data=False,
@@ -1204,9 +1214,6 @@ async def update_agent(agent_id, tenant_id):
                 code=RetCode.ARGUMENT_ERROR,
             )
 
-
-
-    _, current_agent = UserCanvasService.get_by_id(agent_id)
     if req.get("title") is not None:
         req["title"] = req["title"].strip()
         canvas_category_for_duplicate_check = req.get("canvas_category") or (current_agent.canvas_category if current_agent else CanvasCategory.Agent)
@@ -1309,6 +1316,15 @@ async def rerun_agent(tenant_id):
     TaskService.filter_delete([Task.doc_id == doc["id"]])
 
     dsl = req["dsl"]
+    try:
+        MCPServerService.validate_dsl_mcp_ownership(dsl, tenant_id)
+    except ValueError as exc:
+        return get_json_result(
+            data=False,
+            message=str(exc),
+            code=RetCode.ARGUMENT_ERROR,
+        )
+
     dsl["path"] = [req["component_id"]]
     PipelineOperationLogService.update_by_id(req["id"], {"dsl": dsl})
     queue_dataflow(
@@ -1583,7 +1599,13 @@ async def agent_chat_completion(tenant_id, agent_id=None):
                 dsl_str = workflow_dsl
             else:
                 dsl_str = json.dumps(workflow_dsl, ensure_ascii=False)
-            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header)
+            from quart import g
+            auth_type = getattr(g, "auth_type", None)
+            auth_channel = "embed" if auth_type == "beta" else ("chat" if auth_type == "jwt" else ("api" if auth_type == "api" else "webhook" if auth_type == "webhook" else None))
+            canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
+            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant, channel=auth_channel)
+            if auth_type == "beta":
+                canvas.is_embed = True
         except Exception as exc:
             return server_error_response(exc)
 
@@ -1704,7 +1726,13 @@ async def agent_chat_completion(tenant_id, agent_id=None):
         try:
             from agent.canvas import Canvas
 
-            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header)
+            from quart import g
+            auth_type = getattr(g, "auth_type", None)
+            auth_channel = "embed" if auth_type == "beta" else ("chat" if auth_type == "jwt" else ("api" if auth_type == "api" else "webhook" if auth_type == "webhook" else None))
+            canvas_owner_tenant = getattr(cvs, "user_id", None) or tenant_id
+            canvas = Canvas(dsl_str, str(tenant_id), task_id=session_id, canvas_id=agent_id, custom_header=custom_header, canvas_owner_tenant=canvas_owner_tenant, channel=auth_channel)
+            if auth_type == "beta":
+                canvas.is_embed = True
             canvas.start_new_session()
         except Exception as exc:
             return server_error_response(exc)
@@ -2120,7 +2148,8 @@ async def _webhook_impl(agent_id: str, is_test: bool):
     try:
         from agent.canvas import Canvas
 
-        canvas = Canvas(dsl, cvs.user_id, agent_id, canvas_id=agent_id)
+        canvas_owner_tenant = getattr(cvs, "user_id", None)
+        canvas = Canvas(dsl, cvs.user_id, agent_id, canvas_id=agent_id, canvas_owner_tenant=canvas_owner_tenant, channel="webhook")
     except Exception as e:
         resp = get_data_error_result(code=RetCode.BAD_REQUEST, message=str(e))
         resp.status_code = RetCode.BAD_REQUEST
