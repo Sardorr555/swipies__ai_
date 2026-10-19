@@ -501,7 +501,7 @@ class TestAtmosPaymentSystem(unittest.TestCase):
         self.assertTrue(success)
         order_id = data["order_id"]
         self.assertEqual(data["plan_id"], "plus")
-        self.assertEqual(data["amount_usd"], 9.99)
+        self.assertEqual(data["amount_usd"], 20.00)
 
         # 2. Pre-apply & Apply OTP
         AtmosService.pre_apply_card(order_id, "9860 0123 4567 8901", "08/29", user_id)
@@ -550,7 +550,7 @@ class TestAtmosPaymentSystem(unittest.TestCase):
         self.assertTrue(success)
         order_id = data["order_id"]
         self.assertEqual(data["plan_id"], "pro")
-        self.assertEqual(data["amount_usd"], 29.99)
+        self.assertEqual(data["amount_usd"], 40.00)
 
         # 2. Complete payment
         AtmosService.pre_apply_card(order_id, "8600 5555 4444 3333", "11/27", user_id)

@@ -1075,6 +1075,13 @@ def init_database_tables(alter_fields=[]):
     except Exception as e:
         logging.warning(f"Could not import crm_models during table initialization: {e}")
 
+    try:
+        from api.db.telemetry_models import UserActivityEvent
+        if UserActivityEvent not in table_objs:
+            table_objs.append(UserActivityEvent)
+    except Exception as e:
+        logging.warning(f"Could not import telemetry_models during table initialization: {e}")
+
     for obj in table_objs:
         if not obj.table_exists():
             logging.debug(f"start create table {obj.__name__}")
@@ -2472,7 +2479,7 @@ class UserSubscription(DataBaseModel):
     current_period_start = BigIntegerField(null=False)
     current_period_end = BigIntegerField(null=False, index=True)
     auto_renew = BooleanField(default=True)
-    price_usd = FloatField(default=9.99)
+    price_usd = FloatField(default=20.00)
     payment_method_id = CharField(max_length=32, null=True)
     last_billing_time = BigIntegerField(null=True)
     next_billing_time = BigIntegerField(null=True, index=True)

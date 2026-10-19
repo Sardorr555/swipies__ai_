@@ -32,6 +32,7 @@ from api.db.db_models import (
     User,
     Advertiser,
     SubscriptionPlan,
+    AdTransaction,
 )
 from api.db.services.common_service import CommonService
 from api.db.services.ad_engine_service import AdEngineService, AdTransactionService
@@ -262,13 +263,13 @@ class AtmosService:
             if purpose == "subscription_upgrade" and plan_id:
                 norm_plan = plan_id.lower().strip()
                 if norm_plan == "plus":
-                    final_usd = 9.99
+                    final_usd = 20.00
                 elif norm_plan == "pro":
-                    final_usd = 29.99
+                    final_usd = 40.00
                 elif norm_plan == "enterprise":
                     final_usd = 99.00
                 else:
-                    final_usd = 9.99
+                    final_usd = 20.00
                 final_uzs = int(round(final_usd * rate))
             else:
                 return False, "Сумма платежа не указана или некорректна.", None
@@ -726,12 +727,15 @@ class AtmosService:
                 adv.save()
 
                 try:
-                    AdTransactionService.insert(
+                    AdTransaction.create(
+                        id=uuid.uuid4().hex[:32],
                         advertiser_id=adv.id,
                         amount=deposit_usd,
                         type="deposit",
                         description=desc,
                         reference_id=order.id,
+                        create_time=adv.update_time,
+                        update_time=adv.update_time,
                     )
                 except Exception as ex:
                     logger.warning(f"Error logging AdTransaction: {ex}")
@@ -771,12 +775,15 @@ class AtmosService:
                         target_adv.update_time = current_timestamp()
                         target_adv.save()
                         try:
-                            AdTransactionService.insert(
+                            AdTransaction.create(
+                                id=uuid.uuid4().hex[:32],
                                 advertiser_id=target_adv.id,
                                 amount=bonus_usd,
                                 type="deposit",
                                 description=bonus_desc,
                                 reference_id=order.id,
+                                create_time=target_adv.update_time,
+                                update_time=target_adv.update_time,
                             )
                         except Exception as ex:
                             logger.warning(f"Error creating bonus AdTransaction: {ex}")

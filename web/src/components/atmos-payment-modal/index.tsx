@@ -47,7 +47,7 @@ export function AtmosPaymentModal({
   purpose,
   planId = 'pro',
   advertiserId,
-  amountUsd = 29.99,
+  amountUsd = 40.0,
   onSuccess,
 }: AtmosPaymentModalProps) {
   const [step, setStep] = useState<'card' | 'otp' | 'success'>('card');
@@ -74,10 +74,10 @@ export function AtmosPaymentModal({
   const baseUsd =
     purpose === 'subscription_upgrade'
       ? planId === 'plus'
-        ? 9.99
+        ? 20.0
         : planId === 'enterprise'
         ? 99.0
-        : 29.99
+        : 40.0
       : amountUsd || 50.0;
 
   const finalUsd = appliedPromo ? appliedPromo.final_amount_usd : baseUsd;

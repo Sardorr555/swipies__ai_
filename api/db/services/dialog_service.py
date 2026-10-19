@@ -865,6 +865,16 @@ async def async_chat(dialog, messages, stream=True, **kwargs):
     # images reach the model.
     if _empty_response_applies(knowledges, text_attachments_content, image_attachments, image_files) and prompt_config.get("empty_response"):
         empty_res = prompt_config["empty_response"]
+        try:
+            from api.db.services.ad_policy_service import AdPolicyService
+            empty_res = AdPolicyService.ensure_platform_branding(
+                empty_res,
+                tenant_id=dialog.tenant_id,
+                user_id=getattr(dialog, "user_id", None) or dialog.tenant_id,
+                lang=getattr(dialog, "language", "en"),
+            )
+        except Exception as e:
+            logging.debug("empty_response branding enforcement warning: %s", e)
         logging.debug("async_chat empty_response path: empty_res=%r tts_mdl=%r", empty_res, tts_mdl)
         # HTML-escape for frontend display so DOMPurify does not strip
         # unknown tags (e.g. <abc> → &lt;abc&gt;), which would otherwise

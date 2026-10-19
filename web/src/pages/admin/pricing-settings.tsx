@@ -42,9 +42,9 @@ export default function AdminPricingSettings() {
   // State maps for local input editing
   const [pricingValues, setPricingValues] = useState({
     plusUsd: '20',
-    plusUzs: '199000',
+    plusUzs: '260000',
     proUsd: '40',
-    proUzs: '400000',
+    proUzs: '520000',
   });
 
   const [oauthValues, setOauthValues] = useState({
@@ -55,19 +55,19 @@ export default function AdminPricingSettings() {
   });
 
   const [planLimitValues, setPlanLimitValues] = useState({
-    freeApps: '3',
+    freeApps: '-1',
     freeDatasets: '5',
     freeStorageGb: '0.5',
     freeTokens: '100000',
     freeTeam: '1',
 
-    plusApps: '50',
+    plusApps: '-1',
     plusDatasets: '20',
     plusStorageGb: '5.0',
     plusTokens: '5000000',
     plusTeam: '5',
 
-    proApps: '200',
+    proApps: '-1',
     proDatasets: '50',
     proStorageGb: '15.0',
     proTokens: '20000000',
@@ -112,9 +112,9 @@ export default function AdminPricingSettings() {
 
       setPricingValues({
         plusUsd: varsMap.get('pricing.plus.usd') || '20',
-        plusUzs: varsMap.get('pricing.plus.uzs') || '199000',
+        plusUzs: varsMap.get('pricing.plus.uzs') || '260000',
         proUsd: varsMap.get('pricing.pro.usd') || '40',
-        proUzs: varsMap.get('pricing.pro.uzs') || '400000',
+        proUzs: varsMap.get('pricing.pro.uzs') || '520000',
       });
 
       setSmtpValues({
@@ -134,19 +134,19 @@ export default function AdminPricingSettings() {
       });
 
       setPlanLimitValues({
-        freeApps: varsMap.get('plan.free.apps_limit') || '3',
+        freeApps: varsMap.get('plan.free.apps_limit') || '-1',
         freeDatasets: varsMap.get('plan.free.datasets_limit') || '5',
         freeStorageGb: varsMap.get('plan.free.storage_gb') || '0.5',
         freeTokens: varsMap.get('plan.free.token_limit') || '100000',
         freeTeam: varsMap.get('plan.free.team_limit') || '1',
 
-        plusApps: varsMap.get('plan.plus.apps_limit') || '50',
+        plusApps: varsMap.get('plan.plus.apps_limit') || '-1',
         plusDatasets: varsMap.get('plan.plus.datasets_limit') || '20',
         plusStorageGb: varsMap.get('plan.plus.storage_gb') || '5.0',
         plusTokens: varsMap.get('plan.plus.token_limit') || '5000000',
         plusTeam: varsMap.get('plan.plus.team_limit') || '5',
 
-        proApps: varsMap.get('plan.pro.apps_limit') || '200',
+        proApps: varsMap.get('plan.pro.apps_limit') || '-1',
         proDatasets: varsMap.get('plan.pro.datasets_limit') || '50',
         proStorageGb: varsMap.get('plan.pro.storage_gb') || '15.0',
         proTokens: varsMap.get('plan.pro.token_limit') || '20000000',

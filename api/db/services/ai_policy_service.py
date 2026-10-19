@@ -213,8 +213,8 @@ class AIPolicyManager:
                     "max_tokens_per_request": 4096,
                     "limit_mode": "shared",
                     "max_storage_gb": 1.0,
-                    "max_datasets": 2,
-                    "max_agents": 2,
+                    "max_datasets": 5,
+                    "max_agents": -1,
                     "allow_custom_providers": False,
                     "allow_custom_models": False,
                     "allow_custom_endpoints": False,
@@ -238,7 +238,7 @@ class AIPolicyManager:
                     "limit_mode": "shared",
                     "max_storage_gb": 10.0,
                     "max_datasets": 10,
-                    "max_agents": 10,
+                    "max_agents": -1,
                     "allow_custom_providers": False,
                     "allow_custom_models": False,
                     "allow_custom_endpoints": False,
@@ -262,7 +262,7 @@ class AIPolicyManager:
                     "limit_mode": "per_model",
                     "max_storage_gb": 50.0,
                     "max_datasets": 50,
-                    "max_agents": 50,
+                    "max_agents": -1,
                     "allow_custom_providers": True,
                     "allow_custom_models": True,
                     "allow_custom_endpoints": True,
@@ -286,6 +286,7 @@ class AIPolicyManager:
                 {"id": "global_anthropic", "provider_name": "Anthropic", "base_url": "https://api.anthropic.com/v1", "status": "active"},
                 {"id": "global_deepseek", "provider_name": "DeepSeek", "base_url": "https://api.deepseek.com/v1", "status": "active"},
                 {"id": "global_gemini", "provider_name": "Gemini", "base_url": "https://generativelanguage.googleapis.com", "status": "active"},
+                {"id": "global_cohere", "provider_name": "Cohere", "base_url": "https://api.cohere.com/v1", "status": "active"},
             ]
             for p in default_providers:
                 if not AIProvider.select().where(AIProvider.id == p["id"]).count():

@@ -10,6 +10,7 @@ class MetadataBuilder:
             "title": extracted_meta.get("title", ""),
             "language": extracted_meta.get("language", "en"),
             "description": extracted_meta.get("description", ""),
+            "keywords": extracted_meta.get("keywords", []),
             "author": extracted_meta.get("author", ""),
             "publish_date": extracted_meta.get("publish_date", ""),
             "last_modified": extracted_meta.get("publish_date", ""),

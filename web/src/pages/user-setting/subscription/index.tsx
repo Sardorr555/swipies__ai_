@@ -172,11 +172,12 @@ const ALL_PLAN_CARDS = [
     name: 'Free / Trial',
     price: 'Free',
     storage: '50 MB',
-    apps: '3 Apps',
+    apps: 'Unlimited Apps',
     team: '1 Member',
     credits: '100 Credits/mo',
     features: [
-      '3 Agents & Chat Apps',
+      'Unlimited Agents & Chat Apps',
+      '5 Datasets limit',
       '50 MB Dataset storage',
       '1 Team member',
       'Basic model support',
@@ -186,13 +187,13 @@ const ALL_PLAN_CARDS = [
   {
     key: 'plus',
     name: 'Plus Plan',
-    price: '199,000 UZS / mo (~$9.99)',
+    price: '260,000 UZS / mo (~$20.00)',
     storage: '5 GB',
-    apps: '50 Apps',
+    apps: 'Unlimited Apps',
     team: '5 Members',
     credits: '5,000 Credits/mo',
     features: [
-      '50 Agents & Chat Apps',
+      'Unlimited Agents & Chat Apps',
       '5 GB Dataset storage',
       '5 Team members',
       '5,000 Credits / month',
@@ -204,7 +205,7 @@ const ALL_PLAN_CARDS = [
   {
     key: 'pro',
     name: 'Pro Plan',
-    price: '400,000 UZS / mo (~$29.99)',
+    price: '520,000 UZS / mo (~$40.00)',
     storage: '15 GB',
     apps: 'Unlimited Apps',
     team: '15 Members',
@@ -314,7 +315,7 @@ const SubscriptionPage = () => {
       case 'plus':
         return {
           storage: '5 GB',
-          apps: '50',
+          apps: unlim,
           team: '5',
           credits: '5,000',
         };
@@ -342,7 +343,7 @@ const SubscriptionPage = () => {
       default:
         return {
           storage: '50 MB',
-          apps: '3',
+          apps: unlim,
           team: '1',
           credits: '100',
         };

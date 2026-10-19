@@ -119,8 +119,8 @@ class RecurringSubscriptionService(CommonService):
     model = UserSubscription
 
     PLAN_PRICES = {
-        "plus": 9.99,
-        "pro": 29.99,
+        "plus": 20.00,
+        "pro": 40.00,
     }
 
     @classmethod
@@ -191,7 +191,7 @@ class RecurringSubscriptionService(CommonService):
         period_ms = period_days * 86400 * 1000
         period_end = now_ts + period_ms
 
-        effective_price = price_usd if price_usd > 0 else cls.PLAN_PRICES.get(plan_id, 9.99)
+        effective_price = price_usd if price_usd > 0 else cls.PLAN_PRICES.get(plan_id, 20.00)
 
         sub = cls.model.select().where(
             (cls.model.user_id == user_id) | (cls.model.tenant_id == tenant_id)

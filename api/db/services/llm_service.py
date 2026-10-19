@@ -622,6 +622,19 @@ class LLMBundle(LLM4Tenant):
         if not self.verbose_tool_use:
             txt = re.sub(r"<tool_call>.*?</tool_call>", "", txt, flags=re.DOTALL)
 
+        # Ensure platform branding if enabled (deterministic watermark for Free tier)
+        try:
+            from api.db.services.ad_policy_service import AdPolicyService
+            resolved_uid = getattr(self, "user_id", None) or self.tenant_id
+            txt = AdPolicyService.ensure_platform_branding(
+                txt,
+                tenant_id=self.tenant_id,
+                user_id=resolved_uid,
+                lang=getattr(self, "lang", "en"),
+            )
+        except Exception as e:
+            logging.debug("LLMBundle.async_chat branding enforcement warning: %s", e)
+
         if used_tokens:
             logging.info("LLMBundle.async_chat used_tokens: %d", used_tokens)
 
@@ -676,6 +689,23 @@ class LLMBundle(LLM4Tenant):
                     generation.update(output={"error": str(e)})
                     generation.end()
                 raise
+
+            # Deterministic platform branding enforcement for Free tier
+            try:
+                from api.db.services.ad_policy_service import AdPolicyService
+                resolved_uid = getattr(self, "user_id", None) or self.tenant_id
+                branded_ans = AdPolicyService.ensure_platform_branding(
+                    ans,
+                    tenant_id=self.tenant_id,
+                    user_id=resolved_uid,
+                    lang=getattr(self, "lang", "en"),
+                )
+                if branded_ans != ans:
+                    ans = branded_ans
+                    yield ans
+            except Exception as e:
+                logging.debug("LLMBundle.async_chat_streamly branding enforcement warning: %s", e)
+
             if total_tokens:
                 logging.info("LLMBundle.async_chat_streamly used_tokens: %d", total_tokens)
             # The streaming backend returns the authoritative total through
@@ -736,6 +766,23 @@ class LLMBundle(LLM4Tenant):
                     generation.update(output={"error": str(e)})
                     generation.end()
                 raise
+
+            # Deterministic platform branding delta for Free tier
+            try:
+                from api.db.services.ad_policy_service import AdPolicyService
+                resolved_uid = getattr(self, "user_id", None) or self.tenant_id
+                suffix = AdPolicyService.get_platform_branding_suffix(
+                    ans,
+                    tenant_id=self.tenant_id,
+                    user_id=resolved_uid,
+                    lang=getattr(self, "lang", "en"),
+                )
+                if suffix:
+                    ans += suffix
+                    yield suffix
+            except Exception as e:
+                logging.debug("LLMBundle.async_chat_streamly_delta branding enforcement warning: %s", e)
+
             if total_tokens:
                 logging.info("LLMBundle.async_chat_streamly_delta used_tokens: %d", total_tokens)
             # Streaming providers may expose only the integer total sentinel;

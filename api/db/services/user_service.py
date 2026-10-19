@@ -377,8 +377,8 @@ class TenantLimitService:
             return True, None
 
         plan = (tenant.plan_type or "free").lower()
-        default_limits = {"free": 3, "plus": 50, "pro": 200, "enterprise": -1}
-        limit = int(cls.get_setting_val(f"plan.{plan}.apps_limit", default_limits.get(plan, 3)))
+        default_limits = {"free": -1, "plus": -1, "pro": -1, "enterprise": -1}
+        limit = int(cls.get_setting_val(f"plan.{plan}.apps_limit", default_limits.get(plan, -1)))
 
         if limit < 0:
             return True, None

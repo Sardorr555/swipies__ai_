@@ -306,6 +306,7 @@ from api.db.db_models import (
     UserOnboarding,
     SavedPaymentMethod,
     UserSubscription,
+    AIModel,
 )
 from api.db.services.ad_engine_service import (
     AdEngineService,
@@ -368,7 +369,7 @@ def create_user_tenant(user_id: str, tenant_id: str, role: str = "owner"):
 class TestE2EAdsAndMonetization(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        DB.connection_context = test_db.connection_context
+        DB.connection_context = lambda: (lambda fn: fn)
         DB.atomic = test_db.atomic
         DB.transaction = test_db.transaction
         DB.connect = test_db.connect
@@ -423,6 +424,7 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             UserOnboarding,
             SavedPaymentMethod,
             UserSubscription,
+            AIModel,
         ]
         for m in models:
             m._meta.database = test_db
@@ -708,7 +710,7 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
         create_tenant(tenant_plus_id, name="Seeker Org", plan_type="free")
         create_user_tenant(user_plus_id, tenant_plus_id)
 
-        # 2. Checkout Plus plan with promo code PLUS50 (Original $9.99 -> $5.00)
+        # 2. Checkout Plus plan with promo code PLUS50 (Original $20.00 -> $10.00)
         order_ok, _, order_data = AtmosService.create_payment_order(
             user_id=user_plus_id,
             tenant_id=tenant_plus_id,
@@ -717,7 +719,7 @@ class TestE2EAdsAndMonetization(unittest.TestCase):
             promo_code="PLUS50",
         )
         self.assertTrue(order_ok)
-        self.assertAlmostEqual(order_data["amount_usd"], 5.00, delta=0.05)
+        self.assertAlmostEqual(order_data["amount_usd"], 10.00, delta=0.05)
 
         # Pre-apply card & apply OTP
         ord_id = order_data["order_id"]

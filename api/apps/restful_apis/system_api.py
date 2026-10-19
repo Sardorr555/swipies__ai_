@@ -277,9 +277,9 @@ def get_config():
         return default
 
     plus_usd = float(get_setting_val("pricing.plus.usd", 20))
-    plus_uzs = float(get_setting_val("pricing.plus.uzs", 199000))
+    plus_uzs = float(get_setting_val("pricing.plus.uzs", 260000))
     pro_usd = float(get_setting_val("pricing.pro.usd", 40))
-    pro_uzs = float(get_setting_val("pricing.pro.uzs", 400000))
+    pro_uzs = float(get_setting_val("pricing.pro.uzs", 520000))
 
     return get_json_result(data={
         "registerEnabled": settings.REGISTER_ENABLED,

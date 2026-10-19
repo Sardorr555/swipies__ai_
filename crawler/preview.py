@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from urllib.parse import urljoin, urlparse
 import aiohttp
 from bs4 import BeautifulSoup
@@ -51,6 +52,7 @@ class WebsitePreviewAnalyzer:
             "detected_language": "en",
             "detected_pdfs": 0,
             "detected_images": 0,
+            "keywords": [],
             "estimated_embedding_cost": 0.0,
             "estimated_crawl_time_seconds": 0
         }
@@ -89,6 +91,13 @@ class WebsitePreviewAnalyzer:
                             t = soup.find('title')
                             title_text = t.get_text(strip=True) if t else ""
                             result["title"] = title_text or parsed_start.netloc or start_url
+
+                        if not result["keywords"]:
+                            mk = soup.find('meta', attrs={'name': re.compile(r'^(keywords|news_keywords)$', re.I)}) or \
+                                 soup.find('meta', attrs={'property': re.compile(r'^(keywords|news_keywords)$', re.I)})
+                            if mk and mk.get('content'):
+                                raw_kw = mk['content'].strip()
+                                result["keywords"] = [k.strip() for k in re.split(r'[,;]+', raw_kw) if k.strip()]
 
                         # Count text tokens estimation (1 token ~= 4 chars)
                         text = soup.get_text()

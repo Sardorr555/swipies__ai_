@@ -16,6 +16,7 @@ class MetadataExtractor:
             "canonical_url": current_url,
             "language": "en",
             "description": "",
+            "keywords": [],
             "author": "",
             "publish_date": "",
             "headings": [],
@@ -41,7 +42,7 @@ class MetadataExtractor:
         if html_tag and html_tag.get('lang'):
             metadata["language"] = html_tag['lang']
 
-        # 4. Meta Description & Author & Dates
+        # 4. Meta Description & Author & Dates & Keywords
         meta_desc = soup.find('meta', attrs={'name': re.compile(r'description', re.I)})
         if meta_desc and meta_desc.get('content'):
             metadata["description"] = meta_desc['content'].strip()
@@ -53,6 +54,12 @@ class MetadataExtractor:
         meta_date = soup.find('meta', attrs={'name': re.compile(r'date|published_time', re.I)})
         if meta_date and meta_date.get('content'):
             metadata["publish_date"] = meta_date['content'].strip()
+
+        meta_keywords = soup.find('meta', attrs={'name': re.compile(r'^(keywords|news_keywords)$', re.I)}) or \
+                        soup.find('meta', attrs={'property': re.compile(r'^(keywords|news_keywords)$', re.I)})
+        if meta_keywords and meta_keywords.get('content'):
+            raw_kw = meta_keywords['content'].strip()
+            metadata["keywords"] = [k.strip() for k in re.split(r'[,;]+', raw_kw) if k.strip()]
 
         # 5. OpenGraph
         for og in soup.find_all('meta', property=re.compile(r'^og:')):
