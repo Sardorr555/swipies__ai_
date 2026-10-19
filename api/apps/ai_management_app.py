@@ -753,6 +753,45 @@ async def admin_update_plan(plan_id):
         old_val = plans[0].to_dict()
         SubscriptionPlanService.filter_update([SubscriptionPlanService.model.id == plan_id], update_fields)
 
+        # Synchronize datasets, agents, and storage limits to SystemSettings for TenantLimitService
+        from api.db.services.system_settings_service import SystemSettingsService
+        from common.time_utils import current_timestamp, datetime_format
+        from datetime import datetime
+
+        def _sync_setting(name: str, val: str):
+            objs = list(SystemSettingsService.get_by_name(name))
+            if objs:
+                SystemSettingsService.update_by_name(name, {"value": val})
+            else:
+                SystemSettingsService.save(
+                    name=name,
+                    value=val,
+                    source="plan_sync",
+                    data_type="string",
+                    create_time=current_timestamp(),
+                    create_date=datetime_format(datetime.now()),
+                    update_time=current_timestamp(),
+                    update_date=datetime_format(datetime.now())
+                )
+
+        if "max_datasets" in update_fields:
+            try:
+                _sync_setting(f"plan.{plan_id}.datasets_limit", str(update_fields["max_datasets"]))
+            except Exception:
+                pass
+
+        if "max_agents" in update_fields:
+            try:
+                _sync_setting(f"plan.{plan_id}.apps_limit", str(update_fields["max_agents"]))
+            except Exception:
+                pass
+
+        if "max_storage_gb" in update_fields:
+            try:
+                _sync_setting(f"plan.{plan_id}.storage_gb", str(update_fields["max_storage_gb"]))
+            except Exception:
+                pass
+
         AIAuditLogService.log_action(
             user_id=current_user.id,
             action="PLAN_UPDATE",

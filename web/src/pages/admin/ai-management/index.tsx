@@ -123,6 +123,7 @@ const PROVIDER_PRESETS = [
   { name: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1', suggestedModel: 'claude-3-5-sonnet-20241022' },
   { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', suggestedModel: 'deepseek-chat' },
   { name: 'Google', baseUrl: 'https://generativelanguage.googleapis.com', suggestedModel: 'gemini-1.5-pro' },
+  { name: 'Cohere', baseUrl: 'https://api.cohere.com/v1', suggestedModel: 'command-r-plus-08-2024' },
   { name: 'OpenAI-Compatible', baseUrl: 'http://localhost:8000/v1', suggestedModel: 'custom-model' },
   { name: 'Ollama', baseUrl: 'http://localhost:11434/v1', suggestedModel: 'llama3:latest' },
 ];
@@ -1886,6 +1887,37 @@ export default function AIManagementPage() {
                             type="number"
                             defaultValue={p.requests_per_minute || 60}
                             onBlur={(e) => handleUpdatePlanField(p.id, 'requests_per_minute', parseInt(e.target.value) || 0)}
+                            className="bg-bg-base h-8 text-xs font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-text-secondary text-[11px]">Max Datasets Limit (-1 = Unlimited)</label>
+                          <Input
+                            type="number"
+                            defaultValue={p.max_datasets !== undefined ? p.max_datasets : (p.id.toLowerCase() === 'free' ? 5 : (p.id.toLowerCase() === 'plus' ? 20 : 50))}
+                            onBlur={(e) => handleUpdatePlanField(p.id, 'max_datasets', parseInt(e.target.value) ?? 5)}
+                            className="bg-bg-base h-8 text-xs font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-text-secondary text-[11px]">Max Agents & Apps Limit (-1 = Unlimited)</label>
+                          <Input
+                            type="number"
+                            defaultValue={p.max_agents !== undefined ? p.max_agents : -1}
+                            onBlur={(e) => handleUpdatePlanField(p.id, 'max_agents', parseInt(e.target.value) ?? -1)}
+                            className="bg-bg-base h-8 text-xs font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-text-secondary text-[11px]">Storage Limit (GB)</label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            defaultValue={p.max_storage_gb !== undefined ? p.max_storage_gb : (p.id.toLowerCase() === 'free' ? 0.5 : (p.id.toLowerCase() === 'plus' ? 5.0 : 15.0))}
+                            onBlur={(e) => handleUpdatePlanField(p.id, 'max_storage_gb', parseFloat(e.target.value) || 0.5)}
                             className="bg-bg-base h-8 text-xs font-mono"
                           />
                         </div>

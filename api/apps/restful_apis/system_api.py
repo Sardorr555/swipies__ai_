@@ -1295,6 +1295,30 @@ async def update_system_variable():
             update_time=current_timestamp(),
             update_date=datetime_format(datetime.now())
         )
+
+    # Bi-directional sync with SubscriptionPlanService if var_name is a plan setting
+    if var_name.startswith("plan."):
+        parts = var_name.split(".")
+        if len(parts) == 3:
+            plan_id, field_name = parts[1].lower(), parts[2]
+            try:
+                from api.db.services.ai_policy_service import SubscriptionPlanService
+                field_map = {
+                    "datasets_limit": "max_datasets",
+                    "apps_limit": "max_agents",
+                    "storage_gb": "max_storage_gb",
+                    "token_limit": "monthly_token_limit"
+                }
+                if field_name in field_map:
+                    target_field = field_map[field_name]
+                    target_val = float(var_value) if target_field == "max_storage_gb" else int(var_value)
+                    SubscriptionPlanService.filter_update(
+                        [SubscriptionPlanService.model.id == plan_id],
+                        {target_field: target_val}
+                    )
+            except Exception:
+                pass
+
     return get_json_result(data=True)
 
 

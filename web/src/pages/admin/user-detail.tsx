@@ -622,6 +622,20 @@ function AdminUserDetail() {
                   : 'Unlimited'}
               </div>
             </div>
+
+            <div>
+              <div className="text-sm text-text-secondary mb-2">Datasets</div>
+              <div className="font-semibold text-text-primary">
+                {datasets?.length || 0}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm text-text-secondary mb-2">Agents / Apps</div>
+              <div className="font-semibold text-text-primary">
+                {agents?.length || 0}
+              </div>
+            </div>
           </section>
 
           <div className="border-t border-dashed dark:border-border-button pt-6 px-14 space-y-4">

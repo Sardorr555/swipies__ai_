@@ -358,6 +358,38 @@ class TenantLimitService:
         return default
 
     @classmethod
+    def get_plan_limit(cls, plan: str, limit_type: str, default: float) -> float:
+        """
+        Check SystemSettings first (e.g. plan.{plan}.{limit_type}),
+        then fallback to SubscriptionPlan database model,
+        and finally fallback to default.
+        """
+        try:
+            from api.db.services.system_settings_service import SystemSettingsService
+            objs = SystemSettingsService.get_by_name(f"plan.{plan}.{limit_type}")
+            if objs and objs[0].value is not None and str(objs[0].value).strip() != "":
+                return float(objs[0].value)
+        except Exception:
+            pass
+
+        try:
+            from api.db.services.ai_policy_service import SubscriptionPlanService
+            ok, plan_obj = SubscriptionPlanService.get_by_id(plan)
+            if ok and plan_obj:
+                field_map = {
+                    "apps_limit": "max_agents",
+                    "datasets_limit": "max_datasets",
+                    "storage_gb": "max_storage_gb"
+                }
+                attr = field_map.get(limit_type)
+                if attr and getattr(plan_obj, attr, None) is not None:
+                    return float(getattr(plan_obj, attr))
+        except Exception:
+            pass
+
+        return default
+
+    @classmethod
     def is_referral_enabled(cls) -> bool:
         return cls.get_setting_val("referral.enabled", 1.0) == 1.0
 
@@ -378,7 +410,7 @@ class TenantLimitService:
 
         plan = (tenant.plan_type or "free").lower()
         default_limits = {"free": -1, "plus": -1, "pro": -1, "enterprise": -1}
-        limit = int(cls.get_setting_val(f"plan.{plan}.apps_limit", default_limits.get(plan, -1)))
+        limit = int(cls.get_plan_limit(plan, "apps_limit", default_limits.get(plan, -1)))
 
         if limit < 0:
             return True, None
@@ -414,7 +446,7 @@ class TenantLimitService:
 
         plan = (tenant.plan_type or "free").lower()
         default_limits = {"free": 5, "plus": 20, "pro": 50, "enterprise": -1}
-        limit = int(cls.get_setting_val(f"plan.{plan}.datasets_limit", default_limits.get(plan, 5)))
+        limit = int(cls.get_plan_limit(plan, "datasets_limit", default_limits.get(plan, 5)))
 
         if limit < 0:
             return True, None
@@ -440,7 +472,7 @@ class TenantLimitService:
 
         plan = (tenant.plan_type or "free").lower()
         default_limits = {"free": 0.5, "plus": 5.0, "pro": 15.0, "enterprise": -1}
-        limit_gb = cls.get_setting_val(f"plan.{plan}.storage_gb", default_limits.get(plan, 0.5))
+        limit_gb = cls.get_plan_limit(plan, "storage_gb", default_limits.get(plan, 0.5))
 
         if limit_gb < 0:
             return True, None
