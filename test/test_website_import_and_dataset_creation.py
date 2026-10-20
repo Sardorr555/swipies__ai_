@@ -106,7 +106,7 @@ from crawler.progress import JobProgressTracker
 class TestWebsiteImportAndDatasetCreation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        test_db.connect()
+        test_db.connect(reuse_if_open=True)
         test_db.create_tables(MODELS, safe=True)
         # Mock storage
         cls.mock_storage = MagicMock()

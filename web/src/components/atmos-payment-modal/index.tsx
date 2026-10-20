@@ -20,7 +20,6 @@ import {
   Loader2,
   Sparkles,
   Zap,
-  RefreshCw,
   Clock,
   Check,
   Tag,
@@ -183,17 +182,18 @@ export function AtmosPaymentModal({
     setIsValidatingPromo(true);
     setErrorMessage('');
     try {
-      const res = await adService.validatePromo({
+      const rawRes: any = await adService.validatePromo({
         code: promoCodeInput.trim().toUpperCase(),
         purpose,
         amount_usd: baseUsd,
         plan_id: planId,
       });
-      if (res.data?.data) {
-        setAppliedPromo(res.data.data);
-        message.success(`Промокод "${res.data.data.code}" успешно применен!`);
+      const promoData = rawRes?.data?.data ?? rawRes?.data;
+      if (promoData?.code) {
+        setAppliedPromo(promoData);
+        message.success(`Промокод "${promoData.code}" успешно применен!`);
       } else {
-        setErrorMessage(res.data?.message || 'Недействительный промокод');
+        setErrorMessage(rawRes?.message || rawRes?.data?.message || 'Недействительный промокод');
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Ошибка валидации промокода');
@@ -220,7 +220,7 @@ export function AtmosPaymentModal({
 
     try {
       // 1. Create order
-      const createRes = await paymentService.createAtmosPayment({
+      const rawCreate: any = await paymentService.createAtmosPayment({
         purpose,
         plan_id: purpose === 'subscription_upgrade' ? planId : undefined,
         advertiser_id: advertiserId,
@@ -230,24 +230,28 @@ export function AtmosPaymentModal({
         lang: 'ru',
       });
 
-      if (createRes.data.code !== 0 || !createRes.data.data?.order_id) {
-        setErrorMessage(createRes.data.message || 'Ошибка создания платежного заказа');
+      const createCode = rawCreate?.code ?? rawCreate?.data?.code ?? 0;
+      const createData = rawCreate?.data?.data ?? rawCreate?.data;
+      if (createCode !== 0 || !createData?.order_id) {
+        setErrorMessage(rawCreate?.message || rawCreate?.data?.message || 'Ошибка создания платежного заказа');
         setLoading(false);
         return;
       }
 
-      const createdOrderId = createRes.data.data.order_id;
+      const createdOrderId = createData.order_id;
       setOrderId(createdOrderId);
 
       // 2. Pre-apply card (dispatch OTP)
-      const preRes = await paymentService.preApplyCard({
+      const rawPre: any = await paymentService.preApplyCard({
         order_id: createdOrderId,
         card_number: cleanCard,
         expiry: cleanExp,
       });
 
-      if (preRes.data.code !== 0 || !preRes.data.data) {
-        const msgStr = preRes.data.message || 'Ошибка при отправке СМС-кода.';
+      const preCode = rawPre?.code ?? rawPre?.data?.code ?? 0;
+      const preData = rawPre?.data?.data ?? rawPre?.data;
+      if (preCode !== 0 || !preData) {
+        const msgStr = rawPre?.message || rawPre?.data?.message || 'Ошибка при отправке СМС-кода.';
         setErrorMessage(msgStr);
         if (msgStr.includes('102') || msgStr.toLowerCase().includes('смс')) {
           setIsSms102Error(true);
@@ -256,7 +260,7 @@ export function AtmosPaymentModal({
         return;
       }
 
-      setPhoneMasked(preRes.data.data.phone_masked || '+998 9* *** ** **');
+      setPhoneMasked(preData.phone_masked || '+998 9* *** ** **');
       setStep('otp');
     } catch (err: any) {
       setErrorMessage(err.message || 'Не удалось связаться со шлюзом Atmos.');
@@ -274,14 +278,14 @@ export function AtmosPaymentModal({
 
     try {
       const cleanExp = expiry.replace(/\//g, '');
-      const preRes = await paymentService.preApplyCard({
+      const rawPre: any = await paymentService.preApplyCard({
         order_id: orderId,
         card_number: cleanCard,
         expiry: cleanExp,
       });
-
-      if (preRes.data.code !== 0) {
-        setErrorMessage(preRes.data.message || 'Ошибка повторной отправки кода.');
+      const preCode = rawPre?.code ?? rawPre?.data?.code ?? 0;
+      if (preCode !== 0) {
+        setErrorMessage(rawPre?.message || rawPre?.data?.message || 'Ошибка повторной отправки кода.');
       } else {
         message.success('Новый СМС-код отправлен на ваш номер');
         setCountdown(60);
@@ -305,22 +309,24 @@ export function AtmosPaymentModal({
     setErrorMessage('');
 
     try {
-      const applyRes = await paymentService.applyOtp({
+      const rawApply: any = await paymentService.applyOtp({
         order_id: orderId,
         otp: cleanOtp,
       });
 
-      if (applyRes.data.code !== 0 || applyRes.data.data?.status !== 'paid') {
-        setErrorMessage(applyRes.data.message || 'Неверный СМС-код. Проверьте код, поступивший на телефон, и повторите.');
+      const applyCode = rawApply?.code ?? rawApply?.data?.code ?? 0;
+      const applyData = rawApply?.data?.data ?? rawApply?.data;
+      if (applyCode !== 0 || applyData?.status !== 'paid') {
+        setErrorMessage(rawApply?.message || rawApply?.data?.message || 'Неверный СМС-код. Проверьте код, поступивший на телефон, и повторите.');
         setLoading(false);
         return;
       }
 
-      setSuccessData(applyRes.data.data);
+      setSuccessData(applyData);
       setStep('success');
       message.success('Оплата успешно подтверждена!');
       if (onSuccess) {
-        onSuccess(applyRes.data.data);
+        onSuccess(applyData);
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Ошибка подтверждения платежа.');

@@ -95,6 +95,10 @@ async def create_dataset(tenant_id: str, req: dict):
     :param req: dataset creation request
     :return: (success, result) or (success, error_message)
     """
+    from api.db.services.user_service import TenantLimitService
+    allowed, limit_msg = TenantLimitService.check_datasets_limit(tenant_id)
+    if not allowed:
+        return False, limit_msg
     # Drop language when not provided so the model/database default applies
     # (the create request is parsed with exclude_unset=False, so the key is
     # always present with a None default when the caller omits it).

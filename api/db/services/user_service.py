@@ -375,6 +375,8 @@ class TenantLimitService:
         try:
             from api.db.services.ai_policy_service import SubscriptionPlanService
             ok, plan_obj = SubscriptionPlanService.get_by_id(plan)
+            if not ok or not plan_obj:
+                ok, plan_obj = SubscriptionPlanService.get_by_id(plan.upper())
             if ok and plan_obj:
                 field_map = {
                     "apps_limit": "max_agents",

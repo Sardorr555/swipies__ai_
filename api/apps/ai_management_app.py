@@ -774,21 +774,23 @@ async def admin_update_plan(plan_id):
                     update_date=datetime_format(datetime.now())
                 )
 
+        plan_id_lower = str(plan_id).lower().strip()
+
         if "max_datasets" in update_fields:
             try:
-                _sync_setting(f"plan.{plan_id}.datasets_limit", str(update_fields["max_datasets"]))
+                _sync_setting(f"plan.{plan_id_lower}.datasets_limit", str(update_fields["max_datasets"]))
             except Exception:
                 pass
 
         if "max_agents" in update_fields:
             try:
-                _sync_setting(f"plan.{plan_id}.apps_limit", str(update_fields["max_agents"]))
+                _sync_setting(f"plan.{plan_id_lower}.apps_limit", str(update_fields["max_agents"]))
             except Exception:
                 pass
 
         if "max_storage_gb" in update_fields:
             try:
-                _sync_setting(f"plan.{plan_id}.storage_gb", str(update_fields["max_storage_gb"]))
+                _sync_setting(f"plan.{plan_id_lower}.storage_gb", str(update_fields["max_storage_gb"]))
             except Exception:
                 pass
 

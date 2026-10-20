@@ -64,15 +64,6 @@ from api.db.db_models import (
     SystemSettings,
 )
 
-# Bind test sqlite database
-DB.connection_context = lambda: (lambda fn: fn)
-DB.atomic = test_db.atomic
-DB.transaction = test_db.transaction
-DB.connect = test_db.connect
-DB.close = test_db.close
-DB.is_closed = test_db.is_closed
-DB.execute_sql = test_db.execute_sql
-
 MODELS = [
     User,
     Tenant,
@@ -83,18 +74,28 @@ MODELS = [
     SystemSettings,
 ]
 
-for model in MODELS:
-    model._meta.database = test_db
-
-test_db.connect(reuse_if_open=True)
-test_db.create_tables(MODELS, safe=True)
-
 from api.db.services.system_settings_service import SystemSettingsService
 from api.db.services.ai_policy_service import SubscriptionPlanService
 from api.db.services.user_service import TenantLimitService, TenantService
 
 
 class TestAdminPlanLimitsManagement(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        DB.connection_context = lambda: (lambda fn: fn)
+        DB.atomic = test_db.atomic
+        DB.transaction = test_db.transaction
+        DB.connect = test_db.connect
+        DB.close = test_db.close
+        DB.is_closed = test_db.is_closed
+        DB.execute_sql = test_db.execute_sql
+
+        for model in MODELS:
+            model._meta.database = test_db
+
+        test_db.connect(reuse_if_open=True)
+        test_db.create_tables(MODELS, safe=True)
+
     @classmethod
     def tearDownClass(cls):
         test_db.close()

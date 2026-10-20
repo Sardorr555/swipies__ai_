@@ -244,7 +244,7 @@ const SubscriptionPage = () => {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: userInfo } = useFetchUserInfo();
+  useFetchUserInfo();
   const { data: tenantInfo, loading } = useFetchTenantInfo();
   const [aiUsage, setAiUsage] = useState<UserAIUsageSummary | null>(null);
   const [isAtmosModalOpen, setIsAtmosModalOpen] = useState(false);

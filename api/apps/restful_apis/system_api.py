@@ -1311,11 +1311,14 @@ async def update_system_variable():
                 }
                 if field_name in field_map:
                     target_field = field_map[field_name]
-                    target_val = float(var_value) if target_field == "max_storage_gb" else int(var_value)
-                    SubscriptionPlanService.filter_update(
-                        [SubscriptionPlanService.model.id == plan_id],
-                        {target_field: target_val}
-                    )
+                    try:
+                        target_val = float(var_value) if target_field == "max_storage_gb" else int(float(var_value))
+                        SubscriptionPlanService.filter_update(
+                            [SubscriptionPlanService.model.id == plan_id],
+                            {target_field: target_val}
+                        )
+                    except (ValueError, TypeError):
+                        pass
             except Exception:
                 pass
 

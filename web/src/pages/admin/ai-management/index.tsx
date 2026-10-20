@@ -1896,7 +1896,10 @@ export default function AIManagementPage() {
                           <Input
                             type="number"
                             defaultValue={p.max_datasets !== undefined ? p.max_datasets : (p.id.toLowerCase() === 'free' ? 5 : (p.id.toLowerCase() === 'plus' ? 20 : 50))}
-                            onBlur={(e) => handleUpdatePlanField(p.id, 'max_datasets', parseInt(e.target.value) ?? 5)}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value);
+                              handleUpdatePlanField(p.id, 'max_datasets', isNaN(val) ? 5 : val);
+                            }}
                             className="bg-bg-base h-8 text-xs font-mono"
                           />
                         </div>
@@ -1906,7 +1909,10 @@ export default function AIManagementPage() {
                           <Input
                             type="number"
                             defaultValue={p.max_agents !== undefined ? p.max_agents : -1}
-                            onBlur={(e) => handleUpdatePlanField(p.id, 'max_agents', parseInt(e.target.value) ?? -1)}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value);
+                              handleUpdatePlanField(p.id, 'max_agents', isNaN(val) ? -1 : val);
+                            }}
                             className="bg-bg-base h-8 text-xs font-mono"
                           />
                         </div>
@@ -1917,7 +1923,10 @@ export default function AIManagementPage() {
                             type="number"
                             step="0.5"
                             defaultValue={p.max_storage_gb !== undefined ? p.max_storage_gb : (p.id.toLowerCase() === 'free' ? 0.5 : (p.id.toLowerCase() === 'plus' ? 5.0 : 15.0))}
-                            onBlur={(e) => handleUpdatePlanField(p.id, 'max_storage_gb', parseFloat(e.target.value) || 0.5)}
+                            onBlur={(e) => {
+                              const val = parseFloat(e.target.value);
+                              handleUpdatePlanField(p.id, 'max_storage_gb', isNaN(val) ? 0.5 : val);
+                            }}
                             className="bg-bg-base h-8 text-xs font-mono"
                           />
                         </div>
