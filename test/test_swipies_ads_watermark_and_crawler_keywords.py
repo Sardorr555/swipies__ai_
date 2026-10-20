@@ -152,7 +152,9 @@ class TestSwipiesAdsWatermarkAndCrawlerKeywords(unittest.TestCase):
         except Exception:
             pass
         os.environ["ATMOS_MOCK_MODE"] = "true"
-        test_db.connect()
+        for model in MODELS:
+            model._meta.database = test_db
+        test_db.connect(reuse_if_open=True)
         test_db.create_tables(MODELS, safe=True)
 
         from api.db.services.tenant_llm_service import TenantLLMService

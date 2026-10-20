@@ -106,6 +106,8 @@ from crawler.progress import JobProgressTracker
 class TestWebsiteImportAndDatasetCreation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        for model in MODELS:
+            model._meta.database = test_db
         test_db.connect(reuse_if_open=True)
         test_db.create_tables(MODELS, safe=True)
         # Mock storage

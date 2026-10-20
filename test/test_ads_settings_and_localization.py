@@ -108,7 +108,9 @@ from common.time_utils import current_timestamp
 class TestAdsSettingsAndLocalization(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        test_db.connect()
+        for model in MODELS:
+            model._meta.database = test_db
+        test_db.connect(reuse_if_open=True)
         test_db.create_tables(MODELS, safe=True)
 
     @classmethod
