@@ -539,6 +539,15 @@ export default {
   adminSetSandboxConfig: `${restAPIv1}/admin/sandbox/config`,
   adminTestSandboxConnection: `${restAPIv1}/admin/sandbox/test`,
 
+  // User Activity & Telemetry
+  adminUserActivityOverview: `${restAPIv1}/admin/user-activity/overview`,
+  adminUserActivityModules: `${restAPIv1}/admin/user-activity/modules`,
+  adminUserActivityClicks: `${restAPIv1}/admin/user-activity/clicks`,
+  adminUserActivityUsers: `${restAPIv1}/admin/user-activity/users`,
+  adminUserActivityTimeline: `${restAPIv1}/admin/user-activity/timeline`,
+  adminUserActivityEvents: `${restAPIv1}/admin/user-activity/events`,
+  adminUserActivityFeatures: `${restAPIv1}/admin/user-activity/features`,
+
   // Skill spaces
   skillSpaces: `${restAPIv1}/skills/spaces`,
   skillSpace: (spaceId: string) => `${restAPIv1}/skills/spaces/${spaceId}`,

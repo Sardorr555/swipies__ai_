@@ -38,6 +38,15 @@ export interface ILoginRequestBody {
 export interface IRegisterRequestBody extends ILoginRequestBody {
   nickname: string;
   referred_by_id?: string;
+  phone?: string;
+  marketing_consent?: boolean;
+  visitor_id?: string;
+  session_id?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
 }
 
 export interface ILoginChannel {
@@ -124,6 +133,13 @@ export const useRegister = () => {
       phone?: string;
       referred_by_id?: string;
       marketing_consent?: boolean;
+      visitor_id?: string;
+      session_id?: string;
+      utm_source?: string;
+      utm_medium?: string;
+      utm_campaign?: string;
+      utm_term?: string;
+      utm_content?: string;
     }) => {
       const { data = {} } = await userService.register(params);
       if (data.code === 0) {

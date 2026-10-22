@@ -1136,6 +1136,13 @@ class User(DataBaseModel, AuthUser):
     is_onboarded = BooleanField(null=True, help_text="is onboarding survey completed", default=False, index=True)
     onboarding_info = TextField(null=True, help_text="onboarding survey responses")
     marketing_consent = BooleanField(null=True, help_text="consent to receive marketing newsletters and promotions", default=True, index=True)
+    visitor_id = CharField(max_length=64, null=True, index=True, help_text="Landing site visitor ID")
+    session_id = CharField(max_length=64, null=True, index=True, help_text="Landing site session ID")
+    utm_source = CharField(max_length=64, null=True, index=True, help_text="Marketing UTM source")
+    utm_medium = CharField(max_length=64, null=True, index=True, help_text="Marketing UTM medium")
+    utm_campaign = CharField(max_length=128, null=True, index=True, help_text="Marketing UTM campaign")
+    utm_term = CharField(max_length=128, null=True, help_text="Marketing UTM term")
+    utm_content = CharField(max_length=128, null=True, help_text="Marketing UTM content")
 
     def __str__(self):
         return self.email
@@ -3771,6 +3778,14 @@ def migrate_db():
     alter_db_add_column(migrator, "token_usage_log", "status", CharField(max_length=32, default="SUCCESS", index=True))
     alter_db_add_column(migrator, "token_usage_log", "date_str", CharField(max_length=10, null=True, index=True))
     alter_db_add_column(migrator, "token_usage_log", "create_time", BigIntegerField(null=True, index=True))
+
+    alter_db_add_column(migrator, "user", "visitor_id", CharField(max_length=64, null=True, index=True))
+    alter_db_add_column(migrator, "user", "session_id", CharField(max_length=64, null=True, index=True))
+    alter_db_add_column(migrator, "user", "utm_source", CharField(max_length=64, null=True, index=True))
+    alter_db_add_column(migrator, "user", "utm_medium", CharField(max_length=64, null=True, index=True))
+    alter_db_add_column(migrator, "user", "utm_campaign", CharField(max_length=128, null=True, index=True))
+    alter_db_add_column(migrator, "user", "utm_term", CharField(max_length=128, null=True))
+    alter_db_add_column(migrator, "user", "utm_content", CharField(max_length=128, null=True))
 
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails

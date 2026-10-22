@@ -420,3 +420,26 @@ export const reconcilePayment = (params: {
 export const getOnboardingStats = () =>
   request.get<ResponseData<any>>('/api/v1/admin/onboarding/stats');
 
+export const getUserActivityOverview = (days: number = 7) =>
+  request.get(api.adminUserActivityOverview, { params: { days } });
+
+export const getUserActivityModules = (days: number = 7) =>
+  request.get(api.adminUserActivityModules, { params: { days } });
+
+export const getUserActivityClicks = (days: number = 7, limit: number = 25) =>
+  request.get(api.adminUserActivityClicks, { params: { days, limit } });
+
+export const getUserActivityUsers = (params: { days?: number; page?: number; page_size?: number; search?: string }) =>
+  request.get(api.adminUserActivityUsers, { params });
+
+export const getUserActivityTimeline = (days: number = 7) =>
+  request.get(api.adminUserActivityTimeline, { params: { days } });
+
+export const getUserActivityEvents = (params: { page?: number; page_size?: number; user_id?: string; module?: string; event_type?: string }) =>
+  request.get(api.adminUserActivityEvents, { params });
+
+export const getUserActivityFeatures = (days: number = 7) =>
+  request.get(api.adminUserActivityFeatures, { params: { days } });
+
+
+

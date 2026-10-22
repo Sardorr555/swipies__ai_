@@ -18,6 +18,7 @@ import {
   Megaphone,
   CreditCard,
   Sparkles,
+  Activity,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,12 @@ const AdminNavigationLayout = () => {
             path: Routes.AdminUserManagement,
             name: t('admin.userManagement') || 'Foydalanuvchilar',
             icon: <LucideUserCog className="size-[1.1em] text-blue-500" />,
+          },
+          {
+            path: Routes.AdminUserActivity,
+            name: 'Foydalanuvchilar Faoliyati & Telemetriya',
+            icon: <Activity className="size-[1.1em] text-emerald-500" />,
+            badge: 'Live',
           },
           {
             path: Routes.AdminPayments,

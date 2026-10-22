@@ -104,6 +104,7 @@ export enum Routes {
   AdminPayments = `${Admin}/payments`,
   AdminIntelligence = `${Admin}/intelligence`,
   AdminAds = `${Admin}/ads`,
+  AdminUserActivity = `${Admin}/user-activity`,
   Pricing = '/pricing',
   PrivacyPolicy = '/privacy-policy',
   License = '/license',
@@ -550,6 +551,10 @@ const routeConfigOptions = [
               {
                 path: 'ads',
                 Component: () => import('@/pages/admin/ads'),
+              },
+              {
+                path: 'user-activity',
+                Component: () => import('@/pages/admin/user-activity'),
               },
               ...(IS_ENTERPRISE
                 ? [

@@ -710,6 +710,54 @@ def user_register(user_id, user):
     return UserService.query(email=user["email"])
 
 
+def dispatch_landing_telemetry_bg(event_name: str, email: str, nickname: str = "", req_data: dict = None):
+    """Asynchronously notify landing site telemetry with user conversion data without blocking auth flow."""
+    req_data = req_data or {}
+    def _worker():
+        payload = {
+            "event_name": event_name,
+            "email": email,
+            "nickname": nickname,
+            "visitor_id": str(req_data.get("visitor_id") or req_data.get("vid") or "").strip(),
+            "session_id": str(req_data.get("session_id") or req_data.get("sid") or "").strip(),
+            "utm_source": str(req_data.get("utm_source") or "").strip(),
+            "utm_medium": str(req_data.get("utm_medium") or "").strip(),
+            "utm_campaign": str(req_data.get("utm_campaign") or "").strip(),
+            "utm_term": str(req_data.get("utm_term") or "").strip(),
+            "utm_content": str(req_data.get("utm_content") or "").strip(),
+            "ref": str(req_data.get("referred_by_id") or req_data.get("ref") or "").strip(),
+            "metadata": {
+                "source": "swipies_platform",
+                "registered_at": get_format_time(),
+            }
+        }
+        targets = []
+        env_landing = os.environ.get("SWIPIES_LANDING_API_URL", "").strip()
+        if env_landing:
+            targets.append(env_landing)
+        targets.extend([
+            "https://swipies.app/api/platform/events",
+            "http://127.0.0.1:5000/api/platform/events",
+            "http://localhost:5000/api/platform/events"
+        ])
+        
+        seen = set()
+        unique_targets = [x for x in targets if not (x in seen or seen.add(x))]
+
+        import requests
+        for target in unique_targets:
+            try:
+                resp = requests.post(target, json=payload, timeout=2.0)
+                if resp.status_code in (200, 201):
+                    logging.info(f"Successfully notified landing telemetry {target} for {email}")
+                    break
+            except Exception:
+                pass
+
+    import threading
+    threading.Thread(target=_worker, daemon=True).start()
+
+
 @manager.route("/users", methods=["POST"])  # noqa: F821
 @validate_request("nickname", "email", "password")
 async def user_add():
@@ -812,6 +860,14 @@ async def user_add():
 
     email_verification_enabled = os.environ.get("EMAIL_VERIFICATION_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
 
+    visitor_id = (req.get("visitor_id") or req.get("vid") or "").strip() or None
+    session_id = (req.get("session_id") or req.get("sid") or "").strip() or None
+    utm_source = (req.get("utm_source") or "").strip() or None
+    utm_medium = (req.get("utm_medium") or "").strip() or None
+    utm_campaign = (req.get("utm_campaign") or "").strip() or None
+    utm_term = (req.get("utm_term") or "").strip() or None
+    utm_content = (req.get("utm_content") or "").strip() or None
+
     user_dict = {
         "access_token": get_uuid(),
         "email": email_address,
@@ -825,6 +881,13 @@ async def user_add():
         "status": "1" if not email_verification_enabled else "0",
         "referred_by_id": resolved_referrer_id,
         "marketing_consent": bool(req.get("marketing_consent", True)),
+        "visitor_id": visitor_id,
+        "session_id": session_id,
+        "utm_source": utm_source,
+        "utm_medium": utm_medium,
+        "utm_campaign": utm_campaign,
+        "utm_term": utm_term,
+        "utm_content": utm_content,
     }
 
     user_id = get_uuid()
@@ -835,6 +898,43 @@ async def user_add():
         if len(users) > 1:
             raise Exception(f"Same email: {email_address} exists!")
         user = users[0]
+
+        # Record local activity telemetry
+        try:
+            from api.db.telemetry_models import UserActivityEvent
+            UserActivityEvent.create_event(
+                user_id=user_id,
+                session_id=session_id or "registration_session",
+                event_type="action",
+                module="auth",
+                page_route="/register",
+                action_category="account",
+                action_name="user_registered",
+                element_tag="button",
+                element_id="auth-submit",
+                element_label="Register",
+                metadata={
+                    "email": email_address,
+                    "nickname": nickname,
+                    "utm_source": utm_source or "",
+                    "utm_medium": utm_medium or "",
+                    "utm_campaign": utm_campaign or "",
+                    "utm_term": utm_term or "",
+                    "utm_content": utm_content or "",
+                    "visitor_id": visitor_id or "",
+                    "referred_by": resolved_referrer_id or "",
+                }
+            )
+        except Exception as e:
+            logging.debug(f"Local registration telemetry exception: {e}")
+
+        # Notify landing site telemetry in non-blocking background thread
+        dispatch_landing_telemetry_bg(
+            event_name="registered",
+            email=email_address,
+            nickname=nickname,
+            req_data=req
+        )
 
         if not email_verification_enabled:
             login_user(user)

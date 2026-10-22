@@ -564,14 +564,39 @@ const Login = () => {
   const [title, setTitle] = useState('login');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const refFromQuery = searchParams.get('ref') || searchParams.get('referrer') || searchParams.get('utm_content') || '';
+  const refFromQuery = searchParams.get('ref') || searchParams.get('referrer') || '';
+  const utmSourceQuery = searchParams.get('utm_source') || '';
+  const utmMediumQuery = searchParams.get('utm_medium') || '';
+  const utmCampaignQuery = searchParams.get('utm_campaign') || '';
+  const utmTermQuery = searchParams.get('utm_term') || '';
+  const utmContentQuery = searchParams.get('utm_content') || '';
+  const visitorIdQuery = searchParams.get('vid') || searchParams.get('visitor_id') || '';
+  const sessionIdQuery = searchParams.get('sid') || searchParams.get('session_id') || '';
+
   useEffect(() => {
-    if (refFromQuery) {
-      try {
+    try {
+      if (refFromQuery) {
         localStorage.setItem('swipies_referrer', refFromQuery);
-      } catch {}
-    }
-  }, [refFromQuery]);
+      }
+      if (utmSourceQuery || utmCampaignQuery || utmMediumQuery) {
+        const utmObj = {
+          utm_source: utmSourceQuery,
+          utm_medium: utmMediumQuery,
+          utm_campaign: utmCampaignQuery,
+          utm_term: utmTermQuery,
+          utm_content: utmContentQuery,
+        };
+        localStorage.setItem('swipies_utm', JSON.stringify(utmObj));
+      }
+      if (visitorIdQuery) {
+        localStorage.setItem('swipies_visitor_id', visitorIdQuery);
+      }
+      if (sessionIdQuery) {
+        sessionStorage.setItem('swipies_session_id', sessionIdQuery);
+      }
+    } catch {}
+  }, [refFromQuery, utmSourceQuery, utmMediumQuery, utmCampaignQuery, utmTermQuery, utmContentQuery, visitorIdQuery, sessionIdQuery]);
+
   const ref = refFromQuery || (typeof window !== 'undefined' ? localStorage.getItem('swipies_referrer') || '' : '');
   const [activationEmail, setActivationEmail] = useState<string | null>(null);
   const [isLoginVerification, setIsLoginVerification] = useState(false);
@@ -758,6 +783,19 @@ const Login = () => {
           setActivationEmail(`${params.email}`.trim());
         }
       } else {
+        let storedUtm: Record<string, string> = {};
+        try {
+          storedUtm = JSON.parse(localStorage.getItem('swipies_utm') || '{}');
+        } catch {}
+
+        const activeUtmSource = utmSourceQuery || storedUtm.utm_source || '';
+        const activeUtmMedium = utmMediumQuery || storedUtm.utm_medium || '';
+        const activeUtmCampaign = utmCampaignQuery || storedUtm.utm_campaign || '';
+        const activeUtmTerm = utmTermQuery || storedUtm.utm_term || '';
+        const activeUtmContent = utmContentQuery || storedUtm.utm_content || '';
+        const activeVisitorId = visitorIdQuery || (typeof window !== 'undefined' ? localStorage.getItem('swipies_visitor_id') || '' : '');
+        const activeSessionId = sessionIdQuery || (typeof window !== 'undefined' ? sessionStorage.getItem('swipies_session_id') || '' : '');
+
         const res = await register({
           nickname: params.nickname,
           email: params.email,
@@ -765,7 +803,40 @@ const Login = () => {
           phone: params.phone,
           referred_by_id: ref,
           marketing_consent: params.marketingConsent ?? true,
+          utm_source: activeUtmSource,
+          utm_medium: activeUtmMedium,
+          utm_campaign: activeUtmCampaign,
+          utm_term: activeUtmTerm,
+          utm_content: activeUtmContent,
+          visitor_id: activeVisitorId,
+          session_id: activeSessionId,
         });
+
+        if (res?.code === 0) {
+          try {
+            const landingEndpoint = typeof window !== 'undefined' && window.location.hostname.includes('swipies.app')
+              ? 'https://swipies.app/api/platform/events'
+              : '/api/platform/events';
+            fetch(landingEndpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                event_name: 'registered',
+                email: params.email,
+                nickname: params.nickname,
+                visitor_id: activeVisitorId,
+                session_id: activeSessionId,
+                utm_source: activeUtmSource,
+                utm_medium: activeUtmMedium,
+                utm_campaign: activeUtmCampaign,
+                utm_term: activeUtmTerm,
+                utm_content: activeUtmContent,
+                ref: ref,
+              }),
+            }).catch(() => {});
+          } catch {}
+        }
+
         if (res?.code === 0 && res?.data?.requires_activation) {
           setIsLoginVerification(false);
           setActivationEmail(params.email);
