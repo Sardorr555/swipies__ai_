@@ -144,7 +144,9 @@ def run_tests():
     providers = AIProviderService.get_global_providers()
     models = AIModelService.get_platform_models()
     print(f"   -> Global Providers: {len(providers)}, Global Platform Models: {len(models)}")
-    assert len(providers) >= 4
+    assert len(providers) >= 5, f"Expected at least 5 providers, got {len(providers)}"
+    provider_names = [p["provider_name"] for p in providers]
+    assert "Cohere" in provider_names, f"Expected Cohere in providers: {provider_names}"
     assert len(models) >= 10
 
     print("5. Testing Model Access Policy Resolution for FREE vs PLUS vs PRO...")

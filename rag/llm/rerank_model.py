@@ -449,29 +449,60 @@ class CoHereRerank(Base):
 
     def __init__(self, key, model_name, base_url=None, max_token=MAX_RERANK_TOKEN):
         super().__init__(key, model_name, max_token)
-        from cohere import Client
-
-        client_kwargs = {"api_key": key, "timeout": 30.0}
-        if base_url and base_url.strip():
-            client_kwargs["base_url"] = base_url
-        self.client = Client(**client_kwargs)
+        self.key = key
+        self.base_url = (base_url or "https://api.cohere.com").rstrip("/")
         self.model_name = model_name.split("___")[0]
+        self.client = None
+        try:
+            from cohere import Client
+            client_kwargs = {"api_key": key, "timeout": 30.0}
+            if base_url and base_url.strip():
+                client_kwargs["base_url"] = base_url
+            self.client = Client(**client_kwargs)
+        except Exception:
+            self.client = None
 
     def _compute_rank(self, query: str, texts: List) -> Tuple[np.ndarray, int]:
         token_count = num_tokens_from_string(query) + sum([num_tokens_from_string(t) for t in texts])
-        res = self.client.rerank(
-            model=self.model_name,
-            query=query,
-            documents=texts,
-            top_n=len(texts),
-            return_documents=False,
-        )
+        if self.client:
+            res = self.client.rerank(
+                model=self.model_name,
+                query=query,
+                documents=texts,
+                top_n=len(texts),
+                return_documents=False,
+            )
+            rank = np.zeros(len(texts), dtype=float)
+            try:
+                for d in res.results:
+                    rank[d.index] = d.relevance_score
+            except Exception as _e:
+                log_exception(_e, res)
+            return rank, token_count
+
+        # Fallback to direct HTTP REST endpoint if cohere SDK is unavailable
+        import requests
+        url = f"{self.base_url}/v1/rerank" if not self.base_url.endswith("/v1") else f"{self.base_url}/rerank"
+        headers = {
+            "Authorization": f"Bearer {self.key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        payload = {
+            "model": self.model_name,
+            "query": query,
+            "documents": texts,
+            "top_n": len(texts),
+            "return_documents": False,
+        }
+        resp = requests.post(url, headers=headers, json=payload, timeout=30.0)
+        resp.raise_for_status()
+        data = resp.json()
         rank = np.zeros(len(texts), dtype=float)
-        try:
-            for d in res.results:
-                rank[d.index] = d.relevance_score
-        except Exception as _e:
-            log_exception(_e, res)
+        for d in data.get("results", []):
+            idx = d.get("index")
+            if idx is not None and idx < len(rank):
+                rank[idx] = d.get("relevance_score", 0.0)
         return rank, token_count
 
 

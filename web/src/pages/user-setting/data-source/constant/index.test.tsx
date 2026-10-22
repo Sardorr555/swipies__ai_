@@ -129,11 +129,12 @@ describe('CRM data sources', () => {
     DataSourceKey.ONE_C,
   ];
 
-  it('registers all 5 CRM platforms in catalog info', () => {
+  it('registers all 5 CRM platforms in catalog info with CRM demo label', () => {
     const info = generateDataSourceInfo(translate);
     crmKeys.forEach((key) => {
       expect(info[key]).toBeDefined();
       expect(info[key].name).toBeTruthy();
+      expect(info[key].name).toContain('CRM demo');
       expect(info[key].description).toBeTruthy();
     });
   });

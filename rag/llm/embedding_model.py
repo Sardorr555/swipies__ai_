@@ -1039,34 +1039,96 @@ class CoHereEmbed(Base):
     _FACTORY_NAME = "Cohere"
 
     def __init__(self, key, model_name, base_url=None):
-        from cohere import Client
-
-        self.client = Client(api_key=key)
+        self.key = key
+        self.base_url = (base_url or "https://api.cohere.com").rstrip("/")
         self.model_name = model_name
+        self.client = None
+        try:
+            from cohere import Client
+            self.client = Client(api_key=key)
+        except Exception:
+            self.client = None
 
     def _call(self, batch):
-        res = self.client.embed(
-            texts=batch,
-            model=self.model_name,
-            input_type="search_document",
-            embedding_types=["float"],
-            truncate="END",  # let Cohere clip oversized inputs server-side instead of hard-failing
-        )
-        return list(res.embeddings.float), total_token_count_from_response(res)
+        if self.client:
+            res = self.client.embed(
+                texts=batch,
+                model=self.model_name,
+                input_type="search_document",
+                embedding_types=["float"],
+                truncate="END",  # let Cohere clip oversized inputs server-side instead of hard-failing
+            )
+            return list(res.embeddings.float), total_token_count_from_response(res)
+
+        # Fallback to direct HTTP REST endpoint if cohere SDK is unavailable
+        import requests
+        url = f"{self.base_url}/v1/embed" if not self.base_url.endswith("/v1") else f"{self.base_url}/embed"
+        headers = {
+            "Authorization": f"Bearer {self.key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        payload = {
+            "model": self.model_name,
+            "texts": batch,
+            "input_type": "search_document",
+            "embedding_types": ["float"],
+            "truncate": "END",
+        }
+        resp = requests.post(url, headers=headers, json=payload, timeout=30.0)
+        resp.raise_for_status()
+        data = resp.json()
+        embeddings = data.get("embeddings", {})
+        if isinstance(embeddings, dict):
+            float_embeds = embeddings.get("float", [])
+        else:
+            float_embeds = embeddings
+        tokens = data.get("meta", {}).get("billed_units", {}).get("input_tokens", 0)
+        return list(float_embeds), int(tokens)
 
     def encode(self, texts: list):
         return self._batched_encode(texts, self._call, batch_size=16)
 
     def encode_queries(self, text):
+        if self.client:
+            try:
+                res = self.client.embed(
+                    texts=[text],
+                    model=self.model_name,
+                    input_type="search_query",
+                    embedding_types=["float"],
+                    truncate="END",
+                )
+                return np.array(res.embeddings.float[0]), int(total_token_count_from_response(res))
+            except Exception as _e:
+                logger.exception("CoHereEmbed: query embedding request failed")
+                raise EmbeddingError(f"Embedding request failed for CoHereEmbed. Error: {_e}") from _e
+
+        import requests
+        url = f"{self.base_url}/v1/embed" if not self.base_url.endswith("/v1") else f"{self.base_url}/embed"
+        headers = {
+            "Authorization": f"Bearer {self.key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        payload = {
+            "model": self.model_name,
+            "texts": [text],
+            "input_type": "search_query",
+            "embedding_types": ["float"],
+            "truncate": "END",
+        }
         try:
-            res = self.client.embed(
-                texts=[text],
-                model=self.model_name,
-                input_type="search_query",
-                embedding_types=["float"],
-                truncate="END",
-            )
-            return np.array(res.embeddings.float[0]), int(total_token_count_from_response(res))
+            resp = requests.post(url, headers=headers, json=payload, timeout=30.0)
+            resp.raise_for_status()
+            data = resp.json()
+            embeddings = data.get("embeddings", {})
+            if isinstance(embeddings, dict):
+                float_embeds = embeddings.get("float", [])
+            else:
+                float_embeds = embeddings
+            tokens = data.get("meta", {}).get("billed_units", {}).get("input_tokens", 0)
+            return np.array(float_embeds[0]), int(tokens)
         except Exception as _e:
             logger.exception("CoHereEmbed: query embedding request failed")
             raise EmbeddingError(f"Embedding request failed for CoHereEmbed. Error: {_e}") from _e

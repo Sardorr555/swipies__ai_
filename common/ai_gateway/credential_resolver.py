@@ -451,8 +451,11 @@ class CredentialResolver:
 
         # 1. Update AIProvider in DB
         try:
+            from peewee import fn
             from api.db.db_models import AIProvider
-            prov_obj = AIProvider.get_or_none(AIProvider.provider_name == p_val)
+            prov_obj = AIProvider.get_or_none(fn.LOWER(AIProvider.provider_name) == p_val)
+            if not prov_obj:
+                prov_obj = AIProvider.get_or_none(AIProvider.id == p_val)
             if prov_obj:
                 AIProvider.update(
                     api_key=effective_key,
@@ -587,17 +590,21 @@ class CredentialResolver:
 
         # 1. Update AIProvider in DB
         try:
+            from peewee import fn
             from api.db.db_models import AIProvider
             AIProvider.update(
                 api_key=None,
                 status="unconfigured",
                 update_time=now,
-            ).where(AIProvider.provider_name == p_val).execute()
+            ).where(
+                (fn.LOWER(AIProvider.provider_name) == p_val) | (AIProvider.id == p_val)
+            ).execute()
         except Exception as e:
             logger.debug(f"AIProvider wipe fallback for {p_val}: {e}")
 
         # 2. Cascade disable all AIModel records for this provider
         try:
+            from peewee import fn
             from api.db.db_models import AIModel
             models_disabled = (
                 AIModel.update(
@@ -605,7 +612,7 @@ class CredentialResolver:
                     enabled=False,
                     update_time=now,
                 )
-                .where(AIModel.provider == p_val, AIModel.is_global == True)
+                .where(fn.LOWER(AIModel.provider) == p_val, AIModel.is_global == True)
                 .execute()
             )
         except Exception as e:

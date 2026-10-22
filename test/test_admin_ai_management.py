@@ -19,7 +19,10 @@ import os
 import sys
 import types
 import unittest
+import warnings
 from unittest.mock import AsyncMock, MagicMock, patch
+
+warnings.filterwarnings("ignore")
 
 # Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -844,6 +847,145 @@ class TestAdminAIAppProviderManagement(unittest.IsolatedAsyncioTestCase):
             self.assertGreaterEqual(data.get("byok_users_count", 0), 1)
 
             print("  [PASS] Test 10: BYOK Admin Stats API accurately tracks custom user model usage.\n")
+
+    async def test_11_cohere_provider_integration_and_fallback(self):
+        """
+        Verify Cohere Provider Integration:
+        1. Cohere exists in Global AI Providers seeded by default.
+        2. Live model discovery via async_discover_live_provider_models with mocked Cohere /v1/models response.
+        3. CoHereRerank REST fallback executes correctly without cohere SDK installed.
+        4. CoHereEmbed REST fallback executes correctly (_call and encode_queries).
+        5. Admin endpoint can replace and wipe Cohere API key.
+        """
+        from api.db.services.ai_provider_service import AIProviderService
+        from rag.llm.rerank_model import CoHereRerank
+        from rag.llm.embedding_model import CoHereEmbed
+
+        # 1. Provider existence & seeding
+        cohere_provider = AIProvider.get_or_none(AIProvider.provider_name == "Cohere")
+        if not cohere_provider:
+            cohere_provider = AIProvider.create(
+                id="global_cohere",
+                provider_name="Cohere",
+                display_name="Cohere",
+                base_url="https://api.cohere.com/v1",
+                api_key="",
+                status="active",
+                is_global=True,
+                extra={"suggested_models": ["command-r-plus-08-2024", "embed-multilingual-v3.0", "rerank-v3.5"]},
+            )
+        self.assertIsNotNone(cohere_provider, "Cohere provider should exist in database")
+        self.assertEqual(cohere_provider.base_url, "https://api.cohere.com/v1")
+
+        # 2. Live model discovery
+        mock_cohere_models_resp = MagicMock()
+        mock_cohere_models_resp.status_code = 200
+        mock_cohere_models_resp.json.return_value = {
+            "models": [
+                {
+                    "name": "command-r-plus-08-2024",
+                    "endpoints": ["chat"],
+                    "context_length": 128000
+                },
+                {
+                    "name": "embed-multilingual-v3.0",
+                    "endpoints": ["embed"],
+                    "context_length": 512
+                },
+                {
+                    "name": "rerank-v3.5",
+                    "endpoints": ["rerank"],
+                    "context_length": 4096
+                }
+            ]
+        }
+
+        with patch("requests.get", return_value=mock_cohere_models_resp):
+            success, msg, live_models = await AIProviderService.async_discover_live_provider_models("Cohere", "test-api-key", "https://api.cohere.com/v1")
+            self.assertTrue(success)
+            self.assertGreaterEqual(len(live_models), 3)
+            chat_m = next((m for m in live_models if m["model_name"] == "command-r-plus-08-2024"), None)
+            embed_m = next((m for m in live_models if m["model_name"] == "embed-multilingual-v3.0"), None)
+            rerank_m = next((m for m in live_models if m["model_name"] == "rerank-v3.5"), None)
+
+            self.assertIsNotNone(chat_m)
+            self.assertEqual(chat_m["model_type"], "CHAT")
+            self.assertIsNotNone(embed_m)
+            self.assertEqual(embed_m["model_type"], "EMBEDDING")
+            self.assertIsNotNone(rerank_m)
+            self.assertEqual(rerank_m["model_type"], "RERANK")
+
+        # 3. CoHereRerank HTTP fallback execution
+        rerank_inst = CoHereRerank("test-key", "rerank-v3.5")
+        mock_rerank_resp = MagicMock()
+        mock_rerank_resp.status_code = 200
+        mock_rerank_resp.json.return_value = {
+            "results": [
+                {"index": 1, "relevance_score": 0.95},
+                {"index": 0, "relevance_score": 0.42}
+            ],
+            "meta": {"billed_units": {"search_units": 1}}
+        }
+        with patch("requests.post", return_value=mock_rerank_resp) as mock_post:
+            sim_scores, token_count = rerank_inst.similarity("search query", ["doc 0", "doc 1"])
+            self.assertEqual(len(sim_scores), 2)
+            self.assertEqual(sim_scores[0], 0.42)
+            self.assertEqual(sim_scores[1], 0.95)
+            self.assertGreater(token_count, 0)
+            mock_post.assert_called_once()
+            args, kwargs = mock_post.call_args
+            self.assertIn("api.cohere.com/v1/rerank", args[0])
+            self.assertEqual(kwargs["headers"]["Authorization"], "Bearer test-key")
+
+        # 4. CoHereEmbed HTTP fallback execution
+        embed_inst = CoHereEmbed("test-key", "embed-multilingual-v3.0")
+        mock_embed_resp = MagicMock()
+        mock_embed_resp.status_code = 200
+        mock_embed_resp.json.return_value = {
+            "embeddings": {
+                "float": [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            },
+            "meta": {"billed_units": {"input_tokens": 12}}
+        }
+        with patch("requests.post", return_value=mock_embed_resp) as mock_post_embed:
+            vectors, count = embed_inst._call(["test document 1", "test document 2"])
+            self.assertEqual(len(vectors), 2)
+            self.assertEqual(count, 12)
+            mock_post_embed.assert_called_once()
+            args, kwargs = mock_post_embed.call_args
+            self.assertIn("api.cohere.com/v1/embed", args[0])
+            self.assertEqual(kwargs["json"]["input_type"], "search_document")
+
+        with patch("requests.post", return_value=mock_embed_resp) as mock_post_query:
+            query_vec, count = embed_inst.encode_queries("test query")
+            self.assertEqual(len(query_vec), 3)
+            self.assertEqual(count, 12)
+            mock_post_query.assert_called_once()
+            args, kwargs = mock_post_query.call_args
+            self.assertEqual(kwargs["json"]["input_type"], "search_query")
+
+        # 5. Cohere API key replace and wipe
+        with patch("api.apps.ai_management_app.current_user", self.admin_user):
+            payload = {"api_key": "co-new-test-key-cohere-123"}
+            with patch("api.apps.ai_management_app.get_request_json", AsyncMock(return_value=payload)):
+                replace_resp = await admin_replace_provider_api_key(cohere_provider.provider_name)
+                parsed_replace = _parse_resp(replace_resp)
+                self.assertEqual(parsed_replace.get("code"), 0)
+
+            # Check that provider has active key
+            updated = AIProvider.get(AIProvider.provider_name == cohere_provider.provider_name)
+            self.assertEqual(updated.status, "verified")
+            self.assertEqual(updated.api_key, "co-new-test-key-cohere-123")
+
+            # Wipe key
+            wipe_resp = await admin_wipe_provider_api_key(cohere_provider.provider_name)
+            parsed_wipe = _parse_resp(wipe_resp)
+            self.assertEqual(parsed_wipe.get("code"), 0)
+            wiped = AIProvider.get(AIProvider.provider_name == cohere_provider.provider_name)
+            self.assertIsNone(wiped.api_key)
+            self.assertEqual(wiped.status, "unconfigured")
+
+        print("  [PASS] Test 11: Cohere Provider Integration, Live Discovery, REST Fallback & Key Management Verified.\n")
 
 
 if __name__ == "__main__":

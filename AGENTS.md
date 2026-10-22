@@ -1,135 +1,152 @@
-# RAGFlow Instructions
+# AGENTS.md — Инструкции для ИИ-агентов и разработчиков
 
-Use this file as the local operating guide for the current codebase. Prefer the code and the current CLAUDE.md over any older convention or remembered project shape.
+> **Статус документа:** Актуален  
+> **Дата последней проверки:** 2026-10-15  
+> **Применимость:** Ветка `test`, репозиторий Swipies RAGFlow (`D:/ragflow/swipies_25/ragflow`)
 
-## Core Stance
-- Treat legacy code as liability, not as a compatibility target.
-- Prefer deletion over shims, deprecated branches, wrapper APIs, and dual-track migration notes.
-- If old and new implementations coexist, converge to one path unless an external contract forces compatibility.
-- Remove dead tests, commented-out code, stale docs, and "move later" notes instead of preserving them.
-- Reduce public surface area when a helper can be made private or internal.
-- Keep refactors centered on the owning abstraction, not on adjacent compatibility layers.
+---
 
-## Current stack
-- Backend: Python 3.13+, Quart-based API server, Peewee ORM, async workers.
-- Frontend: React + TypeScript + Vite in `web/`. When working under `web/`, read and follow `web/CLAUDE.md` — it holds the frontend conventions (dual-backend Go/Python variants, test placement, styling, data fetching).
-- Go: the repository also has a substantial Go module for servers, ingestion, parser/runtime, CLI, and supporting services.
-- Runtime services commonly include MySQL/PostgreSQL, Redis, MinIO, and Elasticsearch/Infinity/OpenSearch depending on configuration.
+## 1. Введение и назначение
 
-## Code Layout to Expect
-- `api/`: Python API server entrypoints, blueprints, services, and database code.
-- `rag/`: ingestion, retrieval, LLM integration, and graph RAG logic.
-- `deepdoc/`: parsing and OCR.
-- `agent/`: workflow canvas, components, tools, and templates.
-- `cmd/`: Go entrypoints. `ragflow_main` is the main server/admin/ingestor binary surface; `ragflow-cli` is the CLI entrypoint.
-- `internal/`: main Go application code. Important subtrees:
-- `internal/agent/`: Go agent runtime, canvas execution, components, tool bindings, workflow helpers.
-- `internal/cli/`: CLI parsing, HTTP transport, command execution, response formatting.
-- `internal/dao/`: Go data-access layer and persistence-facing helpers.
-- `internal/deepdoc/`: Go DeepDOC integrations, especially native-backed PDF/DOCX parsing.
-- `internal/engine/`: search/index backends such as Elasticsearch and Infinity.
-- `internal/entity/`: shared Go entities and model definitions.
-- `internal/handler/`: HTTP handlers and route-facing request logic.
-- `internal/ingestion/`: Go ingestion pipeline, canvas adapter, components, wiring, service orchestration.
-- `internal/ingestion/component/`: stage implementations such as file/parser/chunker/tokenizer/extractor.
-- `internal/ingestion/pipeline/`: DSL translation, canvas-driven execution, checkpoints, resume/run logic.
-- `internal/parser/`: parser and chunk libraries used by ingestion and other Go paths.
-- `internal/parser/parser/`: typed parse-result parsers for markdown/html/pdf/docx/xlsx/text and related families.
-- `internal/parser/chunk/`: chunk operator library and DSL/typed execution helpers.
-- `internal/service/`: higher-level business services used by handlers and server flows.
-- `internal/storage/`: storage backends and in-memory test doubles.
-- `internal/router/`: HTTP route registration.
-- `internal/server/`: server bootstrap/config wiring.
-- `internal/cpp/`: C++ sources used by native-backed Go features.
-- `web/`: frontend application.
-- `docker/`: local and production compose files.
-- `sdk/` and `test/`: SDK and automated tests.
+Этот файл является единой точкой входа (Single Source of Truth) для любого автономного ИИ-агента (Antigravity, Cursor, Claude Code, Windsurf, GitHub Copilot Workspace, Aider и др.) и инженера, приступающего к работе в репозитории.
 
-## Go-Specific Rules
-- Treat `internal/ingestion`, `internal/parser`, and `internal/deepdoc` as actively refactored code. Prefer collapsing duplicate paths over preserving transitional wrappers.
-- Do not add or preserve deprecated Go APIs just to ease migration inside the repo.
-- Remove commented-out Go code instead of leaving recovery notes in place.
-- Keep package comments and doc comments aligned with the current runtime path, not with migration history.
+Репозиторий представляет собой форк платформы RAGFlow (upstream v0.27.2) с масштабными доработками Swipies:
+1. Защита конфиденциальных данных и криптографическое ядро AES-256-GCM ([`api/utils/key_crypto.py`](api/utils/key_crypto.py), [`internal/utility/crypto.go`](internal/utility/crypto.go)).
+2. Изолированный CRM-модуль (amoCRM, Bitrix24, 1С:Предприятие, HubSpot) с гарантированной доставкой через Outbox-паттерн ([`api/crm/`](api/crm/), [`agent/tools/`](agent/tools/), [`rag/svr/crm_outbox_worker.py`](rag/svr/crm_outbox_worker.py)).
+3. Рекламный движок (Swipies Ads Engine) и система спонсорских интеграций ([`api/apps/ad_app.py`](api/apps/ad_app.py), [`api/db/services/ad_engine_service.py`](api/db/services/ad_engine_service.py)).
+4. Биллинг, платежи (Atmos Gateway) и многоуровневая система лицензирования ([`api/apps/payment_app.py`](api/apps/payment_app.py), [`api/apps/restful_apis/license_api.py`](api/apps/restful_apis/license_api.py)).
 
-## Go Test Tiers
-Go tests are classified by build tag so the default `go test ./...` run stays self-contained. Tag a test file with `//go:build <tier>` placed before the `package` clause.
+---
 
-| Tier | Build tag | Runs by default? | Needs |
-|---|---|---|---|
-| Unit | (none) | Yes (`go test ./...`) | Native CGO static libs (wired by `build.sh --test`); no external services — uses in-memory SQLite, miniredis, or `httptest` stubs. |
-| Integration | `integration` | No (`-tags integration`) | A real service: MySQL/MinIO/Elasticsearch/Infinity/LLM. Single component, reasonably fast. |
-| E2E | `e2e` | No (`-tags e2e`) | Full cross-component pipeline (ingest → index → retrieve) against real services; heavy/slow. |
-| Manual | `manual` | No (`-tags manual`) | Very slow/expensive (deepdoc render/parity/snapshot/bench). **Local opt-in ONLY — never run in CI.** |
-| Native (orthogonal) | `cgo` / `!cgo` | `cgo` auto-satisfies under CGO_ENABLED=1 | Native static libs (`office_oxide`/`pdfium`/`pdf_oxide`). Combine with tiers, e.g. `//go:build cgo && integration`. |
+## 2. Что прочитать перед началом любой задачи (Mandatory Reading)
 
-Run tiers locally via `build.sh`:
+Перед внесением любых изменений агент ОБЯЗАН последовательно ознакомиться со следующими материалами:
+
+1. Настоящий файл [`AGENTS.md`](AGENTS.md).
+2. Оглавление базы знаний: [`docs/knowledge-base/README.md`](docs/knowledge-base/README.md).
+3. Текущее подтверждённое состояние системы: [`docs/knowledge-base/current-state.md`](docs/knowledge-base/current-state.md).
+4. Архитектурная карта и границы подсистем: [`docs/knowledge-base/architecture.md`](docs/knowledge-base/architecture.md).
+5. Документ по конкретной подсистеме, которую затрагивает задача:
+   - При работе с коннекторами и шифрованием: [`docs/knowledge-base/decisions/ADR-001-connector-cryptography-fail-closed.md`](docs/knowledge-base/decisions/ADR-001-connector-cryptography-fail-closed.md) и [`test/test_connector_security.py`](test/test_connector_security.py).
+   - При работе с CRM: [`specs/003-crm-v1-integration/spec.md`](specs/003-crm-v1-integration/spec.md) и [`docs/knowledge-base/decisions/ADR-002-crm-subsystem-isolation.md`](docs/knowledge-base/decisions/ADR-002-crm-subsystem-isolation.md).
+   - При работе с рекламой: [`docs/knowledge-base/decisions/ADR-003-ads-subsystem-decoupling.md`](docs/knowledge-base/decisions/ADR-003-ads-subsystem-decoupling.md).
+   - При наличии незавершённой работы предшественников: каталог [`docs/knowledge-base/handoffs/`](docs/knowledge-base/handoffs/).
+
+---
+
+## 3. Непреложные правила работы (Core Invariants)
+
+1. **Запрет деструктивных действий в Git:**
+   - Команды `git push`, автоматический деплой и флаг `--apply` для боевых баз данных **СТРОГО ЗАПРЕЩЕНЫ**, если нет явного прямого указания владельца репозитория.
+   - Любая миграция данных по умолчанию запускается в режиме `--dry-run`.
+2. **Конфиденциальность и Zero Secrets Leak:**
+   - **НИКОГДА** не выводить значения секретов, токенов, API-ключей, мастер-паролей и 64-символьных hex-строк в логи, консоль или файлы документации. Все значения в отчётах должны быть маскированы: `3113...bbd` или `<REDACTED>`.
+   - Файлы `.env` и секретные переменные окружения не коммитятся.
+3. **Авторство коммитов:**
+   - Все коммиты должны сохранять реального автора проекта:
+     `git config user.name "Sardor"`
+     `git config user.email "albakiev.sardorbek@gmail.com"`
+   - Запрещено подменять автора на системные имена ИИ («Antigravity», «AI Assistant» и т.п.).
+4. **Сохранение существующей структуры и обратной совместимости:**
+   - Не перемещать и не переименовывать существующие файлы ядра, если это может сломать внешние ссылки или сборку.
+   - Сохранять формат шифрования `enc:v2:` (AES-256-GCM) для новых данных и обеспечивать прозрачное чтение `enc:v1:` (legacy CTR/HMAC).
+5. **Физическая изоляция подсистем:**
+   - CRM-код (`api/crm/`, `api/db/crm_models.py`, `agent/tools/crm/`) **не должен импортировать** рекламные модули (`ad_engine_service`, `ad_policy_service`, `ad_app`).
+
+---
+
+## 4. Команды проверки качества и тестов
+
+Перед передачей задачи агент обязан выполнить соответствующие тесты и предоставить реальный вывод терминала:
+
+### 4.1. Проверка безопасности коннекторов и шифрования (Python)
 ```bash
-bash build.sh --test                      # unit tier (no tags)
-bash build.sh --test-integration ./...    # integration tier
-bash build.sh --test-e2e                  # e2e tier
-bash build.sh --test-manual               # manual tier (very slow)
-bash build.sh --test-all                  # integration + e2e (never includes manual)
+python -m unittest test.test_connector_security
 ```
-Rules:
-- New tests that touch a real external service MUST carry `integration`/`e2e`/`manual` — do not rely on `t.Skip` + env vars to soft-isolate them in the default unit run. Keep an env guard as a harmless secondary safety net if desired.
-- `manual` is never wired into CI or any automated pipeline.
-- `unit` (no tag) must stay free of external-service dependencies so `go test ./...` passes without MySQL/MinIO/ES/Infinity/LLM. The native CGO static libraries (`office_oxide`/`pdfium`/`pdf_oxide`) are still required at build time and are wired automatically by `build.sh --test`; that is expected, not an external service.
+*Ожидаемый результат:* 15 тестов завершаются со статусом `OK`, включая мутационный тест маскирования.
 
-## Working Rules
-- When reviewing documentation or code, inspect the full affected path and report all verifiable findings in one review; do not return after only a few findings and expose further issues in later rounds.
-- When handling review comments, independently verify each substantive claim against the current code or tests before accepting, rejecting, or acting on it.
-- Before editing, inspect the nearest code path that actually owns the behavior.
-- Keep changes small and local unless the task is explicitly a broader refactor.
-- Prefer one implementation path instead of preserving old and new versions side by side.
-- Preserve behavior with focused tests when the behavior is still valid; do not keep tests that protect obsolete behavior.
-- If a surface is only there for compatibility, remove it unless the user asks to keep it.
-- Do not add new compatibility wording in comments or docs.
-- When a maintainer takes over a community PR, a new commit generated by rewriting history (e.g. `merge`, `rebase -i`) must preserve the original author and add the maintainer as co-author (via a `Co-authored-by:` trailer) instead of overwriting the author with the maintainer alone.
-
-## Commands
-### Backend
+### 4.2. Проверка CRM-подсистемы (Python)
 ```bash
-uv sync --python 3.13 --all-extras
-uv run python3 ragflow_deps/download_deps.py
-docker compose -f docker/docker-compose-base.yml up -d
-source .venv/bin/activate
-export PYTHONPATH=$(pwd)
-bash docker/launch_backend_service.sh
-uv run pytest
-ruff check
-ruff format
+# Базовый контракт и лицензионный гейт
+python -m unittest test.test_crm_foundations
+
+# Адаптер amoCRM и ротация токенов
+python -m unittest test.test_crm_amocrm
+
+# Адаптер Bitrix24 и SSRF-защита
+python -m unittest test.test_crm_bitrix24
+
+# 1С:Предприятие (OData остатки)
+python -m unittest test.test_crm_1c
+
+# Инструменты агента и Outbox воркер
+python -m unittest test.test_crm_tool_and_outbox
 ```
 
-### Frontend
+### 4.3. Проверка сборки и тестов Go
+> **Важно:** В связи с зависимостями от CGO-библиотек парсеров DeepDoc (`office_oxide.h`, `pdfium`), typecheck и юнит-тесты Go выполняются с отключенным CGO (`CGO_ENABLED=0`), что активирует нативные no-cgo заглушки:
+
 ```bash
-cd web
-npm install
-npm run dev
-npm run build
-npm run lint
-npm run test
-npm run type-check
+# Typecheck сервисов, хэндлеров и синкера
+wsl bash -c "CGO_ENABLED=0 go build -gcflags=-e ./internal/service/... ./internal/handler/... ./internal/syncer/..."
+
+# Тесты криптографии в Go
+wsl bash -c "go test -count=1 -v -run TestCrypto ./internal/utility/..."
+
+# Тест маскирования учетных данных в Go Handler
+wsl bash -c "CGO_ENABLED=0 go test -v -run TestConnectorHandler_CredentialMaskingRealHandler ./internal/handler/..."
 ```
 
-### Go
-```bash
-uv run ragflow_deps/download_deps.py
-bash build.sh --test ./path/to/package/...
-bash build.sh --go
-# or build specific binaries:
-bash build.sh --all
+---
+
+## 5. Процесс работы и порядок обновления базы знаний
+
+Агенты обязаны следовать регламенту:
+
+```mermaid
+flowchart TD
+    A[1. Старт: Чтение AGENTS.md и current-state.md] --> B[2. Проверка кода и воспроизведение проблемы]
+    B --> C[3. Реализация изменений без нарушения инвариантов]
+    C --> D[4. Запуск тестов Python и Go CGO_ENABLED=0]
+    D --> E{5. Есть архитектурные решения?}
+    E -- Да --> F[Создать ADR в docs/knowledge-base/decisions/]
+    E -- Нет --> G[6. Обновление docs/knowledge-base/]
+    F --> G
+    G --> H{7. Задача завершена полностью?}
+    H -- Да --> I[Сформировать итоговый отчёт по шаблону]
+    H -- Нет --> J[Создать handoff-файл в docs/knowledge-base/handoffs/]
+    J --> I
 ```
 
-## Validation Preference
-- Run the narrowest relevant test, lint, or build command after a change.
-- For backend changes, prefer targeted pytest or ruff checks over full-suite runs.
-- For frontend changes, prefer the touched-package lint, type-check, or test command.
-- For Go changes, prefer package-scoped `bash build.sh --test ...` first.
-- Do not default to raw `go test`, `go build`, or IDE Run/Debug for Go in this repo. They often miss the required CGO flags and native static libraries (`office_oxide`, `pdfium-static`, `pdf_oxide`) that `build.sh` wires correctly.
-- If Go native builds fail, inspect `build.sh` and `internal/development.md` before changing code. Common environment issues are missing downloaded native deps and missing `lld` on Linux.
+1. **Документирование вместе с кодом:** Изменения в коде и документации оформляются в рамках одного коммита / PR.
+2. **Фиксация архитектурных решений:** Любое нетривиальное решение (выбор протокола, добавление таблицы, изменение схемы аутентификации) оформляется как ADR в каталоге [`docs/knowledge-base/decisions/`](docs/knowledge-base/decisions/) по шаблону [`docs/knowledge-base/templates/decision-template.md`](docs/knowledge-base/templates/decision-template.md).
+3. **Фиксация незавершённой работы:** Если контекст агента исчерпан или задача прервана, создаётся файл передачи в [`docs/knowledge-base/handoffs/`](docs/knowledge-base/handoffs/) с указанием ветки, коммита, проверенных гипотез и следующих шагов.
 
-## Default review checklist
-- Remove instead of retaining `deprecated`, `legacy`, or compatibility-only code.
-- Collapse duplicate implementations to one path.
-- Drop stale comments and documentation that describe a superseded design.
-- Keep exported APIs only when the current code actually needs them.
+---
+
+## 6. Подключение инструкций в различных ИИ-инструментах
+
+Разные инструменты разработки требуют явного указания на данный файл:
+
+* **Antigravity CLI / Agent:** Автоматически подхватывает контекст при обращении к рабочей директории. В первом запросе рекомендуется передавать:
+  > *"Прочитай AGENTS.md и docs/knowledge-base/current-state.md перед выполнением задачи."*
+* **Cursor IDE:**
+  - Добавьте ссылку в `.cursorrules` или в системный промпт:
+    `Always refer to AGENTS.md and docs/knowledge-base/ for project guidelines and verification commands.`
+* **Claude Code CLI:**
+  - Добавьте в файл `CLAUDE.md` ссылку: `@AGENTS.md`.
+* **Windsurf (Cascade):**
+  - Добавьте в `.windsurfrules` директиву следовать `AGENTS.md`.
+* **GitHub Copilot / Copilot Workspace:**
+  - Ссылайтесь на `AGENTS.md` в описании задачи или PR.
+
+---
+
+## 7. Контрольный чек-лист перед завершением сессии
+
+- [ ] Код соответствует принципам наименьших привилегий (Least Privilege).
+- [ ] Никакие секретные данные не утекли в логи и markdown-файлы.
+- [ ] Относительные ссылки в созданных/изменённых документах проверены.
+- [ ] Запущены обязательные юнит-тесты (Python / Go), подтверждён код выхода 0.
+- [ ] Обновлены затронутые страницы базы знаний в `docs/knowledge-base/`.
+- [ ] Если работа прервана — составлен handoff-файл в `docs/knowledge-base/handoffs/`.

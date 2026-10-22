@@ -26,6 +26,7 @@ import axios from 'axios';
 import { convertTheKeysOfTheObjectToSnake, isFormData } from './common-util';
 import { setCachedLlmList } from './llm-cache';
 import { addTenantParams } from './llm-util';
+import { telemetryTracker } from './telemetry';
 
 const FAILED_TO_FETCH = 'Failed to fetch';
 
@@ -113,6 +114,15 @@ request.interceptors.request.use(
     // Skip token if explicitly requested
     if (!(newConfig as any).skipToken) {
       newConfig.headers.set(Authorization, getAuthorization());
+    }
+
+    // Track feature usage in background telemetry
+    try {
+      if (config.url) {
+        telemetryTracker.trackApiFeature(config.url, config.method || 'GET');
+      }
+    } catch {
+      // ignore telemetry tracking errors
     }
 
     return newConfig;

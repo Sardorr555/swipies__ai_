@@ -79,6 +79,14 @@ export enum DataSourceKey {
   SHAREPOINT = 'sharepoint',
 }
 
+export const CrmDataSourceKeys: DataSourceKey[] = [
+  DataSourceKey.AMOCRM,
+  DataSourceKey.KOMMO,
+  DataSourceKey.BITRIX24,
+  DataSourceKey.HUBSPOT,
+  DataSourceKey.ONE_C,
+];
+
 type DataSourceFeatureVisibility = {
   syncDeletedFiles?: boolean;
 };
@@ -423,7 +431,7 @@ export const generateDataSourceInfo = (t: TFunction) => {
       icon: <SvgIcon name={'data-source/salesforce'} width={38} />,
     },
     [DataSourceKey.AMOCRM]: {
-      name: 'amoCRM',
+      name: 'amoCRM (CRM demo)',
       description: t(`setting.${DataSourceKey.AMOCRM}Description`, {
         defaultValue:
           'Connect amoCRM account to sync leads, contacts, deals, and pipeline stages with real-time updates.',
@@ -431,7 +439,7 @@ export const generateDataSourceInfo = (t: TFunction) => {
       icon: <SvgIcon name={'data-source/amocrm'} width={38} />,
     },
     [DataSourceKey.KOMMO]: {
-      name: 'Kommo',
+      name: 'Kommo (CRM demo)',
       description: t(`setting.${DataSourceKey.KOMMO}Description`, {
         defaultValue:
           'Connect Kommo CRM for messenger-based lead management, sales pipeline synchronization, and contact activity.',
@@ -439,7 +447,7 @@ export const generateDataSourceInfo = (t: TFunction) => {
       icon: <SvgIcon name={'data-source/kommo'} width={38} />,
     },
     [DataSourceKey.BITRIX24]: {
-      name: 'Bitrix24',
+      name: 'Bitrix24 (CRM demo)',
       description: t(`setting.${DataSourceKey.BITRIX24}Description`, {
         defaultValue:
           'Connect Bitrix24 CRM portal to index leads, deals, companies, and communications through REST API.',
@@ -447,7 +455,7 @@ export const generateDataSourceInfo = (t: TFunction) => {
       icon: <SvgIcon name={'data-source/bitrix24'} width={38} />,
     },
     [DataSourceKey.HUBSPOT]: {
-      name: 'HubSpot',
+      name: 'HubSpot (CRM demo)',
       description: t(`setting.${DataSourceKey.HUBSPOT}Description`, {
         defaultValue:
           'Connect HubSpot CRM to index contacts, companies, deals, tickets, and engagement activities.',
@@ -455,7 +463,7 @@ export const generateDataSourceInfo = (t: TFunction) => {
       icon: <SvgIcon name={'data-source/hubspot'} width={38} />,
     },
     [DataSourceKey.ONE_C]: {
-      name: '1C:Enterprise',
+      name: '1C:Enterprise (CRM demo)',
       description: t(`setting.${DataSourceKey.ONE_C}Description`, {
         defaultValue:
           'Connect 1C:Enterprise to query inventory balances and stock levels over standard OData REST interface.',

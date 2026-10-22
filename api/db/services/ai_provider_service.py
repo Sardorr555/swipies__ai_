@@ -153,7 +153,40 @@ class AIProviderService(CommonService):
             except Exception as ae:
                 logger.warning("Anthropic live discovery request error: %s", ae)
 
-        # 4. Standard OpenAI-compatible /models endpoint
+        # 4. Cohere (/v1/models)
+        elif "cohere" in prov_lower:
+            try:
+                cohere_base = (base_url or "https://api.cohere.com").rstrip("/")
+                if not cohere_base.endswith("/v1"):
+                    cohere_base = f"{cohere_base}/v1"
+                url = f"{cohere_base}/models"
+                headers = {"Authorization": f"Bearer {raw_api_key}"}
+                resp = await asyncio.to_thread(requests.get, url, headers=headers, timeout=10)
+                if resp.status_code == 200:
+                    for m in resp.json().get("models", []):
+                        m_name = m.get("name")
+                        if not m_name:
+                            continue
+                        endpoints = m.get("endpoints", [])
+                        m_type = "CHAT"
+                        if "embed" in endpoints or "embed" in m_name.lower():
+                            m_type = "EMBEDDING"
+                        elif "rerank" in endpoints or "rerank" in m_name.lower():
+                            m_type = "RERANK"
+                        max_tok = m.get("context_length", 128000) or 128000
+                        discovered.append({
+                            "model_name": m_name,
+                            "model_type": m_type,
+                            "max_tokens": max_tok,
+                        })
+                    if discovered:
+                        return True, f"Discovered {len(discovered)} live models from Cohere API.", discovered
+                elif resp.status_code in (401, 403):
+                    return False, "Invalid Cohere API key.", []
+            except Exception as ce:
+                logger.warning("Cohere live discovery request error: %s", ce)
+
+        # 5. Standard OpenAI-compatible /models endpoint
         endpoints_to_try = []
         if base_url:
             b = base_url.rstrip("/")

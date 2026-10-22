@@ -34,6 +34,7 @@ import { ThemeProvider } from './components/theme-provider';
 import { TooltipProvider } from './components/ui/tooltip';
 import { ThemeEnum } from './constants/common';
 import { routers } from './routes';
+import { telemetryTracker } from './utils/telemetry';
 
 import 'react-photo-view/dist/react-photo-view.css';
 
@@ -107,6 +108,16 @@ const RootProvider = ({ children }: React.PropsWithChildren) => {
 const RouterProviderWrapper: React.FC<{ router: typeof routers }> = ({
   router,
 }) => {
+  React.useEffect(() => {
+    telemetryTracker.init();
+    const unsubscribe = router.subscribe((state) => {
+      telemetryTracker.notifyRouteChange(state.location.pathname);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [router]);
+
   return <RouterProvider router={router}></RouterProvider>;
 };
 RouterProviderWrapper.whyDidYouRender = false;

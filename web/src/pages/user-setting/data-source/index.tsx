@@ -21,23 +21,27 @@ import { Plus } from 'lucide-react';
 import { ProfileSettingWrapperCard } from '../components/user-setting-header';
 import AddDataSourceModal from './add-datasource-modal';
 import { AddedSourceCard } from './component/added-source-card';
-import { DataSourceKey, useDataSourceInfo } from './constant';
+import { DataSourceKey, useDataSourceInfo, CrmDataSourceKeys } from './constant';
 import { useAddDataSource, useListDataSource } from './hooks';
 import { IDataSorceInfo } from './interface';
 
 const AvailableSourceCard = ({
+  id,
   name,
   description,
   icon,
   onAdd,
 }: IDataSorceInfo & { onAdd: () => void }) => {
   const { t } = useTranslation();
+  const isCrm = CrmDataSourceKeys.includes(id as DataSourceKey);
 
   return (
     <article
-      className="
-        size-full p-2.5 border-0.5 border-border-button rounded-lg relative group hover:bg-bg-card focus-within:bg-bg-card
-        grid grid-cols-[auto_1fr] grid-rows-[auto_1fr] gap-x-2.5 gap-y-1"
+      className={`
+        size-full p-2.5 border-0.5 rounded-lg relative group hover:bg-bg-card focus-within:bg-bg-card
+        grid grid-cols-[auto_1fr] grid-rows-[auto_1fr] gap-x-2.5 gap-y-1 transition-all
+        ${isCrm ? 'border-primary/40 bg-primary/5 hover:border-primary/70' : 'border-border-button'}
+      `}
       style={{
         gridTemplateAreas: '"icon title" "icon description"',
       }}
@@ -48,7 +52,14 @@ const AvailableSourceCard = ({
       </span>
 
       <header className="flex items-center gap-2" style={{ gridArea: 'title' }}>
-        <h3 className="text-base text-text-primary">{name}</h3>
+        <h3 className="text-base text-text-primary flex items-center gap-1.5 flex-wrap">
+          <span>{name}</span>
+          {isCrm && (
+            <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+              CRM(demo)
+            </span>
+          )}
+        </h3>
 
         <Button
           size="auto"
@@ -84,6 +95,13 @@ const DataSource = () => {
       icon: dataSourceInfo[id].icon,
     };
   });
+
+  const crmTemplates = dataSourceTemplates.filter((item) =>
+    CrmDataSourceKeys.includes(item.id as DataSourceKey),
+  );
+  const generalTemplates = dataSourceTemplates.filter(
+    (item) => !CrmDataSourceKeys.includes(item.id as DataSourceKey),
+  );
 
   // useListTenantUser();
   const { categorizedList } = useListDataSource();
@@ -122,9 +140,43 @@ const DataSource = () => {
           ))}
         </section>
 
-        <section className="mt-8">
+        {/* ========================================================= */}
+        {/* CRM (DEMO) DATA SOURCES SECTION */}
+        {/* ========================================================= */}
+        <section className="mt-8 pt-6 border-t border-border-button">
           <header className="flex flex-row items-center justify-between space-y-0 p-0 pb-4">
-            {/* <Users className="mr-2 h-5 w-5 text-[#1677ff]" /> */}
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-medium text-text-primary">
+                  CRM(demo)
+                </h2>
+                <span className="text-xs uppercase font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                  Demo rejim
+                </span>
+              </div>
+              <div className="text-sm text-text-secondary font-normal mt-1.5">
+                amoCRM, Bitrix24, 1С, HubSpot va Kommo tizimlari bilan real vaqtda sinxronizatsiya, lid yaratish va qoldiqlar tekshiruvi.
+              </div>
+            </div>
+          </header>
+
+          <ul className="@container grid sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4 3xl:grid-cols-4 gap-4">
+            {crmTemplates.map((item) => (
+              <li key={item.id} className="h-full">
+                <AvailableSourceCard
+                  {...item}
+                  onAdd={() => showAddingModal(item)}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* ========================================================= */}
+        {/* GENERAL AVAILABLE DATA SOURCES SECTION */}
+        {/* ========================================================= */}
+        <section className="mt-8 pt-6 border-t border-border-button">
+          <header className="flex flex-row items-center justify-between space-y-0 p-0 pb-4">
             <h2 className="text-2xl font-medium">
               {t('setting.availableSources')}
               <div className="text-sm text-text-secondary font-normal mt-1.5">
@@ -133,9 +185,8 @@ const DataSource = () => {
             </h2>
           </header>
 
-          {/* <TenantTable searchTerm={searchTerm}></TenantTable> */}
           <ul className="@container grid sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4 3xl:grid-cols-4 gap-4">
-            {dataSourceTemplates.map((item) => (
+            {generalTemplates.map((item) => (
               <li key={item.id} className="h-full">
                 <AvailableSourceCard
                   {...item}
