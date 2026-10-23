@@ -61,10 +61,10 @@ export function IntelligenceRoiView() {
         topic,
       });
       if (res?.data?.code === 0) {
-        message.success(`Статья FAQ "${res.data.data.title}" успешно сгенерирована!`);
+        message.success(`FAQ article "${res.data.data.title}" generated successfully!`);
       }
     } catch {
-      message.error('Не удалось сгенерировать FAQ.');
+      message.error('Failed to generate FAQ.');
     }
   };
 
@@ -73,14 +73,14 @@ export function IntelligenceRoiView() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-2xl">Аналитика ROI, Экономии Времени и Настроений</h3>
+          <h3 className="font-bold text-2xl">ROI Analytics, Engineering Time Saved & Sentiment</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Оценка финансовой эффективности ИИ, уровня фрустрации пользователей и рисков утечки знаний
+            Financial impact of AI, user sentiment metrics, knowledge reuse velocity, and bottleneck risks
           </p>
         </div>
         <Button variant="outline" onClick={fetchData} disabled={loading} className="gap-2">
           <LucideRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Обновить
+          Refresh
         </Button>
       </div>
 
@@ -88,38 +88,38 @@ export function IntelligenceRoiView() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
         <div className="bg-background rounded-2xl p-5 border border-emerald-500/30 bg-emerald-500/5 space-y-1">
           <div className="flex items-center justify-between text-emerald-400 font-bold text-xs uppercase">
-            <span>Сэкономлено Времени</span>
+            <span>Engineering Time Saved</span>
             <LucideClock className="w-5 h-5" />
           </div>
-          <div className="text-3xl font-extrabold">{roi?.total_hours_saved || 0} ч</div>
-          <div className="text-xs text-muted-foreground">Рабочих часов инженеров</div>
+          <div className="text-3xl font-extrabold">{roi?.total_hours_saved || 0} hrs</div>
+          <div className="text-xs text-muted-foreground">Direct developer hours saved</div>
         </div>
 
         <div className="bg-background rounded-2xl p-5 border border-blue-500/30 bg-blue-500/5 space-y-1">
           <div className="flex items-center justify-between text-blue-400 font-bold text-xs uppercase">
-            <span>Финансовый ROI</span>
+            <span>Estimated Financial ROI</span>
             <LucideCoins className="w-5 h-5" />
           </div>
           <div className="text-3xl font-extrabold">${roi?.estimated_cost_saved_usd || 0}</div>
-          <div className="text-xs text-muted-foreground">Прямой экономии бюджета</div>
+          <div className="text-xs text-muted-foreground">Estimated budget saved</div>
         </div>
 
         <div className="bg-background rounded-2xl p-5 border border-purple-500/30 bg-purple-500/5 space-y-1">
           <div className="flex items-center justify-between text-purple-400 font-bold text-xs uppercase">
-            <span>Повторное использование</span>
+            <span>Knowledge Reuse Rate</span>
             <LucideSparkles className="w-5 h-5" />
           </div>
           <div className="text-3xl font-extrabold">{roi?.knowledge_reuse_rate || '0%'}</div>
-          <div className="text-xs text-muted-foreground">База знаний RAGFlow</div>
+          <div className="text-xs text-muted-foreground">RAG Knowledge graph reuse</div>
         </div>
 
         <div className="bg-background rounded-2xl p-5 border border-amber-500/30 bg-amber-500/5 space-y-1">
           <div className="flex items-center justify-between text-amber-400 font-bold text-xs uppercase">
-            <span>Индекс Фрустрации</span>
+            <span>Frustration Index</span>
             <LucideFrown className="w-5 h-5" />
           </div>
           <div className="text-3xl font-extrabold">{sentiment ? `${Math.round((sentiment.frustration_index || 0) * 100)}%` : '0%'}</div>
-          <div className="text-xs text-muted-foreground">Уровень затруднений пользования</div>
+          <div className="text-xs text-muted-foreground">User friction indicator</div>
         </div>
       </div>
 
@@ -129,7 +129,7 @@ export function IntelligenceRoiView() {
         <div className="bg-background rounded-2xl p-5 border border-border space-y-4">
           <h4 className="font-bold text-base flex items-center gap-2 text-amber-400">
             <LucideAlertTriangle className="w-5 h-5" />
-            ⚠️ Детектор Утечки Знаний (Single Point of Failure Risks)
+            ⚠️ Knowledge Bottleneck Risks (Single Point of Failure)
           </h4>
           <div className="space-y-3">
             {roi?.spof_risks && roi.spof_risks.length > 0 ? (
@@ -138,17 +138,17 @@ export function IntelligenceRoiView() {
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm">{spof.domain}</span>
                     <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold">
-                      Риск: {spof.risk_level}
+                      Risk: {spof.risk_level}
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Ключевой эксперт: <strong className="text-foreground">{spof.expert_name}</strong>
+                    Key Expert: <strong className="text-foreground">{spof.expert_name}</strong>
                   </div>
                   <p className="text-xs text-amber-300 font-medium">💡 {spof.recommendation}</p>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground">Узкие места в распределении знаний не выявлены.</p>
+              <p className="text-xs text-muted-foreground">No single-point-of-failure risks identified.</p>
             )}
           </div>
         </div>
@@ -157,7 +157,7 @@ export function IntelligenceRoiView() {
         <div className="bg-background rounded-2xl p-5 border border-border space-y-4">
           <h4 className="font-bold text-base flex items-center gap-2 text-primary">
             <LucideFilePlus className="w-5 h-5" />
-            🚀 Запросы На Фичи и Авто-Генерация FAQ
+            🚀 User Feature Requests & Auto-FAQ
           </h4>
           <div className="space-y-3">
             {sentiment?.feature_requests && sentiment.feature_requests.length > 0 ? (
@@ -165,7 +165,7 @@ export function IntelligenceRoiView() {
                 <div key={i} className="p-3.5 rounded-xl border border-border bg-background/50 flex items-center justify-between gap-3 text-xs">
                   <div>
                     <div className="font-bold text-sm text-foreground">{fr.request}</div>
-                    <div className="text-muted-foreground mt-0.5">Запрошено {fr.count} пользователями</div>
+                    <div className="text-muted-foreground mt-0.5">Requested by {fr.count} users</div>
                   </div>
                   <Button
                     size="sm"
@@ -174,12 +174,12 @@ export function IntelligenceRoiView() {
                     className="h-8 text-xs gap-1"
                   >
                     <LucideSparkles className="w-3.5 h-3.5 text-primary" />
-                    Создать FAQ
+                    Generate FAQ
                   </Button>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground">Запросы анализируются из сообщений пользователей.</p>
+              <p className="text-xs text-muted-foreground">Feature requests will be parsed as user feedback flows in.</p>
             )}
           </div>
         </div>

@@ -39,7 +39,7 @@ export function IntelligenceWikiBuilderView() {
       }
     } catch {
       setWiki(null);
-      message.error('Не удалось сформировать вики по указанному проекту.');
+      message.error('Failed to generate wiki for the specified project.');
     } finally {
       setLoading(false);
     }
@@ -49,7 +49,7 @@ export function IntelligenceWikiBuilderView() {
     if (!wiki) return;
     navigator.clipboard.writeText(wiki.wiki_markdown);
     setCopied(true);
-    message.success('Вики-документация скопирована в буфер обмена!');
+    message.success('Wiki documentation copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -62,7 +62,7 @@ export function IntelligenceWikiBuilderView() {
     a.download = `${wiki.project_name.toLowerCase().replace(/\s+/g, '_')}_wiki_spec.md`;
     a.click();
     URL.revokeObjectURL(url);
-    message.success('Файл документации в формате Markdown успешно скачан!');
+    message.success('Markdown documentation file downloaded successfully!');
   };
 
   return (
@@ -74,9 +74,9 @@ export function IntelligenceWikiBuilderView() {
             <LucideBookOpen className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-bold text-xl">Авто-Генератор Вики и Документации Проектов (Autonomous Wiki Builder)</h3>
+            <h3 className="font-bold text-xl">Autonomous Project Wiki & Documentation Builder</h3>
             <p className="text-xs text-muted-foreground">
-              ИИ автоматически собирает все обсуждения, архитектурные решения и задачи в готовую структурированную Вики-документацию
+              AI automatically synthesizes all discussions, architectural decisions, and tasks into structured Wiki documentation
             </p>
           </div>
         </div>
@@ -85,12 +85,12 @@ export function IntelligenceWikiBuilderView() {
           <Input
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            placeholder="Введите название проекта или компонента..."
+            placeholder="Enter project or component name..."
             className="h-12 text-sm rounded-xl flex-1"
           />
           <Button type="submit" disabled={loading} className="h-12 px-6 font-medium gap-2">
             <LucideSparkles className="w-4 h-4" />
-            {loading ? 'Сборка Вики...' : 'Сгенерировать Вики'}
+            {loading ? 'Building Wiki...' : 'Generate Wiki'}
           </Button>
         </form>
       </div>
@@ -102,18 +102,18 @@ export function IntelligenceWikiBuilderView() {
             <div>
               <h4 className="font-bold text-lg text-primary">{wiki.title}</h4>
               <p className="text-xs text-muted-foreground">
-                Извлечено {wiki.extracted_sections_count} раздела • Сгенерировано из базы данных
+                Extracted {wiki.extracted_sections_count} sections • Generated from knowledge base
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={handleCopy} className="gap-1.5 text-xs">
                 {copied ? <LucideCheck className="w-3.5 h-3.5 text-emerald-400" /> : <LucideCopy className="w-3.5 h-3.5" />}
-                {copied ? 'Скопировано' : 'Копировать'}
+                {copied ? 'Copied' : 'Copy'}
               </Button>
               <Button size="sm" onClick={handleDownload} className="gap-1.5 text-xs">
                 <LucideDownload className="w-3.5 h-3.5" />
-                Скачать Markdown
+                Download Markdown
               </Button>
             </div>
           </div>

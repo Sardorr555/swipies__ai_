@@ -68,9 +68,9 @@ export function IntelligenceSearchView() {
             <LucideBrain className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-bold text-xl">"Google for Enterprise" Интеллектуальный Поиск</h3>
+            <h3 className="font-bold text-xl">Enterprise Semantic Intelligence Search</h3>
             <p className="text-xs text-muted-foreground">
-              Единый гибридный ИИ-поиск по принятым решениям, знаниям и профильным экспертам организации
+              Unified hybrid AI search across organizational decisions, collective knowledge, and subject-matter experts
             </p>
           </div>
         </div>
@@ -81,13 +81,13 @@ export function IntelligenceSearchView() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Спросите ИИ (например: Кто отвечает за HNSW индексы или какие решения принимались по API)..."
+              placeholder="Ask AI (e.g., Who is responsible for vector indices or what decisions were made on API architecture)..."
               className="pl-11 h-12 text-sm rounded-xl bg-background"
             />
           </div>
           <Button type="submit" disabled={loading} className="h-12 px-6 font-medium gap-2">
             <LucideSparkles className="w-4 h-4" />
-            {loading ? 'Идет синтез...' : 'Искать'}
+            {loading ? 'Synthesizing...' : 'Search'}
           </Button>
         </form>
       </div>
@@ -99,7 +99,7 @@ export function IntelligenceSearchView() {
           <div className="bg-gradient-to-br from-primary/10 via-background to-background rounded-2xl p-6 border border-primary/30 shadow-md space-y-2">
             <div className="flex items-center gap-2 text-primary font-bold text-sm">
               <LucideSparkles className="w-4 h-4" />
-              ИИ-Синтез Ответа
+              AI Synthesized Overview
             </div>
             <p className="text-sm leading-relaxed font-medium">{results.ai_synthesis}</p>
           </div>
@@ -109,7 +109,7 @@ export function IntelligenceSearchView() {
             <div className="bg-background rounded-2xl p-5 border border-border space-y-3">
               <h4 className="font-bold text-base flex items-center gap-2 text-emerald-400">
                 <LucideCheckCircle2 className="w-5 h-5" />
-                Принятые Решения и Задачи ({results.decisions.length})
+                Recorded Decisions ({results.decisions.length})
               </h4>
 
               <div className="space-y-2">
@@ -118,13 +118,13 @@ export function IntelligenceSearchView() {
                     <div key={i} className="p-3.5 rounded-xl border border-border bg-background/50 space-y-1 text-xs">
                       <div className="font-bold text-foreground">{dec.decision}</div>
                       <div className="flex items-center justify-between text-muted-foreground pt-1">
-                        <span>Автор: <strong className="text-foreground">{dec.owner}</strong></span>
-                        <span className="font-mono text-emerald-400">Диалог #{dec.conversation_id}</span>
+                        <span>Author: <strong className="text-foreground">{dec.owner}</strong></span>
+                        <span className="font-mono text-emerald-400">Dialog #{dec.conversation_id}</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-muted-foreground">Решений по данному запросу не найдено.</p>
+                  <p className="text-xs text-muted-foreground">No decisions found for this query.</p>
                 )}
               </div>
             </div>
@@ -133,7 +133,7 @@ export function IntelligenceSearchView() {
             <div className="bg-background rounded-2xl p-5 border border-border space-y-3">
               <h4 className="font-bold text-base flex items-center gap-2 text-primary">
                 <LucideUserCheck className="w-5 h-5" />
-                Профильные Эксперты Организации ({results.experts.length})
+                Domain Experts ({results.experts.length})
               </h4>
 
               <div className="space-y-2">
@@ -143,15 +143,15 @@ export function IntelligenceSearchView() {
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-foreground">{exp.name}</span>
                         <span className="text-primary font-mono font-bold">
-                          Уровень: {exp.depth_level}
+                          Level: {exp.depth_level}
                         </span>
                       </div>
-                      <div className="text-muted-foreground text-[11px] font-semibold">Тема: {exp.domain_topic}</div>
+                      <div className="text-muted-foreground text-[11px] font-semibold">Domain: {exp.domain_topic}</div>
                       <p className="text-muted-foreground text-[11px] italic">{exp.evidence}</p>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-muted-foreground">Эксперты по данной теме не выявлены.</p>
+                  <p className="text-xs text-muted-foreground">No domain experts detected for this query.</p>
                 )}
               </div>
             </div>

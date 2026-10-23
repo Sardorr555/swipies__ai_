@@ -282,3 +282,6 @@ internal/deepdoc/native/testdata
 # Test temporary sqlite databases
 test/*_temp.db
 test/*.db
+
+*.pem
+swipies_test_pem_ssh.pem

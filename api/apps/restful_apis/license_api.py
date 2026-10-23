@@ -15,12 +15,19 @@ from api.utils.api_utils import get_data_error_result, get_json_result, get_requ
 from common.constants import RetCode
 from common.misc_utils import get_uuid
 try:
-    from generate_license import generate_license
+    from api.utils.generate_license import generate_license
 except ImportError:
-    import sys
-    from pathlib import Path
-    sys.path.append(str(Path(__file__).resolve().parents[3]))
-    from generate_license import generate_license
+    try:
+        from generate_license import generate_license
+    except ImportError:
+        import sys
+        from pathlib import Path
+        sys.path.append(str(Path(__file__).resolve().parents[3]))
+        try:
+            from generate_license import generate_license
+        except ImportError:
+            def generate_license(*args, **kwargs):
+                raise NotImplementedError("generate_license function is unavailable")
 
 LOGGER = logging.getLogger(__name__)
 

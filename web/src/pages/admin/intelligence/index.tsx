@@ -16,9 +16,9 @@ export default function AdminIntelligence() {
       {/* Top Header and Tab Navigation */}
       <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <h2 className="text-2xl font-bold">Enterprise Intelligence 3.0 (Панель Администратора)</h2>
+          <h2 className="text-2xl font-bold">Enterprise Intelligence 3.0 (Admin Hub)</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Проактивный Мозг Организации: Сеть знаний, Умный поиск, Авто-Вики, "What-If" Симулятор и ROI
+            Proactive Organization Brain: Knowledge Graph, Semantic Search, Auto-Wiki, "What-If" Simulator & ROI Telemetry
           </p>
         </div>
 
@@ -34,7 +34,7 @@ export default function AdminIntelligence() {
             }`}
           >
             <LucideNetwork className="w-3.5 h-3.5" />
-            1. Сеть Знаний
+            1. Knowledge Graph
           </button>
 
           <button
@@ -47,7 +47,7 @@ export default function AdminIntelligence() {
             }`}
           >
             <LucideBrain className="w-3.5 h-3.5" />
-            2. Умный Поиск
+            2. Smart Search
           </button>
 
           <button
@@ -60,7 +60,7 @@ export default function AdminIntelligence() {
             }`}
           >
             <LucideBarChart3 className="w-3.5 h-3.5" />
-            3. Дайджест & Экспорт
+            3. Digest & Export
           </button>
 
           <button
@@ -73,7 +73,7 @@ export default function AdminIntelligence() {
             }`}
           >
             <LucideBookOpen className="w-3.5 h-3.5" />
-            4. Авто-Вики
+            4. Auto-Wiki
           </button>
 
           <button
@@ -86,7 +86,7 @@ export default function AdminIntelligence() {
             }`}
           >
             <LucideCpu className="w-3.5 h-3.5" />
-            5. "What-If" Симулятор
+            5. "What-If" Simulator
           </button>
 
           <button
@@ -99,7 +99,7 @@ export default function AdminIntelligence() {
             }`}
           >
             <LucideClock className="w-3.5 h-3.5" />
-            6. Таймлайн
+            6. Decision Timeline
           </button>
 
           <button
@@ -112,7 +112,7 @@ export default function AdminIntelligence() {
             }`}
           >
             <LucideCoins className="w-3.5 h-3.5" />
-            7. ROI & Настроения
+            7. ROI & Insights
           </button>
         </div>
       </div>
