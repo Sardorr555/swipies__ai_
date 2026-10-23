@@ -505,10 +505,34 @@ async def delete_user():
           type: object
     """
     try:
-        # Set is_active to "0" and status to "0" to deactivate the account while keeping data
+        from api.db.services.payment_transaction_service import PaymentTransactionService
+        from api.db.db_models import PaymentTransaction
+        from api.db.services.user_service import TenantService
+
+        # 1. Invalidate all past transactions for this user/email so they can NEVER be inherited
+        try:
+            PaymentTransaction.update(status="EXPIRED_ACCOUNT_DELETED", is_provisioned=0).where(
+                (PaymentTransaction.user_id == current_user.id) |
+                (PaymentTransaction.account_email == current_user.email.strip().lower())
+            ).execute()
+        except Exception as tx_err:
+            logging.warning(f"Error updating transactions on account delete: {tx_err}")
+
+        # 2. Reset tenant subscription
+        try:
+            TenantService.update_by_id(
+                current_user.id,
+                {"plan_type": "free", "plan_expiry_date": None, "credit": 512}
+            )
+        except Exception as t_err:
+            logging.warning(f"Error resetting tenant on account delete: {t_err}")
+
+        # 3. Anonymize user email so original email can be re-registered as a brand new account
+        deleted_email = f"deleted_{current_user.id}_{current_user.email}"
         update_dict = {
             "is_active": "0",
             "status": "0",
+            "email": deleted_email,
             "access_token": f"DEACTIVATED_{secrets.token_hex(16)}"
         }
         UserService.update_by_id(current_user.id, update_dict)
@@ -1146,20 +1170,46 @@ async def tenant_info():
         tenant = dict(tenants[0])
 
         # Self-healing plan check:
-        # Always prioritize user's actual paid transaction from ledger if available
-        if getattr(current_user, "email", None):
+        # Prioritize user's actual paid transaction ONLY if it belongs to current user/tenant and is within validity period
+        if getattr(current_user, "id", None):
             try:
+                from datetime import timedelta
                 from api.db.services.payment_transaction_service import PaymentTransactionService
+                # CRITICAL: query strictly by user_id to prevent inheriting subscriptions from deleted past accounts with same email
                 recent_paid = PaymentTransactionService.query(
-                    account_email=current_user.email.strip().lower(),
+                    user_id=current_user.id,
                     status="PAID",
+                    is_provisioned=True,
                 )
                 if recent_paid:
+                    # Filter only matching tenant if applicable
+                    if tenant.get("tenant_id"):
+                        tenant_matched = [tx for tx in recent_paid if tx.tenant_id == tenant["tenant_id"]]
+                        if tenant_matched:
+                            recent_paid = tenant_matched
+
                     latest = sorted(recent_paid, key=lambda x: x.create_time or 0, reverse=True)[0]
                     if latest.plan_type and latest.plan_type != "free":
-                        if tenant.get("plan_type") != latest.plan_type:
-                            tenant["plan_type"] = latest.plan_type
-                            TenantService.update_by_id(tenant["tenant_id"], {"plan_type": latest.plan_type})
+                        tx_duration_days = (latest.duration_months or 1) * 30
+                        tx_expiry = None
+                        if latest.create_date:
+                            tx_expiry = latest.create_date + timedelta(days=tx_duration_days)
+                        elif latest.create_time:
+                            tx_expiry = datetime.fromtimestamp(latest.create_time / 1000) + timedelta(days=tx_duration_days)
+                        
+                        now_dt = datetime.now(tx_expiry.tzinfo) if (tx_expiry and getattr(tx_expiry, "tzinfo", None)) else datetime.now()
+
+                        if tx_expiry and now_dt > tx_expiry:
+                            # The latest paid subscription is in the past (expired!)
+                            if tenant.get("plan_type") != "free":
+                                tenant["plan_type"] = "free"
+                                tenant["plan_expiry_date"] = None
+                                TenantService.update_by_id(tenant["tenant_id"], {"plan_type": "free", "plan_expiry_date": None, "credit": 512})
+                        else:
+                            # Active transaction window!
+                            if tenant.get("plan_type") != latest.plan_type:
+                                tenant["plan_type"] = latest.plan_type
+                                TenantService.update_by_id(tenant["tenant_id"], {"plan_type": latest.plan_type})
             except Exception as tx_check_err:
                 logging.warning(f"Error self-healing tenant plan from transactions: {tx_check_err}")
 
