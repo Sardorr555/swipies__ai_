@@ -131,6 +131,17 @@ def _build_one(account_id: str, channel: str, credential: dict):
     return instances[0] if instances else None
 
 
+def _apply_swipies_watermark(text: str, tenant_id: str, lang: str = "en") -> str:
+    """Deterministically append the Swipies attribution line (Free tier only)."""
+    try:
+        from api.db.services.ad_policy_service import AdPolicyService
+
+        return AdPolicyService.ensure_platform_branding(text, tenant_id=tenant_id, user_id=tenant_id, lang=lang or "en")
+    except Exception as ex:
+        LOGGER.warning("watermark enforcement failed: %s", ex)
+        return text
+
+
 def _make_chat_handler(ch):
     """Build the inbound-message handler bound to a chat assistant or Agent.
 
@@ -202,6 +213,7 @@ def _make_chat_handler(ch):
                 answer_text = "抱歉，当前无法处理这条消息，请稍后重试。"
 
             if answer_text:
+                answer_text = _apply_swipies_watermark(answer_text, cc.tenant_id, "en")
                 await ch.send(
                     OutgoingMessage(
                         chat_id=msg.chat_id,
@@ -251,6 +263,9 @@ def _make_chat_handler(ch):
         except Exception as ex:
             LOGGER.exception("[%s:%s] completion failed: %s", ch.channel_id, ch.account_id, ex)
             answer_text = f"**ERROR**: {ex}"
+
+        if answer_text and not answer_text.startswith("**ERROR**"):
+            answer_text = _apply_swipies_watermark(answer_text, cc.tenant_id, getattr(dia, "language", "en"))
 
         if answer_text:
             await ch.send(
