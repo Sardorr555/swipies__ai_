@@ -2017,7 +2017,7 @@ Important structured information may include: names, dates, locations, events, k
 
     admin: {
       loginTitle: 'Admin console',
-      title: 'Swipies AI',
+      title: 'Swipies',
       confirm: 'Confirm',
       close: 'Close',
       yes: 'Yes',
@@ -2028,6 +2028,7 @@ Important structured information may include: names, dates, locations, events, k
       import: 'Import',
       description: 'Description',
       noDescription: 'No description',
+      none: 'None',
 
       resourceType: {
         dataset: 'Dataset',
@@ -2048,9 +2049,43 @@ Important structured information may include: names, dates, locations, events, k
 
       serviceStatus: 'Service status',
       userManagement: 'User management',
+      sandboxSettings: 'Sandbox settings',
       registrationWhitelist: 'Registration whitelist',
       roles: 'Roles',
       monitoring: 'Monitoring',
+
+      sandboxSettingsPage: {
+        description:
+          'Configure your code execution sandbox provider. The sandbox is used by the Code component in agents.',
+        providerSelection: 'Provider selection',
+        providerSelectionDescription:
+          'Choose a sandbox provider for code execution',
+
+        namedProviderConfiguration: '{{name}} configuration',
+        namedProviderConfigurationDescription:
+          'Configure the connection settings for {{name}}.',
+
+        saveConfiguration: 'Save configuration',
+        saving: 'Saving...',
+
+        testConnectionResultModal: {
+          title: 'Connection test result',
+          testing: 'Testing connection to sandbox provider...',
+          success: 'Successfully connected to sandbox provider',
+          failed: 'Failed to connect to sandbox provider',
+
+          exitCode: 'Exit code',
+          executionTime: 'Execution time',
+          stdout: 'Standard output',
+          stderr: 'Error output / stack trace',
+        },
+
+        testConnection: 'Test connection',
+        testing: 'Testing...',
+      },
+
+      selectFile: 'Select file',
+      noFileSelected: 'No file selected',
 
       back: 'Back',
       active: 'Active',
@@ -2074,7 +2109,9 @@ Important structured information may include: names, dates, locations, events, k
 
       role: 'Role',
       user: 'User',
+      userType: 'User type',
       superuser: 'Superuser',
+      normalUser: 'Normal',
 
       createTime: 'Create time',
       lastLoginTime: 'Last login time',

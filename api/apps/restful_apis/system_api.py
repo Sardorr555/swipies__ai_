@@ -1675,3 +1675,171 @@ async def system_subscription_check_upgrade():
         "current_plan": effective_plan,
         "target_plan": target_plan
     })
+
+
+# =============================================================================
+# User Activity & Platform Telemetry Endpoints (RESTful API /api/v1/admin/user-activity/*)
+# =============================================================================
+
+@manager.route("/admin/user-activity/overview", methods=["GET"])  # noqa: F821
+@login_required
+async def restful_get_activity_overview():
+    if not getattr(current_user, "is_superuser", False):
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        return get_json_result(data=TelemetryService.get_overview(days=days))
+    except Exception as e:
+        logging.exception(f"Error in restful_get_activity_overview: {e}")
+        return get_json_result(data=False, message=str(e), code=RetCode.SERVER_ERROR)
+
+
+@manager.route("/admin/user-activity/modules", methods=["GET"])  # noqa: F821
+@login_required
+async def restful_get_modules_breakdown():
+    if not getattr(current_user, "is_superuser", False):
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        return get_json_result(data=TelemetryService.get_module_breakdown(days=days))
+    except Exception as e:
+        logging.exception(f"Error in restful_get_modules_breakdown: {e}")
+        return get_json_result(data=False, message=str(e), code=RetCode.SERVER_ERROR)
+
+
+@manager.route("/admin/user-activity/clicks", methods=["GET"])  # noqa: F821
+@login_required
+async def restful_get_top_clicks():
+    if not getattr(current_user, "is_superuser", False):
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        limit = max(5, min(100, int(request.args.get("limit", 25))))
+        return get_json_result(data=TelemetryService.get_top_clicks(days=days, limit=limit))
+    except Exception as e:
+        logging.exception(f"Error in restful_get_top_clicks: {e}")
+        return get_json_result(data=False, message=str(e), code=RetCode.SERVER_ERROR)
+
+
+@manager.route("/admin/user-activity/users", methods=["GET"])  # noqa: F821
+@login_required
+async def restful_get_users_leaderboard():
+    if not getattr(current_user, "is_superuser", False):
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        page = max(1, int(request.args.get("page", 1)))
+        page_size = max(1, min(100, int(request.args.get("page_size", 20))))
+        search = str(request.args.get("search", "")).strip()
+        return get_json_result(
+            data=TelemetryService.get_user_leaderboard(days=days, search=search, page=page, page_size=page_size)
+        )
+    except Exception as e:
+        logging.exception(f"Error in restful_get_users_leaderboard: {e}")
+        return get_json_result(data=False, message=str(e), code=RetCode.SERVER_ERROR)
+
+
+@manager.route("/admin/user-activity/timeline", methods=["GET"])  # noqa: F821
+@login_required
+async def restful_get_activity_timeline():
+    if not getattr(current_user, "is_superuser", False):
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        return get_json_result(data=TelemetryService.get_hourly_activity_timeline(days=days))
+    except Exception as e:
+        logging.exception(f"Error in restful_get_activity_timeline: {e}")
+        return get_json_result(data=False, message=str(e), code=RetCode.SERVER_ERROR)
+
+
+@manager.route("/admin/user-activity/events", methods=["GET"])  # noqa: F821
+@login_required
+async def restful_get_raw_events():
+    if not getattr(current_user, "is_superuser", False):
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        page = max(1, int(request.args.get("page", 1)))
+        page_size = max(1, min(100, int(request.args.get("page_size", 50))))
+        user_id = request.args.get("user_id")
+        module = request.args.get("module")
+        event_type = request.args.get("event_type")
+        return get_json_result(
+            data=TelemetryService.get_raw_events(
+                page=page, page_size=page_size, user_id=user_id, module=module, event_type=event_type
+            )
+        )
+    except Exception as e:
+        logging.exception(f"Error in restful_get_raw_events: {e}")
+        return get_json_result(data=False, message=str(e), code=RetCode.SERVER_ERROR)
+
+
+@manager.route("/admin/user-activity/features", methods=["GET"])  # noqa: F821
+@login_required
+async def restful_get_features_matrix():
+    if not getattr(current_user, "is_superuser", False):
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        return get_json_result(data=TelemetryService.get_features_usage_matrix(days=days))
+    except Exception as e:
+        logging.exception(f"Error in restful_get_features_matrix: {e}")
+        return get_json_result(data=False, message=str(e), code=RetCode.SERVER_ERROR)
+
+
+@manager.route("/admin/user-activity/utm-conversions", methods=["GET"])  # noqa: F821
+@login_required
+async def restful_get_utm_conversions():
+    if not getattr(current_user, "is_superuser", False):
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR)
+    try:
+        from api.db.db_models import User
+        users = list(User.select().where(
+            (User.utm_source.is_null(False) & (User.utm_source != "")) |
+            (User.utm_campaign.is_null(False) & (User.utm_campaign != ""))
+        ).dicts())
+        campaigns = {}
+        total_registered = 0
+        for u in users:
+            src = (u.get("utm_source") or "direct").strip()
+            med = (u.get("utm_medium") or "none").strip()
+            cmp = (u.get("utm_campaign") or "unnamed").strip()
+            key = f"{src.lower()}::{med.lower()}::{cmp.lower()}"
+            if key not in campaigns:
+                campaigns[key] = {
+                    "source": src,
+                    "medium": med,
+                    "campaign": cmp,
+                    "registrations": 0,
+                    "active_users": 0,
+                    "last_signup": u.get("create_time"),
+                    "users": [],
+                }
+            c = campaigns[key]
+            c["registrations"] += 1
+            total_registered += 1
+            if str(u.get("is_active")) == "1":
+                c["active_users"] += 1
+            c["users"].append({
+                "id": u.get("id"),
+                "email": u.get("email"),
+                "nickname": u.get("nickname"),
+                "created_at": u.get("create_time"),
+                "is_active": str(u.get("is_active")) == "1",
+            })
+        campaign_list = sorted(campaigns.values(), key=lambda x: x["registrations"], reverse=True)
+        return get_json_result(data={
+            "total_utm_registrations": total_registered,
+            "campaigns_count": len(campaign_list),
+            "campaigns": campaign_list,
+        })
+    except Exception as e:
+        logging.exception(f"Error in restful_get_utm_conversions: {e}")
+        return get_json_result(data=False, message=str(e), code=RetCode.SERVER_ERROR)
+

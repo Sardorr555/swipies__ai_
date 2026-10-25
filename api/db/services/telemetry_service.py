@@ -24,16 +24,16 @@ from common.misc_utils import get_uuid
 
 
 MODULE_LABELS = {
-    "chat": "AI Chat & Assistent",
-    "datasets": "Bilimlar Bazasi & Datasetlar",
-    "agent_canvas": "Agent Canvas & Workflow",
-    "crm": "CRM & ERP Integratsiyalari",
-    "search": "Hujjatlar Qidiruvi (Search)",
-    "files_skills": "Fayllar & Ko'nikmalar",
-    "settings": "Sozlamalar & Hisob",
-    "ads": "Swipies Reklama Tizimi",
-    "admin": "Admin Boshqaruv Paneli",
-    "other": "Boshqa Bo'limlar",
+    "chat": "AI Chat & Assistant",
+    "datasets": "Knowledge Bases & Datasets",
+    "agent_canvas": "Agent Canvas & Workflows",
+    "crm": "CRM & ERP Integrations",
+    "search": "Document Search",
+    "files_skills": "Files & Skills",
+    "settings": "Settings & Account",
+    "ads": "Swipies Ads Network",
+    "admin": "Admin Control Panel",
+    "other": "Other Modules",
 }
 
 # Redaction blocklist to guarantee no tokens or sensitive text leak into telemetry
@@ -45,6 +45,17 @@ SENSITIVE_KEYWORDS = {
 
 class TelemetryService:
     """Enterprise-grade service for user activity telemetry, behavior analytics and click-stream aggregation."""
+
+    _table_ensured = False
+
+    @classmethod
+    def _ensure_table(cls):
+        if not cls._table_ensured:
+            try:
+                UserActivityEvent.create_table(safe=True)
+                cls._table_ensured = True
+            except Exception:
+                pass
 
     @classmethod
     def sanitize_metadata(cls, meta: dict) -> dict:
@@ -73,6 +84,7 @@ class TelemetryService:
         user_agent: str | None = None,
     ) -> int:
         """Validate, sanitize and bulk-insert user activity events."""
+        cls._ensure_table()
         if not events or not isinstance(events, list):
             return 0
 
@@ -133,7 +145,7 @@ class TelemetryService:
             })
 
         if rows:
-            with DB.atomic():
+            with UserActivityEvent._meta.database.atomic():
                 UserActivityEvent.insert_many(rows).execute()
         return len(rows)
 
@@ -141,6 +153,7 @@ class TelemetryService:
     @DB.connection_context()
     def get_overview(cls, days: int = 7) -> dict:
         """High-level summary of active users, time spent, click activity, and top modules."""
+        cls._ensure_table()
         now = datetime.now()
         start_date = (now - timedelta(days=days)).strftime("%Y-%m-%d")
         today_str = now.strftime("%Y-%m-%d")
@@ -213,6 +226,7 @@ class TelemetryService:
     @DB.connection_context()
     def get_module_breakdown(cls, days: int = 7) -> list[dict]:
         """Calculates breakdown of visits, dwell time, and interactions per platform module."""
+        cls._ensure_table()
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         stats = (
@@ -278,6 +292,7 @@ class TelemetryService:
     @DB.connection_context()
     def get_top_clicks(cls, days: int = 7, limit: int = 25) -> list[dict]:
         """Rank user clicks on buttons, navigation items, and UI controls."""
+        cls._ensure_table()
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         clicks = (
@@ -313,7 +328,7 @@ class TelemetryService:
 
         res = []
         for r in clicks:
-            label = r.element_label or r.element_id or r.action_name or "Tugma"
+            label = r.element_label or r.element_id or r.action_name or "Button"
             res.append({
                 "label": label,
                 "element_id": r.element_id,
@@ -331,6 +346,7 @@ class TelemetryService:
     @DB.connection_context()
     def get_user_leaderboard(cls, days: int = 7, search: str = "", page: int = 1, page_size: int = 20) -> dict:
         """User engagement leaderboard showing total time, actions, clicks, and preferred module."""
+        cls._ensure_table()
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         query = (
@@ -431,6 +447,7 @@ class TelemetryService:
     @DB.connection_context()
     def get_hourly_activity_timeline(cls, days: int = 7) -> list[dict]:
         """Activity volume by hour of the day across the specified period."""
+        cls._ensure_table()
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         stats = (
@@ -466,6 +483,7 @@ class TelemetryService:
         event_type: str | None = None,
     ) -> dict:
         """Paginated list of raw activity events for audit and drill-down."""
+        cls._ensure_table()
         query = UserActivityEvent.select()
         if user_id:
             query = query.where(UserActivityEvent.user_id == user_id)
@@ -509,6 +527,7 @@ class TelemetryService:
     @DB.connection_context()
     def get_features_usage_matrix(cls, days: int = 7) -> list[dict]:
         """Calculates adoption, invocation counts and user reach for each platform feature."""
+        cls._ensure_table()
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         stats = (
@@ -531,7 +550,7 @@ class TelemetryService:
         res = []
         for r in stats:
             res.append({
-                "feature_name": r.action_name or "Noma'lum Funksiya",
+                "feature_name": r.action_name or "Unknown Feature",
                 "module": r.module,
                 "module_name": MODULE_LABELS.get(r.module, r.module),
                 "endpoint": r.element_id,

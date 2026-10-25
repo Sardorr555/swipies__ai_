@@ -97,7 +97,7 @@ export default function AdminAdsPage() {
   const handleCopy = (text: string, label: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
-    message.success(`${label} nusxalandi!`);
+    message.success(`${label} copied to clipboard!`);
   };
 
   // Reject modal state
@@ -329,7 +329,7 @@ export default function AdminAdsPage() {
             <Shield className="h-4 w-4" /> Moderation Queue ({moderationQueue.length})
           </TabsTrigger>
           <TabsTrigger value="network_analytics" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-blue-500" /> Сетевая аналитика
+            <BarChart3 className="h-4 w-4 text-blue-500" /> Network Analytics
           </TabsTrigger>
           <TabsTrigger value="promos" className="flex items-center gap-2">
             <Ticket className="h-4 w-4" /> Promo Codes ({promoCodes.length})
@@ -373,7 +373,7 @@ export default function AdminAdsPage() {
                             <div
                               className="font-semibold text-foreground hover:text-blue-500 cursor-pointer flex items-center gap-1.5"
                               onClick={() => handleOpenDetails(cmp)}
-                              title="Tafsilotlarni ko'rish uchun bosing"
+                              title="Click to view full details"
                             >
                               <span>{cmp.name}</span>
                               <Eye className="h-3.5 w-3.5 text-muted-foreground opacity-60 hover:opacity-100" />
@@ -381,7 +381,7 @@ export default function AdminAdsPage() {
                             <div className="text-xs text-muted-foreground font-medium">{cmp.company_name}</div>
                             <div className="flex flex-wrap gap-1 mt-1.5">
                               {(!cmp.target_languages || !Array.isArray(cmp.target_languages) || cmp.target_languages.includes('all') || cmp.target_languages.length === 0) ? (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-medium">🌐 Все языки</span>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-medium">🌐 All Languages</span>
                               ) : (
                                 (Array.isArray(cmp.target_languages) ? cmp.target_languages : []).map((l: string) => (
                                   <span key={l} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 font-bold uppercase">
@@ -408,7 +408,7 @@ export default function AdminAdsPage() {
                                   ? 'bg-muted/80 border-blue-500/40 shadow-sm'
                                   : 'bg-muted/30 hover:bg-muted/60 border-border/40 hover:border-blue-500/30'
                               }`}
-                              title="Ustiga bosing: to'liq matn ochiladi"
+                              title="Click to expand full offer copy"
                             >
                               <div
                                 className={`font-mono text-foreground leading-relaxed ${
@@ -421,11 +421,11 @@ export default function AdminAdsPage() {
                                 <span className="flex items-center gap-1 text-blue-500 group-hover:text-blue-400 font-medium">
                                   {expandedOffers[cmp.id] ? (
                                     <>
-                                      <ChevronUp className="h-3 w-3" /> Qisqartirish
+                                      <ChevronUp className="h-3 w-3" /> Collapse
                                     </>
                                   ) : (
                                     <>
-                                      <ChevronDown className="h-3 w-3" /> To'liq o'qish ({cmp.advertisement_text?.length || 0} ta belgi)
+                                      <ChevronDown className="h-3 w-3" /> Read full copy ({cmp.advertisement_text?.length || 0} chars)
                                     </>
                                   )}
                                 </span>
@@ -433,12 +433,12 @@ export default function AdminAdsPage() {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleCopy(cmp.advertisement_text, 'Reklama matni');
+                                    handleCopy(cmp.advertisement_text, 'Offer copy');
                                   }}
                                   className="hover:text-foreground flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-background/80 transition-colors"
-                                  title="Nusxa olish"
+                                  title="Copy"
                                 >
-                                  <Copy className="h-2.5 w-2.5" /> Nusxa
+                                  <Copy className="h-2.5 w-2.5" /> Copy
                                 </button>
                               </div>
                             </div>
@@ -459,10 +459,10 @@ export default function AdminAdsPage() {
                               </a>
                               <button
                                 type="button"
-                                onClick={() => handleCopy(cmp.landing_url, 'Havola')}
+                                onClick={() => handleCopy(cmp.landing_url, 'Landing URL')}
                                 className="text-[10px] text-muted-foreground hover:text-foreground self-start flex items-center gap-1 mt-0.5"
                               >
-                                <Copy className="h-2.5 w-2.5" /> URL nusxalash
+                                <Copy className="h-2.5 w-2.5" /> Copy URL
                               </button>
                             </div>
                           </td>
@@ -500,9 +500,9 @@ export default function AdminAdsPage() {
                                 variant="outline"
                                 className="h-8 text-xs hover:bg-muted"
                                 onClick={() => handleOpenDetails(cmp)}
-                                title="Barcha ma'lumotlarni to'liq ko'rish"
+                                title="View full campaign details"
                               >
-                                <Eye className="mr-1 h-3.5 w-3.5 text-blue-500" /> Ko'rish
+                                <Eye className="mr-1 h-3.5 w-3.5 text-blue-500" /> View
                               </Button>
                               <Button
                                 size="sm"
@@ -669,10 +669,10 @@ export default function AdminAdsPage() {
             <div>
               <h3 className="text-base font-bold flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-blue-500" />
-                Сводная аналитика рекламной сети Swipies
+                Swipies Ad Network Performance Summary
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Глобальные показы, клики, CTR и доход платформы в разрезе дней
+                Daily network impressions, clicks, CTR, and platform ad revenue
               </p>
             </div>
             <div className="flex items-center gap-1.5 self-start sm:self-auto bg-background p-1 rounded-lg border">
@@ -690,7 +690,7 @@ export default function AdminAdsPage() {
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
-                  {d === 7 ? '7 дней' : d === 14 ? '14 дней' : '30 дней'}
+                  {d === 7 ? '7 Days' : d === 14 ? '14 Days' : '30 Days'}
                 </button>
               ))}
               <Button
@@ -698,7 +698,7 @@ export default function AdminAdsPage() {
                 variant="ghost"
                 className="h-7 px-2 text-xs"
                 onClick={() => fetchAdminTimeline(timelineDays)}
-                title="Обновить"
+                title="Refresh"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
               </Button>
@@ -708,46 +708,46 @@ export default function AdminAdsPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <Card className="bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Глобальные показы</CardTitle>
+                <CardTitle className="text-xs font-medium text-muted-foreground">Global Impressions</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
                   {(adminTimeline?.total_network_impressions || 0).toLocaleString()}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1">Охват по всей сети</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Total network reach</p>
               </CardContent>
             </Card>
 
             <Card className="bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-950/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Глобальные клики</CardTitle>
+                <CardTitle className="text-xs font-medium text-muted-foreground">Global Clicks</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
                   {(adminTimeline?.total_network_clicks || 0).toLocaleString()}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1">Переходы на сайты партнеров</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Outbound partner visits</p>
               </CardContent>
             </Card>
 
             <Card className="bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Доход платформы</CardTitle>
+                <CardTitle className="text-xs font-medium text-muted-foreground">Platform Revenue</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
                   ${(adminTimeline?.total_network_revenue || 0).toFixed(2)}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1">Суммарный доход за период</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Total revenue for period</p>
               </CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-semibold">Динамика показов и переходов сети</CardTitle>
+              <CardTitle className="text-sm font-semibold">Network Impressions & Clicks Timeline</CardTitle>
               <CardDescription className="text-xs">
-                Показатели платформы за последние {timelineDays} дней
+                Platform ad performance over the last {timelineDays} days
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -791,7 +791,7 @@ export default function AdminAdsPage() {
                       <Area
                         type="monotone"
                         dataKey="impressions"
-                        name="Показы сети"
+                        name="Network Impressions"
                         stroke="#3b82f6"
                         strokeWidth={2}
                         fillOpacity={1}
@@ -800,7 +800,7 @@ export default function AdminAdsPage() {
                       <Area
                         type="monotone"
                         dataKey="clicks"
-                        name="Клики сети"
+                        name="Network Clicks"
                         stroke="#10b981"
                         strokeWidth={2}
                         fillOpacity={1}
@@ -810,7 +810,7 @@ export default function AdminAdsPage() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                    За выбранный период данных нет
+                    No data available for the selected period
                   </div>
                 )}
               </div>
@@ -975,7 +975,7 @@ export default function AdminAdsPage() {
             <div className="flex items-center justify-between pr-6 gap-2">
               <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
                 <Megaphone className="h-5 w-5 text-blue-500 shrink-0" />
-                <span>{selectedDetailsCampaign?.name || 'Reklama Kampaniyasi'}</span>
+                <span>{selectedDetailsCampaign?.name || 'Ad Campaign'}</span>
               </DialogTitle>
               <Badge
                 variant="outline"
@@ -999,14 +999,14 @@ export default function AdminAdsPage() {
             {/* Offer Copy */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-foreground">📝 Reklama Matni (Offer Copy):</span>
+                <span className="text-foreground">📝 Offer Copy:</span>
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-6 text-xs px-2"
-                  onClick={() => handleCopy(selectedDetailsCampaign?.advertisement_text || '', 'Reklama matni')}
+                  onClick={() => handleCopy(selectedDetailsCampaign?.advertisement_text || '', 'Offer copy')}
                 >
-                  <Copy className="h-3 w-3 mr-1" /> Nusxa olish
+                  <Copy className="h-3 w-3 mr-1" /> Copy
                 </Button>
               </div>
               <div className="p-3.5 rounded-lg bg-muted/40 border text-xs sm:text-sm font-mono whitespace-pre-wrap leading-relaxed select-text">
@@ -1016,7 +1016,7 @@ export default function AdminAdsPage() {
 
             {/* Landing Page */}
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-foreground">🔗 O'tish Havolasi (Landing Page URL):</span>
+              <span className="text-xs font-semibold text-foreground">🔗 Landing Page URL:</span>
               <div className="p-2.5 rounded-lg bg-muted/40 border flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
                 <a
                   href={selectedDetailsCampaign?.landing_url}
@@ -1031,8 +1031,8 @@ export default function AdminAdsPage() {
                     size="sm"
                     variant="ghost"
                     className="h-7 px-2 text-xs"
-                    onClick={() => handleCopy(selectedDetailsCampaign?.landing_url || '', 'Havola')}
-                    title="Nusxalash"
+                    onClick={() => handleCopy(selectedDetailsCampaign?.landing_url || '', 'Landing URL')}
+                    title="Copy"
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
@@ -1042,7 +1042,7 @@ export default function AdminAdsPage() {
                     rel="noreferrer"
                     className="inline-flex items-center justify-center h-7 px-2.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
                   >
-                    Ochish <ExternalLink className="ml-1 h-3 w-3" />
+                    Open <ExternalLink className="ml-1 h-3 w-3" />
                   </a>
                 </div>
               </div>
@@ -1052,18 +1052,18 @@ export default function AdminAdsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div className="p-3 rounded-lg bg-muted/30 border space-y-1.5">
                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                  <Globe className="h-3.5 w-3.5 text-sky-500" /> Maqsadli Tillar:
+                  <Globe className="h-3.5 w-3.5 text-sky-500" /> Target Languages:
                 </span>
                 <div className="flex flex-wrap gap-1">
                   {(!selectedDetailsCampaign?.target_languages ||
                     !Array.isArray(selectedDetailsCampaign.target_languages) ||
                     selectedDetailsCampaign.target_languages.includes('all') ||
                     selectedDetailsCampaign.target_languages.length === 0) ? (
-                    <span className="text-xs font-medium text-blue-600">🌐 Barcha tillar</span>
+                    <span className="text-xs font-medium text-blue-600">🌐 All Languages</span>
                   ) : (
                     selectedDetailsCampaign.target_languages.map((l: string) => (
                       <span key={l} className="px-2 py-0.5 rounded text-xs bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-bold uppercase">
-                        {l === 'uz' ? '🇺🇿 O‘zbekcha (UZ)' : l === 'ru' ? '🇷🇺 Ruscha (RU)' : l === 'en' ? '🇬🇧 Inglizcha (EN)' : l}
+                        {l === 'uz' ? '🇺🇿 Uzbek (UZ)' : l === 'ru' ? '🇷🇺 Russian (RU)' : l === 'en' ? '🇬🇧 English (EN)' : l}
                       </span>
                     ))
                   )}
@@ -1072,14 +1072,14 @@ export default function AdminAdsPage() {
 
               <div className="p-3 rounded-lg bg-muted/30 border space-y-1.5">
                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                  <Bot className="h-3.5 w-3.5 text-purple-500" /> AI Modellari (Targeting):
+                  <Bot className="h-3.5 w-3.5 text-purple-500" /> Target AI Models:
                 </span>
                 <div className="flex flex-wrap gap-1">
                   {(!selectedDetailsCampaign?.target_models ||
                     !Array.isArray(selectedDetailsCampaign.target_models) ||
                     selectedDetailsCampaign.target_models.includes('all') ||
                     selectedDetailsCampaign.target_models.length === 0) ? (
-                    <span className="text-xs font-medium text-purple-600">🤖 Barcha AI modellari</span>
+                    <span className="text-xs font-medium text-purple-600">🤖 All AI Models</span>
                   ) : (
                     selectedDetailsCampaign.target_models.map((m: string) => (
                       <span key={m} className="px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 font-medium">
@@ -1094,7 +1094,7 @@ export default function AdminAdsPage() {
             {/* Moderation Notes if present */}
             {selectedDetailsCampaign?.moderation_note && (
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
-                <span className="font-semibold text-amber-600 dark:text-amber-400">Moderator Izohi:</span>
+                <span className="font-semibold text-amber-600 dark:text-amber-400">Moderator Note:</span>
                 <p className="mt-0.5 text-muted-foreground">{selectedDetailsCampaign.moderation_note}</p>
               </div>
             )}
@@ -1102,7 +1102,7 @@ export default function AdminAdsPage() {
 
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>
-              Yopish
+              Close
             </Button>
             <div className="flex items-center gap-2">
               <Button

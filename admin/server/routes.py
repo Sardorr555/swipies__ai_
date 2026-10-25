@@ -1076,3 +1076,160 @@ def admin_reconcile_payment():
         return error_response(str(e), 500)
 
 
+# =============================================================================
+# User Activity & Platform Telemetry Endpoints (Admin Service)
+# =============================================================================
+
+@admin_bp.route("/user-activity/overview", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_admin_user_activity_overview():
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        return success_response(TelemetryService.get_overview(days=days))
+    except Exception as e:
+        logging.exception(f"Error in get_admin_user_activity_overview: {e}")
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/user-activity/modules", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_admin_user_activity_modules():
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        return success_response(TelemetryService.get_module_breakdown(days=days))
+    except Exception as e:
+        logging.exception(f"Error in get_admin_user_activity_modules: {e}")
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/user-activity/clicks", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_admin_user_activity_clicks():
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        limit = max(5, min(100, int(request.args.get("limit", 25))))
+        return success_response(TelemetryService.get_top_clicks(days=days, limit=limit))
+    except Exception as e:
+        logging.exception(f"Error in get_admin_user_activity_clicks: {e}")
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/user-activity/users", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_admin_user_activity_users():
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        page = max(1, int(request.args.get("page", 1)))
+        page_size = max(1, min(100, int(request.args.get("page_size", 20))))
+        search = str(request.args.get("search", "")).strip()
+        return success_response(
+            TelemetryService.get_user_leaderboard(days=days, search=search, page=page, page_size=page_size)
+        )
+    except Exception as e:
+        logging.exception(f"Error in get_admin_user_activity_users: {e}")
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/user-activity/timeline", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_admin_user_activity_timeline():
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        return success_response(TelemetryService.get_hourly_activity_timeline(days=days))
+    except Exception as e:
+        logging.exception(f"Error in get_admin_user_activity_timeline: {e}")
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/user-activity/events", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_admin_user_activity_events():
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        page = max(1, int(request.args.get("page", 1)))
+        page_size = max(1, min(100, int(request.args.get("page_size", 50))))
+        user_id = request.args.get("user_id")
+        module = request.args.get("module")
+        event_type = request.args.get("event_type")
+        return success_response(
+            TelemetryService.get_raw_events(
+                page=page, page_size=page_size, user_id=user_id, module=module, event_type=event_type
+            )
+        )
+    except Exception as e:
+        logging.exception(f"Error in get_admin_user_activity_events: {e}")
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/user-activity/features", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_admin_user_activity_features():
+    try:
+        from api.db.services.telemetry_service import TelemetryService
+        days = max(1, min(365, int(request.args.get("days", 7))))
+        return success_response(TelemetryService.get_features_usage_matrix(days=days))
+    except Exception as e:
+        logging.exception(f"Error in get_admin_user_activity_features: {e}")
+        return error_response(str(e), 500)
+
+
+@admin_bp.route("/user-activity/utm-conversions", methods=["GET"])
+@login_required
+@check_admin_auth
+def get_admin_user_activity_utm_conversions():
+    try:
+        from api.db.db_models import User
+        users = list(User.select().where(
+            (User.utm_source.is_null(False) & (User.utm_source != "")) |
+            (User.utm_campaign.is_null(False) & (User.utm_campaign != ""))
+        ).dicts())
+        campaigns = {}
+        total_registered = 0
+        for u in users:
+            src = (u.get("utm_source") or "direct").strip()
+            med = (u.get("utm_medium") or "none").strip()
+            cmp = (u.get("utm_campaign") or "unnamed").strip()
+            key = f"{src.lower()}::{med.lower()}::{cmp.lower()}"
+            if key not in campaigns:
+                campaigns[key] = {
+                    "source": src,
+                    "medium": med,
+                    "campaign": cmp,
+                    "registrations": 0,
+                    "active_users": 0,
+                    "last_signup": u.get("create_time"),
+                    "users": [],
+                }
+            c = campaigns[key]
+            c["registrations"] += 1
+            total_registered += 1
+            if str(u.get("is_active")) == "1":
+                c["active_users"] += 1
+            c["users"].append({
+                "id": u.get("id"),
+                "email": u.get("email"),
+                "nickname": u.get("nickname"),
+                "created_at": u.get("create_time"),
+                "is_active": str(u.get("is_active")) == "1",
+            })
+        campaign_list = sorted(campaigns.values(), key=lambda x: x["registrations"], reverse=True)
+        return success_response({
+            "total_utm_registrations": total_registered,
+            "campaigns_count": len(campaign_list),
+            "campaigns": campaign_list,
+        })
+    except Exception as e:
+        logging.exception(f"Error in get_admin_user_activity_utm_conversions: {e}")
+        return error_response(str(e), 500)

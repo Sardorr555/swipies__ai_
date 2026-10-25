@@ -69,7 +69,7 @@ const AdminNavigationLayout = () => {
           },
           {
             path: Routes.AdminUserActivity,
-            name: 'Foydalanuvchilar Faoliyati & Telemetriya',
+            name: 'User Activity & Telemetry',
             icon: <Activity className="size-[1.1em] text-emerald-500" />,
             badge: 'Live',
           },
