@@ -36,7 +36,7 @@ from config import load_configurations, SERVICE_CONFIGS
 from auth import init_default_admin, setup_auth
 from flask_session import Session
 from common.versions import get_ragflow_version
-from api.db.db_models import close_connection
+from api.db.db_models import close_connection, init_database_tables
 
 stop_event = threading.Event()
 
@@ -74,6 +74,10 @@ if __name__ == "__main__":
             close_connection()
 
     settings.init_settings()
+    try:
+        init_database_tables()
+    except Exception as _db_init_err:
+        logging.warning(f"Admin DB init warning: {_db_init_err}")
     setup_auth(login_manager)
 
     @login_manager.unauthorized_handler

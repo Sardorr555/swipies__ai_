@@ -19,6 +19,7 @@ import logging
 import operator
 import os
 import sys
+import threading
 import time
 import typing
 from datetime import datetime, timezone
@@ -343,6 +344,9 @@ class JsonSerializedField(SerializedField):
         super(JsonSerializedField, self).__init__(serialized_type=SerializedType.JSON, object_hook=object_hook, object_pairs_hook=object_pairs_hook, **kwargs)
 
 
+_column_heal_state = threading.local()
+
+
 class RetryingPooledMySQLDatabase(PooledMySQLDatabase):
     def __init__(self, *args, **kwargs):
         self.max_retries = kwargs.pop("max_retries", 5)
@@ -354,6 +358,16 @@ class RetryingPooledMySQLDatabase(PooledMySQLDatabase):
             try:
                 return super().execute_sql(sql, params, commit)
             except (OperationalError, InterfaceError) as e:
+                if (
+                    hasattr(e, "args")
+                    and e.args
+                    and e.args[0] == 1054
+                    and attempt == 0
+                    and not getattr(_column_heal_state, "in_progress", False)
+                ):
+                    logging.warning(f"MySQL unknown column detected ({e}), running automatic schema column sync and retrying...")
+                    if _self_heal_missing_columns():
+                        continue
                 error_codes = [2013, 2006]
                 error_messages = ["", "Lost connection"]
                 should_retry = (hasattr(e, "args") and e.args and e.args[0] in error_codes) or (str(e) in error_messages) or (hasattr(e, "__class__") and e.__class__.__name__ == "InterfaceError")
@@ -738,6 +752,16 @@ class RetryingPooledOceanBaseDatabase(PooledMySQLDatabase):
             try:
                 return super().execute_sql(sql, params, commit)
             except (OperationalError, InterfaceError) as e:
+                if (
+                    hasattr(e, "args")
+                    and e.args
+                    and e.args[0] == 1054
+                    and attempt == 0
+                    and not getattr(_column_heal_state, "in_progress", False)
+                ):
+                    logging.warning(f"OceanBase unknown column detected ({e}), running automatic schema column sync and retrying...")
+                    if _self_heal_missing_columns():
+                        continue
                 # OceanBase/MySQL specific error codes
                 # 2013: Lost connection to MySQL server during query
                 # 2006: MySQL server has gone away
@@ -3065,6 +3089,88 @@ def alter_db_drop_index(migrator, table_name, index_name):
         pass
 
 
+def ensure_model_columns(migrator=None):
+    """Ensure all columns declared on Peewee DataBaseModel classes exist in the database."""
+    if getattr(_column_heal_state, "in_progress", False):
+        return False
+    _column_heal_state.in_progress = True
+    healed_any = False
+    try:
+        if migrator is None:
+            migrator = DatabaseMigrator[settings.DATABASE_TYPE.upper()].value(DB)
+
+        members = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+        table_objs = []
+        for name, model in members:
+            if model != DataBaseModel and issubclass(model, DataBaseModel):
+                table_objs.append(model)
+
+        try:
+            from api.db.crm_models import CRMConnection, CRMOutbox
+            for crm_model in (CRMConnection, CRMOutbox):
+                if crm_model not in table_objs:
+                    table_objs.append(crm_model)
+        except Exception:
+            pass
+
+        try:
+            from api.db.telemetry_models import UserActivityEvent
+            if UserActivityEvent not in table_objs:
+                table_objs.append(UserActivityEvent)
+        except Exception:
+            pass
+
+        try:
+            existing_tables = {t.lower() for t in DB.get_tables()}
+        except Exception:
+            existing_tables = set()
+
+        for model in table_objs:
+            table_name = model._meta.table_name
+            if existing_tables and table_name.lower() not in existing_tables:
+                try:
+                    model.create_table(safe=True)
+                    healed_any = True
+                except Exception:
+                    pass
+                continue
+
+            try:
+                existing_cols = {c.name.lower() for c in DB.get_columns(table_name)}
+            except Exception:
+                continue
+
+            for field in model._meta.fields.values():
+                if field.primary_key:
+                    continue
+                col_name = field.column_name
+                if col_name.lower() in existing_cols:
+                    continue
+
+                orig_null = field.null
+                try:
+                    if not field.null and field.default is None:
+                        field.null = True
+                    alter_db_add_column(migrator, table_name, col_name, field)
+                    healed_any = True
+                    logging.info(f"Auto-added missing column {table_name}.{col_name}")
+                except Exception as ex:
+                    logging.warning(f"Failed auto-adding column {table_name}.{col_name}: {ex}")
+                finally:
+                    field.null = orig_null
+    finally:
+        _column_heal_state.in_progress = False
+    return healed_any
+
+
+def _self_heal_missing_columns() -> bool:
+    try:
+        return ensure_model_columns()
+    except Exception as ex:
+        logging.warning(f"Self-heal missing columns failed: {ex}")
+        return False
+
+
 def ensure_model_indexes(migrator):
     """Create indexes declared by the Peewee models when they are missing."""
     members = inspect.getmembers(sys.modules[__name__], inspect.isclass)
@@ -3787,11 +3893,89 @@ def migrate_db():
     alter_db_add_column(migrator, "user", "utm_term", CharField(max_length=128, null=True))
     alter_db_add_column(migrator, "user", "utm_content", CharField(max_length=128, null=True))
 
+    # Ensure extra columns exist across all AI / provider / quota tables
+    alter_db_add_column(migrator, "user_token_limit", "extra", JSONField(null=True, default={}))
+    alter_db_add_column(migrator, "global_ragflow_instance", "extra", JSONField(null=True, default=dict))
+    alter_db_add_column(migrator, "ai_provider", "extra", JSONField(null=True, default=dict))
+    alter_db_add_column(migrator, "tenant_model_instance", "extra", CharField(max_length=512, default="{}", index=False))
+    alter_db_add_column(migrator, "tenant_model", "extra", CharField(max_length=1024, default="{}", index=False))
+
+    # Direct SQL fallback for extra columns in case Peewee migrator skips on existing MySQL tables
+    for _tbl, _col_ddl in (
+        ("user_token_limit", "LONGTEXT NULL"),
+        ("global_ragflow_instance", "LONGTEXT NULL"),
+        ("ai_provider", "LONGTEXT NULL"),
+        ("ai_model", "LONGTEXT NULL"),
+        ("tenant_model_instance", "VARCHAR(512) DEFAULT '{}'"),
+        ("tenant_model", "VARCHAR(1024) DEFAULT '{}'"),
+    ):
+        try:
+            DB.execute_sql(f"ALTER TABLE `{_tbl}` ADD COLUMN `extra` {_col_ddl};")
+        except Exception:
+            pass
+
+    # Ensure PaymentTransaction attribution columns exist
+    alter_db_add_column(migrator, "payment_transaction", "session_id", CharField(max_length=64, null=True, index=True))
+    alter_db_add_column(migrator, "payment_transaction", "utm_source", CharField(max_length=64, null=True, index=True))
+    alter_db_add_column(migrator, "payment_transaction", "utm_medium", CharField(max_length=64, null=True, index=True))
+    alter_db_add_column(migrator, "payment_transaction", "utm_campaign", CharField(max_length=128, null=True, index=True))
+    alter_db_add_column(migrator, "payment_transaction", "utm_content", CharField(max_length=128, null=True))
+    alter_db_add_column(migrator, "payment_transaction", "utm_term", CharField(max_length=128, null=True))
+
+    # Ensure v0.27 tenant_*_id columns exist and are VARCHAR(32)
+    for _t_col in ("tenant_llm_id", "tenant_embd_id", "tenant_asr_id", "tenant_img2txt_id", "tenant_rerank_id", "tenant_tts_id", "tenant_ocr_id"):
+        alter_db_add_column(migrator, "tenant", _t_col, CharField(max_length=32, null=True, help_text="id in tenant_model", index=True))
+        alter_db_column_type(migrator, "tenant", _t_col, CharField(max_length=32, null=True, help_text="id in tenant_model", index=True))
+    alter_db_add_column(migrator, "knowledgebase", "tenant_embd_id", CharField(max_length=32, null=True, help_text="id in tenant_model", index=True))
+    alter_db_column_type(migrator, "knowledgebase", "tenant_embd_id", CharField(max_length=32, null=True, help_text="id in tenant_model", index=True))
+    for _d_col in ("tenant_llm_id", "tenant_rerank_id"):
+        alter_db_add_column(migrator, "dialog", _d_col, CharField(max_length=32, null=True, help_text="id in tenant_model", index=True))
+        alter_db_column_type(migrator, "dialog", _d_col, CharField(max_length=32, null=True, help_text="id in tenant_model", index=True))
+    for _m_col in ("tenant_embd_id", "tenant_llm_id"):
+        alter_db_add_column(migrator, "memory", _m_col, CharField(max_length=32, null=True, help_text="id in tenant_model", index=True))
+        alter_db_column_type(migrator, "memory", _m_col, CharField(max_length=32, null=True, help_text="id in tenant_model", index=True))
+
     logging.disable(logging.NOTSET)
     # this is after re-enabling logging to allow logging changed user emails
+    ensure_model_columns(migrator)
+    migrate_tenant_model_type_to_int()
     migrate_add_unique_email(migrator)
     migrate_model_type_names()
     ensure_model_indexes(migrator)
+
+
+def migrate_tenant_model_type_to_int():
+    """Ensure tenant_model.model_type is converted from legacy VARCHAR strings to bitmask INT if needed."""
+    try:
+        if not DB.table_exists("tenant_model"):
+            return
+        cols = {c.name.lower(): c.data_type.lower() for c in DB.get_columns("tenant_model")}
+        dtype = cols.get("model_type", "")
+        if "char" in dtype or "text" in dtype:
+            type_map = {
+                "chat": 1,
+                "embedding": 2,
+                "asr": 4,
+                "speech2text": 4,
+                "vision": 8,
+                "image2text": 8,
+                "rerank": 16,
+                "tts": 32,
+                "ocr": 64,
+            }
+            for str_val, int_val in type_map.items():
+                try:
+                    DB.execute_sql("UPDATE tenant_model SET model_type = %s WHERE LOWER(model_type) = %s", (str(int_val), str_val))
+                except Exception:
+                    pass
+            try:
+                DB.execute_sql("UPDATE tenant_model SET model_type = '1' WHERE model_type NOT REGEXP '^[0-9]+$'")
+            except Exception:
+                pass
+            migrator = DatabaseMigrator[settings.DATABASE_TYPE.upper()].value(DB)
+            alter_db_column_type(migrator, "tenant_model", "model_type", IntegerField(null=False, default=1, index=True))
+    except Exception as ex:
+        logging.warning(f"Failed to migrate tenant_model.model_type to int: {ex}")
 
 
 def migrate_model_type_names():

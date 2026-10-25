@@ -74,6 +74,7 @@ services:
       - ../memory:/ragflow/memory
       - ../mcp:/ragflow/mcp
       - ../crawler:/ragflow/crawler
+      - ../tools:/ragflow/tools
       - ../web/dist:/ragflow/web/dist
     env_file: .env
     networks:
