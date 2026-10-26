@@ -41,7 +41,8 @@ jobs:
         run: |
           python - <<'PY'
           import json, urllib.request
-          with urllib.request.urlopen('https://api.swipies.app/api/v1/agent-access/manifest', timeout=30) as response:
+          request = urllib.request.Request('https://api.swipies.app/api/v1/agent-access/manifest', headers={'User-Agent': 'SwipiesAgent/1.0', 'Accept': 'application/json'})
+          with urllib.request.urlopen(request, timeout=30) as response:
               manifest = json.load(response)
           assert manifest['name'] == 'Swipies Agent Access'
           assert manifest['branding']['removal_plans'] == ['plus', 'pro']

@@ -183,3 +183,12 @@ and rollback Compose invocations now explicitly include `metadata-mysql`. The
 CPU/Elasticsearch/MySQL topology is intentional for this existing installation.
 The two server checkout paths resolve to the same physical repository and the
 same environment file; no environment file is replaced or copied into Git.
+
+
+Run `40403556584` deployed commit `6f6c25ef1`, saved a private MySQL snapshot,
+built the frontend, restarted only the two application containers, and passed
+local API/frontend checks. The final public probe failed with Cloudflare HTTP
+403 because `urllib` used its default User-Agent. The workflow probe now uses
+`SwipiesAgent/1.0`, matching the already verified MCP client. HTTPS verification
+and manifest/branding assertions remain enabled. A final workflow rerun and
+authenticated live checks are required to close this release.
