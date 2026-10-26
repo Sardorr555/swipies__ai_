@@ -93,3 +93,24 @@ Added a Python MCP facade, authenticated operation discovery, isolated Free serv
 ### Pre-rebuild validation (2026-10-26)
 
 A further owner-requested verification passed 94 live assertions and 236 local regression tests, including connector security, branding, CRM adapters/outbox and telemetry. Test resources were deleted. Application code required no further changes. Docker CLI is unavailable locally, so fresh image builds and Compose validation are left to the owner's manual rebuild. See [pre-rebuild validation](handoffs/2026-10-26-pre-rebuild-validation.md) for named suites and scope limits.
+
+
+### Pro runtime verification and OpenAI API correction (2026-10-27)
+
+The owner upgraded the existing synthetic test account A to Pro. Live MCP CRUD,
+multipart upload/download, parsing, embedding retrieval, document-grounded RAG,
+SSE and official SDK stdio/HTTP transports passed. Agent/model/RAG replies and
+history were unbranded on Pro; the independent Free control retained attribution.
+Cross-tenant access was denied and disposable resources were deleted. The final
+account still reports Pro, unlimited expiry and 512 credits.
+
+The live OpenAI-compatible completion endpoint failed with a missing `LLMType`
+import. The import is corrected in `api/apps/restful_apis/openai_api.py`; four
+full-handler policy/streaming regression cases reproduce the original failure
+and now pass. The combined targeted regression run reports **95 passed**. This
+correction still requires deployment and a repeat live OpenAI completion check.
+
+Ads read-only REST endpoints under `/v1/ads/*` passed; no campaigns or financial
+actions were created. Ads is outside the current MCP operation catalog. Real CRM
+connections and paid advertising delivery were not tested. See the
+[Pro verification report](handoffs/2026-10-27-pro-live-verification.md).

@@ -35,6 +35,8 @@ import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
+import pytest
+
 
 class _PassthroughManager:
     def route(self, *_args, **_kwargs):
@@ -83,7 +85,7 @@ def _load_openai_api(monkeypatch):
         get_request_json=lambda: {},
         validate_request=lambda *_a, **_k: lambda func: func,
     )
-    _stub(monkeypatch, "common.constants", RetCode=SimpleNamespace(ARGUMENT_ERROR=102), StatusEnum=SimpleNamespace(VALID=SimpleNamespace(value="1")))
+    _stub(monkeypatch, "common.constants", LLMType=SimpleNamespace(CHAT="chat"), RetCode=SimpleNamespace(ARGUMENT_ERROR=102), StatusEnum=SimpleNamespace(VALID=SimpleNamespace(value="1")))
     _stub(monkeypatch, "common.metadata_utils", convert_conditions=lambda *_a, **_k: None, meta_filter=lambda *_a, **_k: [])
     # Deterministic token counter so usage math is predictable.
     _stub(monkeypatch, "common.token_utils", num_tokens_from_string=lambda s: len(s or ""))
@@ -211,3 +213,62 @@ def test_reasoning_content_streamed_separately(monkeypatch):
     content = "".join(p for p in _content_pieces(chunks) if isinstance(p, str))
     assert reasoning == "thinking"
     assert content == "answer"
+
+
+@pytest.mark.parametrize("stream_mode", [False, True])
+@pytest.mark.parametrize("allowed", [False, True])
+def test_completion_checks_policy_before_generation(monkeypatch, stream_mode, allowed):
+    """Drive the full route through the policy gate, not only its SSE helper."""
+    module = _load_openai_api(monkeypatch)
+    payload = {
+        "model": "model", "stream": stream_mode,
+        "messages": [{"role": "user", "content": "Repeat jade"}],
+    }
+
+    async def request_json():
+        return payload
+
+    monkeypatch.setattr(module, "get_request_json", request_json)
+    monkeypatch.setattr(module, "jsonify", lambda body: body)
+    monkeypatch.setattr(module, "get_error_data_result", lambda **body: body)
+    monkeypatch.setattr(module.DialogService, "query", lambda **_kwargs: [
+        SimpleNamespace(kb_ids=[], llm_id="chat-model", tenant_id="tenant-1")
+    ], raising=False)
+    calls = []
+
+    def policy(**kwargs):
+        calls.append(kwargs)
+        return allowed, "model blocked", 403, "MODEL_BLOCKED"
+
+    _stub(monkeypatch, "api.db.services.ai_policy_service",
+          AIPolicyManager=SimpleNamespace(check_model_access_extended=policy))
+    generations = []
+
+    async def generate(_dialog, messages, streaming, **_kwargs):
+        generations.append((messages, streaming))
+        yield {"answer": "jade", "reference": {}}
+        if streaming:
+            yield {"final": True, "answer": "jade", "reference": {}}
+
+    monkeypatch.setattr(module, "async_chat", generate)
+    monkeypatch.setattr(module, "_build_sse_response", lambda body: body)
+
+    async def run():
+        response = await module.openai_chat_completions("chat-1")
+        if allowed and stream_mode:
+            return [chunk async for chunk in response]
+        return response
+
+    response = asyncio.run(run())
+    assert calls == [{"tenant_id": "tenant-1", "model_name": "chat-model",
+                      "model_type": "chat", "user_id": "tenant-1"}]
+    if not allowed:
+        assert response == {"message": "model blocked", "code": 403}
+        assert generations == []
+    elif stream_mode:
+        assert generations[0][1] is True
+        assert any('"content": "jade"' in chunk for chunk in response)
+        assert response[-1].strip() == "data:[DONE]"
+    else:
+        assert generations[0][1] is False
+        assert response["choices"][0]["message"]["content"] == "jade"

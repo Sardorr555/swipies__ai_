@@ -25,7 +25,7 @@ from api.db.services.dialog_service import DialogService, async_chat
 from api.db.services.doc_metadata_service import DocMetadataService
 from api.db.joint_services.tenant_model_service import resolve_model_config, get_api_key
 from api.utils.api_utils import get_error_data_result, get_request_json, validate_request
-from common.constants import RetCode, StatusEnum
+from common.constants import LLMType, RetCode, StatusEnum
 from common.metadata_utils import convert_conditions, meta_filter
 from common.token_utils import num_tokens_from_string
 from rag.prompts.generator import chunks_format

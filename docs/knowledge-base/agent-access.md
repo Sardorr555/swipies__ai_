@@ -85,3 +85,14 @@ The pre-deployment audit fixed seven reproduced bugs. Tool responses now mask kn
 The live audit also confirmed that the deployment's Cloudflare configuration blocks the default Python-urllib User-Agent with error 1010. The bridge now identifies itself as `SwipiesAgent/1.0` on bootstrap and MCP requests. The updated local bridge passed a real stdio session through the official MCP SDK against public HTTPS. Update client copies as well as server code when applying this correction.
 
 Additional regression suites: `python -m unittest test.test_connector_security`, `python -m unittest test.test_swipies_ads_watermark_and_crawler_keywords`, and the channel/agent access tests in `test/unit_test/api/`.
+
+
+## Verified scope after the Pro live audit (2026-10-27)
+
+Pro runtime branding removal was verified on agent, model, RAG, SSE and history
+responses, with a separate Free account retaining attribution. Ads uses legacy
+`/v1/ads/*` routes and is not included in this MCP catalog; successful Ads REST
+reads do not imply MCP support or verified paid campaign delivery. The live
+OpenAI-compatible route exposed a missing `LLMType` import, fixed locally with
+full-handler regression coverage; deployment and repeat live validation remain
+required. See [the Pro audit](handoffs/2026-10-27-pro-live-verification.md).
