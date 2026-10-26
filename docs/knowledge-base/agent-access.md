@@ -61,7 +61,7 @@ Requires the Python API server and existing DB/Redis schema, not a new worker or
 
 Keep the Python API port behind the trusted reverse proxy if forwarding client addresses. Nginx must overwrite `X-Real-IP`; never trust arbitrary client Forwarded headers. Redis failure blocks new registrations. Rate limits are atomic across workers and attempts expire. They are initial anti-abuse limits, not a comprehensive fraud prevention system.
 
-After an authorized release, restart the Python API and verify the manifest through the public reverse proxy, then test a dedicated service account. This change has not been deployed, pushed, or applied to the production database. Go-only deployments do not expose this feature; Python/hybrid deployments route `/api/v1/agent-access/*` to Python.
+After an authorized release, restart the Python API and verify the manifest through the public reverse proxy, then test a dedicated service account. Public availability and dedicated-account CRUD/MCP were verified on 2026-10-26 after the owner deployed. That live audit found a separate provider model-type defect blocking chatbot inference and document embeddings; its correction still requires a server update and live retest. See handoffs/2026-10-26-live-verification.md. Go-only deployments do not expose this feature; Python/hybrid deployments route `/api/v1/agent-access/*` to Python.
 
 ## Branding
 
@@ -81,5 +81,7 @@ Only persisted active `plus` or `pro` tenant plans omit attribution. Expired/mal
 Run `python -m pytest test/test_agent_access.py test/test_agent_access_model_integration.py -q -p no:cacheprovider` for transport tests (including official MCP SDK), tenant isolation, invalid Origin rejection, path traversal, route-shadow prevention, repeated multipart file fields, headerless body bounds, response bounds, idempotent registration, revoked key handling, SQLite rollback, native Windows DPAPI, concurrent client storage and subscription/agent attribution. The model integration suite uses actual model/auth/registration definitions on SQLite and includes a real stdio subprocess over locally trusted HTTPS with non-ASCII data.
 
 The pre-deployment audit fixed seven reproduced bugs. Tool responses now mask known credential fields; route parameters cannot select another endpoint; credential files are atomically published; request limits also apply to chunked bodies. The client uses native Windows DPAPI, UTF-8 stdio, and bounded retries only for idempotent bootstrap. Authenticated writes are never automatically retried. See handoffs/2026-10-26-predeploy-audit.md for validation results and remaining server-side release conditions.
+
+The live audit also confirmed that the deployment's Cloudflare configuration blocks the default Python-urllib User-Agent with error 1010. The bridge now identifies itself as `SwipiesAgent/1.0` on bootstrap and MCP requests. The updated local bridge passed a real stdio session through the official MCP SDK against public HTTPS. Update client copies as well as server code when applying this correction.
 
 Additional regression suites: `python -m unittest test.test_connector_security`, `python -m unittest test.test_swipies_ads_watermark_and_crawler_keywords`, and the channel/agent access tests in `test/unit_test/api/`.

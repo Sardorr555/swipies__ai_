@@ -364,7 +364,9 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
                             "api_key": api_key,
                             "llm_name": model_obj.model_name,
                             "api_base": extra_fields.get("base_url", ""),
-                            "model_type": model_obj.model_type,
+                            # DB capabilities are a bitmask; runtime factories
+                            # select the requested type, as in get_model_config_by_id.
+                            "model_type": model_type_val,
                             "is_tools": model_extra.get("is_tools", is_tool),
                             "max_tokens": max_tokens,
                         }

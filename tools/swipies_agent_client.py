@@ -118,7 +118,7 @@ class Bridge:
         self.opener = urllib.request.build_opener(NoRedirect())
 
     def post(self, path, data, authenticated=True):
-        headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
+        headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "User-Agent": "SwipiesAgent/1.0"}
         if authenticated:
             headers["Authorization"] = "Bearer " + self.api_key
         req = urllib.request.Request(self.url + path, json.dumps(data).encode(), headers=headers, method="POST")
