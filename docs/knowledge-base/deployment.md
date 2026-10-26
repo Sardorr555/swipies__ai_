@@ -161,3 +161,25 @@ operator can identify the affected paths. It does not print file contents or
 discard server changes. Inspect and preserve the actual server edits before
 retrying deployment; do not use `git reset --hard` or automatic stash/pop to
 silence this guard. Workflow success and live API verification remain required.
+
+
+### Reviewed server configuration retained (2026-10-27)
+
+Direct SSH inspection identified six intended server edits. They are now included
+in `swipies_26`: bind application/admin/MCP/debug and frontend published ports to
+loopback, remove the obsolete literal IP from four Nginx configurations, and
+ensure the CRM worker's existing `phonenumbers` dependency before startup. The
+full server patch is retained locally under Windows DPAPI. Before deployment,
+the same edits are preserved in a server-local Git commit and a private patch;
+the deployment rollback reference can therefore restore the existing settings.
+No environment secrets are copied into Git. Deployment and public authenticated
+verification must still finish before reporting this release as successful.
+
+
+The first direct Compose precheck exposed a second deployment issue: the script
+selected CPU and Elasticsearch but omitted MySQL's `metadata-mysql` profile,
+making `ragflow-cpu` depend on an undefined service. Both the normal deployment
+and rollback Compose invocations now explicitly include `metadata-mysql`. The
+CPU/Elasticsearch/MySQL topology is intentional for this existing installation.
+The two server checkout paths resolve to the same physical repository and the
+same environment file; no environment file is replaced or copied into Git.

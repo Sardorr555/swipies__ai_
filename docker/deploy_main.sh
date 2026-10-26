@@ -25,7 +25,7 @@ mkdir -p "$state"
 printf '%s\n' "$previous" > "$state/previous-commit"
 printf '%s\n' "$target" > "$state/target-commit"
 git update-ref "refs/swipies/rollback/$stamp" "$previous"
-compose() { sudo docker compose -f docker/docker-compose.yml --profile cpu --profile elasticsearch "$@"; }
+compose() { sudo docker compose -f docker/docker-compose.yml --profile cpu --profile elasticsearch --profile metadata-mysql "$@"; }
 compose config --quiet
 for name in swipies-mysql swipies-redis swipies-es01 swipies-minio swipies-cpu swipies-frontend; do
   [[ $(sudo docker inspect --format '{{.State.Running}}' "$name") == true ]] || {
@@ -57,7 +57,7 @@ finish() {
     echo 'Deployment failed; restoring previous code and application images'
     if git checkout --detach "$previous" > "$state/rollback-git.log" 2>&1; then
       if [[ $restarted == true ]]; then
-        sudo docker compose -f docker/docker-compose.yml -f "$state/rollback-images.yml" --profile cpu --profile elasticsearch up -d --no-deps --no-build --force-recreate ragflow-cpu frontend > "$state/rollback.log" 2>&1 || echo 'Application rollback needs operator attention; inspect private rollback.log'
+        sudo docker compose -f docker/docker-compose.yml -f "$state/rollback-images.yml" --profile cpu --profile elasticsearch --profile metadata-mysql up -d --no-deps --no-build --force-recreate ragflow-cpu frontend > "$state/rollback.log" 2>&1 || echo 'Application rollback needs operator attention; inspect private rollback.log'
       fi
     else
       echo 'Code rollback needs operator attention; inspect private rollback-git.log'

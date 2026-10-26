@@ -259,6 +259,11 @@ function ensure_docling() {
       || uv pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --extra-index-url https://pypi.org/simple --no-cache-dir "docling${DOCLING_PIN}" || true
 }
 
+function ensure_crm_deps() {
+    "$PY" -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('phonenumbers') else 1)" \
+      || uv pip install --no-cache-dir "phonenumbers>=9.0.24" || true
+}
+
 function ensure_db_init() {
     echo "Waiting for MySQL database to become ready..."
     local max_retries=60
@@ -349,6 +354,7 @@ if [[ "${ENABLE_DATASYNC}" -eq 1 ]]; then
 fi
 
 if [[ "${ENABLE_CRMOUTBOX}" -eq 1 ]]; then
+    ensure_crm_deps
     echo "Starting CRM outbox worker..."
     run_with_restart "CRM outbox worker" "$PY" rag/svr/crm_outbox_worker.py &
 fi
