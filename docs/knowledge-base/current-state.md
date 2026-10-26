@@ -89,3 +89,7 @@
 ## 2026-10-26 — external agent access on swipies_26
 
 Added a Python MCP facade, authenticated operation discovery, isolated Free service-account bootstrap and a stdio client that registers/reconnects without a browser. Branding omission requires an active persisted Plus/Pro subscription. See [implementation and release conditions](agent-access.md). After the owner updated the server, a repeat live audit confirmed the model-type correction: chatbot inference, document parsing to DONE with a chunk, embedding retrieval, and a document-grounded RAG reply with references all passed. MCP CRUD, repeated uploads, Free attribution, persisted agent attribution, tenant isolation and both official-SDK transports also passed. The run logged 94 successful assertions and no failures; test resources were deleted. See [repeat live audit](handoffs/2026-10-26-live-recheck.md). Paid-account runtime attribution and actual external database/OAuth connections remain untested. No schema migration or Go implementation was added.
+
+### Pre-rebuild validation (2026-10-26)
+
+A further owner-requested verification passed 94 live assertions and 236 local regression tests, including connector security, branding, CRM adapters/outbox and telemetry. Test resources were deleted. Application code required no further changes. Docker CLI is unavailable locally, so fresh image builds and Compose validation are left to the owner's manual rebuild. See [pre-rebuild validation](handoffs/2026-10-26-pre-rebuild-validation.md) for named suites and scope limits.
