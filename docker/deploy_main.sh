@@ -9,7 +9,14 @@ exec 200>.git/swipies-deploy.lock
 flock -n 200 || { echo 'Another deployment is active'; exit 1; }
 git cat-file -e "$target^{commit}"
 git diff --quiet --ignore-submodules=all && git diff --cached --quiet --ignore-submodules=all || {
-  echo 'Tracked server changes must be reviewed before deployment'; exit 1;
+  echo 'Tracked server changes must be reviewed before deployment'
+  echo 'Unstaged tracked paths and change sizes (file contents are not printed):'
+  git diff --stat --ignore-submodules=all
+  git diff --summary --ignore-submodules=all
+  echo 'Staged tracked paths and change sizes (file contents are not printed):'
+  git diff --cached --stat --ignore-submodules=all
+  git diff --cached --summary --ignore-submodules=all
+  exit 1;
 }
 previous=$(git rev-parse HEAD)
 stamp=$(date -u +%Y%m%dT%H%M%SZ)-${target:0:12}

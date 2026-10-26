@@ -147,3 +147,17 @@ The owner explicitly authorized commit, push to `swipies_26`, deployment and liv
 Removed all-container deletion/pruning, Docker daemon reconfiguration, unrelated payment changes, and secret replication from this deployment path. Existing `.env`, storage services, volumes and watchdog configuration are preserved. This script requires an existing running CPU/Elasticsearch installation; it is not an initial server provisioner. Other legacy deployment workflows are outside this release and have not been hardened.
 
 Before push, the last existing main workflow run (`40239196160`, base `697aa5aee`) had already failed with `ssh.ParsePrivateKey: ssh: no key found` and an SSH authentication failure. Local saved SSH keys also did not authenticate to the most recent known host. Access repair and actual server verification remain required; a successful push alone does not establish a deployment.
+
+
+### 2026-10-27 — SSH access repaired; deployment blocked by tracked edits
+
+The owner replaced the SSH secret and explicitly authorized a manual workflow
+dispatch on `swipies_26`. Run `40399935446` authenticated successfully, but the
+server checkout contained tracked modifications. The deployment guard stopped
+before database backup, checkout, image build or application restart.
+
+The guard now prints staged/unstaged diff statistics and mode summaries so an
+operator can identify the affected paths. It does not print file contents or
+discard server changes. Inspect and preserve the actual server edits before
+retrying deployment; do not use `git reset --hard` or automatic stash/pop to
+silence this guard. Workflow success and live API verification remain required.
