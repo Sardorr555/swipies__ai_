@@ -61,7 +61,7 @@ Requires the Python API server and existing DB/Redis schema, not a new worker or
 
 Keep the Python API port behind the trusted reverse proxy if forwarding client addresses. Nginx must overwrite `X-Real-IP`; never trust arbitrary client Forwarded headers. Redis failure blocks new registrations. Rate limits are atomic across workers and attempts expire. They are initial anti-abuse limits, not a comprehensive fraud prevention system.
 
-After an authorized release, restart the Python API and verify the manifest through the public reverse proxy, then test a dedicated service account. Public availability and dedicated-account CRUD/MCP were verified on 2026-10-26 after the owner deployed. That live audit found a separate provider model-type defect blocking chatbot inference and document embeddings; its correction still requires a server update and live retest. See handoffs/2026-10-26-live-verification.md. Go-only deployments do not expose this feature; Python/hybrid deployments route `/api/v1/agent-access/*` to Python.
+After an authorized release, restart the Python API and verify the manifest through the public reverse proxy, then test a dedicated service account. Following the owner's server update on 2026-10-26, a repeat live audit confirmed CRUD/MCP, actual chatbot inference, parsing to DONE, embedding retrieval and a document-grounded RAG response with references. The previously reported provider model-type failure no longer reproduces. See handoffs/2026-10-26-live-recheck.md for scope and limits. Go-only deployments do not expose this feature; Python/hybrid deployments route `/api/v1/agent-access/*` to Python.
 
 ## Branding
 
