@@ -96,3 +96,11 @@ reads do not imply MCP support or verified paid campaign delivery. The live
 OpenAI-compatible route exposed a missing `LLMType` import, fixed locally with
 full-handler regression coverage; deployment and repeat live validation remain
 required. See [the Pro audit](handoffs/2026-10-27-pro-live-verification.md).
+
+
+### Deployment confirmed (2026-10-27)
+
+The earlier missing `LLMType` import is now corrected on production. Both the
+ordinary and streaming OpenAI-compatible routes passed live checks. Deployment
+`1bf4ac518` and the complete GitHub Actions workflow are verified successful;
+see the [release report](handoffs/2026-10-27-successful-autodeploy.md).

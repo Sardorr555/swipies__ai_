@@ -192,3 +192,18 @@ local API/frontend checks. The final public probe failed with Cloudflare HTTP
 `SwipiesAgent/1.0`, matching the already verified MCP client. HTTPS verification
 and manifest/branding assertions remain enabled. A final workflow rerun and
 authenticated live checks are required to close this release.
+
+
+### Successful production deployment (2026-10-27)
+
+GitHub Actions run [40404173859](https://github.com/Sardorr555/swipies__ai_/actions/runs/40404173859)
+completed successfully, including the public HTTPS manifest check. SSH confirmed
+deployed commit `1bf4ac518` and a clean checkout. The OpenAI-compatible API now
+passes nonstream and SSE requests on production. The application verification
+logged 111 passing checks after the application release and 12 passing smoke
+checks after the final workflow correction; disposable resources were deleted.
+The test account remains Pro with 512 credits. Existing server configuration was
+preserved, MySQL's Compose profile is explicit for deploy/rollback, and the
+public probe uses the verified SwipiesAgent User-Agent. The CRM worker is running;
+real external CRM delivery and paid Ads delivery remain unverified. See the
+[release report](handoffs/2026-10-27-successful-autodeploy.md).
