@@ -74,3 +74,7 @@ docs/knowledge-base/
 - Все даты проверок фиксируются в формате ISO (например, `2026-10-15`).
 - Значения секретов, паролей и токенов категорически запрещены.
 - Документация обновляется одновременно с кодом в одном коммите / PR.
+
+## External AI clients (swipies_26)
+
+See [Agent access](agent-access.md) and [ADR-005](decisions/ADR-005-external-agent-access.md) for headless tenant management, automatic service-account registration and Plus/Pro-only branding removal.

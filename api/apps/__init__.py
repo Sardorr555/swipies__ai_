@@ -275,6 +275,7 @@ def login_required(func: Callable[P, Awaitable[T]] = None, auth_types=None) -> C
                 raise QuartAuthUnauthorized()
             return await current_app.ensure_async(func)(*args, **kwargs)
 
+        wrapper.swipies_auth_types = _normalize_auth_types(auth_types)
         return wrapper
 
     if func is None:
@@ -385,6 +386,17 @@ pages_dir = [
 ]
 
 client_urls_prefix = [p for p in (register_page(path) for directory in pages_dir for path in search_pages_path(directory)) if p is not None]
+
+# External agents share the exact same tenant APIs and authorization checks.
+from api.agent_access import register_agent_access
+from api.db.services.agent_access_service import bootstrap as agent_bootstrap, origin_allowed as agent_origin_allowed
+
+register_agent_access(
+    app,
+    authenticate=lambda: _load_user((AUTH_API,)),
+    bootstrap=agent_bootstrap,
+    origin_allowed=agent_origin_allowed,
+)
 
 
 # Register backward compatibility routes for deprecated APIs

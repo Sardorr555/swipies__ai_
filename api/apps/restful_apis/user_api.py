@@ -648,7 +648,8 @@ def rollback_user_registration(user_id):
         pass
 
 
-def user_register(user_id, user):
+def prepare_user_registration(user_id, user):
+    """Build shared registration records before opening a write transaction."""
     user["id"] = user_id
     user["is_superuser"] = False
 
@@ -723,7 +724,11 @@ def user_register(user_id, user):
         "location": "",
     }
 
-    # tenant_llm = get_init_tenant_llm(user_id)
+    return tenant, usr_tenant, file
+
+
+def user_register(user_id, user):
+    tenant, usr_tenant, file = prepare_user_registration(user_id, user)
 
     if not UserService.save(**user):
         return None

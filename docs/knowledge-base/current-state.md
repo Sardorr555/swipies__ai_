@@ -85,3 +85,7 @@
    - upstream репозиторий `infiniflow/ragflow` v0.27.2 содержит ошибки компиляции Go в `internal/dao/tenant_model_provider.go` и `internal/service/user.go`. В ветке `test` они исправлены локально, но сборка полного бинарника требует CGO и проприетарных библиотек `office_oxide`. Разработка бизнес-логики продолжается на Python.
 3. **Bitrix24 OAuth:**
    - Для v1 интеграция с Битрикс24 работает через входящие вебхуки (`inbound webhooks`). Полноценное OAuth-приложение для коробочных порталов отложено на CRM v2.
+
+## 2026-10-26 — external agent access on swipies_26
+
+Added a Python MCP facade, authenticated operation discovery, isolated Free service-account bootstrap and a stdio client that registers/reconnects without a browser. Branding omission requires an active persisted Plus/Pro subscription. See [implementation and release conditions](agent-access.md). Local integration/regression tests are recorded in the delivery report; production deployment and full live infrastructure validation remain outstanding. No schema migration or Go implementation was added.

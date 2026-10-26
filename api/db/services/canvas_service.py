@@ -406,7 +406,15 @@ async def completion(tenant_id, agent_id, session_id=None, **kwargs):
         run_kwargs["chat_template_kwargs"] = chat_template_kwargs
 
     try:
-        async for ans in canvas.run(**run_kwargs):
+        from api.branding_policy import brand_agent_events
+        from api.db.services.ad_policy_service import AdPolicyService
+
+        async for ans in brand_agent_events(
+            canvas.run(**run_kwargs),
+            lambda text: AdPolicyService.get_platform_branding_suffix(
+                text, tenant_id=canvas_owner_tenant, user_id=canvas_owner_tenant,
+            ),
+        ):
             ans["session_id"] = session_id
             if ans["event"] == "message":
                 txt += ans["data"]["content"]

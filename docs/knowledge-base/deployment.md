@@ -139,3 +139,11 @@ grep -i "bearer" /var/log/ragflow/*.log
 2. Переключить образ контейнера на предыдущий стабильный тег в `docker-compose.yml`.
 3. Запустить сервисы: `docker compose up -d ragflow-server ragflow-task-executor`
 4. Проверить целостность ключей шифрования: если ключи менялись, убедиться, что старый ключ указан в `RAGFLOW_SECRET_KEYS_ROTATION`.
+
+## 2026-10-26 — authorized deployment preparation
+
+The owner explicitly authorized commit, push to `swipies_26`, deployment and live verification. The main workflow now deploys the exact triggering commit, checks for tracked server edits, creates a private MySQL dump and code/image rollback references, builds before restarting only `ragflow-cpu` and `frontend`, and fails on a missing Agent Access manifest. Failures after checkout restore the previous code and (after restart) previous application images. Database dumps are retained privately for manual recovery; database restoration is deliberately not automatic while users may be writing data.
+
+Removed all-container deletion/pruning, Docker daemon reconfiguration, unrelated payment changes, and secret replication from this deployment path. Existing `.env`, storage services, volumes and watchdog configuration are preserved. This script requires an existing running CPU/Elasticsearch installation; it is not an initial server provisioner. Other legacy deployment workflows are outside this release and have not been hardened.
+
+Before push, the last existing main workflow run (`40239196160`, base `697aa5aee`) had already failed with `ssh.ParsePrivateKey: ssh: no key found` and an SSH authentication failure. Local saved SSH keys also did not authenticate to the most recent known host. Access repair and actual server verification remain required; a successful push alone does not establish a deployment.
