@@ -2753,6 +2753,8 @@
     @media(max-width:860px) { .agent-access-grid { grid-template-columns:minmax(0,1fr); } }
     @media(max-width:480px) { .agent-access-actions { flex-direction:column; align-items:stretch; } .agent-access-actions a { text-align:center; } .agent-access-prompt-box { padding:1.2rem; } .agent-access-example-head,.agent-access-message,.agent-access-execution { padding:1.1rem; } }
   </style>
+<link rel="stylesheet" href="/agent-setup.css?v=20261027-1">
+<script src="/agent-setup.js?v=20261027-1" defer></script>
 </head>
 
 <body>
@@ -3229,7 +3231,7 @@
             <li><span data-i18n="agent_cap1">Create and update agents and chatbots</span></li><li><span data-i18n="agent_cap2">Upload documents, build datasets and run RAG search</span></li><li><span data-i18n="agent_cap3">Configure available models, channels and authorized connectors</span></li>
           </ul>
           <div class="agent-access-actions">
-            <a class="btn-primary" href="/agents.html" data-i18n="agent_guide">Connection guide</a>
+            <a class="btn-primary" href="#swipies-setup" data-i18n="agent_guide">Connection guide</a>
             <button class="btn-secondary" type="button" id="agent-copy-prompt" data-i18n="agent_copy">Copy instructions for my AI</button>
           </div>
           <p class="agent-access-note" data-i18n="agent_note">Connect your AI client once. Then describe the task in chat. The client needs MCP or API tools and keeps its own permission rules.</p>
@@ -3250,6 +3252,38 @@
         <div class="agent-access-doc-links"><a href="/llms.txt" data-i18n="agent_machine">Instructions for AI agents</a><a href="https://api.swipies.app/api/v1/agent-access/manifest" data-i18n="agent_api">API discovery</a></div>
       </div>
       <p class="agent-access-branding" data-i18n="agent_branding">Free outputs include Swipies branding. Active Plus and Pro subscriptions can omit it.</p>
+<div id="swipies-setup" data-standalone="false" aria-labelledby="sw-setup-title">
+  <h3 id="sw-setup-title" data-setup-i18n="title">Connect your AI client</h3>
+  <p data-setup-i18n="intro">Set up once, then describe your tasks in chat.</p>
+  <label class="sw-setup-language"><span data-setup-i18n="language">Setup language</span><select id="sw-setup-language"><option value="en">English</option><option value="ru">Русский</option><option value="uz">O‘zbekcha</option></select></label>
+  <h4 data-setup-i18n="downloadTitle">1. Save the client</h4>
+  <a href="/downloads/swipies_agent_client.py.txt" download="swipies_agent_client.py" data-setup-i18n="download">Download Python client</a>
+  <p data-setup-i18n="save">Requires Python 3.10+ and your installed AI client. Save the download as swipies_agent_client.py, removing any final .txt extension. Review the source before connecting.</p>
+  <h4 data-setup-i18n="configure">2. Choose your client</h4>
+  <div class="sw-setup-clients" role="group" aria-labelledby="sw-setup-title">
+    <button type="button" data-setup-client="codex" aria-pressed="true">Codex</button>
+    <button type="button" data-setup-client="claude" aria-pressed="false">Claude Code</button>
+    <button type="button" data-setup-client="cursor" aria-pressed="false">Cursor</button>
+  </div>
+  <div class="sw-setup-fields">
+    <label><span data-setup-i18n="os">Your terminal</span><select id="sw-setup-os"><option value="windows" data-setup-i18n="windows">Windows · PowerShell</option><option value="posix" data-setup-i18n="posix">macOS / Linux · shell</option></select></label>
+    <label><span data-setup-i18n="interpreter">Python command</span><select id="sw-setup-interpreter"><option value="python">python</option><option value="python3">python3</option><option value="py">py</option></select></label>
+  </div>
+  <label class="sw-setup-path" for="sw-setup-path"><span data-setup-i18n="path">Absolute path to the saved .py file</span><input id="sw-setup-path" type="text" autocomplete="off" spellcheck="false" aria-describedby="sw-setup-path-hint" placeholder="C:\Users\YourName\Downloads\swipies_agent_client.py"></label>
+  <p id="sw-setup-path-hint" data-setup-i18n="pathHint">Use the path on the machine where your AI client runs. The website cannot locate or verify local files.</p>
+  <h4 id="sw-setup-output-label">Command for your selected terminal</h4>
+  <pre aria-labelledby="sw-setup-output-label"><code id="sw-setup-output">Enter an absolute path ending in .py to generate your configuration.</code></pre>
+  <button id="sw-setup-copy" type="button" disabled data-setup-i18n="copy">Copy configuration</button>
+  <p class="sw-setup-status" id="sw-setup-status" role="status" aria-live="polite"></p>
+  <p id="sw-setup-help">Run the command in your selected terminal. Check the connection with codex mcp list.</p>
+  <a id="sw-setup-docs" href="https://developers.openai.com/codex/mcp/" target="_blank" rel="noopener noreferrer" data-setup-i18n="docs">Official client instructions</a>
+  <div class="sw-setup-account"><p data-setup-i18n="account">Existing account or Plus/Pro? Configure its SWIPIES_API_KEY securely in the MCP process environment before first use; follow the account guide. Without a key, first use creates a separate Free workspace. Never enter your key on this page.</p><a href="/llms-full.txt" data-setup-i18n="accountLink">Account and credential guide</a></div>
+  <h4 data-setup-i18n="verify">3. Ask your AI to check the connection</h4>
+  <p data-setup-i18n="task">Read https://swipies.app/llms.txt. Check the configured Swipies connection and list available dataset operations. Before creating a new workspace, confirm whether an existing account connection is configured.</p>
+  <p data-setup-i18n="permissions">Your AI client may ask you to enable or approve the tools. This page generates configuration; it does not install software or check whether you are connected.</p>
+  <noscript><p>JavaScript is needed for the generator. Read the <a href="/agents.html">connection guide</a> or <a href="/llms-full.txt">full agent instructions</a> for manual setup.</p></noscript>
+</div>
+
     </div>
   </section>
 

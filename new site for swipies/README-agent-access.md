@@ -18,6 +18,11 @@ and EN/RU/UZ translations; legacy separate scripts are not its source of truth.
   Save it as `swipies_agent_client.py`. Nginx deliberately denies .py URLs;
   keep the text download rather than weakening the deny rule.
 
+- `/agent-setup.js` and `/agent-setup.css`: shared localized setup generator on
+  the homepage and guide. Client names, terminal, Python command and a local
+  absolute path produce Codex/Claude Code commands or Cursor JSON. The path
+  remains in memory; no keys are collected and no connection is installed.
+
 ## Maintenance and release
 
 Update the visible section, translations, guide and machine documents together.
@@ -27,7 +32,7 @@ Whenever tools/swipies_agent_client.py changes, refresh and byte-compare the
 public text copy. Never embed an account credential in any public asset.
 
 The main platform deployment workflow does not publish this static web root.
-Publish only the eight files listed above (including sitemap.xml and index.html)
+Publish only the ten files listed above (including sitemap.xml and index.html)
 to /var/www/html after owner authorization. Preserve private backups outside the
 web root, check that the original root has not changed, write documentation
 before index.html atomically, and verify public HTTPS statuses/content types.
@@ -39,3 +44,28 @@ restart, Nginx configuration change or database migration is required.
 Validation: parse HTML/JSON/JSON-LD/XML, check inline JavaScript syntax, local
 anchors, unique IDs, all three translations and OpenAPI references/schemas;
 inspect desktop/mobile and compare public API discovery to the specification.
+
+
+## Client setup maintenance
+
+Keep the setup markup on index.html and agents.html in sync. Homepage setup
+inherits EN/RU/UZ from the page language; the standalone guide has its own
+language selector. Change both JS/CSS cache version queries when updating assets.
+Use textContent for generated commands; never insert paths using innerHTML.
+Commands use PowerShell literal quoting on Windows and POSIX shell quoting on
+macOS/Linux. Cursor JSON uses JSON.stringify. Copy stays disabled until the
+path is absolute, ends in .py and contains no control characters. The page
+cannot verify that the file or Python interpreter exists.
+
+Run `node tools/check_swipies_setup.cjs` from the repository root. The check
+covers 18 client/terminal/interpreter combinations, invalid inputs, complete
+EN/RU/UZ strings and the absence of network/storage APIs in the generator.
+Inspect desktop/mobile and copied output in the browser. Before publishing,
+verify official client command/configuration documentation and local Codex CLI
+help. Current references: https://developers.openai.com/codex/mcp/,
+https://code.claude.com/docs/en/mcp and
+https://cursor.com/help/customization/mcp.
+
+Existing account keys belong in the actual MCP process environment before first
+use. A local path field never accepts or configures a paid account credential.
+The generator does not claim a successful connection or enable host tools.

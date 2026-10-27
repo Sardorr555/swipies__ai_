@@ -93,3 +93,29 @@ Live discovery: https://api.swipies.app/api/v1/agent-access/manifest
 OpenAPI for the gateway: https://swipies.app/agent-access.openapi.json
 Machine discovery: https://swipies.app/agent-access.json
 Human guide: https://swipies.app/agents.html
+
+
+## Client-specific setup
+
+The interactive setup guide is https://swipies.app/agents.html#swipies-setup.
+It generates configuration locally from a saved absolute Python client path.
+It does not install tools, collect API keys, transmit the path or verify connection status.
+
+Codex CLI: codex mcp add swipies -- python '/absolute/path/swipies_agent_client.py'
+Then check codex mcp list. The command syntax is also available in local codex mcp add --help.
+Claude Code: claude mcp add --transport stdio --scope user swipies -- python '/absolute/path/swipies_agent_client.py'
+Then check claude mcp get swipies and /mcp inside Claude Code.
+Cursor: merge the swipies command/args entry under mcpServers into ~/.cursor/mcp.json
+for personal use or .cursor/mcp.json for the project. Keep existing server entries.
+Restart Cursor and check its MCP settings. Use python3 when appropriate.
+
+The examples above use POSIX-shell quoting. The generator also produces Windows
+PowerShell commands, escaping apostrophes in file paths. Do not run PowerShell
+examples in cmd.exe. Configuration is saved once; a new Free account is created
+only on the first request if SWIPIES_API_KEY is absent. Configure the existing
+tenant's key securely in the actual MCP process environment before first use
+when you need its resources or Plus/Pro subscription. The page never requests it.
+
+Official client references:
+https://code.claude.com/docs/en/mcp
+https://cursor.com/help/customization/mcp

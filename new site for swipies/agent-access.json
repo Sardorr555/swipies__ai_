@@ -89,5 +89,19 @@
   "not_live_verified": [
     "actual external CRM delivery",
     "paid advertising delivery"
-  ]
+  ],
+  "client_setup": {
+    "url": "https://swipies.app/agents.html#swipies-setup",
+    "clients": [
+      "codex",
+      "claude-code",
+      "cursor"
+    ],
+    "terminals": [
+      "windows-powershell",
+      "posix-shell"
+    ],
+    "collects_credentials": false,
+    "installs_automatically": false
+  }
 }

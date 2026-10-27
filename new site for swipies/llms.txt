@@ -6,6 +6,8 @@ Connect an MCP-capable host once. The Python stdio client can automatically crea
 
 ## Connect and operate
 
+- [Choose Codex, Claude Code or Cursor](https://swipies.app/agents.html#swipies-setup): Generate client-specific setup using your local client file path.
+
 - [Full agent instructions](https://swipies.app/llms-full.txt): Authentication, automatic setup, MCP tools, examples, limits and supported scope. Read this before making changes.
 - [Connection guide](https://swipies.app/agents.html): Human-readable setup and examples.
 - [Discovery JSON](https://swipies.app/agent-access.json): URLs, capabilities, branding rules and exclusions.

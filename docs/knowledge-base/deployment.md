@@ -218,3 +218,12 @@ contract are linked from the homepage; the stdio client is downloadable as
 plaintext with save-as instructions. Eight static HTTPS assets are verified.
 This release does not change platform runtime or expand its MCP scope. See the
 [landing release report](handoffs/2026-10-27-agent-access-landing.md).
+
+
+### Codex / Claude Code / Cursor setup guide (2026-10-27)
+
+The public homepage and /agents.html now include an EN/RU/UZ generator for
+client-specific stdio commands or Cursor JSON, with PowerShell/POSIX quoting,
+local path validation and copy feedback. It collects no keys, does not install
+connections and retains no entered path. See the
+[setup release report](handoffs/2026-10-27-client-setup-landing.md).
