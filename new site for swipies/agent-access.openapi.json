@@ -1,0 +1,448 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Swipies Agent Access gateway",
+    "version": "1.0.0",
+    "description": "The discovery, service-account bootstrap and MCP gateway only. Tenant operations are authenticated and discovered at runtime; this is not a schema for every Swipies API.",
+    "contact": {
+      "url": "https://swipies.app/agents.html"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.swipies.app"
+    }
+  ],
+  "security": [
+    {
+      "BearerApiKey": []
+    }
+  ],
+  "paths": {
+    "/api/v1/agent-access/manifest": {
+      "get": {
+        "operationId": "getAgentAccessManifest",
+        "summary": "Discover the current Agent Access server",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "version",
+                    "mcp",
+                    "bootstrap",
+                    "operations_path",
+                    "branding"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "mcp": {
+                      "type": "object"
+                    },
+                    "bootstrap": {
+                      "type": "object"
+                    },
+                    "operations_path": {
+                      "type": "string"
+                    },
+                    "branding": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent-access/bootstrap": {
+      "post": {
+        "operationId": "bootstrapAgentWorkspace",
+        "summary": "Create or reconnect an isolated service account",
+        "security": [],
+        "description": "Persist a locally generated secrets.token_urlsafe(32) value before calling. Reuse it to reconnect. Defaults to Free; no email, owner, plan or privileges can be requested. The sensitive response must not be logged.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BootstrapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootstrapResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent-access/operations": {
+      "get": {
+        "operationId": "listTenantOperations",
+        "summary": "Discover currently registered tenant operations",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "operations"
+                  ],
+                  "properties": {
+                    "operations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Operation"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent-access/mcp": {
+      "post": {
+        "operationId": "callAgentAccessMcp",
+        "summary": "Send a stateless MCP JSON-RPC message",
+        "description": "Bearer API key required. Protocol 2025-03-26; use initialize, tools/list and tools/call. Tools: swipies_list_operations, swipies_describe_operation and swipies_execute. Notifications receive HTTP 202. GET/DELETE are unsupported (405). Use User-Agent: SwipiesAgent/1.0. A browser Origin must be allowed; native clients may omit Origin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "jsonrpc",
+                    "id"
+                  ],
+                  "properties": {
+                    "jsonrpc": {
+                      "const": "2.0"
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "result": {},
+                    "error": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Notification accepted; no response body"
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerApiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Swipies API key"
+      }
+    },
+    "schemas": {
+      "BootstrapRequest": {
+        "type": "object",
+        "required": [
+          "registration_secret"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "registration_secret": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "writeOnly": true
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        }
+      },
+      "BootstrapResponse": {
+        "type": "object",
+        "required": [
+          "tenant_id",
+          "api_key",
+          "created",
+          "mcp_path"
+        ],
+        "properties": {
+          "tenant_id": {
+            "type": "string"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "Sensitive API credential. Do not log or publish."
+          },
+          "created": {
+            "type": "boolean"
+          },
+          "mcp_path": {
+            "type": "string"
+          }
+        }
+      },
+      "Operation": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "method",
+          "path",
+          "path_parameters"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "path_parameters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "McpRequest": {
+        "type": "object",
+        "required": [
+          "jsonrpc",
+          "method"
+        ],
+        "properties": {
+          "jsonrpc": {
+            "const": "2.0"
+          },
+          "id": {
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "method": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "externalDocs": {
+    "url": "https://swipies.app/llms-full.txt",
+    "description": "Full setup, execution sequence and limits"
+  }
+}

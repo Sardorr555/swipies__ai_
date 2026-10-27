@@ -1,0 +1,93 @@
+{
+  "kind": "swipies.agent-access.discovery",
+  "version": "1.0.0",
+  "name": "Swipies Agent Access",
+  "description": "External AI clients manage tenant resources through MCP and authenticated APIs. Swipies does not host the external assistant.",
+  "api_base_url": "https://api.swipies.app",
+  "runtime_manifest": "https://api.swipies.app/api/v1/agent-access/manifest",
+  "documentation": "https://swipies.app/agents.html",
+  "instructions": "https://swipies.app/llms-full.txt",
+  "openapi": "https://swipies.app/agent-access.openapi.json",
+  "mcp": {
+    "url": "https://api.swipies.app/api/v1/agent-access/mcp",
+    "transport": "streamable-http",
+    "protocol_version": "2025-03-26",
+    "http_method": "POST",
+    "authentication": "bearer-api-key",
+    "user_agent": "SwipiesAgent/1.0",
+    "tools": [
+      "swipies_list_operations",
+      "swipies_describe_operation",
+      "swipies_execute"
+    ]
+  },
+  "stdio_client": {
+    "download": "https://swipies.app/downloads/swipies_agent_client.py.txt",
+    "save_as": "swipies_agent_client.py",
+    "python": ">=3.10",
+    "dependencies": [],
+    "automatic_free_service_account": true,
+    "existing_account_api_key_environment_variable": "SWIPIES_API_KEY"
+  },
+  "bootstrap": {
+    "url": "https://api.swipies.app/api/v1/agent-access/bootstrap",
+    "method": "POST",
+    "authentication": "persisted locally generated registration_secret",
+    "registration_secret_generation": "secrets.token_urlsafe(32)",
+    "account_plan": "free",
+    "reconnect": "Reuse the same locally persisted secret; do not register a new account per request."
+  },
+  "operations": {
+    "url": "https://api.swipies.app/api/v1/agent-access/operations",
+    "authentication": "bearer-api-key",
+    "discovery_required": true,
+    "operation_ids": "Discover at runtime; never guess or hardcode them."
+  },
+  "capabilities": [
+    "agents and chatbots",
+    "datasets and documents",
+    "multipart uploads and parsing jobs",
+    "retrieval and RAG",
+    "available model configuration",
+    "available channel configuration",
+    "authorized source connectors",
+    "tenant-scoped resource management"
+  ],
+  "boundaries": [
+    "An AI client must have MCP or API tools and be configured to use them. A documentation URL does not install a connector.",
+    "Existing customers must use their existing account API key to access that tenant and subscription.",
+    "Private databases, providers and OAuth services require valid authorized credentials.",
+    "Admin operations, payments, token management and Ads are not exposed by the current generic MCP catalog.",
+    "Client permissions, account authorization, subscription quotas and registration rate limits remain in force.",
+    "After an ambiguous write timeout, inspect state before retrying."
+  ],
+  "branding": {
+    "default": "required",
+    "removal_plans": [
+      "plus",
+      "pro"
+    ],
+    "requires_active_persisted_subscription": true
+  },
+  "limits": {
+    "request_bytes": 25165824,
+    "multipart_total_bytes": 16777216,
+    "multipart_file_count": 20,
+    "result_bytes": 8388608,
+    "operation_timeout_seconds": 90
+  },
+  "verified_on": "2026-10-27",
+  "verified_scope": [
+    "MCP stdio and HTTP",
+    "resource CRUD",
+    "document parsing and retrieval",
+    "RAG references",
+    "OpenAI-compatible nonstream and streaming replies",
+    "Free and Pro attribution",
+    "tenant isolation"
+  ],
+  "not_live_verified": [
+    "actual external CRM delivery",
+    "paid advertising delivery"
+  ]
+}

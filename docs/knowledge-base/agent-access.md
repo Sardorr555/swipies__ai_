@@ -104,3 +104,14 @@ The earlier missing `LLMType` import is now corrected on production. Both the
 ordinary and streaming OpenAI-compatible routes passed live checks. Deployment
 `1bf4ac518` and the complete GitHub Actions workflow are verified successful;
 see the [release report](handoffs/2026-10-27-successful-autodeploy.md).
+
+
+### Public external AI discovery (2026-10-27)
+
+The public cloud landing now documents external MCP/API control on EN/RU/UZ.
+Start at https://swipies.app/llms.txt or the human guide
+https://swipies.app/agents.html. Machine discovery and a gateway-only OpenAPI
+contract are linked from the homepage; the stdio client is downloadable as
+plaintext with save-as instructions. Eight static HTTPS assets are verified.
+This release does not change platform runtime or expand its MCP scope. See the
+[landing release report](handoffs/2026-10-27-agent-access-landing.md).

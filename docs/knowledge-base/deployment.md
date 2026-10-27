@@ -207,3 +207,14 @@ preserved, MySQL's Compose profile is explicit for deploy/rollback, and the
 public probe uses the verified SwipiesAgent User-Agent. The CRM worker is running;
 real external CRM delivery and paid Ads delivery remain unverified. See the
 [release report](handoffs/2026-10-27-successful-autodeploy.md).
+
+
+### Public external AI discovery (2026-10-27)
+
+The public cloud landing now documents external MCP/API control on EN/RU/UZ.
+Start at https://swipies.app/llms.txt or the human guide
+https://swipies.app/agents.html. Machine discovery and a gateway-only OpenAPI
+contract are linked from the homepage; the stdio client is downloadable as
+plaintext with save-as instructions. Eight static HTTPS assets are verified.
+This release does not change platform runtime or expand its MCP scope. See the
+[landing release report](handoffs/2026-10-27-agent-access-landing.md).
