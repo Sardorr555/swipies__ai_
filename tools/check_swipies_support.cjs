@@ -1,0 +1,44 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+
+async function main() {
+  const scriptPath = process.argv[2] || path.join(__dirname, '..', 'new site for swipies', 'support-chat.js');
+  const events = {}, nodes = [], posts = [];
+  const config = {origin:'https://api.swipies.app',chatId:'a'.repeat(32),embedAuthorization:'public-embed-test-only'};
+  const body = {style:{overflow:'auto'},appendChild:n=>nodes.push(n)};
+  const document = {body,documentElement:{lang:'ru'},getElementById:id=>nodes.find(n=>n.id===id),createElement:tag=>({tag,style:{},focus(){this.focused=true;},contentWindow:{postMessage:(data,origin)=>posts.push({data,origin})}})};
+  const window = {innerWidth:1280,addEventListener:(name,fn)=>(events[name]??=[]).push(fn),scrollBy(){}};
+  vm.runInNewContext(fs.readFileSync(scriptPath,'utf8'), {window,document,URL,fetch:async()=>({ok:true,json:async()=>config}),console});
+  await new Promise(resolve=>setImmediate(resolve));
+  const emit = data => events.message.forEach(fn=>fn(data));
+  const button = document.getElementById('swipies-support-button');
+  assert(button);
+  assert.equal(new URL(button.src).pathname,'/chats/widget');
+  assert.equal(new URL(button.src).searchParams.get('mode'),'master');
+  emit({origin:'https://attacker.example',source:button.contentWindow,data:{type:'CREATE_CHAT_WINDOW'}});
+  emit({origin:config.origin,source:{},data:{type:'CREATE_CHAT_WINDOW'}});
+  assert.equal(nodes.length,1,'Untrusted origins and sibling frames must be ignored');
+  emit({origin:config.origin,source:button.contentWindow,data:{type:'CREATE_CHAT_WINDOW',src:'https://attacker.example'}});
+  const chat=document.getElementById('swipies-support-window');
+  assert(chat && chat.hidden);
+  assert.equal(new URL(chat.src).origin,config.origin);
+  assert.equal(new URL(chat.src).searchParams.get('mode'),'window');
+  emit({origin:config.origin,source:button.contentWindow,data:{type:'TOGGLE_CHAT',isOpen:true}});
+  assert.equal(chat.hidden,false);
+  assert.equal(chat.style.display,'block');
+  emit({origin:config.origin,source:chat.contentWindow,data:{type:'RESIZE_CHAT_WINDOW',width:'520px'}});
+  assert(chat.style.cssText.includes('width:520px'));
+  window.innerWidth=390;
+  events.resize.forEach(fn=>fn());
+  assert(chat.style.cssText.includes('height:100dvh'));
+  assert.equal(body.style.overflow,'hidden');
+  emit({origin:config.origin,source:chat.contentWindow,data:{type:'TOGGLE_CHAT',isOpen:false}});
+  assert.equal(chat.hidden,true);
+  assert.equal(chat.style.display,'none');
+  assert.equal(body.style.overflow,'auto');
+  assert(posts.every(p=>p.origin===config.origin),'Never relay widget messages to wildcard origins');
+  console.log('PASS: native widget startup, origin/source validation, URL injection protection, open/close, desktop resize, mobile fullscreen and scroll restoration.');
+}
+main().catch(error=>{console.error(error);process.exit(1);});

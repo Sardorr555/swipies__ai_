@@ -1,0 +1,5 @@
+Swipies — официальная база знаний для клиентов. Проверено 2026-10-28.
+Источник: https://swipies.app/
+Swipies — платформа для создания AI-агентов и чатботов с использованием документов компании и доступных AI-моделей. Основные возможности: датасеты (базы знаний), загрузка документов, обработка и индексирование, поиск RAG, чатботы, агенты, API и штатный виджет для сайта. RAG находит релевантные фрагменты документов и передаёт их модели для ответа со ссылками на источники. Качество зависит от полноты базы, качества обработки и настроек; ошибки возможны. Нельзя обещать ноль галлюцинаций.
+Облачная версия работает на инфраструктуре Swipies. Для самостоятельного размещения и корпоративного on-premise нужно уточнить лицензию и условия у команды. Регистрация: https://api.swipies.app/login . Информация: https://swipies.app/ .
+English: Swipies builds AI assistants, agents and document-grounded chatbots. Datasets are knowledge bases; RAG retrieves relevant document passages. Uzbek: Swipies hujjatlar asosida javob beradigan AI agentlar va chatbotlar yaratish platformasi. Bilimlar bazasi — dataset. RAG hujjatlardan tegishli ma’lumotlarni topib, javob uchun modelga beradi.

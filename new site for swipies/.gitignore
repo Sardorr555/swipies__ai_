@@ -25,3 +25,6 @@ read_deploy_log.py
 check_*.py
 wait_*.py
 
+
+# Generated native widget configuration is provisioned on the server.
+/support-chat-config.json

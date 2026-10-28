@@ -20,11 +20,17 @@ import {
   Token,
   UserInfo,
 } from '@/constants/authorization';
-import { getSearchValue } from './common-util';
 
 export const AUTH_COOKIE_NAME = 'swipies_auth_token';
 export const LOGGED_IN_COOKIE_NAME = 'swipies_logged_in';
 const KeySet = [Authorization, Token, UserInfo];
+
+/** Public embeds use their own credential and never replace the owner's session. */
+export function isSharedChatView(): boolean {
+  return typeof window !== 'undefined' &&
+    /^\/(?:chats\/(?:widget|share)|agent\/share)\/?$/.test(window.location.pathname);
+}
+
 
 /**
  * Resolves the parent root domain for cookies (e.g. '.swipies.app')
@@ -125,7 +131,7 @@ export function getMainLoginUrl(returnUrl?: string): string {
 }
 
 export function redirectToLogin(returnUrl?: string) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || isSharedChatView()) return;
   window.location.href = getMainLoginUrl(returnUrl);
 }
 
@@ -144,6 +150,7 @@ const storage = {
     return userInfoStr ? JSON.parse(userInfoStr) : null;
   },
   setAuthorization: (value: string) => {
+    if (isSharedChatView()) return;
     if (!value) return;
     const formatted = value.startsWith('Bearer ') ? value : `Bearer ${value}`;
     localStorage.setItem(Authorization, formatted);
@@ -176,6 +183,7 @@ const storage = {
     }
   },
   removeAuthorization: () => {
+    if (isSharedChatView()) return;
     localStorage.removeItem(Authorization);
     deleteCookie(AUTH_COOKIE_NAME);
     deleteCookie(LOGGED_IN_COOKIE_NAME);
@@ -183,6 +191,7 @@ const storage = {
     deleteCookie('ragflow_auth');
   },
   removeAll: () => {
+    if (isSharedChatView()) return;
     KeySet.forEach((x) => {
       localStorage.removeItem(x);
     });
@@ -216,7 +225,10 @@ const storage = {
 export const getAuthorization = (): string => {
   if (typeof window === 'undefined') return '';
 
-  const authParam = getSearchValue('auth');
+  const authParam = new URLSearchParams(window.location.search).get('auth');
+  if (isSharedChatView()) {
+    return authParam ? (authParam.startsWith('Bearer ') ? authParam : `Bearer ${authParam}`) : '';
+  }
   if (authParam) {
     const formatted = authParam.startsWith('Bearer ') ? authParam : `Bearer ${authParam}`;
     localStorage.setItem(Authorization, formatted);
