@@ -1,0 +1,52 @@
+/* Local preview: color properties only, confined to the existing agent section. */
+#agent-access {
+  --bg: #f0b84f;
+  --bg2: #f3c66e;
+  --bg3: #f5ce82;
+  --bg4: #f7d797;
+  --text: #241b0c;
+  --text-secondary: #4d3a1c;
+  --text-muted: #58421d;
+  --accent: #241b0c;
+  --accent-hover: #443522;
+  --accent-dim: rgba(36, 27, 12, .08);
+  --border: rgba(36, 27, 12, .22);
+  --border2: rgba(36, 27, 12, .28);
+  background-color: #f0b84f;
+  color: #241b0c;
+}
+#agent-access #swipies-setup {
+  background-color: #f3c66e;
+  color: #241b0c;
+  border-color: rgba(36, 27, 12, .28);
+}
+#agent-access #swipies-setup p,
+#agent-access #swipies-setup label { color: #4d3a1c; }
+#agent-access #swipies-setup a { color: #241b0c; }
+#agent-access #swipies-setup button {
+  color: #241b0c;
+  background-color: #f5ce82;
+  border-color: #8b682c;
+}
+#agent-access #swipies-setup [aria-pressed="true"] {
+  background-color: #241b0c;
+  color: #fff3db;
+  border-color: #241b0c;
+}
+#agent-access #swipies-setup #sw-setup-copy {
+  background-color: #241b0c;
+  color: #fff3db;
+  border-color: #241b0c;
+}
+#agent-access #swipies-setup input,
+#agent-access #swipies-setup select,
+#agent-access #swipies-setup pre {
+  background-color: #f7d797;
+  color: #241b0c;
+  border-color: #8b682c;
+}
+#agent-access #swipies-setup input[aria-invalid="true"] { border-color: #8f2716; }
+#agent-access #swipies-setup .sw-setup-status { color: #4d3a1c; }
+#agent-access #swipies-setup .sw-setup-account { border-color: #241b0c; }
+#agent-access #swipies-setup :focus-visible { outline-color: #241b0c; }
+#agent-access ::selection { background-color: #241b0c; color: #fff3db; }

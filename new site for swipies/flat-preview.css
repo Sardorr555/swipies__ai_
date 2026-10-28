@@ -1,0 +1,59 @@
+/* Local design study: flat surfaces, original typography and amber section. */
+:root { --radius-lg: 6px; }
+
+*, *::before, *::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+.nav, .mobile-menu, .cookie-banner {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--bg);
+}
+
+.hero::before, .integ-showcase-card::before, .ent-upsell-card::before {
+  display: none;
+}
+
+.cloud-sub-section, .enterprise-upsell-section { background: var(--bg); }
+
+.cloud-feature-card, .cloud-banner, .integ-showcase-card,
+.integ-pipeline-box, .ent-upsell-card, .price-card--pro {
+  background: var(--bg2) !important;
+  border-radius: 4px !important;
+}
+
+.integ-pipe-step, .integ-logo-tile, .cookie-banner,
+.currency-toggle, .currency-btn, .cloud-card-badge, .integ-eyebrow {
+  border-radius: 4px;
+}
+
+.integ-logo-tile { background: var(--bg3); }
+.integ-logo-tile img, .integ-pipe-icons img { filter: none; }
+
+.integ-showcase-card:hover, .integ-pipe-step:hover,
+.integ-logo-tile:hover, .cloud-feature-card:hover,
+.neural-node:hover, .neural-core-bubble:hover,
+.cookie-btn-accept:hover {
+  transform: none !important;
+}
+
+.neural-node, .neural-core-bubble, .rag-file-pill {
+  animation: none !important;
+}
+.neural-core-bubble { background: #e8a820 !important; }
+
+.cloud-feature-card, .integ-showcase-card, .integ-pipe-step,
+.integ-logo-tile, .neural-node, .neural-core-bubble {
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+#agent-access .agent-access-example,
+#agent-access #swipies-setup,
+#agent-access #swipies-setup pre,
+#agent-access #swipies-setup button,
+#agent-access #swipies-setup input,
+#agent-access #swipies-setup select {
+  border-radius: 4px;
+}
