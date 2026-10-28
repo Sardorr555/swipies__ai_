@@ -28,7 +28,7 @@ const KeySet = [Authorization, Token, UserInfo];
 
 /**
  * Resolves the parent root domain for cookies (e.g. '.swipies.app')
- * so that app.swipies.app, demo.swipies.app, and ads.swipies.app share sessions.
+ * so that api.swipies.app, app.swipies.app, and ads.swipies.app share sessions.
  */
 export function getRootDomain(): string {
   if (typeof window === 'undefined') return '';
@@ -91,8 +91,22 @@ export function deleteCookie(name: string) {
 }
 
 /**
- * Resolves the primary login URL across subdomains with a return redirect parameter.
+ * Keep platform users on their portal. Other Swipies subdomains use the API portal.
+ * Custom installations keep their own origin.
  */
+export function getMainAppUrl(): string {
+  if (typeof window === 'undefined') return '/';
+  const host = window.location.hostname.toLowerCase();
+  if (host === 'swipies.app' || host.endsWith('.swipies.app')) {
+    if (host === 'api.swipies.app' || host === 'app.swipies.app') {
+      return `${window.location.origin}/`;
+    }
+    return `${window.location.protocol}//api.swipies.app/`;
+  }
+  return `${window.location.origin}/`;
+}
+
+/** Resolves the login URL with a return destination, preserving local development. */
 export function getMainLoginUrl(returnUrl?: string): string {
   if (typeof window === 'undefined') return '/login';
   const host = window.location.hostname.toLowerCase();
@@ -107,16 +121,7 @@ export function getMainLoginUrl(returnUrl?: string): string {
     return `/login${redirectParam}`;
   }
 
-  if (host.includes('app.swipies.app')) {
-    return `${window.location.protocol}//app.swipies.app/login${redirectParam}`;
-  }
-
-  if (host.endsWith('swipies.app')) {
-    // Primary platform portal is demo.swipies.app (for ads.swipies.app, demo.swipies.app, etc.)
-    return `${window.location.protocol}//demo.swipies.app/login${redirectParam}`;
-  }
-
-  return `${window.location.origin}/login${redirectParam}`;
+  return `${getMainAppUrl()}login${redirectParam}`;
 }
 
 export function redirectToLogin(returnUrl?: string) {

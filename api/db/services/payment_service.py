@@ -381,7 +381,7 @@ class AtmosService:
             )
             store_id_val = str(conf["store_id"])
             checkout_url = (
-                f"https://checkout.atmos.uz/invoice/get?storeId={store_id_val}&transactionId={external_tx_id}&redirectLink=https://demo.swipies.app/ads?payment_success={order.id}"
+                f"https://checkout.atmos.uz/invoice/get?storeId={store_id_val}&transactionId={external_tx_id}&redirectLink=https://api.swipies.app/ads?payment_success={order.id}"
                 if external_tx_id
                 else ""
             )
@@ -855,7 +855,7 @@ class AtmosService:
         if order.external_transaction_id:
             store_id_val = str(conf["store_id"])
             order_dict["checkout_url"] = (
-                f"https://checkout.atmos.uz/invoice/get?storeId={store_id_val}&transactionId={order.external_transaction_id}&redirectLink=https://demo.swipies.app/ads?payment_success={order.id}"
+                f"https://checkout.atmos.uz/invoice/get?storeId={store_id_val}&transactionId={order.external_transaction_id}&redirectLink=https://api.swipies.app/ads?payment_success={order.id}"
             )
         return order_dict
 

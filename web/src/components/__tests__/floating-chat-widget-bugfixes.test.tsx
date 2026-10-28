@@ -558,7 +558,7 @@ describe('FloatingChatWidget Critical Bug Fixes & Stability Contracts', () => {
         const width = options.width || '100%';
         const height = options.height || '650px';
         const radius = options.radius || '12px';
-        const src = `https://demo.swipies.app/chats/share?shared_id=${options.sharedId}&widget_footer=Powered+by+Swipies.app&widget_footer_link=https%3A%2F%2Fswipies.app&widget_accent_color=${encodeURIComponent(options.accentColor || '#2563eb')}`;
+        const src = `https://api.swipies.app/chats/share?shared_id=${options.sharedId}&widget_footer=Powered+by+Swipies.app&widget_footer_link=https%3A%2F%2Fswipies.app&widget_accent_color=${encodeURIComponent(options.accentColor || '#2563eb')}`;
 
         return `<iframe
   src="${src}"

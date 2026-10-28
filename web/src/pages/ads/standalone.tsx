@@ -4,7 +4,7 @@ import { ArrowLeft, Megaphone, ExternalLink, Sparkles, ShieldCheck, Globe, LogOu
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ThemeSwitch from '@/components/theme-switch';
-import authorizationUtil, { subscribeToAuthChanges, redirectToLogin } from '@/utils/authorization-util';
+import authorizationUtil, { subscribeToAuthChanges, redirectToLogin, getMainAppUrl } from '@/utils/authorization-util';
 import userService from '@/services/user-service';
 import { AD_TRANSLATIONS, AdLanguage, getActiveAdLanguage, setActiveAdLanguage } from './translations';
 import SwipiesAdsPage from './index';
@@ -136,11 +136,7 @@ export default function StandaloneAdsApp() {
     if (host === 'localhost' || host === '127.0.0.1') {
       return `/${authQuery}`;
     }
-    // Return to demo.swipies.app or app.swipies.app
-    if (host.includes('demo') || host.includes('ads')) {
-      return `${window.location.protocol}//demo.swipies.app/${authQuery}`;
-    }
-    return `${window.location.protocol}//app.swipies.app/${authQuery}`;
+    return `${getMainAppUrl()}${authQuery}`;
   }, []);
 
   if (!isAuthenticated || isVerifying) {

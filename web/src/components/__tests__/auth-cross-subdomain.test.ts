@@ -6,6 +6,7 @@ import authorizationUtil, {
   setCookie,
   deleteCookie,
   getMainLoginUrl,
+  getMainAppUrl,
   getAuthorization,
 } from '../../utils/authorization-util';
 import { Authorization } from '../../constants/authorization';
@@ -56,8 +57,8 @@ describe('Cross-Subdomain Authorization & Session Sync Test Suite', () => {
       expect(getRootDomain()).toBe('.swipies.app');
     });
 
-    it('resolves .swipies.app for demo.swipies.app', () => {
-      mockHostname('demo.swipies.app');
+    it('resolves .swipies.app for api.swipies.app', () => {
+      mockHostname('api.swipies.app');
       expect(getRootDomain()).toBe('.swipies.app');
     });
 
@@ -71,17 +72,41 @@ describe('Cross-Subdomain Authorization & Session Sync Test Suite', () => {
   });
 
   describe('Canonical Login Portal Resolution (getMainLoginUrl)', () => {
-    it('redirects ads.swipies.app to demo.swipies.app/login with return redirect param', () => {
+    it('redirects ads.swipies.app to api.swipies.app/login with return redirect param', () => {
       mockHostname('ads.swipies.app', 'https:');
       const loginUrl = getMainLoginUrl('https://ads.swipies.app/dashboard');
-      expect(loginUrl).toContain('https://demo.swipies.app/login?redirect=');
+      expect(loginUrl).toContain('https://api.swipies.app/login?redirect=');
       expect(loginUrl).toContain(encodeURIComponent('https://ads.swipies.app/dashboard'));
     });
 
-    it('redirects demo.swipies.app to demo.swipies.app/login', () => {
-      mockHostname('demo.swipies.app', 'https:');
-      const loginUrl = getMainLoginUrl('https://demo.swipies.app/chat');
-      expect(loginUrl).toContain('https://demo.swipies.app/login?redirect=');
+    it('redirects api.swipies.app to api.swipies.app/login', () => {
+      mockHostname('api.swipies.app', 'https:');
+      const loginUrl = getMainLoginUrl('https://api.swipies.app/chat');
+      expect(loginUrl).toContain('https://api.swipies.app/login?redirect=');
+    });
+
+    it.each([
+      ['api.swipies.app', 'https://api.swipies.app/'],
+      ['app.swipies.app', 'https://app.swipies.app/'],
+      ['ads.swipies.app', 'https://api.swipies.app/'],
+      ['swipies.app', 'https://api.swipies.app/'],
+      ['customer.example', 'https://customer.example/'],
+      ['notswipies.app', 'https://notswipies.app/'],
+      ['app.swipies.app.example', 'https://app.swipies.app.example/'],
+    ])('resolves the platform origin for %s', (host, expected) => {
+      mockHostname(host, 'https:');
+      expect(getMainAppUrl()).toBe(expected);
+      const login = new URL(getMainLoginUrl());
+      expect(login.origin).toBe(new URL(expected).origin);
+      expect(login.pathname).toBe('/login');
+    });
+
+    it('preserves a registration return URL on the API portal', () => {
+      mockHostname('api.swipies.app', 'https:');
+      const destination = 'https://api.swipies.app/login-next?ref=partner&lang=ru';
+      const login = new URL(getMainLoginUrl(destination));
+      expect(login.origin).toBe('https://api.swipies.app');
+      expect(login.searchParams.get('redirect')).toBe(destination);
     });
 
     it('uses relative /login on localhost', () => {

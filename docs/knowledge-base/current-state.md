@@ -149,3 +149,15 @@ client-specific stdio commands or Cursor JSON, with PowerShell/POSIX quoting,
 local path validation and copy feedback. It collects no keys, does not install
 connections and retains no entered path. See the
 [setup release report](handoffs/2026-10-27-client-setup-landing.md).
+
+
+### Primary portal routing (2026-10-28)
+
+The `swipies_26` working tree removes the retired portal from authentication,
+Ads return navigation, checkout return URLs, deployment helpers and Nginx
+templates. API portal users now stay on `api.swipies.app`; existing app and
+custom installations preserve their origins. Validation: 45 frontend tests,
+7 mocked payment tests and a successful production frontend build. This fix
+is being published with owner authorization; verify the deployment workflow
+before claiming live success. See the [routing report](handoffs/2026-10-28-primary-portal-routing.md)
+for release requirements and the local Bash/Nginx validation limitation.

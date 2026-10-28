@@ -20,6 +20,7 @@ import unittest
 import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
+from urllib.parse import parse_qs, urlsplit
 from sqlalchemy.types import TypeEngine
 
 # Add project root to sys.path
@@ -448,6 +449,17 @@ class TestAtmosPaymentSystem(unittest.TestCase):
         order_id = data["order_id"]
         self.assertEqual(data["amount_usd"], 50.0)
         self.assertEqual(data["amount_uzs"], 640000)  # 50 * 12800
+
+        # Both initial checkout and order reload return to the primary platform.
+        details = AtmosService.get_order_details(order_id, user_id=user_id)
+        self.assertIsNotNone(details)
+        for checkout in (data['checkout_url'], details['checkout_url']):
+            redirect = parse_qs(urlsplit(checkout).query)['redirectLink'][0]
+            destination = urlsplit(redirect)
+            self.assertEqual(destination.scheme, 'https')
+            self.assertEqual(destination.netloc, 'api.swipies.app')
+            self.assertEqual(destination.path, '/ads')
+            self.assertEqual(parse_qs(destination.query)['payment_success'], [order_id])
 
         # 2. Pre-apply card
         pre_ok, pre_msg, pre_data = AtmosService.pre_apply_card(
