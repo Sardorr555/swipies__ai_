@@ -1,27 +1,32 @@
-# Swipies AI
+# Swipies AI — automatic access for external agents
 
-> Swipies is a platform for AI agents, chatbots, datasets and retrieval-augmented generation (RAG). External AI assistants can manage tenant resources directly through MCP or authenticated API tools, without driving the web interface.
+> Use Swipies to manage tenant agents, chatbots, datasets, documents and supported connections over authenticated HTTPS API/MCP, without driving the web interface.
 
-Connect an MCP-capable host once. The Python stdio client can automatically create and reconnect to a separate Free service account. Existing customers can provide their own account API key. A page URL alone does not install tools in every AI product. External data credentials and the host's permissions remain required. Only active Plus and Pro plans can omit platform attribution.
+## Agents with HTTPS or network-enabled code: start directly
 
-## Connect and operate
+When the user has asked you to work in Swipies, use your existing authorized HTTP/code tools. A configured Swipies MCP connector is not a prerequisite for this path.
 
-- [Choose Codex, Claude Code or Cursor](https://swipies.app/agents.html#swipies-setup): Generate client-specific setup using your local client file path.
+1. Read the [full execution instructions](https://swipies.app/llms-full.txt) and [live manifest](https://api.swipies.app/api/v1/agent-access/manifest).
+2. Reuse existing authorized credentials for existing resources or a paid account. For a new separate workspace, privately generate and persist a random registration_secret, then POST https://api.swipies.app/api/v1/agent-access/bootstrap. This creates or reconnects an isolated Free service account without browser registration or a manually supplied API key.
+3. Keep the returned key private. Send authenticated JSON-RPC over HTTPS to https://api.swipies.app/api/v1/agent-access/mcp: initialize, tools/list, then list/describe/execute the required operations. Send User-Agent: SwipiesAgent/1.0 from your HTTP client.
+4. Follow your host's permissions and report actual outcomes. A webpage-reading-only session cannot gain write tools by visiting a URL.
 
-- [Full agent instructions](https://swipies.app/llms-full.txt): Authentication, automatic setup, MCP tools, examples, limits and supported scope. Read this before making changes.
-- [Connection guide](https://swipies.app/agents.html): Human-readable setup and examples.
-- [Discovery JSON](https://swipies.app/agent-access.json): URLs, capabilities, branding rules and exclusions.
-- [Gateway OpenAPI](https://swipies.app/agent-access.openapi.json): The four public Agent Access gateway endpoints; tenant operations are discovered dynamically.
-- [Stdio client source](https://swipies.app/downloads/swipies_agent_client.py.txt): Save as swipies_agent_client.py. Python 3.10+; standard library only; automatic Free account setup and reconnect.
+## Contracts and instructions
 
-## Live API
+- [Full agent instructions](https://swipies.app/llms-full.txt): exact request sequence, persistence, uploads, limits and errors.
+- [Automatic access guide](https://swipies.app/agents.html#automatic-access): explanation for users and agents, readable without JavaScript.
+- [Discovery JSON](https://swipies.app/agent-access.json): machine-readable access options, URLs, capabilities and exclusions.
+- [Gateway OpenAPI](https://swipies.app/agent-access.openapi.json): four public Agent Access gateway endpoints.
+- [Tenant operation catalog](https://api.swipies.app/api/v1/agent-access/operations): bearer authentication required; discover operation IDs before execution.
 
-- [Runtime manifest](https://api.swipies.app/api/v1/agent-access/manifest): Authoritative server transport, registration and branding information. Send User-Agent: SwipiesAgent/1.0 from API clients.
-- [Tenant operation catalog](https://api.swipies.app/api/v1/agent-access/operations): Requires a bearer API key. Discover exact operation IDs and paths before execution.
+## Optional client installation
+
+- [Codex / Claude Code / Cursor configuration](https://swipies.app/agents.html#swipies-setup): optional host MCP setup when that client needs it.
+- [Python stdio client source](https://swipies.app/downloads/swipies_agent_client.py.txt): save as swipies_agent_client.py; Python 3.10+, standard library only. Its Bridge class can also be imported to send MCP messages directly from code with automatic secure Free registration.
+
+New Free accounts are isolated and retain platform attribution. Only active Plus/Pro subscriptions permit unbranded outputs. External data credentials, client permissions and quotas still apply. Current generic MCP excludes administration, payments, token management, human login/OAuth callbacks and Ads. Live tenant operations are authoritative; do not promise every UI function is already exposed.
 
 ## Optional
 
-- [Platform](https://swipies.app/): Product overview and current plans.
-- [Help](https://help.swipies.app/docs/dev/): General platform documentation.
-
-The current generic MCP catalog excludes administration, payments, token management, OAuth callbacks and Ads. Never infer credentials, privileges or provider access from this documentation.
+- [Platform](https://swipies.app/): overview and plans.
+- [General help](https://help.swipies.app/docs/dev/): legacy/general platform docs. For this built-in Agent Access gateway, use the URLs above; no separate /sse server is required.

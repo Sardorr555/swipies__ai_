@@ -18,8 +18,7 @@
   <link rel="manifest" href="/favicon1/site.webmanifest" />
 
   <!-- Structured Data (JSON-LD) for Search Engine Sitelinks & Organization info -->
-  <script type="application/ld+json">
-{
+  <script type="application/ld+json">{
   "@context": "https://schema.org",
   "@graph": [
     {
@@ -99,9 +98,9 @@
       "@id": "https://swipies.app/#agent-access",
       "name": "Swipies Agent Access",
       "applicationCategory": "DeveloperApplication",
-      "operatingSystem": "MCP-compatible AI host; Python 3.10+ for the stdio client",
+      "operatingSystem": "Any platform with authorized HTTPS tools; Python 3.10+ for the optional client",
       "url": "https://swipies.app/agents.html",
-      "description": "Ask Codex, Claude Code, Cursor or another MCP-compatible assistant to build and manage your agents, chatbots and knowledge bases. It works through the Swipies API, directly from your conversation.",
+      "description": "Agents with authorized HTTPS or network-enabled code can persist an identity, register a separate Free workspace and manage tenant resources directly. Host MCP installation is optional for this path.",
       "featureList": [
         "Create and update agents and chatbots",
         "Upload documents, build datasets and run RAG search",
@@ -128,8 +127,7 @@
       ]
     }
   ]
-}
-</script>
+}</script>
 
   <!-- Analytics Integration: GA4 & Yandex Metrika (Dynamic configurations) -->
   <script>
@@ -3226,29 +3224,29 @@
         <div class="agent-access-intro">
           <div class="agent-access-eyebrow" data-i18n="agent_eyebrow">Swipies × your AI assistant</div>
           <h2 class="section-title" id="agent-access-title" data-i18n="agent_title">Your AI chat. Your Swipies workspace.</h2>
-          <p class="agent-access-sub" data-i18n="agent_sub">Ask Codex, Claude Code, Cursor or another MCP-compatible assistant to build and manage your agents, chatbots and knowledge bases. It works through the Swipies API, directly from your conversation.</p>
+          <p class="agent-access-sub" data-i18n="agent_sub">Ask an assistant with HTTPS or network-enabled code to create agents, chatbots and knowledge bases. It can register a separate Free workspace itself and work through the Swipies API from your conversation.</p>
           <ul class="agent-access-capabilities">
             <li><span data-i18n="agent_cap1">Create and update agents and chatbots</span></li><li><span data-i18n="agent_cap2">Upload documents, build datasets and run RAG search</span></li><li><span data-i18n="agent_cap3">Configure available models, channels and authorized connectors</span></li>
           </ul>
           <div class="agent-access-actions">
-            <a class="btn-primary" href="#swipies-setup" data-i18n="agent_guide">Connection guide</a>
+            <a class="btn-primary" href="/agents.html#automatic-access" data-i18n="agent_guide">Connection guide</a>
             <button class="btn-secondary" type="button" id="agent-copy-prompt" data-i18n="agent_copy">Copy instructions for my AI</button>
           </div>
-          <p class="agent-access-note" data-i18n="agent_note">Connect your AI client once. Then describe the task in chat. The client needs MCP or API tools and keeps its own permission rules.</p>
+          <p class="agent-access-note" data-i18n="agent_note">Your agent can use its existing authorized HTTP tools: save an identity, register and start working. Manual MCP setup is optional for this path. Client permission rules still apply.</p>
           <p class="agent-access-copy-status" id="agent-copy-status" role="status" aria-live="polite"></p>
         </div>
         <div class="agent-access-example" aria-label="Example workflow">
           <div class="agent-access-example-head"><span data-i18n="agent_example">Example workflow</span><span class="agent-access-protocol">MCP + API</span></div>
           <div class="agent-access-message"><span class="agent-access-role" data-i18n="agent_user_label">You</span><p data-i18n="agent_task">Create a support chatbot from my documents and check its answers against the sources.</p></div>
           <div class="agent-access-execution"><span class="agent-access-role" data-i18n="agent_ai_label">Your AI assistant + Swipies</span>
-            <ol><li><span data-i18n="agent_step1">Discover available tools and use your workspace</span></li><li><span data-i18n="agent_step2">Create a dataset, upload files and check parsing</span></li><li><span data-i18n="agent_step3">Build the chatbot and test answers with source references</span></li></ol>
+            <ol><li><span data-i18n="agent_step1">Reuse authorized access or register and save a separate Free workspace</span></li><li><span data-i18n="agent_step2">Create a dataset, upload files and check parsing</span></li><li><span data-i18n="agent_step3">Build the chatbot and test answers with source references</span></li></ol>
             <p class="agent-access-result" data-i18n="agent_result">Configured in Swipies. Managed from your chat.</p>
           </div>
         </div>
       </div>
       <div class="agent-access-prompt-box">
         <h3 data-i18n="agent_prompt_label">Give your AI this starting point</h3>
-        <p id="agent-task-prompt" data-i18n="agent_prompt">Read https://swipies.app/llms.txt and connect Swipies using its documented MCP or API access. Reuse my existing authorized workspace if available; otherwise follow the documented Free service-account setup. Help me create a knowledge base and support chatbot from the documents I provide.</p>
+        <p id="agent-task-prompt" data-i18n="agent_prompt">Read https://swipies.app/llms.txt. Use your authorized HTTPS or network-enabled code tools directly. Reuse my existing authorized Swipies account when available; for a new separate workspace, privately persist a random registration secret and call bootstrap yourself. Discover the operations, then create a knowledge base and support chatbot from my documents. Do not require manual MCP setup if you can perform the documented HTTP flow. Follow your host permissions.</p>
         <div class="agent-access-doc-links"><a href="/llms.txt" data-i18n="agent_machine">Instructions for AI agents</a><a href="https://api.swipies.app/api/v1/agent-access/manifest" data-i18n="agent_api">API discovery</a></div>
       </div>
       <p class="agent-access-branding" data-i18n="agent_branding">Free outputs include Swipies branding. Active Plus and Pro subscriptions can omit it.</p>
@@ -3738,7 +3736,7 @@
       <div class="faq-list">
         <div class="faq-item">
           <button class="faq-question"><span data-i18n="agent_faq_q">Can I manage Swipies directly from an external AI assistant?</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-          <div class="faq-answer"><div class="faq-answer-inner" data-i18n="agent_faq_a">Yes. Connect an MCP-compatible client once, or use an assistant with API tools. It can discover the available tenant operations and manage agents, chatbots, datasets, documents and supported connections. The stdio client can register a separate Free service account automatically; existing customers can use their own API key. External credentials and client permissions still apply. Admin actions, payments and Ads are outside the current MCP catalog.</div></div>
+          <div class="faq-answer"><div class="faq-answer-inner" data-i18n="agent_faq_a">Yes. An assistant with authorized HTTPS/API tools can register a separate Free account itself, keep its identity and manage available tenant resources without manual MCP installation. Existing accounts use their own authorized credentials. Host permissions, external credentials and quotas apply. Admin actions, payments and Ads are outside the current generic MCP catalog.</div></div>
         </div>
 
         <div class="faq-item">
@@ -4555,7 +4553,7 @@
   "agent_hero": "New: manage Swipies from your AI chat →",
   "agent_eyebrow": "Swipies × your AI assistant",
   "agent_title": "Your AI chat. Your Swipies workspace.",
-  "agent_sub": "Ask Codex, Claude Code, Cursor or another MCP-compatible assistant to build and manage your agents, chatbots and knowledge bases. It works through the Swipies API, directly from your conversation.",
+  "agent_sub": "Ask an assistant with HTTPS or network-enabled code to create agents, chatbots and knowledge bases. It can register a separate Free workspace itself and work through the Swipies API from your conversation.",
   "agent_cap1": "Create and update agents and chatbots",
   "agent_cap2": "Upload documents, build datasets and run RAG search",
   "agent_cap3": "Configure available models, channels and authorized connectors",
@@ -4563,29 +4561,29 @@
   "agent_copy": "Copy instructions for my AI",
   "agent_copied": "Instructions copied",
   "agent_copy_error": "Select and copy the instructions below.",
-  "agent_note": "Connect your AI client once. Then describe the task in chat. The client needs MCP or API tools and keeps its own permission rules.",
+  "agent_note": "Your agent can use its existing authorized HTTP tools: save an identity, register and start working. Manual MCP setup is optional for this path. Client permission rules still apply.",
   "agent_example": "Example workflow",
   "agent_user_label": "You",
   "agent_task": "Create a support chatbot from my documents and check its answers against the sources.",
   "agent_ai_label": "Your AI assistant + Swipies",
-  "agent_step1": "Discover available tools and use your workspace",
+  "agent_step1": "Reuse authorized access or register and save a separate Free workspace",
   "agent_step2": "Create a dataset, upload files and check parsing",
   "agent_step3": "Build the chatbot and test answers with source references",
   "agent_result": "Configured in Swipies. Managed from your chat.",
   "agent_prompt_label": "Give your AI this starting point",
-  "agent_prompt": "Read https://swipies.app/llms.txt and connect Swipies using its documented MCP or API access. Reuse my existing authorized workspace if available; otherwise follow the documented Free service-account setup. Help me create a knowledge base and support chatbot from the documents I provide.",
+  "agent_prompt": "Read https://swipies.app/llms.txt. Use your authorized HTTPS or network-enabled code tools directly. Reuse my existing authorized Swipies account when available; for a new separate workspace, privately persist a random registration secret and call bootstrap yourself. Discover the operations, then create a knowledge base and support chatbot from my documents. Do not require manual MCP setup if you can perform the documented HTTP flow. Follow your host permissions.",
   "agent_branding": "Free outputs include Swipies branding. Active Plus and Pro subscriptions can omit it.",
   "agent_machine": "Instructions for AI agents",
   "agent_api": "API discovery",
   "agent_faq_q": "Can I manage Swipies directly from an external AI assistant?",
-  "agent_faq_a": "Yes. Connect an MCP-compatible client once, or use an assistant with API tools. It can discover the available tenant operations and manage agents, chatbots, datasets, documents and supported connections. The stdio client can register a separate Free service account automatically; existing customers can use their own API key. External credentials and client permissions still apply. Admin actions, payments and Ads are outside the current MCP catalog."
+  "agent_faq_a": "Yes. An assistant with authorized HTTPS/API tools can register a separate Free account itself, keep its identity and manage available tenant resources without manual MCP installation. Existing accounts use their own authorized credentials. Host permissions, external credentials and quotas apply. Admin actions, payments and Ads are outside the current generic MCP catalog."
 });
     Object.assign(T.ru, {
   "agent_nav": "Управление через ИИ",
   "agent_hero": "Новое: управляйте Swipies из ИИ-чата →",
   "agent_eyebrow": "Swipies × ваш ИИ-ассистент",
   "agent_title": "Ваш ИИ-чат. Ваша платформа Swipies.",
-  "agent_sub": "Попросите Codex, Claude Code, Cursor или другого ассистента с поддержкой MCP создавать агентов, чатботов и базы знаний. Он управляет Swipies через API прямо из вашей переписки.",
+  "agent_sub": "Попросите ассистента с HTTPS-инструментами или кодом с сетевым доступом создать агентов, чатботов и базы знаний. Он может сам зарегистрировать отдельный Free-аккаунт и работать через API прямо из вашей переписки.",
   "agent_cap1": "Создание и настройка агентов и чатботов",
   "agent_cap2": "Загрузка документов, датасеты и поиск по вашим данным",
   "agent_cap3": "Настройка доступных моделей, каналов и подключённых источников",
@@ -4593,29 +4591,29 @@
   "agent_copy": "Скопировать задание для ИИ",
   "agent_copied": "Задание скопировано",
   "agent_copy_error": "Выделите и скопируйте задание ниже.",
-  "agent_note": "Подключите ИИ-клиент один раз, затем описывайте задачи в чате. Нужна поддержка MCP или API-инструментов; правила доступа самого клиента сохраняются.",
+  "agent_note": "Агент использует свои разрешённые HTTP-инструменты: сохраняет личность, регистрируется и начинает работу. Ручная настройка MCP для этого пути не нужна. Правила ИИ-клиента сохраняются.",
   "agent_example": "Пример работы",
   "agent_user_label": "Вы",
   "agent_task": "Создай чатбота поддержки по моим документам и проверь его ответы по источникам.",
   "agent_ai_label": "Ваш ИИ-ассистент + Swipies",
-  "agent_step1": "Находит доступные инструменты и использует ваш аккаунт",
+  "agent_step1": "Использует настроенный доступ или сам регистрирует и сохраняет отдельный Free-аккаунт",
   "agent_step2": "Создаёт датасет, загружает файлы и проверяет обработку",
   "agent_step3": "Собирает чатбота и проверяет ответы со ссылками на документы",
   "agent_result": "Создано в Swipies. Управляется из вашего чата.",
   "agent_prompt_label": "Дайте своему ИИ эту инструкцию",
-  "agent_prompt": "Прочитай https://swipies.app/llms.txt и подключи Swipies через описанный там MCP или API. Используй мой существующий аккаунт, если доступ к нему уже настроен; иначе следуй инструкции автоматического создания отдельного Free-аккаунта. Помоги создать базу знаний и чатбота поддержки из документов, которые я предоставлю.",
+  "agent_prompt": "Прочитай https://swipies.app/llms.txt. Используй свои разрешённые HTTPS-инструменты или код с сетевым доступом. Если доступ к моему существующему аккаунту Swipies уже настроен, используй его; для новой отдельной рабочей области сам приватно сохрани случайный регистрационный секрет и вызови bootstrap. Найди доступные операции и создай базу знаний и чатбота поддержки по моим документам. Не требуй ручной настройки MCP, если можешь выполнить описанный HTTP-путь. Соблюдай правила своего ИИ-клиента.",
   "agent_branding": "В Free ответы содержат подпись Swipies. Действующие подписки Plus и Pro позволяют её убрать.",
   "agent_machine": "Инструкции для ИИ-агентов",
   "agent_api": "Описание API",
   "agent_faq_q": "Можно ли управлять Swipies прямо из внешнего ИИ-ассистента?",
-  "agent_faq_a": "Да. Один раз подключите MCP-клиент или используйте ассистента с API-инструментами. Он сможет найти доступные операции аккаунта и управлять агентами, чатботами, датасетами, документами и поддерживаемыми подключениями. Stdio-клиент умеет автоматически создавать отдельный Free-аккаунт; для существующего аккаунта используется его API-ключ. Для внешних источников нужны ваши доступы, а правила ИИ-клиента сохраняются. Администрирование, платежи и Ads не входят в текущий каталог MCP."
+  "agent_faq_a": "Да. Ассистент с разрешёнными HTTPS/API-инструментами может сам зарегистрировать отдельный Free-аккаунт, сохранить свою личность и управлять доступными ресурсами без ручной установки MCP. Для существующего аккаунта нужны его настроенные доступы. Правила ИИ-клиента, внешние доступы и квоты сохраняются. Администрирование, платежи и Ads пока вне общего каталога MCP."
 });
     Object.assign(T.uz, {
   "agent_nav": "AI orqali boshqarish",
   "agent_hero": "Yangi: Swipies’ni AI chatingizdan boshqaring →",
   "agent_eyebrow": "Swipies × sizning AI yordamchingiz",
   "agent_title": "Sizning AI chatingiz. Sizning Swipies platformangiz.",
-  "agent_sub": "Codex, Claude Code, Cursor yoki MCP’ni qo‘llab-quvvatlaydigan yordamchidan agentlar, chatbotlar va bilim bazalarini yaratishni so‘rang. U Swipies’ni API orqali bevosita suhbatingizdan boshqaradi.",
+  "agent_sub": "HTTPS vositalari yoki tarmoqqa kira oladigan kodi bor yordamchidan agentlar, chatbotlar va bilim bazalarini yaratishni so‘rang. U alohida Free akkauntini o‘zi yaratib, suhbatingizdan API orqali ishlashi mumkin.",
   "agent_cap1": "Agent va chatbotlarni yaratish va sozlash",
   "agent_cap2": "Hujjat yuklash, datasetlar va RAG qidiruv",
   "agent_cap3": "Mavjud modellar, kanallar va ruxsat berilgan ulanishlarni sozlash",
@@ -4623,22 +4621,22 @@
   "agent_copy": "AI uchun topshiriqni nusxalash",
   "agent_copied": "Topshiriq nusxalandi",
   "agent_copy_error": "Quyidagi topshiriqni belgilab, nusxalang.",
-  "agent_note": "AI klientini bir marta ulang, so‘ng vazifalarni chatda yozing. Klient MCP yoki API vositalarini qo‘llashi kerak; uning ruxsat qoidalari saqlanadi.",
+  "agent_note": "Agent o‘zining ruxsat etilgan HTTP vositalaridan foydalanadi: shaxsiy kalitini saqlaydi, ro‘yxatdan o‘tadi va ishlaydi. Bu yo‘l uchun MCP’ni qo‘lda sozlash shart emas. Klientning ruxsat qoidalari saqlanadi.",
   "agent_example": "Ishlash namunasi",
   "agent_user_label": "Siz",
   "agent_task": "Hujjatlarim asosida yordam chatbotini yarat va javoblarini manbalar bilan tekshir.",
   "agent_ai_label": "Sizning AI yordamchingiz + Swipies",
-  "agent_step1": "Mavjud vositalarni topadi va akkauntingizdan foydalanadi",
+  "agent_step1": "Sozlangan ruxsatdan foydalanadi yoki alohida Free akkauntini o‘zi yaratib saqlaydi",
   "agent_step2": "Dataset yaratadi, fayllarni yuklaydi va qayta ishlashni tekshiradi",
   "agent_step3": "Chatbot yaratadi va javoblarni hujjat manbalari bilan tekshiradi",
   "agent_result": "Swipies’da yaratildi. Chatingizdan boshqariladi.",
   "agent_prompt_label": "AI yordamchingizga ushbu ko‘rsatmani bering",
-  "agent_prompt": "https://swipies.app/llms.txt manzilini o‘qi va hujjatlashtirilgan MCP yoki API orqali Swipies’ni ula. Mavjud akkauntimga ruxsat sozlangan bo‘lsa, undan foydalan; aks holda alohida Free akkauntini avtomatik yaratish qo‘llanmasiga amal qil. Men taqdim etadigan hujjatlardan bilim bazasi va yordam chatbotini yaratishga yordam ber.",
+  "agent_prompt": "https://swipies.app/llms.txt manzilini o‘qi. Ruxsat etilgan HTTPS vositalaring yoki tarmoqqa kira oladigan koding orqali ishlagin. Mavjud Swipies akkauntimga ruxsat sozlangan bo‘lsa, undan foydalan; yangi alohida ish maydoni uchun tasodifiy ro‘yxat sirini maxfiy saqlab, bootstrap’ni o‘zing chaqir. Mavjud amallarni topib, hujjatlarimdan bilim bazasi va yordam chatbotini yarat. HTTP yo‘lini bajara olsang, MCP’ni qo‘lda sozlashni talab qilma. Klienting ruxsat qoidalariga rioya qil.",
   "agent_branding": "Free javoblarida Swipies belgisi bo‘ladi. Faol Plus va Pro obunalari uni olib tashlash imkonini beradi.",
   "agent_machine": "AI agentlari uchun ko‘rsatmalar",
   "agent_api": "API tavsifi",
   "agent_faq_q": "Swipies’ni tashqi AI yordamchisidan boshqarish mumkinmi?",
-  "agent_faq_a": "Ha. MCP klientini bir marta ulang yoki API vositalari bor yordamchidan foydalaning. U akkauntdagi mavjud amallarni topib, agentlar, chatbotlar, datasetlar, hujjatlar va qo‘llab-quvvatlanadigan ulanishlarni boshqaradi. Stdio klienti alohida Free akkauntini avtomatik yaratishi mumkin; mavjud akkaunt uchun uning API kaliti ishlatiladi. Tashqi xizmatlarga ruxsat va klientning o‘z qoidalari saqlanadi. Administrator amallari, to‘lovlar va Ads joriy MCP katalogiga kirmaydi."
+  "agent_faq_a": "Ha. Ruxsat etilgan HTTPS/API vositalari bor yordamchi alohida Free akkauntini o‘zi yaratib, shaxsiy kalitini saqlab, MCP’ni qo‘lda o‘rnatmasdan mavjud resurslarni boshqarishi mumkin. Mavjud akkaunt uchun uning ruxsati kerak. Klient qoidalari, tashqi ruxsatlar va kvotalar saqlanadi. Administrator amallari, to‘lovlar va Ads hozircha umumiy MCP katalogiga kirmaydi."
 });
 
     /* ===== STATE & LANGUAGE INTERACTIVE SYSTEM ===== */

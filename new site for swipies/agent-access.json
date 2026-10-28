@@ -35,7 +35,8 @@
     "authentication": "persisted locally generated registration_secret",
     "registration_secret_generation": "secrets.token_urlsafe(32)",
     "account_plan": "free",
-    "reconnect": "Reuse the same locally persisted secret; do not register a new account per request."
+    "reconnect": "Reuse the same locally persisted secret; do not register a new account per request.",
+    "client_requirements": "Authorized HTTPS POST and private durable storage; no preconfigured MCP connector is required."
   },
   "operations": {
     "url": "https://api.swipies.app/api/v1/agent-access/operations",
@@ -54,7 +55,7 @@
     "tenant-scoped resource management"
   ],
   "boundaries": [
-    "An AI client must have MCP or API tools and be configured to use them. A documentation URL does not install a connector.",
+    "Use existing authorized HTTPS/code tools directly; host MCP installation is optional for this path. A documentation URL cannot add tools to a webpage-reading-only session.",
     "Existing customers must use their existing account API key to access that tenant and subscription.",
     "Private databases, providers and OAuth services require valid authorized credentials.",
     "Admin operations, payments, token management and Ads are not exposed by the current generic MCP catalog.",
@@ -103,5 +104,39 @@
     ],
     "collects_credentials": false,
     "installs_automatically": false
+  },
+  "preferred_access": {
+    "mode": "direct-https-bootstrap",
+    "requires_host_mcp_installation": false,
+    "requires": "Authorized HTTPS request tools or code with network access and private durable credential storage.",
+    "account_selection": "Reuse authorized existing-account credentials for existing resources; bootstrap only a new separate Free workspace.",
+    "sequence": [
+      "read_manifest",
+      "persist_random_registration_secret",
+      "bootstrap_or_reconnect",
+      "initialize_mcp_over_https",
+      "discover_tools_and_operations",
+      "describe_then_execute",
+      "verify_results"
+    ],
+    "instructions": "https://swipies.app/llms-full.txt",
+    "no_api_tools": "A webpage URL cannot install tools or grant account access in the AI host."
+  },
+  "documentation_updated_on": "2026-10-28",
+  "direct_https_verification": {
+    "date": "2026-10-28",
+    "checks_passed": 17,
+    "scope": [
+      "new isolated Free registration without preconfigured MCP or key",
+      "identity persistence and reconnect",
+      "operation discovery",
+      "dataset creation and document upload",
+      "parsing to completion",
+      "agent execution",
+      "chatbot answer with document references",
+      "Free attribution"
+    ],
+    "disposable_resources_removed": true,
+    "client_environment": "Python code making ordinary HTTPS requests; no host MCP installation used"
   }
 }

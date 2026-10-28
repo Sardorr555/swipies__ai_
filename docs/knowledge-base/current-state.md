@@ -161,3 +161,14 @@ custom installations preserve their origins. Validation: 45 frontend tests,
 is being published with owner authorization; verify the deployment workflow
 before claiming live success. See the [routing report](handoffs/2026-10-28-primary-portal-routing.md)
 for release requirements and the local Bash/Nginx validation limitation.
+
+
+### Direct HTTPS automatic onboarding (2026-10-28)
+
+Public instructions now prioritize automatic Free registration through existing
+authorized HTTPS/code tools; installing a host MCP connection is optional for
+this path. A new isolated Free identity passed 17 live assertions through
+document-grounded chatbot replies, attribution and reconnect. Test resources
+were removed. See the [release record](handoffs/2026-10-28-direct-https-agent-onboarding.md)
+for exact scope and publication procedure. Runtime endpoints and permissions
+are unchanged; Ads/admin/payment exclusions remain.

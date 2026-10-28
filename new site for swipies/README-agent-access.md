@@ -69,3 +69,15 @@ https://cursor.com/help/customization/mcp.
 Existing account keys belong in the actual MCP process environment before first
 use. A local path field never accepts or configures a paid account credential.
 The generator does not claim a successful connection or enable host tools.
+
+
+## Automatic HTTPS onboarding (2026-10-28)
+
+The default documentation entry is direct HTTPS bootstrap, before optional
+host MCP installation. Keep the same sequence in llms.txt/full, the automatic
+section of agents.html, discovery JSON and visible EN/RU/UZ homepage copy.
+An HTTP-capable assistant needs no manual MCP installation to send JSON-RPC.
+Do not imply that webpage-only sessions acquire tools, that a new Free account
+inherits paid resources, or that Ads/admin/payment operations are exposed.
+New-account verification must persist its identity privately, use only synthetic
+test data, inspect operation docs and remove only its own disposable resources.

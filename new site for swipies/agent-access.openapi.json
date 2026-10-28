@@ -3,7 +3,7 @@
   "info": {
     "title": "Swipies Agent Access gateway",
     "version": "1.0.0",
-    "description": "The discovery, service-account bootstrap and MCP gateway only. Tenant operations are authenticated and discovered at runtime; this is not a schema for every Swipies API.",
+    "description": "The discovery, service-account bootstrap and MCP gateway only. Tenant operations are authenticated and discovered at runtime; this is not a schema for every Swipies API. Agents with authorized HTTPS tools can persist a registration secret, bootstrap a separate Free tenant and call JSON-RPC directly; installing a host MCP connection is optional for this path.",
     "contact": {
       "url": "https://swipies.app/agents.html"
     }

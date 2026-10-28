@@ -10,10 +10,21 @@
 </head><body>
 <header><a href="/">Swipies AI</a><nav class="links" aria-label="Documentation"><a href="/#agent-access">AI control</a><a href="/llms.txt">For AI agents</a><a href="/agent-access.openapi.json">OpenAPI</a></nav></header>
 <main><p class="eyebrow">EXTERNAL AI CONTROL · MCP + API</p><h1>Connect your AI assistant to Swipies.</h1>
-<p class="lead">Build agents, chatbots and knowledge bases from the AI chat you already use. Configure access once; your assistant discovers the available operations and executes them in your Swipies workspace.</p>
+<p class="lead">An assistant with authorized HTTPS or network-enabled code can register its own separate Free workspace and perform your task directly. It can also reuse your existing authorized account. No manual MCP installation is required for the direct HTTP path.</p>
 <p lang="ru">Для ИИ: прочитайте <a href="/llms-full.txt">полную инструкцию подключения</a>. Для управления нужны MCP или API-инструменты в вашем ИИ-клиенте.</p>
 <p lang="uz">AI yordamchilari uchun: <a href="/llms-full.txt">to‘liq ulash ko‘rsatmalarini</a> o‘qing. Klient MCP yoki API vositalarini qo‘llashi kerak.</p>
 <div class="links"><a href="/llms-full.txt">Full agent instructions</a><a href="/agent-access.json">Discovery JSON</a><a href="https://api.swipies.app/api/v1/agent-access/manifest">Live server manifest</a></div>
+<section id="automatic-access" aria-labelledby="automatic-title">
+<h2 id="automatic-title">Start directly: your agent registers over HTTPS</h2>
+<p>Give your assistant a task and <a href="/llms.txt">the Swipies instructions</a>. With authorized HTTP tools or network-enabled code, it can do the following itself:</p>
+<ol><li>Read the live manifest.</li><li>Privately generate and persist a random identity for a new workspace, or reuse authorized access to your existing account.</li><li>Call <code>POST https://api.swipies.app/api/v1/agent-access/bootstrap</code> to obtain a separate Free account and API key.</li><li>Send authenticated JSON-RPC to <code>https://api.swipies.app/api/v1/agent-access/mcp</code>, discover the operations and execute the task.</li></ol>
+<p lang="ru"><strong>Агент регистрируется сам.</strong> Если у него есть разрешённые HTTPS-инструменты или код с сетевым доступом, ручная регистрация и настройка MCP для этого пути не нужны. Он сохраняет свою личность и повторно использует тот же аккаунт. Для существующего Plus/Pro нужен доступ именно к этому аккаунту.</p>
+<p lang="uz"><strong>Agent o‘zi ro‘yxatdan o‘tadi.</strong> Ruxsat etilgan HTTPS vositalari yoki tarmoqqa kira oladigan kodi bo‘lsa, bu yo‘l uchun qo‘lda ro‘yxatdan o‘tish va MCP sozlash shart emas. Agent shaxsiy kalitini saqlab, keyingi safar o‘sha akkauntga qaytadi.</p>
+<p class="note">The agent must keep credentials private and follow its host permissions. A session that can only read webpages cannot install tools by visiting this page. Free workspaces are separate and include Swipies attribution.</p>
+<p><a href="/llms-full.txt">Read the complete executable request sequence</a></p>
+</section>
+<h2>Optional: configure a host MCP connection</h2>
+<p>The generator below is for clients that need a configured MCP server. It is not a prerequisite when your assistant already has direct HTTPS tools.</p>
 <div id="swipies-setup" data-standalone="true" aria-labelledby="sw-setup-title">
   <h3 id="sw-setup-title" data-setup-i18n="title">Connect your AI client</h3>
   <p data-setup-i18n="intro">Set up once, then describe your tasks in chat.</p>
@@ -47,7 +58,7 @@
 </div>
 
 <h2>1. Choose your workspace</h2><p><strong>Existing customer:</strong> use the existing account API key through your client's secret settings (<code>SWIPIES_API_KEY</code> for the stdio client). This keeps your datasets, agents and subscription.</p>
-<p><strong>New workspace:</strong> the stdio client can create an isolated Free service account automatically. It saves a random identity locally and reconnects to the same account on later runs. No browser registration or copied API key is required for this flow.</p>
+<p><strong>New workspace:</strong> the direct HTTPS bootstrap or stdio client can create an isolated Free service account automatically. It saves a random identity locally and reconnects to the same account on later runs. No browser registration or copied API key is required for this flow.</p>
 <p class="note">A newly registered account cannot access your other accounts or inherit Pro. Keep the local identity file private and backed up. This flow has no email recovery or account claiming.</p>
 <h2>2. Connect an MCP-capable client</h2><p>Requires Python 3.10+; no third-party Python packages. Download the client to your machine and inspect it using your host's normal policy.</p>
 <p><a href="/downloads/swipies_agent_client.py.txt" download="swipies_agent_client.py">Download swipies_agent_client.py</a> — if your browser saves a .txt extension, rename the file to <code>swipies_agent_client.py</code>.</p>
