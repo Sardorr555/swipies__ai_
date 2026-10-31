@@ -172,3 +172,7 @@ document-grounded chatbot replies, attribution and reconnect. Test resources
 were removed. See the [release record](handoffs/2026-10-28-direct-https-agent-onboarding.md)
 for exact scope and publication procedure. Runtime endpoints and permissions
 are unchanged; Ads/admin/payment exclusions remain.
+
+### Landing admin period comparison (2026-10-31)
+
+Local changes on swipies_26 add factual current/reference metrics, hour/day/week/month timezone groups, filtered/paginated traffic/users/leads/UTM and complete Excel/CSV exports with date/search metadata. New reporting routes require a current platform superuser and preserve normal login/email verification. Payment reporting uses creation date/current PAID status, deduplicates mirrors and excludes advertiser deposits. No schema migration or production deployment has been performed. See [implementation, validation and release notes](landing-admin-analytics.md).

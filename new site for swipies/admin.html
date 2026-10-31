@@ -925,6 +925,7 @@ input:checked + .slider:before { transform: translateX(20px); }
   .header-left .live-badge { display: none; }
 }
 </style>
+<link rel="stylesheet" href="/admin-analytics.css?v=20261031-1">
 </head>
 <body>
 
@@ -961,7 +962,7 @@ input:checked + .slider:before { transform: translateX(20px); }
       <div class="form-group">
         <label>Username / Email</label>
         <div class="input-container">
-          <input type="text" id="username" required autocomplete="username" placeholder="e.g. admin">
+          <input type="text" id="username" required autocomplete="username" placeholder="Platform superuser email">
         </div>
       </div>
       <div class="form-group">
@@ -1114,7 +1115,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             <svg style="width:14px;height:14px;color:var(--blue)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
           </div>
           <div class="stat-value" id="statUsers">-</div>
-          <div class="stat-trend up" id="statUsersTrend">↑ 12.4% <span style="color:var(--text-dim);font-weight:400;margin-left:4px">vs prev</span></div>
+          <div class="stat-trend up" id="statUsersTrend">—</div>
         </div>
         <div class="stat-card">
           <div class="stat-header">
@@ -1122,7 +1123,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             <svg style="width:14px;height:14px;color:var(--accent)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           </div>
           <div class="stat-value" id="statSessions">-</div>
-          <div class="stat-trend up" id="statSessionsTrend">↑ 8.2% <span style="color:var(--text-dim);font-weight:400;margin-left:4px">vs prev</span></div>
+          <div class="stat-trend up" id="statSessionsTrend">—</div>
         </div>
         <div class="stat-card">
           <div class="stat-header">
@@ -1130,7 +1131,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             <svg style="width:14px;height:14px;color:var(--red)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 22H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v6"/><path d="M16 16l4-4 4 4"/><path d="M20 12v10"/></svg>
           </div>
           <div class="stat-value" id="statBounce">-</div>
-          <div class="stat-trend down" id="statBounceTrend">↓ 2.1% <span style="color:var(--text-dim);font-weight:400;margin-left:4px">vs prev</span></div>
+          <div class="stat-trend down" id="statBounceTrend">—</div>
         </div>
         <div class="stat-card">
           <div class="stat-header">
@@ -1138,7 +1139,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             <svg style="width:14px;height:14px;color:var(--green)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div class="stat-value" id="statDuration">-</div>
-          <div class="stat-trend up" id="statDurationTrend">↑ 4.6% <span style="color:var(--text-dim);font-weight:400;margin-left:4px">vs prev</span></div>
+          <div class="stat-trend up" id="statDurationTrend">—</div>
         </div>
       </div>
 
@@ -1825,24 +1826,9 @@ function rsaPsw(password) {
 
 async function handleLogin(event) {
   event.preventDefault();
-  const user = document.getElementById('username').value.trim();
-  const pwd = document.getElementById('password').value;
-  const errorMsg = document.getElementById('loginError');
-  
-  // Fallback to local credential check since the landing is now a separate service
-  const savedPassword = localStorage.getItem('swipies_admin_pwd') || 'swipies2025';
-  if ((user === 'admin' || user.includes('@')) && pwd === savedPassword) {
-    localStorage.setItem('swipies_admin_session', 'authenticated');
-    // Note: local login has no backend JWT — API-protected endpoints (leads, analytics) won't be accessible
-    errorMsg.style.display = 'none';
-    showToast('Local Mode', 'Logged in locally. For full API access, use your email address.', 'info');
-    setTimeout(() => {
-      checkAuth();
-    }, 1000);
-  } else {
-    errorMsg.style.display = 'block';
-    showToast('Login Failed', 'Incorrect credentials.', 'error');
-  }
+  const error = document.getElementById('loginError');
+  error.textContent = 'Reporting module unavailable. Reload this page or check the deployment.';
+  error.style.display = 'block';
 }
 
 function handleLogout() {
@@ -2481,7 +2467,7 @@ async function fetchRealGA4Data(period) {
 
 async function fetchRealYmData(period) {
   const ymId = localStorage.getItem('swipies_ym_counter_id') || '106098534';
-  const ymToken = localStorage.getItem('swipies_ym_oauth_token') || 'y0__wgBELnapf8GGITgRSDb2K6tGONdSMrx_H9z1BiPLXe2H5x89ro3';
+  const ymToken = localStorage.getItem('swipies_ym_oauth_token') || '';
   
   if (!ymId || !ymToken) {
     throw new Error("Yandex Metrika is not configured. Please add your credentials in Settings.");
@@ -2770,9 +2756,9 @@ function populateDashboardUI(data) {
 */
 
 // Set global Chart.js aesthetic configs
-Chart.defaults.color = '#8b949e';
-Chart.defaults.font.family = 'Geist, -apple-system, sans-serif';
-Chart.defaults.borderColor = '#1a2236';
+if (window.Chart) { Chart.defaults.color = '#8b949e'; }
+if (window.Chart) { Chart.defaults.font.family = 'Geist, -apple-system, sans-serif'; }
+if (window.Chart) { Chart.defaults.borderColor = '#1a2236'; }
 
 function drawOverviewTrendChart(timeline) {
   const ctx = document.getElementById('overviewTrendChart').getContext('2d');
@@ -3446,7 +3432,7 @@ function loadSettings() {
   let serviceEmail = localStorage.getItem('swipies_ga_service_email');
   let serviceKey = localStorage.getItem('swipies_ga_service_key');
   
-  const defaultServiceKeyBase64 = "eyJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsICJwcm9qZWN0X2lkIjogImJldG1hcmtldC1iMjg3OSIsICJwcml2YXRlX2tleV9pZCI6ICI3ZDRlM2I2NGU0ZGQ3OTBlMmEyNDI1ZjQwYjlmZTg5MjFjMjkxZjQ3IiwgInByaXZhdGVfa2V5IjogIi0tLS0tQkVHSU4gUFJJVkFURSBLRVktLS0tLVxuTUlJRXZnSUJBREFOQmdrcWhraUc5dzBCQVFFRkFBU0NCS2d3Z2dTa0FnRUFBb0lCQVFETERWU0E4UVhHaDBVTFxuK1hIYitZWk1TRm1ScWRUUWdWQkpKS2tYNVlsajkrQWdxdjFsek5vajA3ZFk4cXZINEV3ODNwWXJDRUJTWlRFM1xucmRiRFdONVNCcnJsa2owVkFpOERtYXR6aDVXWElVVDAwR0tYb05ESHNXYlZtRGl4UGo3UlZhOVBlRUI3REpKN1xuNXZPYnEzQlY0M0pyQzU0MS9vMUMzZjhMRjFtRTRIWlFwUGIyUGFrZ2VWNjlXc2puVG1ZYWxncDJ2ZFdYK3lRK1xuZHc5RW9aOXhLbmNYZmhXeENDdzNvL0lDMmUrNlZXMWNGR3NvT3g5ODdwbVJEWEVqSlZGQjM3ejZBd3hsUk10MVxuajFuSDJ0WlA3cVZPemd3eVIzVnIzcXZtRXFibDd5OVZ3MDdKNUlsVTZDbkZBQkJMUmJIVkhZd3A1R25NczBEMlxuV3AyU1BoQUZBZ01CQUFFQ2dnRUFIRjZ6d2RoQWNGUG5YUnhGd1BCYUhUKzJsQUxnamNsT013b0E2TlVwOUdKbVxuV1pUS2JDREtad1c3c1BKOFRIbVZsL2p1NDZXaGZHR2x3TVowZCtnV0YrdlhkOHFPUE9pSWg3NCt3RU9LQTdXaVxuOFhtZXdpOWhQRkFZWFhEZWxaVVcweDlmcTlZblhEU09KWldkSlNZM2xIM1U0Z2xHTDZadDRqdldMZkhkNWhIelxuNkVOSWxQcHZtcUE0SGtWcDJhc24vMThLOXlwRDNRWkZyTFFIbDVkeGJDeFAvb0VTdmk5TWF0MmY4amNGelM4UlxuYUNXTjRvZURMeTVBdTZCQjBrMTFKNUxqNFF6NDdTTVNLci9GdC9BeG5iWlVvQUJiSGcwTmluVEFNemYwN0NJUFxuN1VUS05XcnZyYlJsTnVVUGVsMUo4UldreThnRzZ1SmQ2YS9NWGowcHVRS0JnUURRVVZPTUZ5QlZjZDkvTjJVbFxub1dmR05reTFhWjQ2TG5JajJIR1ZKaGkyUWw2OWVTYVJSUkVNVnVyMmZZd3dSempPaFdZQ1JvUDJQV25DdEpNRlxubVZNUmk5VDhlMGdXa2JTM3JmVEFNU1lsVHErb1ZIdVZvMUZobEZvUjg2QWRSMGtCcTNjcWlpWFRJM0o2YlZVNVxuQjdjSWI1Z0RleTdSWTRNZllMN1dYZDBZS3dLQmdRRDVoM1V1QnpJNUY2dmJiWUFRQ1NyR3ZRRXhGMzFHTGZaeVxuTFpMWGh3ZlpHOFgyQ2xkQ1BRMFFXT3ZUQmhHWjFOUHVzSGJQWkNWZzhIT1FWaVF4OHNhNkVCQ1ZHeklLMlB5WFxuYmJaSW9ZNU8vTS9EUTRHOGhCdmVneDFZSXFScENYNnVnMnFFc3BCQXBBd1hOMUprQlBkaUNiT0V1b0RQYUFQaFxuTkpwbHVXQ3dqd0tCZ1FDbFhXbXM4MDYvaFQyZGh5UEwwMnpGYzZWQS9TNlZrUGthYTE3K3Z0Y3ZGMUNOcC9adFxucXgzMVphbnZNWXB2YUpvM2xyMTdZTzZ3TWVBYXA2MXQ3R0I4dFR2RmtUZVFjdW02UldUY2pDZHp4aHE2elJXdFxubTQrbW5sVkJtdHVuWWtjYUJEcjhrZDJrMWFheWVNZ0dGWkcrS0pmTGE2V21vaEFjZ0hmOVExV1hNUUtCZ1FDUlxuTVlhM3I2eERtRWlCdDZlS3JTcmMxV0Y2SlViWnJTajNxeGtFbkNldTV3QTdlQ3pwK0FnLytOM1B2bnBEWHBtclxuQzdjMldmbDkvS3ZoMHAzaENua2tEdkQzTWduZVVnQTRSTGlLYnFjVnd2bEpqMkJRUnpiSU5OYkFUL2dHdm1XZVxuT2cyakJSdjI0UDNBRElxK2REMVdLSHJ5d21ydFJJTHRhZVJsU0liQWRRS0JnRTFsb2pqYWlkcTlUa0dzVk9UQlxuRTF6QkE2Z25zWnJKR2hTc0p2SVV1VHpyR2hwZVZVRFB0aVY0MFA3MFF4TURtRHZYSm5DdXhKN2phYnM5ekRDUVxucnliOWFxSkFXNFJiajFHenByR1RFVC9QYkY4Q3BoVUpwVVAzR3hIV1hzYTc0MzYxdzNlU1pEVEFIM3NjK2NBQVxuVXdXdVM5YzA3Q0FuS0lsVzFhZGhiWm1EXG4tLS0tLUVORCBQUklWQVRFIEtFWS0tLS0tXG4iLCAiY2xpZW50X2VtYWlsIjogImJldG1hcmtldC1iMjg3OUBhcHBzcG90LmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiY2xpZW50X2lkIjogIjExNDIxODgwMzUzMjM0MjcyMjEzOCIsICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsICJ0b2tlbl91cmkiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCAiYXV0aF9wcm92aWRlcl94NTA5X2NlcnRfdXJsIjogImh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2JldG1hcmtldC1iMjg3OSU0MGFwcHNwb3QuZ3NlcnZpY2VhY2NvdW50LmNvbSIsICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20ifQ==";
+  const defaultServiceKeyBase64 = "";
   const defaultServiceKey = atob(defaultServiceKeyBase64);
 
   if (propertyId === null || propertyId === '') {
@@ -3475,7 +3461,7 @@ function loadSettings() {
   document.getElementById('settingGaId').value = propertyId;
   document.getElementById('settingGaMeasurementId').value = measurementId;
   document.getElementById('settingYmId').value = localStorage.getItem('swipies_ym_counter_id') || '106098534';
-  document.getElementById('settingYmToken').value = localStorage.getItem('swipies_ym_oauth_token') || 'y0__wgBELnapf8GGITgRSDb2K6tGONdSMrx_H9z1BiPLXe2H5x89ro3';
+  document.getElementById('settingYmToken').value = localStorage.getItem('swipies_ym_oauth_token') || '';
   document.getElementById('settingServiceEmail').value = serviceEmail;
   document.getElementById('settingServiceKey').value = serviceKey;
   document.getElementById('settingAnalyticsToggle').checked = localStorage.getItem('swipies_analytics_enabled') !== 'false';
@@ -3627,7 +3613,7 @@ async function testGa4Connection() {
 // Validate Yandex Metrika connection against proxy endpoint
 async function testYmConnection() {
   const ymId = document.getElementById('settingYmId').value.trim() || '106098534';
-  const ymToken = document.getElementById('settingYmToken').value.trim() || 'y0__wgBELnapf8GGITgRSDb2K6tGONdSMrx_H9z1BiPLXe2H5x89ro3';
+  const ymToken = document.getElementById('settingYmToken').value.trim() || '';
 
   if (!ymId) {
     showToast('Validation Error', 'Yandex Metrika Counter ID is required for testing.', 'error');
@@ -4171,5 +4157,6 @@ document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 });
 </script>
+<script src="/admin-analytics.js?v=20261031-1"></script>
 </body>
 </html>

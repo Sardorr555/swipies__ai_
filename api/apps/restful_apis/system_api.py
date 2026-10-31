@@ -1394,6 +1394,44 @@ async def admin_get_payment_transactions():
     return get_json_result(data=res)
 
 
+@manager.route("/admin/analytics/periods", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_landing_periods_report():
+    """Read-only, timezone-aware factual registration/payment comparison."""
+    if not current_user.is_superuser:
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR), 403
+    try:
+        from api.db.services.landing_analytics_service import report
+        from common.misc_utils import thread_pool_exec
+        result = await thread_pool_exec(report, dict(request.args))
+        response = get_json_result(data=result)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    except ValueError as error:
+        return get_json_result(data=False, message=str(error), code=RetCode.ARGUMENT_ERROR), 400
+    except Exception:
+        return get_json_result(data=False, message="Platform analytics unavailable.", code=RetCode.SERVER_ERROR), 503
+
+
+@manager.route("/admin/analytics/users", methods=["GET"])  # noqa: F821
+@login_required
+async def admin_landing_users_report():
+    """Filtered user records without authentication/provider/payment credentials."""
+    if not current_user.is_superuser:
+        return get_json_result(data=False, message="No authorization.", code=RetCode.AUTHENTICATION_ERROR), 403
+    try:
+        from api.db.services.landing_analytics_service import users_report
+        from common.misc_utils import thread_pool_exec
+        result = await thread_pool_exec(users_report, dict(request.args))
+        response = get_json_result(data=result)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    except ValueError as error:
+        return get_json_result(data=False, message=str(error), code=RetCode.ARGUMENT_ERROR), 400
+    except Exception:
+        return get_json_result(data=False, message="Platform user report unavailable.", code=RetCode.SERVER_ERROR), 503
+
+
 @manager.route("/admin/dashboard/overview", methods=["GET"])  # noqa: F821
 @manager.route("/admin/analytics/overview", methods=["GET"])  # noqa: F821
 @login_required

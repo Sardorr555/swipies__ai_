@@ -78,3 +78,5 @@ docs/knowledge-base/
 ## External AI clients (swipies_26)
 
 See [Agent access](agent-access.md) and [ADR-005](decisions/ADR-005-external-agent-access.md) for headless tenant management, automatic service-account registration and Plus/Pro-only branding removal.
+
+See [Landing administrator analytics](landing-admin-analytics.md) and [ADR-007](decisions/ADR-007-landing-period-reporting.md) for factual period comparisons, timezone grouping and filtered Excel/CSV exports. Implemented locally on swipies_26; deployment and live-provider checks are pending.

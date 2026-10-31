@@ -30,3 +30,5 @@
 - **Принято (Accepted):** Решение утверждено и обязательно для следования всеми разработчиками и AI-агентами.
 - **Заменено (Superseded):** Решение утратило актуальность и заменено более новым ADR (со ссылкой на новый документ).
 - **Отклонено (Rejected):** Решение отклонено после анализа рисков.
+
+- [ADR-007](ADR-007-landing-period-reporting.md): Shared factual-period reporting and filtered exports across the landing and platform APIs (2026-10-31; implemented locally, release pending).
