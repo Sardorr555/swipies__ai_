@@ -956,7 +956,7 @@ input:checked + .slider:before { transform: translateX(20px); }
   .header-left .live-badge { display: none; }
 }
 </style>
-<link rel="stylesheet" href="/admin-analytics.css?v=20261031-2">
+<link rel="stylesheet" href="/admin-analytics.css?v=20261031-4">
 </head>
 <body>
 
@@ -3288,49 +3288,48 @@ async function fetchRealYmData(period) {
 
 
 function populateDashboardUI(data) {
-  // Update Overview stats
-  document.getElementById('statUsers').textContent = data.users.toLocaleString();
-  document.getElementById('statSessions').textContent = data.sessions.toLocaleString();
-  document.getElementById('statBounce').textContent = data.bounce;
-  document.getElementById('statDuration').textContent = data.duration;
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+  setText('statUsers', data.users.toLocaleString());
+  setText('statSessions', data.sessions.toLocaleString());
+  setText('statBounce', data.bounce);
+  setText('statDuration', data.duration);
 
-  // Toggle trend indicators visibility based on active data source
+  // Ensure Visitors & Traffic trend subtitles remain visible
   const gaId = localStorage.getItem('swipies_ga_property_id');
   const serviceKey = localStorage.getItem('swipies_ga_service_key');
   const ymId = localStorage.getItem('swipies_ym_counter_id');
   const ymToken = localStorage.getItem('swipies_ym_oauth_token');
   const hasExternal = (gaId && serviceKey) || (ymId && ymToken);
   const showTrends = activeDataSource === 'db' || hasExternal;
-  const trends = document.querySelectorAll('.stat-trend');
-  trends.forEach(t => {
+  document.querySelectorAll('#visitorsTab .stat-trend').forEach(t => {
     t.style.display = showTrends ? 'block' : 'none';
   });
 
-  // Overview Labels
   const labelsText = activeDateRange === 'today' ? 'Today' : `Last ${activeDateRange.replace('days', '')} Days`;
-  document.getElementById('visitorsChartLabel').textContent = activeDateRange === 'custom' ? 'Custom Range' : labelsText;
+  setText('visitorsChartLabel', activeDateRange === 'custom' ? 'Custom Range' : labelsText);
 
-  // Conversions stats
-  document.getElementById('convDemoClicks').textContent = data.conversions.demo.toLocaleString();
-  document.getElementById('convSalesClicks').textContent = data.conversions.sales.toLocaleString();
-  document.getElementById('convFormSubmits').textContent = data.conversions.submit.toLocaleString();
+  if (document.getElementById('overviewTrendChart')) {
+    setText('convDemoClicks', data.conversions.demo.toLocaleString());
+    setText('convSalesClicks', data.conversions.sales.toLocaleString());
+    setText('convFormSubmits', data.conversions.submit.toLocaleString());
 
-  // Conversions conversion rates
-  const demoRate = data.sessions > 0 ? ((data.conversions.demo / data.sessions) * 100).toFixed(1) : '0.0';
-  const salesRate = data.sessions > 0 ? ((data.conversions.sales / data.sessions) * 100).toFixed(1) : '0.0';
-  const formRate = data.sessions > 0 ? ((data.conversions.submit / data.sessions) * 100).toFixed(1) : '0.0';
+    const demoRate = data.sessions > 0 ? ((data.conversions.demo / data.sessions) * 100).toFixed(1) : '0.0';
+    const salesRate = data.sessions > 0 ? ((data.conversions.sales / data.sessions) * 100).toFixed(1) : '0.0';
+    const formRate = data.sessions > 0 ? ((data.conversions.submit / data.sessions) * 100).toFixed(1) : '0.0';
 
-  document.getElementById('convDemoRate').textContent = `${demoRate}% Conversion Rate`;
-  document.getElementById('convSalesRate').textContent = `${salesRate}% Conversion Rate`;
-  document.getElementById('convFormRate').textContent = `${formRate}% Conversion Rate`;
+    setText('convDemoRate', `${demoRate}% Conversion Rate`);
+    setText('convSalesRate', `${salesRate}% Conversion Rate`);
+    setText('convFormRate', `${formRate}% Conversion Rate`);
+    drawOverviewTrendChart(data.timeline);
+    drawFunnelChart(data.sessions, data.conversions);
+    drawLanguageCharts(data.languages, data.timeline.labels);
+  }
 
-  // Draw Charts
-  drawOverviewTrendChart(data.timeline);
+  // Always render Visitors & Traffic charts and Top Visited Content Paths table
   drawAcquisitionCharts(data.channels, data.devices);
-  drawFunnelChart(data.sessions, data.conversions);
-  drawLanguageCharts(data.languages, data.timeline.labels);
-
-  // Render sub tables
   renderTopPagesTable(data.users);
 }
 
@@ -3345,7 +3344,9 @@ if (window.Chart) { Chart.defaults.font.family = 'Geist, -apple-system, sans-ser
 if (window.Chart) { Chart.defaults.borderColor = '#1a2236'; }
 
 function drawOverviewTrendChart(timeline) {
-  const ctx = document.getElementById('overviewTrendChart').getContext('2d');
+  const canvasEl = document.getElementById('overviewTrendChart');
+  if (!canvasEl || canvasEl.tagName !== 'CANVAS') return;
+  const ctx = canvasEl.getContext('2d');
 
   if (trendChart) trendChart.destroy();
 
@@ -3417,8 +3418,11 @@ function drawOverviewTrendChart(timeline) {
 }
 
 function drawAcquisitionCharts(channels, devices) {
+  const barEl = document.getElementById('trafficChannelsChart');
+  const donutEl = document.getElementById('trafficDevicesChart');
+  if (!barEl || barEl.tagName !== 'CANVAS' || !donutEl || donutEl.tagName !== 'CANVAS') return;
   // Traffic Channels Bar Chart
-  const ctxBar = document.getElementById('trafficChannelsChart').getContext('2d');
+  const ctxBar = barEl.getContext('2d');
   if (channelChart) channelChart.destroy();
 
   channelChart = new Chart(ctxBar, {
@@ -3444,7 +3448,7 @@ function drawAcquisitionCharts(channels, devices) {
   });
 
   // Device segment Donut Chart
-  const ctxDonut = document.getElementById('trafficDevicesChart').getContext('2d');
+  const ctxDonut = donutEl.getContext('2d');
   if (deviceChart) deviceChart.destroy();
 
   deviceChart = new Chart(ctxDonut, {
@@ -3501,8 +3505,11 @@ function drawFunnelChart(sessions, conversions) {
 }
 
 function drawLanguageCharts(languages, timelineLabels) {
+  const distEl = document.getElementById('languageDistributionChart');
+  const timeEl = document.getElementById('languageTimelineChart');
+  if (!distEl || distEl.tagName !== 'CANVAS' || !timeEl || timeEl.tagName !== 'CANVAS') return;
   // Pie Donut Language Distribution
-  const ctxLangDist = document.getElementById('languageDistributionChart').getContext('2d');
+  const ctxLangDist = distEl.getContext('2d');
   if (langDistChart) langDistChart.destroy();
 
   langDistChart = new Chart(ctxLangDist, {
@@ -3526,7 +3533,7 @@ function drawLanguageCharts(languages, timelineLabels) {
   });
 
   // Language Timeline trends
-  const ctxLangTimeline = document.getElementById('languageTimelineChart').getContext('2d');
+  const ctxLangTimeline = timeEl.getContext('2d');
   if (langTimeChart) langTimeChart.destroy();
 
   // Build proportional data per language over time
@@ -4364,6 +4371,9 @@ async function loadVisitorsFromDB() {
       if (botEl) botEl.textContent = stats.bot_count !== undefined ? stats.bot_count : '0';
 
       applyVisitorFilters();
+      const vStats = computeNativeDashboardData(activeDateRange);
+      drawAcquisitionCharts(vStats.channels, vStats.devices);
+      renderTopPagesTable(vStats.users);
     }
   } catch (err) {
     console.error('Error fetching visitor telemetry:', err);
@@ -5320,6 +5330,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script>window.SWIPIES_LANDING_NATIVE_AUTH = true;</script>
-<script src="/admin-analytics.js?v=20261031-2"></script>
+<script src="/admin-analytics.js?v=20261031-4"></script>
 </body>
 </html>

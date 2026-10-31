@@ -129,6 +129,7 @@
   });
   function status(message = "", error = false) {
     const node = byId("analyticsStatus");
+    if (!node) return;
     node.textContent = message;
     node.classList.toggle("error", error);
   }
@@ -235,13 +236,16 @@
       .filter((metric) => !primary.includes(metric.key))
       .map(renderMetric)
       .join("");
-    byId("analyticsCurrentRange").textContent =
-      dateLabel(report.filters.start) + " — " + dateLabel(report.filters.end);
-    byId("analyticsPreviousRange").textContent =
-      dateLabel(report.filters.compare_start) +
-      " — " +
-      dateLabel(report.filters.compare_end);
-    byId("analyticsZoneLabel").textContent = report.filters.timezone;
+    if (byId("analyticsCurrentRange"))
+      byId("analyticsCurrentRange").textContent =
+        dateLabel(report.filters.start) + " — " + dateLabel(report.filters.end);
+    if (byId("analyticsPreviousRange"))
+      byId("analyticsPreviousRange").textContent =
+        dateLabel(report.filters.compare_start) +
+        " — " +
+        dateLabel(report.filters.compare_end);
+    if (byId("analyticsZoneLabel"))
+      byId("analyticsZoneLabel").textContent = report.filters.timezone;
     byId("analyticsNotes").innerHTML =
       report.notes.map((note) => `<p>${escape(note)}</p>`).join("") +
       (report.filters.equal_duration
@@ -328,7 +332,7 @@
     }
     byId("analyticsChart").innerHTML =
       `<svg class="analytics-chart" role="img" aria-label="${escape(metric.label)}: текущий период и период сравнения. Точные значения приведены в таблице ниже." viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">${grid}${paths(previous, "#8792a2", true)}${paths(current, "#e8a820", false)}</svg>`;
-    byId("analyticsChartSubtitle").textContent =
+    if (byId("analyticsChartSubtitle")) byId("analyticsChartSubtitle").textContent =
       metric.label + " · сравнение по порядку временных групп";
     renderDetail();
   }
@@ -354,13 +358,17 @@
         `<tr><td>${a ? escape(dateLabel(a.start)) : "—"}</td><td>${b ? escape(dateLabel(b.start)) : "—"}</td><td>${format(current, metric.unit)}</td><td>${format(previous, metric.unit)}</td><td>${diff == null ? "—" : (diff > 0 ? "+" : "") + format(diff, metric.unit === "percent" ? "number" : metric.unit) + (metric.unit === "percent" ? " п.п." : "")}</td></tr>`,
       );
     }
+    if (!byId("analyticsDetailBody")) return;
     byId("analyticsDetailBody").innerHTML =
       rows.join("") ||
       '<tr><td colspan="5">Нет данных за выбранный период.</td></tr>';
-    byId("analyticsDetailPage").textContent =
-      `${count ? start + 1 : 0}–${Math.min(start + 50, count)} из ${count}`;
-    byId("analyticsDetailPrev").disabled = state.tablePage <= 1;
-    byId("analyticsDetailNext").disabled = start + 50 >= count;
+    if (byId("analyticsDetailPage"))
+      byId("analyticsDetailPage").textContent =
+        `${count ? start + 1 : 0}–${Math.min(start + 50, count)} из ${count}`;
+    if (byId("analyticsDetailPrev"))
+      byId("analyticsDetailPrev").disabled = state.tablePage <= 1;
+    if (byId("analyticsDetailNext"))
+      byId("analyticsDetailNext").disabled = start + 50 >= count;
   }
   function breakdown(container, key, title) {
     const a = state.report.current.breakdowns[key] || [],
@@ -410,11 +418,9 @@
         : "Нет данных для расчёта",
     );
     document
-      .querySelectorAll(".stat-trend")
+      .querySelectorAll("#conversionsTab .stat-trend, #utmTab .stat-trend")
       .forEach((node) => (node.style.display = "none"));
     for (const [id, key, title] of [
-      ["trafficChannelsChart", "channels", "Каналы привлечения"],
-      ["trafficDevicesChart", "devices", "Устройства"],
       ["languageDistributionChart", "languages", "Языки"],
     ]) {
       const canvas = byId(id);
@@ -439,33 +445,6 @@
       holder.innerHTML =
         '<p class="analytics-note">Динамика языков по времени не измеряется этим отчётом. Сравнение итогов доступно в таблице языков.</p>';
       holder.style.height = "auto";
-    }
-    for (const [id, key] of [
-      ["visitorsTotalUsers", "visitors"],
-      ["visitorsTotalSessions", "visits"],
-      ["visitorsPageViews", "views"],
-      ["vStatTotalVisits", "visits"],
-      ["vStatUniqueIPs", "unique_ips"],
-      ["vStatConsentRate", "consent_rate"],
-    ])
-      text(id, format(a[key], key === "consent_rate" ? "percent" : "number"));
-    const pages = byId("topPagesTableBody");
-    if (pages) {
-      pages.closest("table").querySelector("thead").innerHTML =
-        "<tr><th>Страница</th><th>Сейчас</th><th>Было</th><th>Измерение</th></tr>";
-      const previous = new Map(
-        (state.report.previous.breakdowns.pages || []).map((item) => [
-          item.name,
-          item.value,
-        ]),
-      );
-      pages.innerHTML =
-        (state.report.current.breakdowns.pages || [])
-          .map(
-            (item) =>
-              `<tr><td>${escape(item.name)}</td><td>${format(item.value)}</td><td>${format(previous.get(item.name))}</td><td>${state.source === "landing" ? "Сессии" : "Просмотры"}</td></tr>`,
-          )
-          .join("") || '<tr><td colspan="4">Нет данных</td></tr>';
     }
     renderCampaigns();
   }
@@ -493,15 +472,24 @@
       );
     }
     const top = (map) => [...map].sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
-    byId("utmStatTotal").textContent = format(visits);
-    byId("utmStatTopSource").textContent = top(sources);
-    byId("utmStatTopCampaign").textContent = top(campaigns);
-    byId("utmStatAvgDuration").textContent = visits
-      ? format(duration / visits, "seconds")
-      : "—";
+    const setText = (id, val) => {
+      const el = byId(id);
+      if (el) el.textContent = val;
+    };
+    setText("utmStatTotal", format(visits));
+    setText("utmStatTopSource", top(sources));
+    setText("utmStatTopCampaign", top(campaigns));
+    setText(
+      "utmStatAvgDuration",
+      visits ? format(duration / visits, "seconds") : "—",
+    );
     const body = byId("utmAggTableBody");
-    body.closest("table").querySelector("thead").innerHTML =
-      "<tr><th>Источник / medium</th><th>Кампания</th><th>Сессии: сейчас / было</th><th>Уникальные IP</th><th>Согласие cookies</th><th>Средняя сессия</th></tr>";
+    if (!body) return;
+    const thead = body.closest("table")?.querySelector("thead");
+    if (thead) {
+      thead.innerHTML =
+        "<tr><th>Источник / medium</th><th>Кампания</th><th>Сессии: сейчас / было</th><th>Уникальные IP</th><th>Согласие cookies</th><th>Средняя сессия</th></tr>";
+    }
     body.innerHTML =
       groups
         .slice(0, 100)
@@ -518,7 +506,7 @@
       note = document.createElement("p");
       note.id = "analyticsCampaignNote";
       note.className = "analytics-note";
-      body.closest(".table-wrapper").before(note);
+      body.closest(".table-wrapper")?.before(note);
     }
     note.textContent = `Журнал лендинга · ${groups.length} комбинаций UTM. Показаны первые 100 по сессиям; журнал ниже и Excel включают все подходящие записи. Прочерк означает отсутствие строки в предыдущем периоде.`;
   }
@@ -555,10 +543,9 @@
           dateLabel(state.report.generated_at) +
           ". Незавершённый текущий час не включён.",
       );
-      for (const table of ["visitors", "leads", "users", "campaigns"])
+      for (const table of ["leads", "users", "campaigns"])
         state.pages[table] = 1;
       const tab = typeof activeTab === "string" ? activeTab : "overview";
-      if (tab === "visitors") loadRecords("visitors");
       if (tab === "submissions") loadRecords("leads");
       if (tab === "users") loadRecords("users");
       if (tab === "utm") loadRecords("campaigns");
@@ -772,6 +759,14 @@
     toolbar.innerHTML = `<div class="analytics-controls"><label class="analytics-field">Источник посещений<select id="analyticsSource"><option value="landing">Журнал лендинга</option><option value="ga">Google Analytics 4</option><option value="ym">Яндекс.Метрика</option></select></label><label class="analytics-field">Период<select id="analyticsPreset"><option value="today">Сегодня</option><option value="yesterday">Вчера</option><option value="7">Последние 7 дней</option><option value="30" selected>Последние 30 дней</option><option value="90">Последние 90 дней</option><option value="week">Эта неделя</option><option value="month">Этот месяц</option><option value="custom">Свой период</option></select></label><label class="analytics-field">Начало<input type="datetime-local" step="3600" id="analyticsStart" required></label><label class="analytics-field">Конец, не включительно<input type="datetime-local" step="3600" id="analyticsEnd" required></label><label class="analytics-field">Шаг<select id="analyticsGroup"><option value="hour">Час</option><option value="day" selected>День</option><option value="week">Неделя</option><option value="month">Месяц</option></select></label><label class="analytics-field">Часовой пояс<input id="analyticsTimezone" list="analyticsZones" value="Asia/Tashkent" spellcheck="false"></label><datalist id="analyticsZones"><option value="Asia/Tashkent"><option value="UTC"><option value="Europe/Moscow"><option value="Europe/Berlin"><option value="America/New_York"></datalist></div>
     <div class="analytics-controls"><label class="analytics-field">Сравнение<select id="analyticsCompareMode"><option value="previous">Предыдущий период такой же длительности</option><option value="custom">Выбрать период сравнения</option></select></label><label class="analytics-field" id="analyticsCompareStartField" hidden>Сравнить с<input type="datetime-local" step="3600" id="analyticsCompareStart"></label><label class="analytics-field" id="analyticsCompareEndField" hidden>По, не включительно<input type="datetime-local" step="3600" id="analyticsCompareEnd"></label><label class="analytics-field">UTM source<input id="analyticsUtmSource" maxlength="128" placeholder="Все источники"></label><label class="analytics-field">UTM campaign<input id="analyticsUtmCampaign" maxlength="128" placeholder="Все кампании"></label><div class="analytics-actions"><button class="primary" id="analyticsApply" type="button">Применить</button><button id="analyticsExport" type="button">Скачать Excel</button><button id="analyticsExportCsv" type="button">CSV</button></div></div><p class="analytics-status" id="analyticsStatus" role="status" aria-live="polite"></p><div class="analytics-periods"><span><i class="analytics-current-dot"></i>Сейчас: <strong id="analyticsCurrentRange">—</strong></span><span><i class="analytics-previous-dot"></i>Было: <strong id="analyticsPreviousRange">—</strong></span><span id="analyticsZoneLabel">Asia/Tashkent</span></div>`;
     header.after(toolbar);
+    // Hide toolbar initially if visitors tab is the active/default tab
+    const _initialTab = (function() {
+      const active = document.querySelector('[data-tab].active, [data-tab][aria-selected="true"]');
+      if (active) return active.dataset.tab;
+      const visible = document.querySelector('.dashboard-section:not([style*="display: none"]):not([style*="display:none"])');
+      return visible ? visible.id.replace('Tab', '') : 'overview';
+    })();
+    toolbar.hidden = _initialTab === 'visitors' || _initialTab === 'settings' || _initialTab === 'plans';
     byId("overviewTab").innerHTML =
       `<div class="analytics-panel" lang="ru"><div class="analytics-intro"><div><h2>Как изменились показатели</h2><p class="analytics-note">Сравнение фактических периодов. У каждой метрики — текущее значение, предыдущее и изменение. Пустые данные отмечаются прочерком.</p></div></div><div class="analytics-metrics" id="analyticsMetrics" aria-live="polite"><div class="analytics-metric"><div class="analytics-metric-label">Загружаем метрики</div><div class="analytics-skeleton"></div><p class="analytics-note">Сравниваем два периода</p></div></div><section class="analytics-card"><div class="analytics-card-header"><h3 id="analyticsChartSubtitle">Динамика за два периода</h3><label class="analytics-field">Показатель<select id="analyticsMetricSelect"><option value="visitors">Посетители</option></select></label></div><div class="analytics-legend"><span><i class="analytics-current-dot"></i>Текущий период</span><span><i class="analytics-previous-dot"></i>Период сравнения</span></div><div id="analyticsChart"><div class="analytics-chart-empty">Загрузите отчёт для выбранного периода.</div></div><p class="analytics-caption">Ось X сопоставляет группы по порядку. При разной длительности периодов некоторые группы не имеют пары; пропуски не подменяются нулями.</p></section><section class="analytics-card"><div class="analytics-card-header"><h3>Значения по временным группам</h3></div><div class="analytics-table-wrap"><table class="analytics-table"><thead><tr><th>Текущий период</th><th>Период сравнения</th><th>Сейчас</th><th>Было</th><th>Разница</th></tr></thead><tbody id="analyticsDetailBody"></tbody></table></div><div class="analytics-pager"><span id="analyticsDetailPage">—</span><div class="analytics-pager-controls"><button id="analyticsDetailPrev" type="button">Назад</button><button id="analyticsDetailNext" type="button">Далее</button></div></div></section><div class="analytics-breakdowns"><section class="analytics-card" id="analyticsChannels"></section><section class="analytics-card" id="analyticsDevices"></section></div><details class="analytics-details"><summary>Источники и правила расчёта</summary><div class="analytics-note" id="analyticsNotes"></div></details></div>`;
     preset("30");
@@ -825,7 +820,7 @@
       state.tablePage++;
       renderDetail();
     });
-    recordControls("visitors", "visitorsTab");
+    // recordControls("visitors", "visitorsTab"); // Visitors tab uses its own original UI
     recordControls("leads", "submissionsTab");
     recordControls("users", "usersTab");
     byId("usersTableBody").addEventListener("click", (event) => {
@@ -846,29 +841,39 @@
         );
     });
     const switchOriginal = window.switchTab;
+    const refreshOriginal = window.refreshDashboardData;
+    const setDataSourceOriginal = window.setDataSource;
     window.switchTab = function (tab) {
       switchOriginal(tab);
-      if (oldSources) oldSources.style.display = "none";
-      toolbar.hidden = tab === "settings" || tab === "plans";
+      const isVisitors = tab === "visitors";
+      if (oldDate && oldDate.parentElement) {
+        oldDate.parentElement.style.display = isVisitors ? "" : "none";
+      }
+      if (oldSources) {
+        oldSources.style.display = isVisitors ? "flex" : "none";
+      }
+      toolbar.hidden =
+        tab === "settings" || tab === "plans" || tab === "visitors";
       if (tab === "submissions") loadRecords("leads");
     };
-    window.refreshDashboardData = refresh;
-    window.loadVisitorsFromDB = () => loadRecords("visitors");
+    window.refreshDashboardData = function () {
+      if (typeof refreshOriginal === "function") {
+        Promise.resolve(refreshOriginal()).catch(() => {});
+      }
+      if (typeof activeTab === "string" && activeTab === "visitors") {
+        return;
+      }
+      return refresh();
+    };
+    // window.loadVisitorsFromDB preserved (original admin.html implementation handles visitors tab)
     window.loadLeadsFromDB = () => loadRecords("leads");
     window.loadUsersFromDB = () => loadRecords("users");
-    window.updateActiveUsers = () => {
-      const badge = byId("activeUsers");
-      if (badge) {
-        badge.textContent = "—";
-        badge.title =
-          "Отчёт сравнивает выбранные фактические периоды; онлайн сейчас не измеряется.";
-      }
-    };
+    // window.updateActiveUsers preserved (original admin.html handles active users)
     window.loadUtmPageData = () => {
       renderCampaigns();
       return loadRecords("campaigns");
     };
-    window.exportVisitorsToCSV = () => download("visitors", "csv");
+    // window.exportVisitorsToCSV preserved (original admin.html implementation)
     window.exportSubmissionsToCSV = () => download("leads", "csv");
     window.renderSubmissionsTable = renderLeadRows;
     byId("submissionsTableBody").addEventListener("click", (event) => {
@@ -882,8 +887,15 @@
       else window.deleteSubmission(row.id);
     });
     window.setDataSource = (source) => {
+      if (
+        typeof activeTab === "string" &&
+        activeTab === "visitors" &&
+        typeof setDataSourceOriginal === "function"
+      ) {
+        return setDataSourceOriginal(source);
+      }
       state.source = source;
-      byId("analyticsSource").value = source;
+      if (byId("analyticsSource")) byId("analyticsSource").value = source;
       refresh();
     };
     if (!window.SWIPIES_LANDING_NATIVE_AUTH) {
