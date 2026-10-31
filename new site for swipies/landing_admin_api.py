@@ -55,10 +55,33 @@ def upstream(path, authorization="", method="GET", body=None):
     return response.status_code, data, response.headers
 
 
-def register_admin_analytics(app, database, platform_request=upstream):
+def register_admin_analytics(
+    app,
+    database,
+    platform_request=upstream,
+    *,
+    landing_authorizer=None,
+    platform_reader=None,
+    provider_defaults=None,
+):
     core = load_core()
     recent = {}
     lock = threading.Lock()
+
+    original_platform_request = platform_request
+
+    def platform_request(path, authorization="", method="GET", body=None):
+        if (
+            platform_reader is not None
+            and landing_authorizer is not None
+            and method == "GET"
+            and path.startswith(
+                ("/api/v1/admin/analytics/periods?", "/api/v1/admin/analytics/users?")
+            )
+            and landing_authorizer(request)
+        ):
+            return 200, {"code": 0, "data": platform_reader(path)}, {}
+        return original_platform_request(path, authorization, method=method, body=body)
 
     def body():
         if request.mimetype != "application/json" or (
@@ -87,6 +110,8 @@ def register_admin_analytics(app, database, platform_request=upstream):
         token = request.headers.get("Authorization", "")
         if not token.startswith("Bearer ") or len(token) > 8192:
             raise PermissionError("Войдите под суперпользователем платформы.")
+        if landing_authorizer is not None and landing_authorizer(request):
+            return token, {"landing_admin": True}
         status, result, _ = platform_request("/api/v1/users/me", token)
         user = result.get("data") if isinstance(result, dict) else None
         if status != 200 or result.get("code") != 0 or not isinstance(user, dict):
@@ -219,8 +244,18 @@ def register_admin_analytics(app, database, platform_request=upstream):
             try:
                 from landing_analytics_providers import provider_periods
 
+                credentials = data.get("credentials") or {}
+                if not isinstance(credentials, dict):
+                    raise ValueError("Некорректные настройки источника аналитики.")
+                defaults = (
+                    provider_defaults(selected_source) if provider_defaults else {}
+                )
+                credentials = {
+                    **defaults,
+                    **{key: value for key, value in credentials.items() if value},
+                }
                 provider_current, provider_previous, provider_notes = provider_periods(
-                    selected_source, data.get("credentials", {}), filters, core
+                    selected_source, credentials, filters, core
                 )
                 # Keep independently measured landing leads/consent/scroll; all
                 # traffic metrics now come from the selected provider.

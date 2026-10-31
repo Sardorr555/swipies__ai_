@@ -29,7 +29,10 @@
     loginEmail: null,
   };
   function authorization() {
-    const saved = localStorage.getItem("Authorization") || "";
+    const saved =
+      (window.SWIPIES_LANDING_NATIVE_AUTH
+        ? localStorage.getItem("swipies_admin_token")
+        : localStorage.getItem("Authorization")) || "";
     const cookie = document.cookie
       .split(";")
       .map((x) => x.trim())
@@ -684,6 +687,11 @@
             typeof mapDatabaseLeads === "function"
               ? mapDatabaseLeads(records)
               : records;
+        if (typeof databaseSubmissions !== "undefined")
+          databaseSubmissions = databaseSubmissions.map((row, index) => ({
+            ...row,
+            channel: records[index]?.channel || records[index]?.source || "web",
+          }));
         renderLeadRows();
       } else if (table === "visitors") {
         if (typeof currentVisitorsData !== "undefined")
@@ -701,7 +709,14 @@
               `<tr><td>${escape(row.ip)}<br>${escape([row.country, row.city].filter(Boolean).join(", "))}</td><td>${escape(row.utm_source)} / ${escape(row.utm_medium)}<br>${escape(row.utm_campaign)}</td><td>${escape(row.isp)}</td><td>${escape(row.device_type)} / ${escape(row.browser)}</td><td>${format(row.session_duration, "seconds")} / ${format(row.scroll_depth, "percent")}</td><td>${escape(row.cookie_consent)}</td><td>${escape(dateLabel(row.create_date))}</td></tr>`,
           )
           .join("");
-      else
+      else if (window.SWIPIES_LANDING_NATIVE_AUTH) {
+        target.innerHTML = records
+          .map((row) => {
+            const active = String(row.is_active ?? row.status) === "1";
+            return `<tr><td>${escape(row.email)}<br>${escape(row.nickname)}</td><td>${escape(row.utm_source || "—")}<br>${escape(row.utm_campaign || "—")}</td><td>${escape(dateLabel(row.create_date))}</td><td>${format(row.kb_count)}</td><td>${format(row.dialog_count)}</td><td>${row.last_login_time ? escape(dateLabel(row.last_login_time)) : "—"}</td><td>${active ? "Active" : "Inactive"}</td><td><button type="button" class="btn-action" data-user-action="status" data-email="${escape(row.email)}" data-active="${active}">${active ? "Deactivate" : "Activate"}</button><button type="button" class="btn-action delete" data-user-action="delete" data-email="${escape(row.email)}">Delete</button></td></tr>`;
+          })
+          .join("");
+      } else
         target.innerHTML = records
           .map(
             (row) =>
@@ -739,7 +754,7 @@
     byId("submissionsTableBody").innerHTML = records
       .map(
         (row) =>
-          `<tr id="row_${escape(row.id)}"><td>${row.read ? "Read" : "New"}</td><td>${escape(row.name)}<br><span class="analytics-note">${escape(row.company)}</span></td><td>${escape(row.email)}<br>${escape(row.phone || "—")}</td><td title="${escape(row.message)}" style="max-width:300px;white-space:normal">${escape(row.message)}</td><td>${escape(dateLabel(row.date))}</td><td><button class="btn-action" data-rowid="${escape(row.id)}" data-lead-action="read">${row.read ? "Mark unread" : "Mark read"}</button><button class="btn-action delete" data-rowid="${escape(row.id)}" data-lead-action="delete">Delete</button></td></tr>`,
+          `<tr id="row_${escape(row.id)}"><td>${row.read ? "Read" : "New"}</td>${window.SWIPIES_LANDING_NATIVE_AUTH ? `<td>${escape(row.channel || "web")}</td>` : ""}<td>${escape(row.name)}<br><span class="analytics-note">${escape(row.company)}</span></td><td>${escape(row.email)}<br>${escape(row.phone || "—")}</td><td title="${escape(row.message)}" style="max-width:300px;white-space:normal">${escape(row.message)}</td><td>${escape(dateLabel(row.date))}</td><td><button class="btn-action" data-rowid="${escape(row.id)}" data-lead-action="read">${row.read ? "Mark unread" : "Mark read"}</button><button class="btn-action delete" data-rowid="${escape(row.id)}" data-lead-action="delete">Delete</button></td></tr>`,
       )
       .join("");
   }
@@ -813,6 +828,16 @@
     recordControls("visitors", "visitorsTab");
     recordControls("leads", "submissionsTab");
     recordControls("users", "usersTab");
+    byId("usersTableBody").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-user-action]");
+      if (!button) return;
+      if (button.dataset.userAction === "status")
+        window.toggleUserStatus(
+          button.dataset.email,
+          button.dataset.active === "true",
+        );
+      else window.deleteUser(button.dataset.email);
+    });
     recordControls("campaigns", "utmTab");
     toolbar.addEventListener("input", () => {
       if (state.report && !state.busy)
@@ -861,76 +886,78 @@
       byId("analyticsSource").value = source;
       refresh();
     };
-    const otp = document.createElement("div");
-    otp.className = "form-group";
-    otp.hidden = true;
-    otp.innerHTML =
-      '<label for="analyticsLoginCode">Код из письма</label><div class="input-container"><input id="analyticsLoginCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"></div>';
-    byId("password").closest(".form-group").after(otp);
-    const restart = document.createElement("button");
-    restart.type = "button";
-    restart.className = "btn-secondary-dashboard";
-    restart.textContent = "Войти с другим email / начать заново";
-    otp.appendChild(restart);
-    restart.addEventListener("click", () => {
-      state.loginEmail = null;
+    if (!window.SWIPIES_LANDING_NATIVE_AUTH) {
+      const otp = document.createElement("div");
+      otp.className = "form-group";
       otp.hidden = true;
-      byId("analyticsLoginCode").required = false;
-      byId("analyticsLoginCode").value = "";
-      byId("username").readOnly = false;
-      byId("password").required = true;
-      byId("password").closest(".form-group").hidden = false;
-      byId("username").focus();
-    });
-    window.handleLogin = async (event) => {
-      event.preventDefault();
-      const error = byId("loginError");
-      try {
-        error.style.display = "none";
-        let result;
-        if (state.loginEmail) {
-          result = await jsonPost("verify", {
-            email: state.loginEmail,
-            code: byId("analyticsLoginCode").value.trim(),
-          });
-        } else {
-          const encrypted = window.rsaPsw(byId("password").value);
-          if (!encrypted)
-            throw new Error(
-              "Не удалось подготовить пароль для входа. Проверьте загрузку модуля шифрования.",
-            );
-          result = await jsonPost("login", {
-            email: byId("username").value.trim(),
-            password: encrypted,
-          });
-        }
-        if (result.data.requires_2fa) {
-          state.loginEmail = result.data.email;
-          otp.hidden = false;
-          byId("password").closest(".form-group").hidden = true;
-          byId("analyticsLoginCode").required = true;
-          byId("password").value = "";
-          byId("password").required = false;
-          byId("username").readOnly = true;
-          byId("analyticsLoginCode").focus();
-          return;
-        }
-        localStorage.setItem("Authorization", result.data.authorization);
-        localStorage.setItem("swipies_admin_session", "authenticated");
-        byId("password").value = "";
-        byId("analyticsLoginCode").value = "";
+      otp.innerHTML =
+        '<label for="analyticsLoginCode">Код из письма</label><div class="input-container"><input id="analyticsLoginCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"></div>';
+      byId("password").closest(".form-group").after(otp);
+      const restart = document.createElement("button");
+      restart.type = "button";
+      restart.className = "btn-secondary-dashboard";
+      restart.textContent = "Войти с другим email / начать заново";
+      otp.appendChild(restart);
+      restart.addEventListener("click", () => {
         state.loginEmail = null;
         otp.hidden = true;
         byId("analyticsLoginCode").required = false;
+        byId("analyticsLoginCode").value = "";
+        byId("username").readOnly = false;
         byId("password").required = true;
         byId("password").closest(".form-group").hidden = false;
-        byId("username").readOnly = false;
-        window.checkAuth();
-      } catch (problem) {
-        error.textContent = problem.message;
-        error.style.display = "block";
-      }
-    };
+        byId("username").focus();
+      });
+      window.handleLogin = async (event) => {
+        event.preventDefault();
+        const error = byId("loginError");
+        try {
+          error.style.display = "none";
+          let result;
+          if (state.loginEmail) {
+            result = await jsonPost("verify", {
+              email: state.loginEmail,
+              code: byId("analyticsLoginCode").value.trim(),
+            });
+          } else {
+            const encrypted = window.rsaPsw(byId("password").value);
+            if (!encrypted)
+              throw new Error(
+                "Не удалось подготовить пароль для входа. Проверьте загрузку модуля шифрования.",
+              );
+            result = await jsonPost("login", {
+              email: byId("username").value.trim(),
+              password: encrypted,
+            });
+          }
+          if (result.data.requires_2fa) {
+            state.loginEmail = result.data.email;
+            otp.hidden = false;
+            byId("password").closest(".form-group").hidden = true;
+            byId("analyticsLoginCode").required = true;
+            byId("password").value = "";
+            byId("password").required = false;
+            byId("username").readOnly = true;
+            byId("analyticsLoginCode").focus();
+            return;
+          }
+          localStorage.setItem("Authorization", result.data.authorization);
+          localStorage.setItem("swipies_admin_session", "authenticated");
+          byId("password").value = "";
+          byId("analyticsLoginCode").value = "";
+          state.loginEmail = null;
+          otp.hidden = true;
+          byId("analyticsLoginCode").required = false;
+          byId("password").required = true;
+          byId("password").closest(".form-group").hidden = false;
+          byId("username").readOnly = false;
+          window.checkAuth();
+        } catch (problem) {
+          error.textContent = problem.message;
+          error.style.display = "block";
+        }
+      };
+    }
     const logoutOriginal = window.handleLogout;
     window.handleLogout = () => {
       state.controller?.abort();

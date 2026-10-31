@@ -137,3 +137,31 @@ For a future authorized release:
    claiming production success. Keep unrequested pending OAuth changes separate.
 
 See [ADR-007](decisions/ADR-007-landing-period-reporting.md).
+
+
+## Production compatibility discovered during deployment (2026-10-31)
+
+The running landing had newer secure admin sessions, private provider settings,
+platform sync and event ingestion than the tracked baseline. Its code was
+preserved while integrating the reporting assets. The browser retains the normal
+`/api/auth/login` and `/api/auth/verify` session flow. Every new report request
+validates the existing landing-admin session; expired/revoked sessions are denied.
+Platform superuser JWT login remains supported for installations without native
+landing auth. Neither flow treats a localStorage flag as authorization.
+
+[landing_platform_reports.py](../../new%20site%20for%20swipies/landing_platform_reports.py)
+uses the landing service's existing MYSQL_* configuration in a MySQL READ ONLY
+transaction to query bounded user/payment facts for its own verified admins.
+It never impersonates a platform user or creates a service account. Both the
+Peewee reader and direct SQL reader share payment normalization/deduplication.
+The existing main API routes remain protected by platform superuser auth.
+
+Already configured secrets are preserved in a private 0600 server-side
+`admin_reporting_private.json` outside the web root and Git, or existing service
+environment. Credential fallbacks are removed from source/HTML. New reporting
+can use server-configured GA4/Metrika credentials without returning them to the
+browser or spreadsheets. Rotation of previously exposed values is still needed.
+The native auth/events/sync features are retained, rather than replaced with the
+older tracked standalone API. Four additional compatibility tests verify native
+session revocation, READ ONLY transaction cleanup, SQL/model parity and private
+provider-credential handling. No schema change is introduced by this feature.

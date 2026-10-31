@@ -14,6 +14,7 @@ from xml.etree import ElementTree as ET
 from zipfile import ZipFile, ZIP_DEFLATED
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import csv
+import json
 import re
 
 UTC = timezone.utc
@@ -633,3 +634,55 @@ def report_sheets(report):
             )
         sheets.append((title, rows))
     return sheets
+
+
+def payment_records(ledger, orders, linked_aliases=()):
+    """Normalize ledger/order mirrors consistently across both database readers."""
+    known = set(linked_aliases) | {
+        str(row[field])
+        for row in ledger
+        for field in ("id", "transaction_id")
+        if row.get(field)
+    }
+    payments = []
+    for row in ledger:
+        if str(row.get("plan_type", "")).lower() in {
+            "ads_deposit",
+            "advertiser_deposit",
+        }:
+            continue
+        payments.append({**row, "amount_uzs": row.get("paid_amount_uzs")})
+    for row in sorted(
+        orders,
+        key=lambda item: (
+            str(item.get("status", "")).upper() != "PAID",
+            -int(item.get("create_time") or 0),
+        ),
+    ):
+        if row["purpose"] == "advertiser_deposit" or any(
+            str(row.get(field)) in known
+            for field in ("id", "external_transaction_id")
+            if row.get(field)
+        ):
+            continue
+        metadata = row.get("metadata") or {}
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except (ValueError, TypeError):
+                metadata = {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+        payments.append(
+            {
+                **row,
+                "utm_source": metadata.get("utm_source", ""),
+                "utm_campaign": metadata.get("utm_campaign", ""),
+            }
+        )
+        known.update(
+            str(row[field])
+            for field in ("id", "external_transaction_id")
+            if row.get(field)
+        )
+    return payments

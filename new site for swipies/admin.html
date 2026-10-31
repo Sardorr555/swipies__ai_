@@ -4,13 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Swipies AI — Admin Dashboard</title>
+<link rel="icon" type="image/png" href="/favicon1/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/favicon1/favicon.svg" />
+<link rel="shortcut icon" href="/favicon1/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/favicon1/apple-touch-icon.png" />
+<link rel="manifest" href="/favicon1/site.webmanifest" />
 
 <!-- Google Fonts: Geist + JetBrains Mono -->
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
 <!-- Chart.js CDN for beautiful high-performance charts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
+
 
 <style>
 /* ===== SWIPIES AI — ADMIN PANEL DESIGN SYSTEM ===== */
@@ -33,7 +38,7 @@
   --blue:        #387bf5;      /* Technical Blue */
   --green:       #1f883d;      /* Positive / Success Green */
   --red:         #cf222e;      /* Danger / Alert Red */
-  
+
   --font-display: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono:    'JetBrains Mono', monospace;
   --radius:       4px;         /* Strict minimal rounding */
@@ -757,6 +762,32 @@ input:checked + .slider:before { transform: translateX(20px); }
   text-transform: uppercase;
 }
 
+.badge-enterprise {
+  background: rgba(var(--accent-rgb), 0.18);
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-b2c {
+  background: rgba(56, 123, 245, 0.18);
+  color: #58a6ff;
+  border: 1px solid rgba(56, 123, 245, 0.35);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .btn-secondary-dashboard {
   background: var(--bg3);
   border: 1px solid var(--border);
@@ -925,12 +956,45 @@ input:checked + .slider:before { transform: translateX(20px); }
   .header-left .live-badge { display: none; }
 }
 </style>
-<link rel="stylesheet" href="/admin-analytics.css?v=20261031-1">
+<link rel="stylesheet" href="/admin-analytics.css?v=20261031-2">
 </head>
 <body>
 
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- UTM CONVERTED USERS MODAL -->
+<div class="modal-overlay" id="utmUsersModal" onclick="if(event.target===this)closeUtmUsersModal()">
+  <div class="modal-card" style="max-width: 800px; max-height: 85vh; overflow-y: auto; padding: 1.75rem; width: 95%;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:1rem; margin-bottom:1rem;">
+      <h3 style="margin:0; font-size:1.15rem; color:var(--text); display:flex; align-items:center; gap:0.5rem;">
+        <span style="color:var(--accent);">👥</span> <span id="utmUsersModalTitle">Converted Platform Users</span>
+      </h3>
+      <button class="btn-action" onclick="closeUtmUsersModal()" style="font-size:1.1rem; padding:4px 8px; line-height:1;">&times;</button>
+    </div>
+    <div id="utmUsersModalSubtitle" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;"></div>
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>User Email</th>
+            <th>Nickname</th>
+            <th>Registered Date</th>
+            <th style="text-align:right">KBs</th>
+            <th style="text-align:right">Dialogs</th>
+            <th style="text-align:center">Account</th>
+          </tr>
+        </thead>
+        <tbody id="utmUsersModalTableBody">
+          <tr><td colspan="6" style="text-align:center; padding:1.5rem; color:var(--text-dim)">No users found.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin-top:1.5rem;">
+      <button class="btn-secondary-dashboard" onclick="closeUtmUsersModal()">Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- CUSTOM DATE MODAL -->
 <div class="modal-overlay" id="customDateModal">
@@ -951,18 +1015,127 @@ input:checked + .slider:before { transform: translateX(20px); }
   </div>
 </div>
 
+<!-- VISITOR TELEMETRY DOSSIER MODAL -->
+<div class="modal-overlay" id="visitorDossierModal" onclick="if(event.target===this)closeVisitorDossierModal()">
+  <div class="modal-card" style="max-width: 880px; max-height: 90vh; overflow-y: auto; padding: 1.75rem; width: 95%;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.25rem; border-bottom:1px solid var(--border); padding-bottom:1rem;">
+      <div>
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+          <h2 style="font-size:1.25rem; font-weight:700; margin:0;" id="vdTitle">Visitor Telemetry Dossier</h2>
+          <span id="vdBotBadge"></span>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted);" id="vdSubtitle">—</div>
+      </div>
+      <button class="btn-action" onclick="closeVisitorDossierModal()" style="font-size:1.1rem; padding:4px 8px; line-height:1;">&times;</button>
+    </div>
+
+    <!-- Dossier Grid -->
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:1.25rem;">
+
+      <!-- Box 1: Identity & Session -->
+      <div class="card" style="background:var(--bg); border:1px solid var(--border); padding:1rem; border-radius:var(--radius);">
+        <h4 style="font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent); margin:0 0 0.75rem 0; display:flex; align-items:center; gap:0.5rem;">
+          <span>🔑</span> Identity &amp; Session
+        </h4>
+        <div class="dossier-rows" style="font-size:0.8rem; display:flex; flex-direction:column; gap:0.4rem;">
+          <div><strong style="color:var(--text-dim)">Session ID:</strong> <span class="mono-val" id="vdSessionId">—</span></div>
+          <div><strong style="color:var(--text-dim)">Visitor GUID:</strong> <span class="mono-val" id="vdVisitorGuid">—</span></div>
+          <div><strong style="color:var(--text-dim)">Visit Count:</strong> <span id="vdVisitCount">—</span></div>
+          <div><strong style="color:var(--text-dim)">Master Fingerprint:</strong> <span class="mono-val" id="vdFpHash">—</span></div>
+          <div><strong style="color:var(--text-dim)">Canvas FP:</strong> <span class="mono-val" id="vdCanvasFp">—</span></div>
+          <div><strong style="color:var(--text-dim)">WebGL FP:</strong> <span class="mono-val" id="vdWebglFp">—</span></div>
+          <div><strong style="color:var(--text-dim)">Audio FP:</strong> <span class="mono-val" id="vdAudioFp">—</span></div>
+          <div><strong style="color:var(--text-dim)">First Seen:</strong> <span id="vdCreated">—</span></div>
+          <div><strong style="color:var(--text-dim)">Last Heartbeat:</strong> <span id="vdLastSeen">—</span></div>
+        </div>
+      </div>
+
+      <!-- Box 2: Network, Geo & IP -->
+      <div class="card" style="background:var(--bg); border:1px solid var(--border); padding:1rem; border-radius:var(--radius);">
+        <h4 style="font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--blue); margin:0 0 0.75rem 0; display:flex; align-items:center; gap:0.5rem;">
+          <span>🌐</span> Network &amp; Geolocation
+        </h4>
+        <div class="dossier-rows" style="font-size:0.8rem; display:flex; flex-direction:column; gap:0.4rem;">
+          <div><strong style="color:var(--text-dim)">IP Address:</strong> <span class="mono-val" id="vdIp">—</span></div>
+          <div><strong style="color:var(--text-dim)">Location:</strong> <span id="vdGeo">—</span></div>
+          <div><strong style="color:var(--text-dim)">ISP / Carrier:</strong> <span id="vdIsp">—</span></div>
+          <div><strong style="color:var(--text-dim)">Proxy / VPN / Hosting:</strong> <span id="vdProxy">—</span></div>
+          <div><strong style="color:var(--text-dim)">Network Type:</strong> <span id="vdNetType">—</span></div>
+          <div><strong style="color:var(--text-dim)">Downlink &amp; RTT:</strong> <span id="vdDownlink">—</span></div>
+          <div><strong style="color:var(--text-dim)">Connection Summary:</strong> <span id="vdConnSummary">—</span></div>
+          <div><strong style="color:var(--text-dim)">Cookie Consent:</strong> <span id="vdConsent">—</span></div>
+        </div>
+      </div>
+
+      <!-- Box 3: Device & Hardware Environment -->
+      <div class="card" style="background:var(--bg); border:1px solid var(--border); padding:1rem; border-radius:var(--radius);">
+        <h4 style="font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--green); margin:0 0 0.75rem 0; display:flex; align-items:center; gap:0.5rem;">
+          <span>💻</span> Hardware &amp; Display
+        </h4>
+        <div class="dossier-rows" style="font-size:0.8rem; display:flex; flex-direction:column; gap:0.4rem;">
+          <div><strong style="color:var(--text-dim)">Device &amp; OS:</strong> <span id="vdDeviceOs">—</span></div>
+          <div><strong style="color:var(--text-dim)">Browser:</strong> <span id="vdBrowser">—</span></div>
+          <div><strong style="color:var(--text-dim)">Display Resolution:</strong> <span id="vdScreenRes">—</span></div>
+          <div><strong style="color:var(--text-dim)">Viewport &amp; DPR:</strong> <span id="vdViewport">—</span></div>
+          <div><strong style="color:var(--text-dim)">Color Depth &amp; Touch:</strong> <span id="vdColorTouch">—</span></div>
+          <div><strong style="color:var(--text-dim)">CPU Cores:</strong> <span id="vdCpu">—</span></div>
+          <div><strong style="color:var(--text-dim)">RAM Memory:</strong> <span id="vdRam">—</span></div>
+          <div><strong style="color:var(--text-dim)">GPU Renderer:</strong> <span class="mono-val" id="vdGpu" style="word-break:break-all;">—</span></div>
+          <div><strong style="color:var(--text-dim)">Timezone &amp; Lang:</strong> <span id="vdTzLang">—</span></div>
+        </div>
+      </div>
+
+      <!-- Box 4: User Journey & Behavior -->
+      <div class="card" style="background:var(--bg); border:1px solid var(--border); padding:1rem; border-radius:var(--radius);">
+        <h4 style="font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em; color:#a371f7; margin:0 0 0.75rem 0; display:flex; align-items:center; gap:0.5rem;">
+          <span>⚡</span> Journey &amp; Behavior
+        </h4>
+        <div class="dossier-rows" style="font-size:0.8rem; display:flex; flex-direction:column; gap:0.4rem;">
+          <div><strong style="color:var(--text-dim)">Time on Site:</strong> <span id="vdDuration">—</span></div>
+          <div><strong style="color:var(--text-dim)">Max Scroll Depth:</strong> <span id="vdScroll">—</span></div>
+          <div><strong style="color:var(--text-dim)">First Interaction:</strong> <span id="vdFirstInteraction">—</span></div>
+          <div><strong style="color:var(--text-dim)">Clicks Count:</strong> <span id="vdClicksCount">—</span></div>
+          <div><strong style="color:var(--text-dim)">Sections Viewed:</strong> <div id="vdSections" style="margin-top:4px; display:flex; flex-wrap:wrap; gap:4px;">—</div></div>
+          <div><strong style="color:var(--text-dim)">CTA Clicks:</strong> <div id="vdClickedButtons" style="margin-top:4px; display:flex; flex-wrap:wrap; gap:4px;">—</div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Box 5: Navigation & Attribution -->
+    <div class="card" style="background:var(--bg); border:1px solid var(--border); padding:1rem; border-radius:var(--radius); margin-top:1.25rem;">
+      <h4 style="font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); margin:0 0 0.75rem 0;">
+        🧭 Navigation &amp; Attribution
+      </h4>
+      <div style="font-size:0.8rem; display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:0.75rem;">
+        <div><strong style="color:var(--text-dim)">Page Title:</strong> <div id="vdPageTitle" style="word-break:break-word;">—</div></div>
+        <div><strong style="color:var(--text-dim)">Landing URL:</strong> <div id="vdLandingUrl" style="word-break:break-all;" class="mono-val">—</div></div>
+        <div><strong style="color:var(--text-dim)">Initial Referrer:</strong> <div id="vdInitRef" style="word-break:break-all;">—</div></div>
+        <div><strong style="color:var(--text-dim)">UTM Campaign:</strong> <div id="vdUtmSummary">—</div></div>
+      </div>
+      <div style="margin-top:0.75rem; font-size:0.75rem; color:var(--text-dim); word-break:break-all;">
+        <strong style="color:var(--text-dim)">User-Agent:</strong> <span id="vdUserAgent" class="mono-val">—</span>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+      <button class="btn-secondary-dashboard" onclick="closeVisitorDossierModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ================= LOGIN SCREEN ================= -->
 <div class="login-wrapper" id="loginScreen">
   <div class="login-card">
     <div class="login-logo">Swipies<span>AI</span></div>
-    
+
     <div class="error-message" id="loginError">Invalid credentials. Please try again.</div>
-    
+
     <form onsubmit="handleLogin(event)">
       <div class="form-group">
         <label>Username / Email</label>
         <div class="input-container">
-          <input type="text" id="username" required autocomplete="username" placeholder="Platform superuser email">
+          <input type="text" id="username" required autocomplete="username" placeholder="e.g. admin">
         </div>
       </div>
       <div class="form-group">
@@ -981,14 +1154,14 @@ input:checked + .slider:before { transform: translateX(20px); }
 
 <!-- ================= DASHBOARD CONTAINER ================= -->
 <div class="dashboard-container" id="dashboard">
-  
+
   <!-- DESKTOP SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo">Swipies<span>AI</span></div>
       <span class="sidebar-logo-tag">Console</span>
     </div>
-    
+
     <nav class="sidebar-nav">
       <a class="nav-item active" data-tab="overview">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -1023,7 +1196,7 @@ input:checked + .slider:before { transform: translateX(20px); }
         <span>Settings</span>
       </a>
     </nav>
-    
+
     <div class="sidebar-footer">
       <div class="user-profile">
         <div class="avatar">A</div>
@@ -1037,7 +1210,7 @@ input:checked + .slider:before { transform: translateX(20px); }
       </button>
     </div>
   </aside>
-  
+
   <!-- MOBILE BOTTOM NAV -->
   <nav class="mobile-nav">
     <div class="mobile-nav-item active" data-tab="overview">
@@ -1072,13 +1245,14 @@ input:checked + .slider:before { transform: translateX(20px); }
 
   <!-- MAIN AREA -->
   <main class="main-content">
-    
+
     <!-- HEADER -->
     <header class="dashboard-header">
       <div class="header-left" style="display: flex; align-items: center">
         <h1 class="page-title" id="tabTitle" style="margin: 0">Overview</h1>
         <div class="source-selector" id="sourceSelectorContainer" style="margin-left: 1.5rem; display: flex; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 8px; padding: 2px">
-          <button class="source-tab active" id="sourceGaBtn" onclick="setDataSource('ga')" style="background: var(--primary); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s">Google Analytics</button>
+          <button class="source-tab active" id="sourceDbBtn" onclick="setDataSource('db')" style="background: var(--primary); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s">⚡ Live Platform Telemetry</button>
+          <button class="source-tab" id="sourceGaBtn" onclick="setDataSource('ga')" style="background: transparent; color: var(--text); border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s">Google Analytics</button>
           <button class="source-tab" id="sourceYmBtn" onclick="setDataSource('ym')" style="background: transparent; color: var(--text); border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s">Yandex Metrika</button>
         </div>
       </div>
@@ -1098,7 +1272,7 @@ input:checked + .slider:before { transform: translateX(20px); }
 
     <!-- ================= OVERVIEW PAGE ================= -->
     <section class="dashboard-section active" id="overviewTab">
-      
+
       <!-- GA4 Connection Status Banner -->
       <div id="ga4WarningBanner" style="display:none; background:rgba(232, 168, 32, 0.08); border:1px solid rgba(232, 168, 32, 0.2); border-radius:var(--radius); padding:1rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.75rem;">
         <svg style="width:20px;height:20px;color:var(--accent);flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -1106,7 +1280,7 @@ input:checked + .slider:before { transform: translateX(20px); }
           <strong>Google Analytics 4 is not connected.</strong> Connect GA4 in <a href="#" onclick="switchTab('settings')" style="color:var(--accent);text-decoration:underline">Settings</a> to view live traffic statistics.
         </div>
       </div>
-      
+
       <!-- STAT CARDS -->
       <div class="stats-grid">
         <div class="stat-card">
@@ -1115,7 +1289,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             <svg style="width:14px;height:14px;color:var(--blue)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
           </div>
           <div class="stat-value" id="statUsers">-</div>
-          <div class="stat-trend up" id="statUsersTrend">—</div>
+          <div class="stat-trend up" id="statUsersTrend">↑ 12.4% <span style="color:var(--text-dim);font-weight:400;margin-left:4px">vs prev</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-header">
@@ -1123,7 +1297,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             <svg style="width:14px;height:14px;color:var(--accent)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           </div>
           <div class="stat-value" id="statSessions">-</div>
-          <div class="stat-trend up" id="statSessionsTrend">—</div>
+          <div class="stat-trend up" id="statSessionsTrend">↑ 8.2% <span style="color:var(--text-dim);font-weight:400;margin-left:4px">vs prev</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-header">
@@ -1131,7 +1305,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             <svg style="width:14px;height:14px;color:var(--red)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 22H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v6"/><path d="M16 16l4-4 4 4"/><path d="M20 12v10"/></svg>
           </div>
           <div class="stat-value" id="statBounce">-</div>
-          <div class="stat-trend down" id="statBounceTrend">—</div>
+          <div class="stat-trend down" id="statBounceTrend">↓ 2.1% <span style="color:var(--text-dim);font-weight:400;margin-left:4px">vs prev</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-header">
@@ -1139,7 +1313,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             <svg style="width:14px;height:14px;color:var(--green)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div class="stat-value" id="statDuration">-</div>
-          <div class="stat-trend up" id="statDurationTrend">—</div>
+          <div class="stat-trend up" id="statDurationTrend">↑ 4.6% <span style="color:var(--text-dim);font-weight:400;margin-left:4px">vs prev</span></div>
         </div>
       </div>
 
@@ -1160,7 +1334,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             <canvas id="overviewTrendChart"></canvas>
           </div>
         </div>
-        
+
         <div class="card">
           <div class="card-header">
             <h3 class="card-title">
@@ -1178,7 +1352,7 @@ input:checked + .slider:before { transform: translateX(20px); }
 
     <!-- ================= VISITORS & TRAFFIC PAGE ================= -->
     <section class="dashboard-section" id="visitorsTab">
-      
+
       <!-- Visitor Statistics Bar -->
       <div class="stats-grid" style="margin-bottom: 1.5rem;">
         <div class="stat-card">
@@ -1204,6 +1378,14 @@ input:checked + .slider:before { transform: translateX(20px); }
           </div>
           <div class="stat-value" id="vStatConsentRate">-</div>
           <div class="stat-trend up">Accepted vs Declined</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span>Bot / Scrapers</span>
+            <span class="mono-val" style="color:var(--red)">bots_flagged</span>
+          </div>
+          <div class="stat-value" id="vStatBotCount">-</div>
+          <div class="stat-trend down">Automated / Webdriver</div>
         </div>
       </div>
 
@@ -1261,7 +1443,7 @@ input:checked + .slider:before { transform: translateX(20px); }
           <div class="card-header">
             <h3 class="card-title">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              Real-Time Visitor Log & Telemetry
+              Real-Time Visitor Log &amp; Telemetry
             </h3>
             <div style="display:flex; gap:0.75rem">
               <button class="btn-secondary-dashboard" onclick="exportVisitorsToCSV()">
@@ -1271,25 +1453,71 @@ input:checked + .slider:before { transform: translateX(20px); }
               <button class="btn-action delete" onclick="clearAllVisitorLogs()">Clear Logs</button>
             </div>
           </div>
+
+          <!-- Visitor Filter & Search Toolbar -->
+          <div class="filter-toolbar" style="display:flex; flex-wrap:wrap; gap:0.75rem; padding:0.85rem 1.25rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.01); align-items:center; justify-content:space-between;">
+            <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+              <div class="search-box" style="position:relative; width:220px;">
+                <input type="text" id="visitorSearchInput" placeholder="Search IP, Geo, ISP, FP..." style="width:100%; padding:6px 10px 6px 28px; font-size:0.8rem; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);" oninput="applyVisitorFilters()">
+                <svg style="position:absolute; left:8px; top:8px; width:13px; height:13px; color:var(--text-dim);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </div>
+              <select id="visitorBotFilter" onchange="applyVisitorFilters()" style="padding:6px 10px; font-size:0.8rem; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                <option value="all">All Visitors</option>
+                <option value="human">Humans Only</option>
+                <option value="bot">Bots &amp; Scrapers Only</option>
+              </select>
+              <select id="visitorNetworkFilter" onchange="applyVisitorFilters()" style="padding:6px 10px; font-size:0.8rem; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                <option value="all">All Networks</option>
+                <option value="residential">Residential Only</option>
+                <option value="proxy">VPN / Proxy Only</option>
+              </select>
+              <select id="visitorConsentFilter" onchange="applyVisitorFilters()" style="padding:6px 10px; font-size:0.8rem; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                <option value="all">All Consent Status</option>
+                <option value="accepted">Accepted</option>
+                <option value="declined">Declined</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--text-muted);">
+              <span id="visitorCountDisplay">Showing 0 of 0</span>
+              <select id="visitorPageSizeSelect" onchange="changeVisitorPageSize(this.value)" style="padding:4px 8px; font-size:0.75rem; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                <option value="15">15 / page</option>
+                <option value="30" selected>30 / page</option>
+                <option value="50">50 / page</option>
+                <option value="100">100 / page</option>
+              </select>
+            </div>
+          </div>
+
           <div class="table-wrapper">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>IP Address & Geo</th>
-                  <th>Network & ISP</th>
-                  <th>Device & Hardware</th>
-                  <th>Browser & Theme</th>
+                  <th>IP Address &amp; Geo</th>
+                  <th>Network &amp; ISP</th>
+                  <th>Device &amp; Hardware</th>
+                  <th>Browser &amp; Theme</th>
                   <th>Behavior (Duration / Scroll / Clicks)</th>
                   <th>Cookie Consent</th>
                   <th>Referrer / URL</th>
-                  <th style="width: 130px;">Timestamp</th>
-                  <th style="width: 70px; text-align:right">Action</th>
+                  <th style="width: 175px;">Exact Timestamp</th>
+                  <th style="width: 100px; text-align:right">Action</th>
                 </tr>
               </thead>
               <tbody id="visitorsTableBody">
                 <tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-dim)">Loading visitor telemetry...</td></tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Visitor Pagination Footer -->
+          <div id="visitorPaginationBar" style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 1.25rem; border-top:1px solid var(--border); font-size:0.8rem;">
+            <div id="visitorPaginationInfo" style="color:var(--text-dim)">Page 1 of 1</div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <button class="btn-action" id="btnVisitorPrev" onclick="prevVisitorPage()" disabled>&laquo; Prev</button>
+              <div id="visitorPageNumbers" style="display:flex; gap:4px;"></div>
+              <button class="btn-action" id="btnVisitorNext" onclick="nextVisitorPage()" disabled>Next &raquo;</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1303,37 +1531,37 @@ input:checked + .slider:before { transform: translateX(20px); }
         <div class="stat-card">
           <div class="stat-header">
             <span>Campaign Visits</span>
-            <span class="sidebar-logo-tag" style="font-size:0.65rem">UTM Traffic</span>
+            <span class="sidebar-logo-tag" style="font-size:0.65rem">Landing Traffic</span>
           </div>
           <div class="stat-value" id="utmStatTotal">-</div>
-          <div class="stat-trend neutral">Total UTM clicks logged</div>
+          <div class="stat-trend neutral" id="utmStatTotalSub">Total UTM visits logged</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-header">
-            <span>Top Traffic Source</span>
-            <span class="mono-val" style="color:var(--accent)">utm_source</span>
+            <span>UTM Registrations</span>
+            <span class="mono-val" style="color:var(--green)">Signups</span>
           </div>
-          <div class="stat-value" id="utmStatTopSource" style="font-size:1.4rem; text-transform:capitalize;">-</div>
-          <div class="stat-trend up" id="utmStatTopSourceSub">Highest referral channel</div>
+          <div class="stat-value" id="utmStatRegistrations" style="color: #56d364;">-</div>
+          <div class="stat-trend up" id="utmStatRegistrationsSub">Registered users from campaigns</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-header">
-            <span>Top Campaign Name</span>
-            <span class="mono-val" style="color:var(--blue)">utm_campaign</span>
+            <span>Conversion Rate</span>
+            <span class="mono-val" style="color:var(--accent)">CR %</span>
           </div>
-          <div class="stat-value" id="utmStatTopCampaign" style="font-size:1.4rem;">-</div>
-          <div class="stat-trend up" id="utmStatTopCampaignSub">Most active marketing campaign</div>
+          <div class="stat-value" id="utmStatConversionRate">-</div>
+          <div class="stat-trend up" id="utmStatConversionRateSub">Landing to Registered</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-header">
-            <span>Avg Session Duration</span>
-            <span class="mono-val">Time Spent</span>
+            <span>Top Converting Campaign</span>
+            <span class="mono-val" style="color:var(--blue)">Best ROI</span>
           </div>
-          <div class="stat-value" id="utmStatAvgDuration">-</div>
-          <div class="stat-trend neutral">Campaign traffic engagement</div>
+          <div class="stat-value" id="utmStatTopCampaign" style="font-size:1.3rem;">-</div>
+          <div class="stat-trend up" id="utmStatTopCampaignSub">Most effective marketing channel</div>
         </div>
       </div>
 
@@ -1401,14 +1629,19 @@ input:checked + .slider:before { transform: translateX(20px); }
         </div>
       </div>
 
-      <!-- Campaign Traffic Aggregation Table ("Кто, сколько и откуда пришёл") -->
+      <!-- Campaign Performance & Conversion Breakdown Table -->
       <div class="dashboard-grid full" style="margin-top: 1.5rem;">
         <div class="card">
-          <div class="card-header">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
             <h3 class="card-title">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-              Campaign Traffic Breakdown (Аналитика рекламных каналов)
+              Campaign Conversions &amp; Performance (Аналитика регистраций: какой UTM работает, а какой нет)
             </h3>
+            <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+              <button class="btn-secondary-dashboard" id="utmFilterBtnAll" onclick="filterUtmTable('all')" style="font-size:0.75rem; padding:4px 10px; background:var(--primary); color:#000; font-weight:600;">All Campaigns</button>
+              <button class="btn-secondary-dashboard" id="utmFilterBtnConverting" onclick="filterUtmTable('converting')" style="font-size:0.75rem; padding:4px 10px; color:#56d364;">🔥 Working (Converting)</button>
+              <button class="btn-secondary-dashboard" id="utmFilterBtnIneffective" onclick="filterUtmTable('ineffective')" style="font-size:0.75rem; padding:4px 10px; color:#ff808a;">❌ Ineffective (0 Signups)</button>
+            </div>
           </div>
           <div class="table-wrapper">
             <table class="data-table">
@@ -1416,15 +1649,17 @@ input:checked + .slider:before { transform: translateX(20px); }
                 <tr>
                   <th>Traffic Source / Medium</th>
                   <th>Campaign Name</th>
-                  <th style="text-align:right">Total Visits</th>
-                  <th style="text-align:right">Unique IPs</th>
-                  <th style="text-align:right">Consent %</th>
-                  <th style="text-align:right">Avg Duration</th>
+                  <th style="text-align:right">Visits</th>
+                  <th style="text-align:right">Unique</th>
+                  <th style="text-align:right">Registered Users</th>
+                  <th style="text-align:right">Conversion Rate</th>
+                  <th style="text-align:center">Effectiveness</th>
+                  <th style="text-align:center">Signups Detail</th>
                   <th style="text-align:right">Last Active</th>
                 </tr>
               </thead>
               <tbody id="utmAggTableBody">
-                <tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-dim)">Loading campaign performance data...</td></tr>
+                <tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-dim)">Loading campaign conversion analytics...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1514,7 +1749,12 @@ input:checked + .slider:before { transform: translateX(20px); }
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
             Contact Request Records
           </h3>
-          <div style="display:flex; gap:0.75rem">
+          <div style="display:flex; gap:0.75rem; align-items:center;">
+            <select id="leadSourceFilter" onchange="renderSubmissionsTable()" style="background:var(--bg2); border:1px solid var(--border); color:var(--text); padding:0.4rem 0.75rem; border-radius:var(--radius); font-size:0.85rem; outline:none; font-family:var(--font-display); cursor:pointer;">
+              <option value="all">All Channels (B2C &amp; Enterprise)</option>
+              <option value="enterprise">Enterprise (enterprise.swipies.app)</option>
+              <option value="b2c">B2C (swipies.app)</option>
+            </select>
             <button class="btn-secondary-dashboard" onclick="exportSubmissionsToCSV()">
               <svg style="width:14px;height:14px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export CSV
@@ -1522,12 +1762,13 @@ input:checked + .slider:before { transform: translateX(20px); }
             <button class="btn-action delete" onclick="clearAllSubmissions()">Clear All</button>
           </div>
         </div>
-        
+
         <div class="table-wrapper">
           <table class="data-table">
             <thead>
               <tr>
                 <th style="width: 80px;">Status</th>
+                <th style="width: 100px;">Channel</th>
                 <th>Sender / Company</th>
                 <th>Contact Details</th>
                 <th>Message Content</th>
@@ -1540,7 +1781,7 @@ input:checked + .slider:before { transform: translateX(20px); }
             </tbody>
           </table>
         </div>
-        
+
         <div id="submissionsEmptyState" class="empty-state" style="display:none">
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           <p>No contact submissions captured yet.</p>
@@ -1548,31 +1789,72 @@ input:checked + .slider:before { transform: translateX(20px); }
       </div>
     </section>
 
-    <!-- ================= USERS & REFERRALS PAGE ================= -->
+    <!-- ================= USERS & PRODUCT ANALYTICS PAGE ================= -->
     <section class="dashboard-section" id="usersTab">
+      <!-- Product Funnel & Retention Metrics Cards -->
+      <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Total Registered Users</span>
+            <span class="metric-trend up" id="userTrendBadge">Platform</span>
+          </div>
+          <div class="metric-value" id="kpiTotalUsers">0</div>
+          <div class="metric-sub" id="kpiActiveUsers">0 active accounts</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Landing &rarr; Sign-up %</span>
+            <span class="metric-trend up" id="kpiSignupTrend">Conversion</span>
+          </div>
+          <div class="metric-value" id="kpiSignupRate">0.0%</div>
+          <div class="metric-sub" id="kpiSignupSub">from unique visitors</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Activation Rate %</span>
+            <span class="metric-trend up" style="color:var(--accent)">Aha-Moment</span>
+          </div>
+          <div class="metric-value" id="kpiActivationRate">0.0%</div>
+          <div class="metric-sub" id="kpiActivationSub">created bot or dataset</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Active This Week (WAU)</span>
+            <span class="metric-trend" style="color:#60a5fa">Stickiness</span>
+          </div>
+          <div class="metric-value" id="kpiWauUsers">0</div>
+          <div class="metric-sub" id="kpiDauUsers">0 daily active users (DAU)</div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            Registered Users & Referral Analytics
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Registered Users & Product Activity Tracking
           </h3>
           <div style="display:flex; gap:0.75rem">
             <button class="btn-secondary-dashboard" onclick="loadUsersFromDB()">
               <svg style="width:14px;height:14px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-              Refresh List
+              Refresh Platform Data
             </button>
           </div>
         </div>
-        
+
         <div class="table-wrapper">
           <table class="data-table">
             <thead>
               <tr>
                 <th>User Account</th>
-                <th>Nickname</th>
-                <th>Date Registered</th>
-                <th>Referred By</th>
-                <th style="text-align: center;">Referrals Count</th>
+                <th>Acquisition / UTM</th>
+                <th>Registered</th>
+                <th style="text-align: center;">Knowledge Bases</th>
+                <th style="text-align: center;">Dialogs & Bots</th>
+                <th>Last Active</th>
+                <th style="text-align: center;">Status</th>
                 <th style="width: 140px; text-align:right">Actions</th>
               </tr>
             </thead>
@@ -1581,10 +1863,10 @@ input:checked + .slider:before { transform: translateX(20px); }
             </tbody>
           </table>
         </div>
-        
+
         <div id="usersEmptyState" class="empty-state" style="display:none">
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 00-3-3.87m4-12a4 4 0 010 7.75M9 21h.01M3 21h.01M12 21h.01M12 17h.01M9 17h.01M6 17h.01M6 13h.01M9 13h.01M12 13h.01M6 9h.01M9 9h.01M12 9h.01M3 17h.01M3 13h.01M3 9h.01M3 5h.01M6 5h.01M9 5h.01M12 5h.01"/></svg>
-          <p>No registered users found on the database.</p>
+          <p>No registered platform users found yet.</p>
         </div>
       </div>
     </section>
@@ -1621,7 +1903,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     <section class="dashboard-section" id="settingsTab">
       <div class="card" style="max-width: 900px;">
         <h3 class="settings-section-title">Google Analytics 4 API Credentials</h3>
-        
+
         <form onsubmit="saveSettings(event)" id="settingsForm">
           <div class="settings-row">
             <div class="settings-col">
@@ -1630,25 +1912,25 @@ input:checked + .slider:before { transform: translateX(20px); }
                 <input type="text" id="settingGaId" placeholder="e.g. 412345678">
                 <span style="font-size:0.75rem; color:var(--text-dim)">Locate inside GA4 property Admin > Property Settings > Property ID.</span>
               </div>
-              
+
               <div class="form-group">
                 <label>GA4 Measurement ID (for visitor tracking)</label>
                 <input type="text" id="settingGaMeasurementId" placeholder="e.g. G-XXXXXXXXXX">
                 <span style="font-size:0.75rem; color:var(--text-dim)">Locate inside GA4 property Admin > Data Streams > Web Stream.</span>
               </div>
-              
+
               <div class="form-group">
                 <label>Service Account Email (Optional)</label>
                 <input type="email" id="settingServiceEmail" placeholder="e.g. analytics-api@project-id.iam.gserviceaccount.com">
               </div>
-              
+
               <div class="form-group">
                 <label>Service Account JSON Private Key</label>
                 <textarea id="settingServiceKey" rows="5" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:8px 12px; font-family:var(--font-mono); font-size:0.8rem; outline:none; resize:none" placeholder='{ "type": "service_account", ... }'></textarea>
                 <span style="font-size:0.75rem; color:var(--text-dim)">JSON configuration key provided by Google Cloud Console.</span>
               </div>
             </div>
-            
+
             <div class="settings-col">
               <div class="form-group">
                 <label>Site URL Reference</label>
@@ -1660,7 +1942,7 @@ input:checked + .slider:before { transform: translateX(20px); }
                 <input type="text" id="settingYmId" placeholder="e.g. 97561823">
                 <span style="font-size:0.75rem; color:var(--text-dim)">Injects tag.js and fires reachGoal events.</span>
               </div>
-              
+
               <div class="form-group">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem">
                   <label style="margin:0">Yandex Metrika OAuth Token</label>
@@ -1669,7 +1951,7 @@ input:checked + .slider:before { transform: translateX(20px); }
                 <input type="text" id="settingYmToken" placeholder="e.g. y0_AAAAA...">
                 <span style="font-size:0.75rem; color:var(--text-dim)">OAuth token required to fetch reports securely from Yandex Metrika API.</span>
               </div>
-              
+
               <div class="toggle-group" style="border-bottom: 1px solid var(--border); padding-bottom:1.5rem">
                 <div class="toggle-info">
                   <span class="toggle-label">Enable Analytics Site Tracking</span>
@@ -1688,65 +1970,11 @@ input:checked + .slider:before { transform: translateX(20px); }
               </div>
             </div>
           </div>
-          
+
           <div style="border-top:1px solid var(--border); margin-top:2rem; padding-top:1.5rem; display:flex; justify-content:flex-end; gap:0.75rem">
             <button type="button" class="btn-secondary-dashboard" onclick="testGa4Connection()">Test GA4</button>
             <button type="button" class="btn-secondary-dashboard" onclick="testYmConnection()">Test Yandex</button>
             <button type="submit" class="btn-primary" style="background:var(--accent); color:var(--bg); padding:10px 24px; border-radius:var(--radius); font-weight:600; cursor:pointer">Save Settings</button>
-          </div>
-        </form>
-      </div>
-
-      <!-- Plan Tier Limits Card -->
-      <div class="card" style="max-width: 900px; margin-top: 1.5rem;">
-        <h3 class="settings-section-title">Subscription & Plan Tier Limits (Free, Plus, Pro, Enterprise)</h3>
-        <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1.5rem">Set global quota limits for chatbots/agents, datasets, storage space, tokens, and team members. Enter -1 for Unlimited.</p>
-        
-        <form onsubmit="savePlanLimits(event)" id="planLimitsForm">
-          <div class="settings-row" style="grid-template-columns: 1fr 1fr; gap:1.5rem">
-            <!-- Free Plan -->
-            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
-              <h4 style="font-weight:600; color:var(--text-main); margin-bottom:1rem">Free Plan Limits</h4>
-              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planFreeApps" value="3"></div>
-              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planFreeDatasets" value="5"></div>
-              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planFreeStorage" value="0.5"></div>
-              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planFreeTokens" value="100000"></div>
-              <div class="form-group"><label>Max Team Members</label><input type="number" id="planFreeTeam" value="1"></div>
-            </div>
-
-            <!-- Plus Plan -->
-            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
-              <h4 style="font-weight:600; color:var(--accent); margin-bottom:1rem">Plus Plan Limits</h4>
-              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planPlusApps" value="50"></div>
-              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planPlusDatasets" value="20"></div>
-              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planPlusStorage" value="5.0"></div>
-              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planPlusTokens" value="5000000"></div>
-              <div class="form-group"><label>Max Team Members</label><input type="number" id="planPlusTeam" value="5"></div>
-            </div>
-
-            <!-- Pro Plan -->
-            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
-              <h4 style="font-weight:600; color:var(--accent); margin-bottom:1rem">Pro Plan Limits</h4>
-              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planProApps" value="200"></div>
-              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planProDatasets" value="50"></div>
-              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planProStorage" value="15.0"></div>
-              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planProTokens" value="20000000"></div>
-              <div class="form-group"><label>Max Team Members</label><input type="number" id="planProTeam" value="15"></div>
-            </div>
-
-            <!-- Enterprise Plan -->
-            <div style="background:var(--bg); padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius)">
-              <h4 style="font-weight:600; color:var(--text-main); margin-bottom:1rem">Enterprise Plan Limits</h4>
-              <div class="form-group"><label>Max Apps (Chatbots + Agents)</label><input type="number" id="planEntApps" value="-1"></div>
-              <div class="form-group"><label>Max Datasets (Knowledge Bases)</label><input type="number" id="planEntDatasets" value="-1"></div>
-              <div class="form-group"><label>Storage Limit (GB)</label><input type="number" step="0.1" id="planEntStorage" value="-1"></div>
-              <div class="form-group"><label>Monthly Tokens</label><input type="number" id="planEntTokens" value="-1"></div>
-              <div class="form-group"><label>Max Team Members</label><input type="number" id="planEntTeam" value="-1"></div>
-            </div>
-          </div>
-          
-          <div style="border-top:1px solid var(--border); margin-top:1.5rem; padding-top:1.25rem; display:flex; justify-content:flex-end">
-            <button type="submit" class="btn-primary" style="background:var(--accent); color:var(--bg); padding:10px 24px; border-radius:var(--radius); font-weight:600; cursor:pointer">Save Plan Tier Limits</button>
           </div>
         </form>
       </div>
@@ -1770,30 +1998,37 @@ and controls Chart.js graphs and contact submissions dynamically.
 const API_BASE = 'https://api.swipies.app';
 let activeTab = 'overview';
 let activeDateRange = '30days';
-let activeDataSource = 'ga';
+let activeDataSource = 'db';
 let activeUsersInterval = null;
 let databaseSubmissions = [];
 
 function setDataSource(source) {
   activeDataSource = source;
-  
+
+  const dbBtn = document.getElementById('sourceDbBtn');
   const gaBtn = document.getElementById('sourceGaBtn');
   const ymBtn = document.getElementById('sourceYmBtn');
-  
-  if (!gaBtn || !ymBtn) return;
-  
-  if (source === 'ga') {
-    gaBtn.style.background = 'var(--primary)';
-    gaBtn.style.color = '#000';
-    ymBtn.style.background = 'transparent';
-    ymBtn.style.color = 'var(--text)';
-  } else {
-    ymBtn.style.background = 'var(--primary)';
-    ymBtn.style.color = '#000';
-    gaBtn.style.background = 'transparent';
-    gaBtn.style.color = 'var(--text)';
-  }
-  
+
+  const allBtns = [
+    { btn: dbBtn, key: 'db' },
+    { btn: gaBtn, key: 'ga' },
+    { btn: ymBtn, key: 'ym' }
+  ];
+
+  allBtns.forEach(item => {
+    if (item.btn) {
+      if (item.key === source) {
+        item.btn.style.background = 'var(--primary)';
+        item.btn.style.color = '#000';
+        item.btn.style.fontWeight = '600';
+      } else {
+        item.btn.style.background = 'transparent';
+        item.btn.style.color = 'var(--text)';
+        item.btn.style.fontWeight = '500';
+      }
+    }
+  });
+
   refreshDashboardData();
 }
 
@@ -1805,37 +2040,109 @@ let langDistChart = null;
 let langTimeChart = null;
 
 // Auth Session Management
-function checkAuth() {
-  const session = localStorage.getItem('swipies_admin_session');
-  if (session === 'authenticated') {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'grid';
-    initializeDashboard();
-  } else {
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('dashboard').style.display = 'none';
+function getAuthHeaders(extraHeaders = {}) {
+  const headers = { ...extraHeaders };
+  const token = localStorage.getItem('swipies_admin_token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
+  return headers;
 }
 
-function rsaPsw(password) {
-  const pub = '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArq9XTUSeYr2+N1h3Afl/z8Dse/2yD0ZGrKwx+EEEcdsBLca9Ynmx3nIB5obmLlSfmskLpBo0UACBmB5rEjBp2Q2f3AG3Hjd4B+gNCG6BDaawuDlgANIhGnaTLrIqWrrcm4EMzJOnAOI1fgzJRsOOUEfaS318Eq9OVO3apEyCCt0lOQK6PuksduOjVxtltDav+guVAA068NrPYmRNabVKRNLJpL8w4D44sfth5RvZ3q9t+6RTArpEtc5sh5ChzvqPOzKGMXW83C95TxmXqpbK6olN4RevSfVjEAgCydH6HN6OhtOQEcnrU97r9H0iZOWwbw3pVrZiUkuRD1R56Wzs2wIDAQAB\n-----END PUBLIC KEY-----';
-  const encryptor = new JSEncrypt();
-  encryptor.setPublicKey(pub);
-  return encryptor.encrypt(btoa(unescape(encodeURIComponent(password))));
+function handleApiUnauthorized() {
+  localStorage.removeItem('swipies_admin_token');
+  localStorage.removeItem('swipies_admin_session');
+  localStorage.removeItem('swipies_admin_user');
+  localStorage.removeItem('Authorization');
+  if (activeUsersInterval) clearInterval(activeUsersInterval);
+  const loginScreen = document.getElementById('loginScreen');
+  const dashboard = document.getElementById('dashboard');
+  if (loginScreen) loginScreen.style.display = 'flex';
+  if (dashboard) dashboard.style.display = 'none';
+}
+
+async function checkAuth() {
+  const token = localStorage.getItem('swipies_admin_token');
+  if (!token) {
+    handleApiUnauthorized();
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/verify', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok && data.code === 0) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'grid';
+      initializeDashboard();
+    } else {
+      handleApiUnauthorized();
+    }
+  } catch (err) {
+    console.warn('Auth check network failure:', err);
+    handleApiUnauthorized();
+  }
 }
 
 async function handleLogin(event) {
   event.preventDefault();
-  const error = document.getElementById('loginError');
-  error.textContent = 'Reporting module unavailable. Reload this page or check the deployment.';
-  error.style.display = 'block';
+  const user = document.getElementById('username').value.trim();
+  const pwd = document.getElementById('password').value;
+  const errorMsg = document.getElementById('loginError');
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Verifying...';
+  }
+
+  try {
+    const resp = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pwd })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.code === 0 && data.token) {
+      localStorage.setItem('swipies_admin_token', data.token);
+      localStorage.setItem('swipies_admin_session', 'authenticated');
+      localStorage.setItem('swipies_admin_user', data.username || user);
+      errorMsg.style.display = 'none';
+      showToast('Access Granted', 'Signed in as ' + (data.username || user), 'success');
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'grid';
+      initializeDashboard();
+    } else {
+      errorMsg.textContent = data.message || 'Incorrect credentials.';
+      errorMsg.style.display = 'block';
+      showToast('Login Failed', data.message || 'Incorrect credentials.', 'error');
+    }
+  } catch (err) {
+    errorMsg.textContent = 'Connection error. Could not reach auth server.';
+    errorMsg.style.display = 'block';
+    showToast('Login Error', 'Could not connect to authentication server.', 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign In';
+    }
+  }
 }
 
-function handleLogout() {
-  localStorage.removeItem('swipies_admin_session');
+async function handleLogout() {
+  const token = localStorage.getItem('swipies_admin_token');
+  if (token) {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (e) {}
+  }
+  handleApiUnauthorized();
   showToast('Signed Out', 'Your session has been terminated.', 'success');
-  if (activeUsersInterval) clearInterval(activeUsersInterval);
-  checkAuth();
 }
 
 function togglePasswordVisibility() {
@@ -1854,7 +2161,7 @@ function togglePasswordVisibility() {
 function switchTab(tabId) {
   // Update state
   activeTab = tabId;
-  
+
   // Sync tab active states in Sidebar
   document.querySelectorAll('.nav-item').forEach(item => {
     if (item.getAttribute('data-tab') === tabId) {
@@ -1889,12 +2196,12 @@ function switchTab(tabId) {
     utm: 'UTM Builder & Campaign Analytics',
     conversions: 'Conversions & Goals',
     submissions: 'Form Submissions',
-    users: 'Users & Referral Program',
+    users: 'Users & Product Analytics',
     languages: 'Language Stats',
     settings: 'Dashboard Settings'
   };
   document.getElementById('tabTitle').textContent = displayNames[tabId] || 'Dashboard';
-  
+
   const selector = document.getElementById('sourceSelectorContainer');
   if (selector) {
     if (tabId === 'overview' || tabId === 'visitors' || tabId === 'conversions') {
@@ -1903,7 +2210,7 @@ function switchTab(tabId) {
       selector.style.display = 'none';
     }
   }
-  
+
   if (tabId === 'users') {
     loadUsersFromDB();
   } else if (tabId === 'visitors') {
@@ -1911,7 +2218,7 @@ function switchTab(tabId) {
   } else if (tabId === 'utm') {
     loadUtmPageData();
   }
-  
+
   // Resize charts to prevent render overlap spacing bugs
   if (tabId === 'visitors') {
     if (channelChart) channelChart.resize();
@@ -1936,7 +2243,7 @@ function showToast(title, msg, type = 'info') {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  
+
   // Vetted icons per type
   let icon = `<svg style="width:16px;height:16px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
   if (type === 'success') {
@@ -1953,7 +2260,7 @@ function showToast(title, msg, type = 'info') {
     </div>
   `;
   container.appendChild(toast);
-  
+
   setTimeout(() => {
     toast.style.animation = 'fadeIn 0.25s reverse forwards';
     setTimeout(() => toast.remove(), 250);
@@ -1968,12 +2275,18 @@ unreachable (e.g. running locally without API), 404 returns HTML which crashes
 .json(). This prevents those errors.
 */
 async function safeFetchJson(response) {
+  if (response.status === 401) {
+    handleApiUnauthorized();
+    showToast('Session Expired', 'Admin authentication required. Please sign in.', 'error');
+    throw new Error('Unauthorized (401)');
+  }
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     throw new Error(`Backend API is not available (status ${response.status}). Please ensure the server is running.`);
   }
   return await response.json();
 }
+
 
 /* ========================================================================
    GOOGLE ANALYTICS DATA SERVICE LAYER
@@ -1987,11 +2300,11 @@ async function queryGA4API(endpoint, dimensions = [], metrics = [], dateRange = 
   const gaId = localStorage.getItem('swipies_ga_property_id');
   const serviceEmail = localStorage.getItem('swipies_ga_service_email');
   const serviceKey = localStorage.getItem('swipies_ga_service_key');
-  
+
   if (!gaId || !serviceKey) {
     throw new Error("Missing credentials. Please configure GA4 inside Settings.");
   }
-  
+
   /*
   --- DEV REFERENCE: GA4 DATA API INTEGRATION WRAPPER ---
   Google Analytics Data API v1 requires OAuth 2.0 Web Token authorization.
@@ -2000,13 +2313,13 @@ async function queryGA4API(endpoint, dimensions = [], metrics = [], dateRange = 
      using a JWT signature process (or route queries via a secure serverless backend proxy).
   2. Perform a POST request to:
      https://analyticsdata.googleapis.com/v1beta/properties/PROPERTIES_ID:runReport
-  
+
   Below is the exact production fetch skeleton which executes once auth token is valid:
   */
-  
+
   const propertiesId = gaId.replace('G-', ''); // Clean identifier
   const token = "EXCHANGED_JWT_ACCESS_TOKEN"; // Handled in proxy
-  
+
   const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertiesId}:runReport`, {
     method: 'POST',
     headers: {
@@ -2019,12 +2332,12 @@ async function queryGA4API(endpoint, dimensions = [], metrics = [], dateRange = 
       metrics: metrics.map(m => ({ name: m }))
     })
   });
-  
+
   if (!response.ok) {
     const errorBody = await safeFetchJson(response);
     throw new Error(errorBody.error?.message || "Google Analytics API query failed.");
   }
-  
+
   return await safeFetchJson(response);
 }
 
@@ -2044,12 +2357,12 @@ function closeCustomDateModal() {
 function applyCustomDateRange() {
   const start = document.getElementById('customStart').value;
   const end = document.getElementById('customEnd').value;
-  
+
   if (!start || !end) {
     showToast('Validation Error', 'Please select both start and end dates.', 'error');
     return;
   }
-  
+
   activeDateRange = 'custom';
   closeCustomDateModal();
   refreshDashboardData();
@@ -2067,41 +2380,329 @@ function handleDateRangeChange() {
   }
 }
 
+/* ===== PRECISE TIME & DATE FORMATTER ===== */
+function parseSafeDate(isoStr) {
+  if (!isoStr) return new Date(NaN);
+  let normalized = String(isoStr).trim().replace(/\+00:00Z$/, 'Z');
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(normalized)) {
+    normalized = normalized.replace(' ', 'T');
+  }
+  if (!normalized.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(normalized) && normalized.includes('T')) {
+    normalized += 'Z';
+  }
+  return new Date(normalized);
+}
+
+function formatFullVisitorTimestamp(isoStr, includeMarkup = true) {
+  if (!isoStr) return includeMarkup ? '—' : '—';
+
+  const d = parseSafeDate(isoStr);
+  if (isNaN(d.getTime())) return includeMarkup ? escapeHtml(isoStr) : String(isoStr);
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+
+  // Time of Day determination (local time)
+  const hNum = d.getHours();
+  let timeOfDay = '🌙 Ночь';
+  if (hNum >= 5 && hNum < 12) timeOfDay = '🌅 Утро';
+  else if (hNum >= 12 && hNum < 17) timeOfDay = '☀️ День';
+  else if (hNum >= 17 && hNum < 22) timeOfDay = '🌆 Вечер';
+
+  // Day of week in Russian
+  const daysRu = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  const dayName = daysRu[d.getDay()];
+
+  // UTC offset display
+  const offsetMin = -d.getTimezoneOffset();
+  const offsetSign = offsetMin >= 0 ? '+' : '-';
+  const offsetHours = Math.floor(Math.abs(offsetMin) / 60);
+  const tzLabel = `UTC${offsetSign}${offsetHours}`;
+
+  // Relative elapsed time
+  const now = Date.now();
+  const diffSec = Math.floor((now - d.getTime()) / 1000);
+  let relTime = 'только что';
+  if (diffSec >= 60 && diffSec < 3600) {
+    relTime = `${Math.floor(diffSec / 60)} мин назад`;
+  } else if (diffSec >= 3600 && diffSec < 86400) {
+    relTime = `${Math.floor(diffSec / 3600)} ч назад`;
+  } else if (diffSec >= 86400) {
+    relTime = `${Math.floor(diffSec / 86400)} дн назад`;
+  }
+
+  const exactDateStr = `${year}-${month}-${day} (${dayName})`;
+  const exactTimeStr = `${hours}:${minutes}:${seconds}`;
+
+  if (!includeMarkup) {
+    return `${exactDateStr} ${exactTimeStr} ${timeOfDay} [${tzLabel}] (${relTime})`;
+  }
+
+  return `
+    <div style="line-height:1.35; white-space:nowrap;" title="Full ISO: ${escapeHtml(d.toISOString())}">
+      <div style="font-family:var(--font-mono); font-weight:600; font-size:0.8rem; color:var(--text);">
+        📅 ${exactDateStr}
+      </div>
+      <div style="font-family:var(--font-mono); font-weight:700; font-size:0.85rem; color:var(--accent); letter-spacing:0.02em;">
+        ⏰ ${exactTimeStr} <span style="font-size:0.7rem; font-weight:500; color:var(--text-dim)">${tzLabel}</span>
+      </div>
+      <div style="font-size:0.72rem; color:var(--text-muted); display:flex; gap:0.4rem; align-items:center; margin-top:1px;">
+        <span>${timeOfDay}</span>
+        <span style="color:var(--text-dim)">•</span>
+        <span style="color:var(--blue); font-weight:500;">${relTime}</span>
+      </div>
+    </div>
+  `;
+}
+
+/* ===== NATIVE TELEMETRY OVERVIEW COMPUTATION ===== */
+function computeNativeDashboardData(period) {
+  const visitors = Array.isArray(currentVisitorsData) ? currentVisitorsData : [];
+  const leads = Array.isArray(databaseSubmissions) ? databaseSubmissions : [];
+
+  const now = new Date();
+  let days = 30;
+  let filterFn = () => true;
+
+  if (period === 'today') {
+    days = 1;
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    filterFn = (item) => {
+      const t = parseSafeDate(item.create_date || item.date).getTime();
+      return t >= startOfToday;
+    };
+  } else if (period === '7days') {
+    days = 7;
+    const start = new Date(now.getTime() - 7 * 86400000).getTime();
+    filterFn = (item) => parseSafeDate(item.create_date || item.date).getTime() >= start;
+  } else if (period === '30days') {
+    days = 30;
+    const start = new Date(now.getTime() - 30 * 86400000).getTime();
+    filterFn = (item) => parseSafeDate(item.create_date || item.date).getTime() >= start;
+  } else if (period === '90days') {
+    days = 90;
+    const start = new Date(now.getTime() - 90 * 86400000).getTime();
+    filterFn = (item) => parseSafeDate(item.create_date || item.date).getTime() >= start;
+  } else if (period === 'custom') {
+    const startVal = document.getElementById('customStart')?.value;
+    const endVal = document.getElementById('customEnd')?.value;
+    if (startVal && endVal) {
+      const s = new Date(startVal).getTime();
+      const e = new Date(endVal + 'T23:59:59').getTime();
+      const diffTime = Math.abs(e - s);
+      days = Math.max(1, Math.ceil(diffTime / 86400000));
+      filterFn = (item) => {
+        const t = parseSafeDate(item.create_date || item.date).getTime();
+        return t >= s && t <= e;
+      };
+    }
+  }
+
+  // Filter visitors within the selected period
+  const periodVisitors = visitors.filter(filterFn);
+  const periodLeads = leads.filter(filterFn);
+
+  // If period has no records but database has total visitors, fall back to all visitors for display
+  const activeSet = periodVisitors.length > 0 ? periodVisitors : visitors;
+  const activeLeads = periodLeads.length > 0 ? periodLeads : leads;
+
+  // 1. Core Topline Metrics
+  const uniqueIPs = new Set(activeSet.map(v => v.ip).filter(Boolean));
+  const totalUsers = uniqueIPs.size || activeSet.length || 0;
+  const totalSessions = activeSet.length || 0;
+
+  // Bounce Rate: Visitors who left within 10s and only viewed 1 or 0 sections with < 15% scroll
+  const bounced = activeSet.filter(v => {
+    const dur = v.session_duration || 0;
+    const scroll = v.scroll_depth || 0;
+    return dur <= 10 && scroll <= 20;
+  }).length;
+  const bounceRatePct = totalSessions > 0 ? ((bounced / totalSessions) * 100).toFixed(1) : '0.0';
+
+  // Average Duration
+  const totalDuration = activeSet.reduce((acc, v) => acc + (v.session_duration || 0), 0);
+  const avgSec = totalSessions > 0 ? Math.round(totalDuration / totalSessions) : 0;
+  const durMinutes = Math.floor(avgSec / 60);
+  const durSec = avgSec % 60;
+  const durationStr = durMinutes > 0 ? `${durMinutes}m ${durSec}s` : `${durSec}s`;
+
+  // Views estimation: based on sections viewed or hits
+  const views = activeSet.reduce((acc, v) => {
+    const secs = (v.sections_viewed || '').split(',').filter(Boolean).length;
+    return acc + Math.max(1, secs);
+  }, 0);
+
+  // 2. Timeline Trend
+  const labels = [];
+  const usersByDay = {};
+  const sessionsByDay = {};
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    labels.push(label);
+    usersByDay[key] = new Set();
+    sessionsByDay[key] = 0;
+  }
+
+  activeSet.forEach(v => {
+    if (!v.create_date) return;
+    const d = parseSafeDate(v.create_date);
+    if (isNaN(d.getTime())) return;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (sessionsByDay[key] !== undefined) {
+      sessionsByDay[key]++;
+      if (v.ip) usersByDay[key].add(v.ip);
+    }
+  });
+
+  const usersTrend = Object.keys(usersByDay).map(k => usersByDay[k].size || (sessionsByDay[k] > 0 ? 1 : 0));
+  const sessionsTrend = Object.keys(sessionsByDay).map(k => sessionsByDay[k]);
+
+  // 3. Acquisition Channels
+  const channelCounts = {
+    'Direct Traffic': 0,
+    'Organic Search': 0,
+    'Referrals': 0,
+    'Social Media': 0,
+    'Campaigns (UTM)': 0
+  };
+
+  activeSet.forEach(v => {
+    const ref = (v.referrer || '').toLowerCase();
+    const utm = v.utm_source;
+    if (utm) {
+      channelCounts['Campaigns (UTM)']++;
+    } else if (!ref || ref === 'direct' || ref.includes('swipies.app') || ref.includes('localhost') || ref.includes('13.49.204.115')) {
+      channelCounts['Direct Traffic']++;
+    } else if (ref.includes('google') || ref.includes('yandex') || ref.includes('bing') || ref.includes('duckduckgo')) {
+      channelCounts['Organic Search']++;
+    } else if (ref.includes('t.me') || ref.includes('telegram') || ref.includes('instagram') || ref.includes('facebook') || ref.includes('twitter') || ref.includes('linkedin') || ref.includes('x.com')) {
+      channelCounts['Social Media']++;
+    } else {
+      channelCounts['Referrals']++;
+    }
+  });
+
+  const channelLabels = Object.keys(channelCounts);
+  const channelData = Object.values(channelCounts);
+
+  // 4. Device Categories
+  const deviceCounts = { 'Desktop': 0, 'Mobile': 0, 'Tablet': 0 };
+  activeSet.forEach(v => {
+    const dType = (v.device_type || '').toLowerCase();
+    if (dType.includes('mobile') || dType.includes('phone')) deviceCounts['Mobile']++;
+    else if (dType.includes('tablet') || dType.includes('ipad')) deviceCounts['Tablet']++;
+    else deviceCounts['Desktop']++;
+  });
+
+  // 5. Languages
+  const langCounts = {};
+  activeSet.forEach(v => {
+    let l = (v.language || 'ru').toLowerCase().slice(0, 2);
+    if (l === 'ru') langCounts['Russian (RU)'] = (langCounts['Russian (RU)'] || 0) + 1;
+    else if (l === 'en') langCounts['English (EN)'] = (langCounts['English (EN)'] || 0) + 1;
+    else if (l === 'uz') langCounts['Uzbek (UZ)'] = (langCounts['Uzbek (UZ)'] || 0) + 1;
+    else langCounts[l.toUpperCase()] = (langCounts[l.toUpperCase()] || 0) + 1;
+  });
+
+  if (Object.keys(langCounts).length === 0) {
+    langCounts['Russian (RU)'] = activeSet.length || 1;
+  }
+
+  // 6. Conversions
+  let demoClicks = 0;
+  let salesClicks = 0;
+  activeSet.forEach(v => {
+    const btns = (v.clicked_buttons || '').toLowerCase();
+    if (btns.includes('demo') || btns.includes('демо')) demoClicks++;
+    if (btns.includes('pricing') || btns.includes('buy') || btns.includes('тариф') || btns.includes('купить') || btns.includes('sales')) salesClicks++;
+  });
+
+  const totalSubmits = activeLeads.length || leads.length || 0;
+
+  return {
+    users: totalUsers,
+    sessions: totalSessions,
+    bounce: `${bounceRatePct}%`,
+    duration: durationStr,
+    views: views,
+    timeline: {
+      labels: labels,
+      users: usersTrend,
+      sessions: sessionsTrend
+    },
+    channels: {
+      labels: channelLabels,
+      data: channelData
+    },
+    devices: {
+      labels: Object.keys(deviceCounts),
+      data: Object.values(deviceCounts)
+    },
+    conversions: {
+      demo: demoClicks,
+      sales: salesClicks,
+      submit: totalSubmits
+    },
+    languages: {
+      labels: Object.keys(langCounts),
+      data: Object.values(langCounts)
+    }
+  };
+}
+
 /* ===== MOCK & REAL DYNAMIC DATA ORCHESTRATION ===== */
 async function refreshDashboardData() {
   const loader = document.getElementById('loadingOverview');
   if (loader) loader.classList.add('loading');
-  
-  const gaId = localStorage.getItem('swipies_ga_property_id');
-  const serviceKey = localStorage.getItem('swipies_ga_service_key');
-  const ymId = localStorage.getItem('swipies_ym_counter_id');
-  const ymToken = localStorage.getItem('swipies_ym_oauth_token');
-  
-  const isGaConfigured = gaId && serviceKey;
-  const isYmConfigured = ymId && ymToken;
-  const isConfigured = activeDataSource === 'ga' ? isGaConfigured : isYmConfigured;
-  
+
   const banner = document.getElementById('ga4WarningBanner');
-  if (banner) {
-    const bannerText = banner.querySelector('div');
-    if (bannerText) {
-      if (activeDataSource === 'ga') {
-        bannerText.innerHTML = `<strong>Google Analytics 4 is not connected.</strong> Connect GA4 in <a href="#" onclick="switchTab('settings')" style="color:var(--accent);text-decoration:underline">Settings</a> to view live traffic statistics.`;
-        banner.style.display = isGaConfigured ? 'none' : 'flex';
-      } else {
-        bannerText.innerHTML = `<strong>Yandex Metrika is not connected.</strong> Connect Yandex Metrika in <a href="#" onclick="switchTab('settings')" style="color:var(--accent);text-decoration:underline">Settings</a> to view live traffic statistics.`;
-        banner.style.display = isYmConfigured ? 'none' : 'flex';
+
+  // 1. LIVE PLATFORM TELEMETRY (DEFAULT & NATIVE)
+  if (activeDataSource === 'db') {
+    if (banner) banner.style.display = 'none';
+
+    // Ensure visitor telemetry cache is populated
+    if (currentVisitorsData.length === 0) {
+      try {
+        await loadVisitorsFromDB();
+      } catch (e) {
+        console.warn('Telemetry preload notice:', e);
       }
     }
+
+    const stats = computeNativeDashboardData(activeDateRange);
+    populateDashboardUI(stats);
+    if (loader) loader.classList.remove('loading');
+    return;
   }
-  
+
+  // 2. THIRD-PARTY SOURCES (GA4 / YANDEX METRIKA)
+  const gaId = localStorage.getItem('swipies_ga_property_id') || '470471775';
+  const ymId = localStorage.getItem('swipies_ym_counter_id') || '106098534';
+
+  const isGaConfigured = Boolean(gaId);
+  const isYmConfigured = Boolean(ymId);
+  const isConfigured = activeDataSource === 'ga' ? isGaConfigured : isYmConfigured;
+
+  if (banner) {
+    banner.style.display = 'none';
+  }
+
   if (!isConfigured) {
     const stats = getEmptyDashboardData(activeDateRange);
     populateDashboardUI(stats);
     if (loader) loader.classList.remove('loading');
     return;
   }
-  
+
   try {
     let stats;
     if (activeDataSource === 'ga') {
@@ -2169,22 +2770,18 @@ function getEmptyDashboardData(period) {
 }
 
 async function fetchRealGA4Data(period) {
-  const gaId = localStorage.getItem('swipies_ga_property_id') || '';
+  const gaId = localStorage.getItem('swipies_ga_property_id') || '470471775';
   const serviceKeyRaw = localStorage.getItem('swipies_ga_service_key') || '';
-  
-  if (!gaId || !serviceKeyRaw) {
-    throw new Error("Google Analytics 4 is not configured. Please add your credentials in Settings.");
-  }
-  
+
   const propertiesId = gaId.replace('G-', '').trim();
   if (isNaN(propertiesId) || propertiesId.length === 0) {
     throw new Error("Invalid GA4 Property ID. Please specify a numeric GA4 Property ID (e.g. 412345678) in Settings, not a Measurement ID (G-XXXX).");
   }
-  
+
   // 1. Build Date Ranges
   let startDate = '30daysAgo';
   let endDate = 'today';
-  
+
   if (period === 'today') {
     startDate = 'today';
     endDate = 'today';
@@ -2205,7 +2802,7 @@ async function fetchRealGA4Data(period) {
       endDate = endVal;
     }
   }
-  
+
   // 2. Build Request Payloads (split into 2 batches to respect Google's limit of 5 requests per batch)
   const payload1 = {
     requests: [
@@ -2274,17 +2871,11 @@ async function fetchRealGA4Data(period) {
       }
     ]
   };
-  
-  const headers = { 'Content-Type': 'application/json' };
-  const token = localStorage.getItem('Authorization');
-  if (token) {
-    headers['Authorization'] = token;
-  }
 
   const queryGA4 = async (requestsPayload) => {
     const response = await fetch('/api/analytics/query', {
       method: 'POST',
-      headers: headers,
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         property_id: propertiesId,
         service_account_key: serviceKeyRaw,
@@ -2292,11 +2883,11 @@ async function fetchRealGA4Data(period) {
         payload: { requests: requestsPayload }
       })
     });
-    
+
     if (response.status === 401 || response.status === 403) {
       throw new Error("Unauthorized. Please log in as an administrator.");
     }
-    
+
     const result = await safeFetchJson(response);
     if (result.code !== 0) {
       throw new Error(result.message || "Failed to query Google Analytics.");
@@ -2308,37 +2899,37 @@ async function fetchRealGA4Data(period) {
     queryGA4(payload1.requests),
     queryGA4(payload2.requests)
   ]);
-  
+
   const reports = [...reports1, ...reports2];
-  
+
   // Parse reports...
   let users = 0;
   let sessions = 0;
   let bounce = '0.0%';
   let duration = '0s';
   let views = 0;
-  
+
   const r0 = reports[0];
   if (r0 && r0.rows && r0.rows.length > 0) {
     const metricValues = r0.rows[0].metricValues;
     users = parseInt(metricValues[0].value) || 0;
     sessions = parseInt(metricValues[1].value) || 0;
-    
+
     const bounceVal = parseFloat(metricValues[2].value) || 0;
     let bouncePercent = bounceVal;
     if (bounceVal <= 1.0) {
       bouncePercent = bounceVal * 100;
     }
     bounce = bouncePercent.toFixed(1) + "%";
-    
+
     const avgDurationSec = parseFloat(metricValues[3].value) || 0;
     const mins = Math.floor(avgDurationSec / 60);
     const secs = Math.round(avgDurationSec % 60);
     duration = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-    
+
     views = parseInt(metricValues[4].value) || 0;
   }
-  
+
   // Parse report 1: Timeline
   const labels = [];
   const usersData = [];
@@ -2349,19 +2940,19 @@ async function fetchRealGA4Data(period) {
       const dateStr = row.dimensionValues[0].value; // YYYYMMDD
       const u = parseInt(row.metricValues[0].value) || 0;
       const s = parseInt(row.metricValues[1].value) || 0;
-      
+
       const year = parseInt(dateStr.substring(0, 4));
       const month = parseInt(dateStr.substring(4, 6)) - 1;
       const day = parseInt(dateStr.substring(6, 8));
       const dateObj = new Date(year, month, day);
       const label = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      
+
       labels.push(label);
       usersData.push(u);
       sessionsData.push(s);
     });
   }
-  
+
   // Fill in empty labels if no dates returned
   if (labels.length === 0) {
     const today = new Date();
@@ -2384,7 +2975,7 @@ async function fetchRealGA4Data(period) {
       sessionsData.push(0);
     }
   }
-  
+
   // Parse report 2: Channels
   const channels = { labels: [], data: [] };
   const r2 = reports[2];
@@ -2398,7 +2989,7 @@ async function fetchRealGA4Data(period) {
     channels.labels = ['Organic Search', 'Direct Traffic', 'Referrals', 'Social Media'];
     channels.data = [0, 0, 0, 0];
   }
-  
+
   // Parse report 3: Devices
   const devices = { labels: [], data: [] };
   const r3 = reports[3];
@@ -2414,7 +3005,7 @@ async function fetchRealGA4Data(period) {
     devices.labels = ['Desktop', 'Mobile', 'Tablet'];
     devices.data = [0, 0, 0];
   }
-  
+
   // Parse report 4: Languages
   const languages = { labels: [], data: [] };
   const r4 = reports[4];
@@ -2429,7 +3020,7 @@ async function fetchRealGA4Data(period) {
     languages.labels = ['Russian (RU)', 'English (EN)', 'Uzbek (UZ)'];
     languages.data = [0, 0, 0];
   }
-  
+
   // Parse report 5: Conversions
   const conversions = {
     demo: 0,
@@ -2450,7 +3041,7 @@ async function fetchRealGA4Data(period) {
       }
     });
   }
-  
+
   return {
     users,
     sessions,
@@ -2468,14 +3059,10 @@ async function fetchRealGA4Data(period) {
 async function fetchRealYmData(period) {
   const ymId = localStorage.getItem('swipies_ym_counter_id') || '106098534';
   const ymToken = localStorage.getItem('swipies_ym_oauth_token') || '';
-  
-  if (!ymId || !ymToken) {
-    throw new Error("Yandex Metrika is not configured. Please add your credentials in Settings.");
-  }
-  
+
   let date1 = '30daysAgo';
   let date2 = 'today';
-  
+
   if (period === 'today') {
     date1 = 'today';
     date2 = 'today';
@@ -2497,16 +3084,10 @@ async function fetchRealYmData(period) {
     }
   }
 
-  const headers = { 'Content-Type': 'application/json' };
-  const token = localStorage.getItem('Authorization');
-  if (token) {
-    headers['Authorization'] = token;
-  }
-
   const runQuery = async (params) => {
     const response = await fetch('/api/yandex_analytics/query', {
       method: 'POST',
-      headers: headers,
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         counter_id: ymId,
         oauth_token: ymToken,
@@ -2567,15 +3148,15 @@ async function fetchRealYmData(period) {
   if (mainData && mainData.totals && mainData.totals.length >= 6) {
     users = parseInt(mainData.totals[0]) || 0;
     sessions = parseInt(mainData.totals[1]) || 0;
-    
+
     const bounceVal = parseFloat(mainData.totals[2]) || 0;
     bounce = bounceVal.toFixed(1) + "%";
-    
+
     const avgDurationSec = parseFloat(mainData.totals[3]) || 0;
     const mins = Math.floor(avgDurationSec / 60);
     const secs = Math.round(avgDurationSec % 60);
     duration = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-    
+
     views = parseInt(mainData.totals[5]) || 0;
   }
 
@@ -2588,10 +3169,10 @@ async function fetchRealYmData(period) {
       const dateStr = row.dimensions[0].name;
       const u = parseInt(row.metrics[0]) || 0;
       const s = parseInt(row.metrics[1]) || 0;
-      
+
       const dateObj = new Date(dateStr);
       const label = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      
+
       labels.push(label);
       usersData.push(u);
       sessionsData.push(s);
@@ -2712,14 +3293,17 @@ function populateDashboardUI(data) {
   document.getElementById('statSessions').textContent = data.sessions.toLocaleString();
   document.getElementById('statBounce').textContent = data.bounce;
   document.getElementById('statDuration').textContent = data.duration;
-  
-  // Toggle trend indicators visibility based on GA4 configuration
+
+  // Toggle trend indicators visibility based on active data source
   const gaId = localStorage.getItem('swipies_ga_property_id');
   const serviceKey = localStorage.getItem('swipies_ga_service_key');
-  const isConfigured = gaId && serviceKey;
+  const ymId = localStorage.getItem('swipies_ym_counter_id');
+  const ymToken = localStorage.getItem('swipies_ym_oauth_token');
+  const hasExternal = (gaId && serviceKey) || (ymId && ymToken);
+  const showTrends = activeDataSource === 'db' || hasExternal;
   const trends = document.querySelectorAll('.stat-trend');
   trends.forEach(t => {
-    t.style.display = isConfigured ? 'block' : 'none';
+    t.style.display = showTrends ? 'block' : 'none';
   });
 
   // Overview Labels
@@ -2730,12 +3314,12 @@ function populateDashboardUI(data) {
   document.getElementById('convDemoClicks').textContent = data.conversions.demo.toLocaleString();
   document.getElementById('convSalesClicks').textContent = data.conversions.sales.toLocaleString();
   document.getElementById('convFormSubmits').textContent = data.conversions.submit.toLocaleString();
-  
+
   // Conversions conversion rates
   const demoRate = data.sessions > 0 ? ((data.conversions.demo / data.sessions) * 100).toFixed(1) : '0.0';
   const salesRate = data.sessions > 0 ? ((data.conversions.sales / data.sessions) * 100).toFixed(1) : '0.0';
   const formRate = data.sessions > 0 ? ((data.conversions.submit / data.sessions) * 100).toFixed(1) : '0.0';
-  
+
   document.getElementById('convDemoRate').textContent = `${demoRate}% Conversion Rate`;
   document.getElementById('convSalesRate').textContent = `${salesRate}% Conversion Rate`;
   document.getElementById('convFormRate').textContent = `${formRate}% Conversion Rate`;
@@ -2745,7 +3329,7 @@ function populateDashboardUI(data) {
   drawAcquisitionCharts(data.channels, data.devices);
   drawFunnelChart(data.sessions, data.conversions);
   drawLanguageCharts(data.languages, data.timeline.labels);
-  
+
   // Render sub tables
   renderTopPagesTable(data.users);
 }
@@ -2762,9 +3346,9 @@ if (window.Chart) { Chart.defaults.borderColor = '#1a2236'; }
 
 function drawOverviewTrendChart(timeline) {
   const ctx = document.getElementById('overviewTrendChart').getContext('2d');
-  
+
   if (trendChart) trendChart.destroy();
-  
+
   // Dark theme golden accent gradient
   const gradient = ctx.createLinearGradient(0, 0, 0, 300);
   gradient.addColorStop(0, 'rgba(232, 168, 32, 0.2)');
@@ -2836,7 +3420,7 @@ function drawAcquisitionCharts(channels, devices) {
   // Traffic Channels Bar Chart
   const ctxBar = document.getElementById('trafficChannelsChart').getContext('2d');
   if (channelChart) channelChart.destroy();
-  
+
   channelChart = new Chart(ctxBar, {
     type: 'bar',
     data: {
@@ -2862,7 +3446,7 @@ function drawAcquisitionCharts(channels, devices) {
   // Device segment Donut Chart
   const ctxDonut = document.getElementById('trafficDevicesChart').getContext('2d');
   if (deviceChart) deviceChart.destroy();
-  
+
   deviceChart = new Chart(ctxDonut, {
     type: 'doughnut',
     data: {
@@ -2891,7 +3475,7 @@ function drawAcquisitionCharts(channels, devices) {
 function drawFunnelChart(sessions, conversions) {
   const container = document.getElementById('funnelContainer');
   container.innerHTML = '';
-  
+
   const funnelData = [
     { label: 'Total Sessions', count: sessions, rate: '100.0%' },
     { label: 'Try Demo Click', count: conversions.demo, rate: ((conversions.demo / sessions) * 100).toFixed(1) + '%' },
@@ -2901,7 +3485,7 @@ function drawFunnelChart(sessions, conversions) {
 
   funnelData.forEach(step => {
     const widthPercentage = ((step.count / sessions) * 100).toFixed(0);
-    
+
     const stepEl = document.createElement('div');
     stepEl.className = 'funnel-step';
     stepEl.innerHTML = `
@@ -2920,7 +3504,7 @@ function drawLanguageCharts(languages, timelineLabels) {
   // Pie Donut Language Distribution
   const ctxLangDist = document.getElementById('languageDistributionChart').getContext('2d');
   if (langDistChart) langDistChart.destroy();
-  
+
   langDistChart = new Chart(ctxLangDist, {
     type: 'pie',
     data: {
@@ -2944,12 +3528,12 @@ function drawLanguageCharts(languages, timelineLabels) {
   // Language Timeline trends
   const ctxLangTimeline = document.getElementById('languageTimelineChart').getContext('2d');
   if (langTimeChart) langTimeChart.destroy();
-  
+
   // Build proportional data per language over time
   const ruData = [];
   const enData = [];
   const uzData = [];
-  
+
   timelineLabels.forEach((_, idx) => {
     const sum = 100;
     const ruPercent = 50 + Math.round(Math.random() * 8) - 4;
@@ -3011,7 +3595,7 @@ function drawLanguageCharts(languages, timelineLabels) {
 function renderTopPagesTable(totalUsers) {
   const body = document.getElementById('topPagesTableBody');
   body.innerHTML = '';
-  
+
   const pages = [
     { path: '/', views: Math.round(totalUsers * 2.1), unique: Math.round(totalUsers * 0.95), duration: '2m 14s' },
     { path: '/#solution', views: Math.round(totalUsers * 0.92), unique: Math.round(totalUsers * 0.65), duration: '1m 45s' },
@@ -3059,28 +3643,14 @@ function mapDatabaseLeads(leads) {
     phone: sub.phone || '',
     message: sub.message || '',
     referralCode: sub.referral_code || '',
+    source: sub.source || 'b2c',
     date: sub.create_date || new Date().toISOString(),
     read: sub.status !== '1'
   }));
 }
 
-function getAuthHeaders(extraHeaders = {}) {
-  const headers = { 'Content-Type': 'application/json', ...extraHeaders };
-  const token = localStorage.getItem('Authorization');
-  if (token) headers['Authorization'] = token;
-  return headers;
-}
-
-// Global 401/403 handler — forces re-login when token expires or is missing
-function handleApiUnauthorized() {
-  localStorage.removeItem('swipies_admin_session');
-  localStorage.removeItem('Authorization');
-  showToast('Session Expired', 'Your session has expired. Please log in again.', 'error');
-  setTimeout(() => { checkAuth(); }, 1500);
-}
-
 function loadLeadsFromDB() {
-  fetch('/api/leads')
+  fetch('/api/leads', { headers: getAuthHeaders() })
     .then(res => safeFetchJson(res))
     .then(res => {
       if (res && res.code === 0 && Array.isArray(res.data)) {
@@ -3104,39 +3674,47 @@ function loadLeadsFromDB() {
 function renderSubmissionsTable() {
   const body = document.getElementById('submissionsTableBody');
   const emptyState = document.getElementById('submissionsEmptyState');
-  
+
   if (!body) return;
   body.innerHTML = '';
-  
-  if (databaseSubmissions.length === 0) {
+
+  const sourceFilterEl = document.getElementById('leadSourceFilter');
+  const selectedSource = sourceFilterEl ? sourceFilterEl.value : 'all';
+
+  const filteredSubs = databaseSubmissions.filter(sub => {
+    if (selectedSource === 'all') return true;
+    return (sub.source || 'b2c') === selectedSource;
+  });
+
+  if (filteredSubs.length === 0) {
     emptyState.style.display = 'flex';
     return;
   }
-  
+
   emptyState.style.display = 'none';
 
-  databaseSubmissions.forEach(sub => {
-    const formattedDate = new Date(sub.date).toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  filteredSubs.forEach(sub => {
+    const formattedDate = formatFullVisitorTimestamp(sub.date);
 
-    const statusBadge = sub.read 
-      ? `<span class="badge-read">Read</span>` 
+    const statusBadge = sub.read
+      ? `<span class="badge-read">Read</span>`
       : `<span class="badge-unread">New</span>`;
-      
+
+    const channelBadge = (sub.source === 'enterprise')
+      ? `<span class="badge-enterprise">Enterprise</span>`
+      : `<span class="badge-b2c">B2C</span>`;
+
     const readBtnLabel = sub.read ? 'Mark Unread' : 'Mark Read';
 
-    const refBadge = sub.referralCode 
-      ? ` <span style="background:rgba(var(--accent-rgb), 0.12);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:0.7rem;font-family:var(--font-mono);font-weight:600;border:1px solid rgba(var(--accent-rgb), 0.3);margin-left:0.5rem">Ref: ${sub.referralCode}</span>` 
+    const refBadge = sub.referralCode
+      ? ` <span style="background:rgba(var(--accent-rgb), 0.12);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:0.7rem;font-family:var(--font-mono);font-weight:600;border:1px solid rgba(var(--accent-rgb), 0.3);margin-left:0.5rem">Ref: ${sub.referralCode}</span>`
       : '';
 
     const row = document.createElement('tr');
     row.id = `row_${sub.id}`;
     row.innerHTML = `
       <td>${statusBadge}</td>
+      <td>${channelBadge}</td>
       <td>
         <div style="font-weight:600;display:flex;align-items:center">${sub.name}${refBadge}</div>
         <div style="font-size:0.8rem;color:var(--text-muted)">${sub.company}</div>
@@ -3164,9 +3742,9 @@ function renderLatestOverviewSubmissions() {
   const container = document.getElementById('overviewLatestSubs');
   if (!container) return;
   container.innerHTML = '';
-  
+
   const latest = databaseSubmissions.slice(0, 3);
-  
+
   if (latest.length === 0) {
     container.innerHTML = `
       <div class="empty-state" style="padding:1.5rem">
@@ -3177,17 +3755,18 @@ function renderLatestOverviewSubmissions() {
   }
 
   latest.forEach(sub => {
-    const formattedDate = new Date(sub.date).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric'
-    });
-    
-    const unreadIndicator = !sub.read 
+    const formattedDate = formatFullVisitorTimestamp(sub.date, false);
+
+    const unreadIndicator = !sub.read
       ? `<span style="width:8px; height:8px; background:var(--accent); border-radius:50%; flex-shrink:0" title="New message"></span>`
       : ``;
 
-    const refBadge = sub.referralCode 
-      ? ` <span style="background:rgba(var(--accent-rgb), 0.12);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:0.7rem;font-family:var(--font-mono);font-weight:600;border:1px solid rgba(var(--accent-rgb), 0.3);margin-left:0.5rem">Ref: ${sub.referralCode}</span>` 
+    const channelBadge = (sub.source === 'enterprise')
+      ? `<span class="badge-enterprise" style="font-size:0.6rem; padding:1px 4px; margin-left:0.4rem;">Enterprise</span>`
+      : `<span class="badge-b2c" style="font-size:0.6rem; padding:1px 4px; margin-left:0.4rem;">B2C</span>`;
+
+    const refBadge = sub.referralCode
+      ? ` <span style="background:rgba(var(--accent-rgb), 0.12);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:0.7rem;font-family:var(--font-mono);font-weight:600;border:1px solid rgba(var(--accent-rgb), 0.3);margin-left:0.5rem">Ref: ${sub.referralCode}</span>`
       : '';
 
     const subCard = document.createElement('div');
@@ -3196,7 +3775,7 @@ function renderLatestOverviewSubmissions() {
       <div style="display:flex; align-items:center; gap:0.75rem; overflow:hidden">
         ${unreadIndicator}
         <div style="overflow:hidden">
-          <div style="font-weight:600; font-size:0.9rem; display:flex; align-items:center">${sub.name}${refBadge}</div>
+          <div style="font-weight:600; font-size:0.9rem; display:flex; align-items:center">${sub.name}${channelBadge}${refBadge}</div>
           <div style="font-size:0.75rem; color:var(--text-muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap">${sub.company} · ${sub.message}</div>
         </div>
       </div>
@@ -3211,10 +3790,10 @@ function toggleReadStatus(id) {
   if (!sub) return;
   const newRead = !sub.read;
   const newStatus = newRead ? '2' : '1';
-  
+
   fetch(`/api/leads/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ status: newStatus })
   }).then(res => safeFetchJson(res))
     .then(res => {
@@ -3233,7 +3812,8 @@ function toggleReadStatus(id) {
 function deleteSubmission(id) {
   if (confirm("Are you sure you want to delete this submission from the database?")) {
     fetch(`/api/leads/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getAuthHeaders()
     }).then(res => safeFetchJson(res))
       .then(res => {
         if (res && res.code === 0) {
@@ -3251,8 +3831,8 @@ function deleteSubmission(id) {
 
 function clearAllSubmissions() {
   if (confirm("Are you sure you want to delete ALL submission records? This action is permanent!")) {
-    const deletePromises = databaseSubmissions.map(sub => 
-      fetch(`/api/leads/${sub.id}`, { method: 'DELETE' }).then(res => safeFetchJson(res))
+    const deletePromises = databaseSubmissions.map(sub =>
+      fetch(`/api/leads/${sub.id}`, { method: 'DELETE', headers: getAuthHeaders() }).then(res => safeFetchJson(res))
     );
     Promise.all(deletePromises)
       .then(() => {
@@ -3287,30 +3867,64 @@ function exportSubmissionsToCSV() {
   downloadLink.setAttribute("href", encodedUri);
   downloadLink.setAttribute("download", `swipies_submissions_export_${Date.now()}.csv`);
   document.body.appendChild(downloadLink);
-  
+
   downloadLink.click();
   document.body.removeChild(downloadLink);
-  
+
   showToast('Export Complete', 'Generated CSV download file successfully.', 'success');
 }
 
 /* ========================================================================
-   PLATFORM USERS & REFERRALS SYSTEM
+   PLATFORM USERS & PRODUCT ANALYTICS SYSTEM
 ========================================================================
 */
 
-function loadUsersFromDB() {
+async function loadUsersFromDB() {
   const body = document.getElementById('usersTableBody');
   const emptyState = document.getElementById('usersEmptyState');
   if (!body) return;
-  
-  // Standalone mode: Load from local storage or show empty
+
   try {
-    databaseUsers = JSON.parse(localStorage.getItem('swipies_users') || '[]');
+    // 1. Fetch live metrics
+    fetch('/api/platform/metrics', { headers: getAuthHeaders() })
+      .then(res => res.json())
+      .then(res => {
+        if (res && res.code === 0 && res.metrics) {
+          const m = res.metrics;
+          const kpiTotal = document.getElementById('kpiTotalUsers');
+          const kpiActive = document.getElementById('kpiActiveUsers');
+          const kpiSignup = document.getElementById('kpiSignupRate');
+          const kpiSignupSub = document.getElementById('kpiSignupSub');
+          const kpiAct = document.getElementById('kpiActivationRate');
+          const kpiActSub = document.getElementById('kpiActivationSub');
+          const kpiWau = document.getElementById('kpiWauUsers');
+          const kpiDau = document.getElementById('kpiDauUsers');
+
+          if (kpiTotal) kpiTotal.textContent = (m.total_users || 0).toLocaleString();
+          if (kpiActive) kpiActive.textContent = `${m.active_accounts || 0} active accounts`;
+          if (kpiSignup) kpiSignup.textContent = `${m.landing_to_signup_rate || 0}%`;
+          if (kpiSignupSub) kpiSignupSub.textContent = `from ${m.unique_visitors || 0} unique visitors`;
+          if (kpiAct) kpiAct.textContent = `${m.activation_rate || 0}%`;
+          if (kpiActSub) kpiActSub.textContent = `${m.activated_users || 0} activated (created bot/kb)`;
+          if (kpiWau) kpiWau.textContent = (m.wau || 0).toLocaleString();
+          if (kpiDau) kpiDau.textContent = `${m.dau || 0} daily active (DAU) • Stickiness: ${m.stickiness_rate || 0}%`;
+        }
+      }).catch(() => {});
+
+    // 2. Fetch users list
+    const resp = await fetch('/api/platform/users', { headers: getAuthHeaders() });
+    const result = await resp.json();
+
+    if (resp.ok && result.code === 0 && Array.isArray(result.data)) {
+      databaseUsers = result.data;
+      localStorage.setItem('swipies_users', JSON.stringify(databaseUsers));
+    } else {
+      databaseUsers = JSON.parse(localStorage.getItem('swipies_users') || '[]');
+    }
   } catch (e) {
-    databaseUsers = [];
+    databaseUsers = JSON.parse(localStorage.getItem('swipies_users') || '[]');
   }
-  
+
   if (databaseUsers.length === 0) {
     if (emptyState) emptyState.style.display = 'flex';
   } else {
@@ -3333,43 +3947,50 @@ function renderUsersTable() {
   if (emptyState) emptyState.style.display = 'none';
 
   databaseUsers.forEach(user => {
-    const formattedDate = user.create_date 
-      ? new Date(user.create_date.replace(/-/g, '/')).toLocaleString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        })
+    const formattedDate = user.create_date
+      ? formatFullVisitorTimestamp(user.create_date, true)
       : '—';
 
+    const lastActiveFormatted = user.last_active_date
+      ? formatFullVisitorTimestamp(user.last_active_date, true)
+      : 'Never';
+
     const isActive = user.is_active !== 0;
-    const statusBadge = isActive 
-      ? `<span class="badge-read" style="background:rgba(46,204,113,0.15);color:#2ecc71">Active</span>` 
-      : `<span class="badge-unread" style="background:rgba(231,76,60,0.15);color:#e74c3c">Suspended</span>`;
+    const statusBadge = isActive
+      ? `<span class="badge-read" style="background:rgba(46,204,113,0.15);color:#2ecc71;padding:3px 8px;border-radius:4px;font-size:0.75rem;font-weight:600">Active</span>`
+      : `<span class="badge-unread" style="background:rgba(231,76,60,0.15);color:#e74c3c;padding:3px 8px;border-radius:4px;font-size:0.75rem;font-weight:600">Suspended</span>`;
 
     const toggleBtnLabel = isActive ? 'Suspend' : 'Activate';
     const toggleActionClass = isActive ? 'delete' : '';
-    
-    const isSuper = user.is_superuser ? '<span style="background:var(--accent);color:var(--bg);font-size:0.65rem;padding:1px 4px;border-radius:3px;margin-left:0.4rem;font-weight:700">ADMIN</span>' : '';
 
-    const referrerInfo = user.referred_by_email 
-      ? `<div style="font-size:0.8rem;color:var(--text-muted)">${user.referred_by_email}</div>`
-      : `<div style="font-size:0.8rem;color:var(--text-dim)">Direct / Organic</div>`;
+    const isSuper = user.is_superuser ? '<span style="background:var(--accent);color:var(--bg);font-size:0.65rem;padding:2px 5px;border-radius:3px;margin-left:0.4rem;font-weight:700">ADMIN</span>' : '';
+
+    const utmBadge = user.utm_source
+      ? `<div style="font-size:0.75rem;font-weight:600;color:var(--accent);display:inline-block;background:rgba(var(--accent-rgb),0.1);padding:2px 6px;border-radius:3px;margin-top:2px">${user.utm_source}${user.utm_campaign ? ' / ' + user.utm_campaign : ''}</div>`
+      : `<div style="font-size:0.75rem;color:var(--text-dim)">Direct / Organic</div>`;
+
+    const referralInfo = user.referred_by ? `<div style="font-size:0.7rem;color:var(--text-muted)">Ref: ${user.referred_by}</div>` : '';
 
     const row = document.createElement('tr');
     row.innerHTML = `
       <td>
         <div style="font-weight:600;display:flex;align-items:center">${user.email}${isSuper}</div>
-        <div style="font-size:0.75rem;color:var(--text-dim);font-family:var(--font-mono)">ID: ${user.id}</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);font-family:var(--font-mono)">${user.nickname || 'No nickname'} • ID: ${user.id}</div>
       </td>
       <td>
-        <div style="font-weight:500">${user.nickname || '—'}</div>
+        ${utmBadge}
+        ${referralInfo}
       </td>
       <td class="mono-val" style="font-size:0.85rem">${formattedDate}</td>
-      <td>
-        ${referrerInfo}
+      <td style="text-align: center; font-weight: 600; color: var(--text);">
+        ${user.knowledgebases_count || 0}
       </td>
-      <td style="text-align: center; font-weight: 700; font-size: 1rem; color: var(--accent);">
-        ${user.referrals_count || 0}
+      <td style="text-align: center; font-weight: 600; color: var(--text);">
+        ${user.dialogs_count || 0}
+      </td>
+      <td class="mono-val" style="font-size:0.8rem;color:var(--text-muted)">${lastActiveFormatted}</td>
+      <td style="text-align:center">
+        ${statusBadge}
       </td>
       <td style="text-align:right">
         <div style="display:flex; gap:0.5rem; justify-content:flex-end">
@@ -3384,9 +4005,9 @@ function renderUsersTable() {
 
 function toggleUserStatus(email, currentlyActive) {
   const newStatus = currentlyActive ? 'off' : 'on';
-  fetch(`${API_BASE}/api/v1/admin/users/${email}/activate`, {
+  fetch(`/api/platform/users/${encodeURIComponent(email)}/activate`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ activate_status: newStatus })
   }).then(res => safeFetchJson(res))
     .then(res => {
@@ -3404,18 +4025,19 @@ function toggleUserStatus(email, currentlyActive) {
 
 function deleteUser(email) {
   if (confirm(`Are you sure you want to delete user ${email}? This will delete all user data from the platform database!`)) {
-    fetch(`${API_BASE}/api/v1/admin/users/${email}`, {
-      method: 'DELETE'
+    fetch(`/api/platform/users/${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
     }).then(res => safeFetchJson(res))
       .then(res => {
         if (res && res.code === 0) {
-          showToast('User Deleted', `User ${email} deleted successfully.`, 'success');
+          showToast('User Deleted', `User ${email} has been removed.`, 'success');
           loadUsersFromDB();
         } else {
           showToast('Delete Failed', res.message || 'Error deleting user.', 'error');
         }
       })
-      .catch(err => {
+      .catch(() => {
         showToast('Delete Failed', 'Network error calling admin API.', 'error');
       });
   }
@@ -3427,41 +4049,23 @@ function deleteUser(email) {
 */
 
 function loadSettings() {
-  let propertyId = localStorage.getItem('swipies_ga_property_id');
-  let measurementId = localStorage.getItem('swipies_ga_measurement_id');
-  let serviceEmail = localStorage.getItem('swipies_ga_service_email');
-  let serviceKey = localStorage.getItem('swipies_ga_service_key');
-  
-  const defaultServiceKeyBase64 = "";
-  const defaultServiceKey = atob(defaultServiceKeyBase64);
-
-  if (propertyId === null || propertyId === '') {
-    propertyId = '470471775';
-    localStorage.setItem('swipies_ga_property_id', propertyId);
-  }
-  if (measurementId === null || measurementId === 'G-SWIPIES2025' || measurementId === '') {
-    measurementId = 'G-G9BZDJNSS2';
-    localStorage.setItem('swipies_ga_measurement_id', measurementId);
-  }
-  if (serviceEmail === null || serviceEmail === '') {
-    serviceEmail = 'betmarket-b2879@appspot.gserviceaccount.com';
-    localStorage.setItem('swipies_ga_service_email', serviceEmail);
-  }
-  if (serviceKey === null || serviceKey === '') {
-    serviceKey = defaultServiceKey;
-    localStorage.setItem('swipies_ga_service_key', serviceKey);
-  }
+  let propertyId = localStorage.getItem('swipies_ga_property_id') || '470471775';
+  let measurementId = localStorage.getItem('swipies_ga_measurement_id') || 'G-G9BZDJNSS2';
+  let serviceEmail = localStorage.getItem('swipies_ga_service_email') || '';
+  let serviceKey = localStorage.getItem('swipies_ga_service_key') || '';
+  let ymId = localStorage.getItem('swipies_ym_counter_id') || '106098534';
+  let ymToken = localStorage.getItem('swipies_ym_oauth_token') || '';
 
   // Backwards compatibility: If propertyId is empty but measurementId is numeric, migrate it
   if (!propertyId && measurementId && !isNaN(measurementId.replace('G-', '').trim())) {
     propertyId = measurementId.replace('G-', '').trim();
     localStorage.setItem('swipies_ga_property_id', propertyId);
   }
-  
+
   document.getElementById('settingGaId').value = propertyId;
   document.getElementById('settingGaMeasurementId').value = measurementId;
-  document.getElementById('settingYmId').value = localStorage.getItem('swipies_ym_counter_id') || '106098534';
-  document.getElementById('settingYmToken').value = localStorage.getItem('swipies_ym_oauth_token') || '';
+  document.getElementById('settingYmId').value = ymId;
+  document.getElementById('settingYmToken').value = ymToken;
   document.getElementById('settingServiceEmail').value = serviceEmail;
   document.getElementById('settingServiceKey').value = serviceKey;
   document.getElementById('settingAnalyticsToggle').checked = localStorage.getItem('swipies_analytics_enabled') !== 'false';
@@ -3469,7 +4073,7 @@ function loadSettings() {
 
 function saveSettings(event) {
   event.preventDefault();
-  
+
   const gaPropertyId = document.getElementById('settingGaId').value.trim();
   const gaMeasurementId = document.getElementById('settingGaMeasurementId').value.trim();
   const ymId = document.getElementById('settingYmId').value.trim();
@@ -3489,58 +4093,33 @@ function saveSettings(event) {
   localStorage.setItem('swipies_analytics_enabled', analyticsToggle ? 'true' : 'false');
 
   if (newPwd.trim() !== '') {
-    localStorage.setItem('swipies_admin_pwd', newPwd);
-    showToast('Password Changed', 'Credentials updated. Use the new password next time.', 'success');
-    document.getElementById('settingNewPwd').value = '';
+    if (newPwd.length < 6) {
+      showToast('Validation Error', 'Password must be at least 6 characters.', 'error');
+      return;
+    }
+    fetch('/api/auth/change_password', {
+      method: 'POST',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ new_password: newPwd })
+    })
+      .then(res => safeFetchJson(res))
+      .then(data => {
+        if (data.code === 0) {
+          showToast('Password Changed', 'Credentials updated successfully on the server.', 'success');
+          document.getElementById('settingNewPwd').value = '';
+        } else {
+          showToast('Password Error', data.message || 'Could not change password.', 'error');
+        }
+      })
+      .catch(err => {
+        showToast('Password Error', err.message || 'Failed to update password.', 'error');
+      });
   }
 
   showToast('Settings Saved', 'Analytics integration credentials successfully updated.', 'success');
-  
+
   // Refresh the dashboard stats using the new credentials
   refreshDashboardData();
-}
-
-function savePlanLimits(event) {
-  event.preventDefault();
-  const limits = [
-    { name: 'plan.free.apps_limit', value: document.getElementById('planFreeApps').value },
-    { name: 'plan.free.datasets_limit', value: document.getElementById('planFreeDatasets').value },
-    { name: 'plan.free.storage_gb', value: document.getElementById('planFreeStorage').value },
-    { name: 'plan.free.token_limit', value: document.getElementById('planFreeTokens').value },
-    { name: 'plan.free.team_limit', value: document.getElementById('planFreeTeam').value },
-
-    { name: 'plan.plus.apps_limit', value: document.getElementById('planPlusApps').value },
-    { name: 'plan.plus.datasets_limit', value: document.getElementById('planPlusDatasets').value },
-    { name: 'plan.plus.storage_gb', value: document.getElementById('planPlusStorage').value },
-    { name: 'plan.plus.token_limit', value: document.getElementById('planPlusTokens').value },
-    { name: 'plan.plus.team_limit', value: document.getElementById('planPlusTeam').value },
-
-    { name: 'plan.pro.apps_limit', value: document.getElementById('planProApps').value },
-    { name: 'plan.pro.datasets_limit', value: document.getElementById('planProDatasets').value },
-    { name: 'plan.pro.storage_gb', value: document.getElementById('planProStorage').value },
-    { name: 'plan.pro.token_limit', value: document.getElementById('planProTokens').value },
-    { name: 'plan.pro.team_limit', value: document.getElementById('planProTeam').value },
-
-    { name: 'plan.enterprise.apps_limit', value: document.getElementById('planEntApps').value },
-    { name: 'plan.enterprise.datasets_limit', value: document.getElementById('planEntDatasets').value },
-    { name: 'plan.enterprise.storage_gb', value: document.getElementById('planEntStorage').value },
-    { name: 'plan.enterprise.token_limit', value: document.getElementById('planEntTokens').value },
-    { name: 'plan.enterprise.team_limit', value: document.getElementById('planEntTeam').value },
-  ];
-
-  Promise.all(limits.map(item =>
-    fetch('/v1/admin/variables', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ var_name: item.name, var_value: item.value })
-    })
-  ))
-  .then(() => {
-    showToast('Plan Limits Saved', 'Subscription tier limits updated successfully across platform!', 'success');
-  })
-  .catch(err => {
-    showToast('Save Warning', 'Saved locally, network sync error: ' + err.message, 'warning');
-  });
 }
 
 // Validate credentials against REST endpoint
@@ -3574,15 +4153,9 @@ async function testGa4Connection() {
   showToast('Testing Connection', 'Sending diagnostic ping to backend GA4 proxy...', 'info');
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    const token = localStorage.getItem('Authorization');
-    if (token) {
-      headers['Authorization'] = token;
-    }
-    
     const response = await fetch('/api/analytics/query', {
       method: 'POST',
-      headers: headers,
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         property_id: propertiesId,
         service_account_key: serviceKey,
@@ -3612,8 +4185,8 @@ async function testGa4Connection() {
 
 // Validate Yandex Metrika connection against proxy endpoint
 async function testYmConnection() {
-  const ymId = document.getElementById('settingYmId').value.trim() || '106098534';
-  const ymToken = document.getElementById('settingYmToken').value.trim() || '';
+  const ymId = document.getElementById('settingYmId').value.trim() || localStorage.getItem('swipies_ym_counter_id') || '';
+  const ymToken = document.getElementById('settingYmToken').value.trim() || localStorage.getItem('swipies_ym_oauth_token') || '';
 
   if (!ymId) {
     showToast('Validation Error', 'Yandex Metrika Counter ID is required for testing.', 'error');
@@ -3627,15 +4200,9 @@ async function testYmConnection() {
   showToast('Testing Connection', 'Sending diagnostic ping to Yandex Metrika proxy...', 'info');
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    const token = localStorage.getItem('Authorization');
-    if (token) {
-      headers['Authorization'] = token;
-    }
-    
     const response = await fetch('/api/yandex_analytics/query', {
       method: 'POST',
-      headers: headers,
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         counter_id: ymId,
         oauth_token: ymToken,
@@ -3674,12 +4241,15 @@ function promptYmTokenHelper(event) {
  ========================================================================
  */
 
-function initializeDashboard() {
+async function initializeDashboard() {
   // 1. Initial State Load
   loadSettings();
   initializeSubmissions();
+
+  // Ensure visitor telemetry is preloaded for Overview calculations
+  await loadVisitorsFromDB();
   refreshDashboardData();
-  
+
   // 2. Real-Time Online Active Users Query Engine
   // Fetches live users every 30 seconds automatically
   updateActiveUsers();
@@ -3692,32 +4262,38 @@ function initializeDashboard() {
 async function updateActiveUsers() {
   const badgeVal = document.getElementById('activeUsers');
   if (!badgeVal) return;
-  
+
+  // If in database/telemetry mode (default), count visitors with activity in the last 15 minutes
+  if (activeDataSource === 'db') {
+    const fifteenMinsAgo = Date.now() - 15 * 60 * 1000;
+    const activeRecent = currentVisitorsData.filter(v => {
+      const dt = parseSafeDate(v.last_seen_date || v.create_date).getTime();
+      return dt >= fifteenMinsAgo;
+    });
+    const uniqueRecentIps = new Set(activeRecent.map(v => v.ip).filter(Boolean));
+    badgeVal.textContent = Math.max(uniqueRecentIps.size, 1);
+    return;
+  }
+
   const gaId = localStorage.getItem('swipies_ga_property_id');
   const serviceKey = localStorage.getItem('swipies_ga_service_key');
   const isConfigured = gaId && serviceKey;
-  
+
   if (!isConfigured) {
     badgeVal.textContent = '0';
     return;
   }
-  
+
   const propertiesId = gaId.replace('G-', '').trim();
   if (isNaN(propertiesId) || propertiesId.length === 0) {
     badgeVal.textContent = '0';
     return;
   }
-  
+
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    const token = localStorage.getItem('Authorization');
-    if (token) {
-      headers['Authorization'] = token;
-    }
-    
     const response = await fetch('/api/analytics/query', {
       method: 'POST',
-      headers: headers,
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         property_id: propertiesId,
         service_account_key: serviceKey,
@@ -3727,7 +4303,7 @@ async function updateActiveUsers() {
         }
       })
     });
-    
+
     if (response.ok) {
       const result = await safeFetchJson(response);
       if (result.code === 0 && result.data && result.data.rows) {
@@ -3751,9 +4327,12 @@ async function updateActiveUsers() {
    REAL-TIME VISITOR TELEMETRY & COOKIE LOG MANAGEMENT
 ======================================================================== */
 let currentVisitorsData = [];
+let filteredVisitorsData = [];
+let visitorCurrentPage = 1;
+let visitorPageSize = 30;
 
 function escapeHtml(str) {
-  if (!str) return '';
+  if (str === null || str === undefined) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -3767,7 +4346,7 @@ async function loadVisitorsFromDB() {
   if (!tbody) return;
 
   try {
-    const res = await fetch('/api/visitors');
+    const res = await fetch('/api/visitors', { headers: getAuthHeaders() });
     const json = await safeFetchJson(res);
 
     if (json.code === 0 && Array.isArray(json.data)) {
@@ -3777,81 +4356,14 @@ async function loadVisitorsFromDB() {
       const totalEl = document.getElementById('vStatTotalVisits');
       const uniqueEl = document.getElementById('vStatUniqueIPs');
       const consentEl = document.getElementById('vStatConsentRate');
+      const botEl = document.getElementById('vStatBotCount');
 
       if (totalEl) totalEl.textContent = stats.total_visits !== undefined ? stats.total_visits : json.data.length;
       if (uniqueEl) uniqueEl.textContent = stats.unique_ips !== undefined ? stats.unique_ips : '-';
       if (consentEl) consentEl.textContent = stats.consent_rate !== undefined ? stats.consent_rate + '%' : '-';
+      if (botEl) botEl.textContent = stats.bot_count !== undefined ? stats.bot_count : '0';
 
-      if (json.data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-dim)">No visitor records logged yet.</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = json.data.map(v => {
-        let consentBadge = `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">PENDING</span>`;
-        if (v.cookie_consent === 'accepted') {
-          consentBadge = `<span style="background:rgba(31,136,61,0.15); color:#56d364; border:1px solid rgba(31,136,61,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">ACCEPTED</span>`;
-        } else if (v.cookie_consent === 'declined') {
-          consentBadge = `<span style="background:rgba(207,34,46,0.15); color:#ff808a; border:1px solid rgba(207,34,46,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">DECLINED</span>`;
-        }
-
-        const vpnBadge = v.is_proxy === 'Yes'
-          ? `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:1px 5px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono)">VPN/PROXY</span>`
-          : `<span style="background:rgba(255,255,255,0.05); color:var(--text-dim); padding:1px 5px; border-radius:3px; font-size:0.68rem">Residential</span>`;
-
-        const formattedDate = v.create_date ? new Date(v.create_date).toLocaleString() : '—';
-        const safeIp = escapeHtml(v.ip || '—');
-        const safeGeo = escapeHtml(v.country || '—') + (v.city ? `, ${escapeHtml(v.city)}` : '');
-        const safeIsp = escapeHtml(v.isp || '—');
-        const safeConn = escapeHtml(v.connection_type || '—');
-        
-        const hwCpu = v.cpu_cores ? `${v.cpu_cores} Cores` : '? Cores';
-        const hwRam = v.ram_gb ? `${v.ram_gb} GB RAM` : '? RAM';
-        const safeHw = `${hwCpu} • ${hwRam}<br><span style="font-size:0.72rem; color:var(--text-dim); font-family:var(--font-mono)">${escapeHtml(v.gpu_info || 'GPU')}</span>`;
-
-        const safeDevice = escapeHtml(v.device_type || '—') + ' / ' + escapeHtml(v.os || '—');
-        const safeBrowser = escapeHtml(v.browser || '—') + `<br><span style="font-size:0.72rem; color:var(--text-dim)">${escapeHtml(v.theme_pref || '')} (${escapeHtml(v.screen_res || '')})</span>`;
-
-        const durationMin = v.session_duration ? `${Math.floor(v.session_duration / 60)}m ${v.session_duration % 60}s` : '0s';
-        const scrollPct = v.scroll_depth !== undefined ? `${v.scroll_depth}% scroll` : '0%';
-        const clicks = v.clicked_buttons ? `<br><span style="font-size:0.72rem; color:var(--accent)" title="${escapeHtml(v.clicked_buttons)}">Clicks: ${escapeHtml(v.clicked_buttons)}</span>` : '';
-        const behaviorInfo = `<strong>${durationMin}</strong> • ${scrollPct}${clicks}`;
-
-        const safeRef = escapeHtml(v.referrer || 'Direct');
-
-        const utmSource = v.utm_source ? escapeHtml(v.utm_source) : '';
-        const utmMedium = v.utm_medium ? escapeHtml(v.utm_medium) : '';
-        const utmCampaign = v.utm_campaign ? escapeHtml(v.utm_campaign) : '';
-        
-        let utmBadge = '';
-        if (utmSource || utmCampaign) {
-          const campaignText = [utmSource, utmMedium, utmCampaign].filter(Boolean).join(' / ');
-          utmBadge = `<br><span style="background:rgba(56,123,245,0.15); color:var(--blue); border:1px solid rgba(56,123,245,0.3); padding:1px 6px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono);" title="UTM Campaign: ${campaignText}">🏷️ ${campaignText}</span>`;
-        }
-        const refDisplay = `${safeRef}${utmBadge}`;
-
-        return `
-          <tr>
-            <td>
-              <strong class="mono-val" style="color:var(--text)">${safeIp}</strong><br>
-              <span style="font-size:0.75rem; color:var(--text-muted)">📍 ${safeGeo}</span>
-            </td>
-            <td>
-              <span style="font-size:0.85rem">${safeIsp}</span> ${vpnBadge}<br>
-              <span style="font-size:0.72rem; color:var(--text-dim); font-family:var(--font-mono)">⚡ ${safeConn}</span>
-            </td>
-            <td style="font-size:0.82rem">${safeHw}</td>
-            <td style="font-size:0.82rem">${safeBrowser}</td>
-            <td style="font-size:0.82rem">${behaviorInfo}</td>
-            <td>${consentBadge}</td>
-            <td style="font-size:0.75rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${refDisplay}</td>
-            <td class="mono-val" style="font-size:0.72rem; color:var(--text-muted)">${formattedDate}</td>
-            <td style="text-align:right">
-              <button class="btn-action delete" onclick="deleteVisitorRecord(${v.id})" title="Delete entry">&times;</button>
-            </td>
-          </tr>
-        `;
-      }).join('');
+      applyVisitorFilters();
     }
   } catch (err) {
     console.error('Error fetching visitor telemetry:', err);
@@ -3859,10 +4371,339 @@ async function loadVisitorsFromDB() {
   }
 }
 
+function applyVisitorFilters() {
+  const searchInput = document.getElementById('visitorSearchInput');
+  const botSelect = document.getElementById('visitorBotFilter');
+  const netSelect = document.getElementById('visitorNetworkFilter');
+  const consentSelect = document.getElementById('visitorConsentFilter');
+
+  const q = (searchInput ? searchInput.value : '').toLowerCase().trim();
+  const botFilter = botSelect ? botSelect.value : 'all';
+  const netFilter = netSelect ? netSelect.value : 'all';
+  const consentFilter = consentSelect ? consentSelect.value : 'all';
+
+  filteredVisitorsData = currentVisitorsData.filter(v => {
+    // 1. Text Search across 10+ telemetry fields
+    if (q) {
+      const matchText = [
+        v.ip || '',
+        v.country || '',
+        v.city || '',
+        v.isp || '',
+        v.fingerprint_hash || '',
+        v.referrer || '',
+        v.device_type || '',
+        v.os || '',
+        v.browser || '',
+        v.page_url || '',
+        v.utm_campaign || '',
+        v.utm_source || ''
+      ].join(' ').toLowerCase();
+      if (!matchText.includes(q)) return false;
+    }
+
+    // 2. Bot Filter
+    if (botFilter === 'human') {
+      if (v.is_bot_detected && v.is_bot_detected !== 'No') return false;
+    } else if (botFilter === 'bot') {
+      if (!v.is_bot_detected || v.is_bot_detected === 'No') return false;
+    }
+
+    // 3. Network Filter
+    if (netFilter === 'residential') {
+      if (v.is_proxy === 'Yes') return false;
+    } else if (netFilter === 'proxy') {
+      if (v.is_proxy !== 'Yes') return false;
+    }
+
+    // 4. Consent Filter
+    if (consentFilter !== 'all') {
+      if (v.cookie_consent !== consentFilter) return false;
+    }
+
+    return true;
+  });
+
+  visitorCurrentPage = 1;
+  renderVisitorsTablePage();
+}
+
+function renderVisitorsTablePage() {
+  const tbody = document.getElementById('visitorsTableBody');
+  if (!tbody) return;
+
+  const countDisplay = document.getElementById('visitorCountDisplay');
+  if (countDisplay) {
+    countDisplay.textContent = `Showing ${filteredVisitorsData.length} of ${currentVisitorsData.length}`;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(filteredVisitorsData.length / visitorPageSize));
+  if (visitorCurrentPage > totalPages) visitorCurrentPage = totalPages;
+  if (visitorCurrentPage < 1) visitorCurrentPage = 1;
+
+  // Update pagination bar controls
+  const pageInfo = document.getElementById('visitorPaginationInfo');
+  if (pageInfo) {
+    pageInfo.textContent = `Page ${visitorCurrentPage} of ${totalPages} (${filteredVisitorsData.length} total)`;
+  }
+
+  const btnPrev = document.getElementById('btnVisitorPrev');
+  const btnNext = document.getElementById('btnVisitorNext');
+  if (btnPrev) btnPrev.disabled = (visitorCurrentPage <= 1);
+  if (btnNext) btnNext.disabled = (visitorCurrentPage >= totalPages);
+
+  const pageNums = document.getElementById('visitorPageNumbers');
+  if (pageNums) {
+    let pHtml = '';
+    const startP = Math.max(1, visitorCurrentPage - 2);
+    const endP = Math.min(totalPages, startP + 4);
+    for (let p = startP; p <= endP; p++) {
+      const activeStyle = (p === visitorCurrentPage)
+        ? 'background:var(--accent); color:var(--bg); font-weight:700;'
+        : 'background:var(--bg2); color:var(--text);';
+      pHtml += `<button class="btn-action" style="padding:2px 8px; font-size:0.75rem; border-radius:3px; ${activeStyle}" onclick="goToVisitorPage(${p})">${p}</button>`;
+    }
+    pageNums.innerHTML = pHtml;
+  }
+
+  if (filteredVisitorsData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-dim)">No visitor records found matching selected criteria.</td></tr>`;
+    return;
+  }
+
+  const startIndex = (visitorCurrentPage - 1) * visitorPageSize;
+  const pageRecords = filteredVisitorsData.slice(startIndex, startIndex + visitorPageSize);
+
+  tbody.innerHTML = pageRecords.map(v => {
+    let consentBadge = `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">PENDING</span>`;
+    if (v.cookie_consent === 'accepted') {
+      consentBadge = `<span style="background:rgba(31,136,61,0.15); color:#56d364; border:1px solid rgba(31,136,61,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">ACCEPTED</span>`;
+    } else if (v.cookie_consent === 'declined') {
+      consentBadge = `<span style="background:rgba(207,34,46,0.15); color:#ff808a; border:1px solid rgba(207,34,46,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">DECLINED</span>`;
+    }
+
+    const vpnBadge = v.is_proxy === 'Yes'
+      ? `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:1px 5px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono)">VPN/PROXY</span>`
+      : `<span style="background:rgba(255,255,255,0.05); color:var(--text-dim); padding:1px 5px; border-radius:3px; font-size:0.68rem">Residential</span>`;
+
+    const botBadge = (v.is_bot_detected && v.is_bot_detected !== 'No')
+      ? `<span style="background:rgba(207,34,46,0.15); color:#ff808a; border:1px solid rgba(207,34,46,0.3); padding:1px 5px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono)" title="${escapeHtml(v.is_bot_detected)}">🤖 BOT</span> `
+      : '';
+
+    const formattedDate = formatFullVisitorTimestamp(v.create_date);
+    const safeIp = escapeHtml(v.ip || '—');
+    const safeGeo = escapeHtml(v.country || '—') + (v.city ? `, ${escapeHtml(v.city)}` : '');
+    const fpSnippet = v.fingerprint_hash
+      ? `<br><span style="font-size:0.7rem; color:var(--text-dim); font-family:var(--font-mono)" title="Fingerprint: ${escapeHtml(v.fingerprint_hash)}">🔑 ${escapeHtml(v.fingerprint_hash.slice(0, 10))}… (v${v.visit_count || 1})</span>`
+      : '';
+
+    const safeIsp = escapeHtml(v.isp || '—');
+    const safeConn = escapeHtml(v.connection_type || '—');
+
+    const hwCpu = v.cpu_cores ? `${v.cpu_cores} Cores` : '? Cores';
+    const hwRam = v.ram_gb ? `${v.ram_gb} GB RAM` : '? RAM';
+    const safeHw = `${hwCpu} • ${hwRam}<br><span style="font-size:0.72rem; color:var(--text-dim); font-family:var(--font-mono)">${escapeHtml(v.gpu_info || 'GPU')}</span>`;
+
+    const safeDevice = escapeHtml(v.device_type || '—') + ' / ' + escapeHtml(v.os || '—');
+    const safeViewport = v.viewport_size ? `<br><span style="font-size:0.7rem; color:var(--text-dim)">${escapeHtml(v.viewport_size)} (${escapeHtml(v.screen_res || '')})</span>` : '';
+    const safeBrowser = escapeHtml(v.browser || '—') + safeViewport;
+
+    const durationMin = v.session_duration ? `${Math.floor(v.session_duration / 60)}m ${v.session_duration % 60}s` : '0s';
+    const scrollPct = v.scroll_depth !== undefined ? `${v.scroll_depth}% scroll` : '0%';
+    const clicks = v.clicked_buttons ? `<br><span style="font-size:0.72rem; color:var(--accent)" title="${escapeHtml(v.clicked_buttons)}">Clicks (${v.clicks_count || 0}): ${escapeHtml(v.clicked_buttons)}</span>` : '';
+    const sectionsHtml = v.sections_viewed ? `<br><span style="font-size:0.7rem; color:var(--text-muted); font-family:var(--font-mono)" title="Sections: ${escapeHtml(v.sections_viewed)}">👁️ ${escapeHtml(v.sections_viewed.length > 25 ? v.sections_viewed.slice(0, 23) + '…' : v.sections_viewed)}</span>` : '';
+    const fitHtml = v.first_interaction_time ? ` <span style="font-size:0.7rem; color:var(--text-dim)">• ${v.first_interaction_time}ms</span>` : '';
+    const behaviorInfo = `<strong>${durationMin}</strong> • ${scrollPct}${fitHtml}${sectionsHtml}${clicks}`;
+
+    const safeRef = escapeHtml(v.referrer || 'Direct');
+
+    const utmSource = v.utm_source ? escapeHtml(v.utm_source) : '';
+    const utmMedium = v.utm_medium ? escapeHtml(v.utm_medium) : '';
+    const utmCampaign = v.utm_campaign ? escapeHtml(v.utm_campaign) : '';
+
+    let utmBadge = '';
+    if (utmSource || utmCampaign) {
+      const campaignText = [utmSource, utmMedium, utmCampaign].filter(Boolean).join(' / ');
+      utmBadge = `<br><span style="background:rgba(56,123,245,0.15); color:var(--blue); border:1px solid rgba(56,123,245,0.3); padding:1px 6px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono);" title="UTM Campaign: ${campaignText}">🏷️ ${campaignText}</span>`;
+    }
+    const refDisplay = `${safeRef}${utmBadge}`;
+
+    return `
+      <tr style="cursor:pointer;" onclick="if(!event.target.closest('button')) openVisitorDossierModal(${v.id})">
+        <td>
+          ${botBadge}<strong class="mono-val" style="color:var(--text)">${safeIp}</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted)">📍 ${safeGeo}</span>
+          ${fpSnippet}
+        </td>
+        <td>
+          <span style="font-size:0.85rem">${safeIsp}</span> ${vpnBadge}<br>
+          <span style="font-size:0.72rem; color:var(--text-dim); font-family:var(--font-mono)">⚡ ${safeConn}</span>
+        </td>
+        <td style="font-size:0.82rem">${safeHw}</td>
+        <td style="font-size:0.82rem">${safeDevice}<br>${safeBrowser}</td>
+        <td style="font-size:0.82rem">${behaviorInfo}</td>
+        <td>${consentBadge}</td>
+        <td style="font-size:0.75rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${refDisplay}</td>
+        <td class="mono-val" style="font-size:0.72rem; color:var(--text-muted)">${formattedDate}</td>
+        <td style="text-align:right">
+          <div style="display:flex; justify-content:flex-end; gap:4px; align-items:center;">
+            <button class="btn-action" onclick="openVisitorDossierModal(${v.id})" title="Inspect complete telemetry dossier" style="color:var(--accent); font-size:0.72rem; padding:3px 7px;">🔍 View</button>
+            <button class="btn-action delete" onclick="deleteVisitorRecord(${v.id})" title="Delete entry">&times;</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function setElText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = (val !== null && val !== undefined && val !== '') ? String(val) : '—';
+}
+
+function openVisitorDossierModal(id) {
+  const v = currentVisitorsData.find(x => x.id === id);
+  if (!v) {
+    showToast('Not Found', 'Visitor record not found in active cache.', 'error');
+    return;
+  }
+
+  // Header
+  const titleEl = document.getElementById('vdTitle');
+  if (titleEl) titleEl.textContent = `Visitor #${v.id} Dossier`;
+
+  const botEl = document.getElementById('vdBotBadge');
+  if (botEl) {
+    if (v.is_bot_detected && v.is_bot_detected !== 'No') {
+      botEl.innerHTML = `<span style="background:rgba(207,34,46,0.15); color:#ff808a; border:1px solid rgba(207,34,46,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:700">BOT: ${escapeHtml(v.is_bot_detected)}</span>`;
+    } else {
+      botEl.innerHTML = `<span style="background:rgba(31,136,61,0.15); color:#56d364; border:1px solid rgba(31,136,61,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:700">HUMAN VERIFIED</span>`;
+    }
+  }
+
+  const subEl = document.getElementById('vdSubtitle');
+  if (subEl) {
+    const geoText = [v.country, v.city].filter(Boolean).join(', ') || 'Unknown Location';
+    const exactFormatted = formatFullVisitorTimestamp(v.create_date, false);
+    subEl.textContent = `${v.ip || 'Unknown IP'} • ${geoText} • Logged: ${exactFormatted}`;
+  }
+
+  // Box 1: Identity & Session
+  setElText('vdSessionId', v.session_id);
+  setElText('vdVisitorGuid', v.visitor_id);
+  setElText('vdVisitCount', v.visit_count ? `Visit #${v.visit_count}` : 'Visit #1');
+  setElText('vdFpHash', v.fingerprint_hash);
+  setElText('vdCanvasFp', v.canvas_fp);
+  setElText('vdWebglFp', v.webgl_fp);
+  setElText('vdAudioFp', v.audio_fp);
+
+  const createdEl = document.getElementById('vdCreated');
+  if (createdEl) createdEl.innerHTML = formatFullVisitorTimestamp(v.create_date, true);
+
+  const lastSeenEl = document.getElementById('vdLastSeen');
+  if (lastSeenEl) lastSeenEl.innerHTML = formatFullVisitorTimestamp(v.last_seen_date || v.create_date, true);
+
+  // Box 2: Network & Geo
+  setElText('vdIp', v.ip);
+  setElText('vdGeo', [v.country, v.city].filter(Boolean).join(', ') || '—');
+  setElText('vdIsp', v.isp);
+  setElText('vdProxy', v.is_proxy === 'Yes' ? '⚠️ Yes (Proxy / VPN / Hosting)' : '✅ No (Residential Provider)');
+  setElText('vdNetType', v.network_type || '—');
+  setElText('vdDownlink', `${v.network_downlink !== undefined ? v.network_downlink + ' Mbps' : '—'} • ${v.network_rtt !== undefined ? v.network_rtt + ' ms RTT' : '—'}`);
+  setElText('vdConnSummary', v.connection_type || '—');
+  setElText('vdConsent', (v.cookie_consent || 'pending').toUpperCase());
+
+  // Box 3: Hardware & Display
+  setElText('vdDeviceOs', `${v.device_type || '—'} / ${v.os || '—'}`);
+  setElText('vdBrowser', v.browser);
+  setElText('vdScreenRes', v.screen_res);
+  setElText('vdViewport', `${v.viewport_size || '—'} (Pixel Ratio: ${v.pixel_ratio || '1.0'})`);
+  setElText('vdColorTouch', `${v.color_depth ? v.color_depth + '-bit Color' : '24-bit'} • Touch: ${v.touch_support || 'No'}`);
+  setElText('vdCpu', v.cpu_cores ? `${v.cpu_cores} Logical Cores` : '—');
+  setElText('vdRam', v.ram_gb ? `${v.ram_gb} GB RAM` : '—');
+  setElText('vdGpu', v.gpu_info);
+  setElText('vdTzLang', `${v.timezone || '—'} • Lang: ${v.language || '—'} • Theme: ${v.theme_pref || 'auto'}`);
+
+  // Box 4: Journey & Behavior
+  const sec = v.session_duration || 0;
+  setElText('vdDuration', `${sec}s (${Math.floor(sec / 60)}m ${sec % 60}s)`);
+  setElText('vdScroll', `${v.scroll_depth !== undefined ? v.scroll_depth : 0}% of page reached`);
+  setElText('vdFirstInteraction', v.first_interaction_time ? `${v.first_interaction_time} ms latency` : '—');
+  setElText('vdClicksCount', `${v.clicks_count || 0} total click events`);
+
+  // Sections Viewed Pills
+  const secEl = document.getElementById('vdSections');
+  if (secEl) {
+    if (v.sections_viewed) {
+      const parts = v.sections_viewed.split(',').map(s => s.trim()).filter(Boolean);
+      secEl.innerHTML = parts.map(s => `<span style="background:rgba(56,123,245,0.15); color:var(--blue); border:1px solid rgba(56,123,245,0.3); padding:2px 8px; border-radius:4px; font-size:0.75rem; font-family:var(--font-mono)">${escapeHtml(s)}</span>`).join('');
+    } else {
+      secEl.innerHTML = '<span style="color:var(--text-dim); font-size:0.8rem">No section impressions tracked</span>';
+    }
+  }
+
+  // CTA Clicked Buttons Pills
+  const btnEl = document.getElementById('vdClickedButtons');
+  if (btnEl) {
+    if (v.clicked_buttons) {
+      const parts = v.clicked_buttons.split(',').map(s => s.trim()).filter(Boolean);
+      btnEl.innerHTML = parts.map(s => `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:2px 8px; border-radius:4px; font-size:0.75rem; font-family:var(--font-mono)">🖱️ ${escapeHtml(s)}</span>`).join('');
+    } else {
+      btnEl.innerHTML = '<span style="color:var(--text-dim); font-size:0.8rem">No CTA clicks logged</span>';
+    }
+  }
+
+  // Box 5: Navigation & Attribution
+  setElText('vdPageTitle', v.page_title);
+  setElText('vdLandingUrl', v.page_url || v.landing_page);
+  setElText('vdInitRef', v.initial_referrer || v.referrer || 'Direct / None');
+
+  const utmParts = [];
+  if (v.utm_source) utmParts.push(`Source: ${v.utm_source}`);
+  if (v.utm_medium) utmParts.push(`Medium: ${v.utm_medium}`);
+  if (v.utm_campaign) utmParts.push(`Campaign: ${v.utm_campaign}`);
+  setElText('vdUtmSummary', utmParts.length > 0 ? utmParts.join(' | ') : 'No UTM parameters present (organic / direct)');
+  setElText('vdUserAgent', v.user_agent);
+
+  const modal = document.getElementById('visitorDossierModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeVisitorDossierModal() {
+  const modal = document.getElementById('visitorDossierModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function changeVisitorPageSize(size) {
+  visitorPageSize = parseInt(size, 10) || 30;
+  visitorCurrentPage = 1;
+  renderVisitorsTablePage();
+}
+
+function prevVisitorPage() {
+  if (visitorCurrentPage > 1) {
+    visitorCurrentPage--;
+    renderVisitorsTablePage();
+  }
+}
+
+function nextVisitorPage() {
+  const totalPages = Math.max(1, Math.ceil(filteredVisitorsData.length / visitorPageSize));
+  if (visitorCurrentPage < totalPages) {
+    visitorCurrentPage++;
+    renderVisitorsTablePage();
+  }
+}
+
+function goToVisitorPage(p) {
+  visitorCurrentPage = p;
+  renderVisitorsTablePage();
+}
+
 async function deleteVisitorRecord(id) {
   if (!confirm('Are you sure you want to delete this visitor log entry?')) return;
   try {
-    const res = await fetch(`/api/visitors/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/visitors/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
     const json = await safeFetchJson(res);
     if (json.code === 0) {
       showToast('Deleted', 'Visitor log entry removed.', 'success');
@@ -3876,7 +4717,7 @@ async function deleteVisitorRecord(id) {
 async function clearAllVisitorLogs() {
   if (!confirm('Are you sure you want to clear ALL visitor logs? This action cannot be undone.')) return;
   try {
-    const res = await fetch('/api/visitors/clear', { method: 'DELETE' });
+    const res = await fetch('/api/visitors/clear', { method: 'DELETE', headers: getAuthHeaders() });
     const json = await safeFetchJson(res);
     if (json.code === 0) {
       showToast('Cleared', 'All visitor logs have been deleted.', 'success');
@@ -3892,10 +4733,25 @@ function exportVisitorsToCSV() {
     showToast('Export Empty', 'No visitor records available to export.', 'info');
     return;
   }
-  const headers = ['ID', 'Visitor GUID', 'IP Address', 'Country', 'City', 'ISP', 'Is Proxy/VPN', 'Device Type', 'OS', 'Browser', 'CPU Cores', 'RAM GB', 'GPU Info', 'Screen Res', 'Language', 'Timezone', 'Theme Pref', 'Session Duration (s)', 'Scroll Depth (%)', 'Clicked Buttons', 'UTM Source', 'UTM Medium', 'UTM Campaign', 'UTM Term', 'UTM Content', 'Cookie Consent', 'Page URL', 'Referrer', 'Created At'];
+  const headers = [
+    'ID', 'Session ID', 'Visitor GUID', 'Fingerprint Hash', 'Canvas FP', 'WebGL FP', 'Audio FP',
+    'IP Address', 'Country', 'City', 'ISP', 'Is Proxy/VPN', 'Device Type', 'OS', 'Browser',
+    'Screen Res', 'Viewport Size', 'Pixel Ratio', 'Color Depth', 'Touch Support',
+    'CPU Cores', 'RAM GB', 'GPU Info', 'Language', 'Timezone', 'Theme Pref',
+    'Connection Type', 'Network Type', 'Downlink (Mbps)', 'RTT (ms)',
+    'Session Duration (s)', 'Scroll Depth (%)', 'Sections Viewed', 'First Interaction (ms)',
+    'Clicks Count', 'Clicked Buttons', 'Bot Detected', 'Page URL', 'Page Title',
+    'Referrer', 'Initial Referrer', 'Landing Page', 'Visit Count', 'Cookie Consent',
+    'Last Seen', 'Created At'
+  ];
   const rows = currentVisitorsData.map(v => [
     v.id,
+    `"${(v.session_id || '').replace(/"/g, '""')}"`,
     `"${(v.visitor_id || '').replace(/"/g, '""')}"`,
+    `"${(v.fingerprint_hash || '').replace(/"/g, '""')}"`,
+    `"${(v.canvas_fp || '').replace(/"/g, '""')}"`,
+    `"${(v.webgl_fp || '').replace(/"/g, '""')}"`,
+    `"${(v.audio_fp || '').replace(/"/g, '""')}"`,
     `"${(v.ip || '').replace(/"/g, '""')}"`,
     `"${(v.country || '').replace(/"/g, '""')}"`,
     `"${(v.city || '').replace(/"/g, '""')}"`,
@@ -3904,24 +4760,36 @@ function exportVisitorsToCSV() {
     `"${(v.device_type || '').replace(/"/g, '""')}"`,
     `"${(v.os || '').replace(/"/g, '""')}"`,
     `"${(v.browser || '').replace(/"/g, '""')}"`,
+    `"${(v.screen_res || '').replace(/"/g, '""')}"`,
+    `"${(v.viewport_size || '').replace(/"/g, '""')}"`,
+    `"${(v.pixel_ratio || '').replace(/"/g, '""')}"`,
+    v.color_depth || 24,
+    `"${(v.touch_support || '').replace(/"/g, '""')}"`,
     `"${(v.cpu_cores || '').replace(/"/g, '""')}"`,
     `"${(v.ram_gb || '').replace(/"/g, '""')}"`,
     `"${(v.gpu_info || '').replace(/"/g, '""')}"`,
-    `"${(v.screen_res || '').replace(/"/g, '""')}"`,
     `"${(v.language || '').replace(/"/g, '""')}"`,
     `"${(v.timezone || '').replace(/"/g, '""')}"`,
     `"${(v.theme_pref || '').replace(/"/g, '""')}"`,
+    `"${(v.connection_type || '').replace(/"/g, '""')}"`,
+    `"${(v.network_type || '').replace(/"/g, '""')}"`,
+    `"${(v.network_downlink || '').replace(/"/g, '""')}"`,
+    `"${(v.network_rtt || '').replace(/"/g, '""')}"`,
     v.session_duration || 0,
     v.scroll_depth || 0,
+    `"${(v.sections_viewed || '').replace(/"/g, '""')}"`,
+    v.first_interaction_time || 0,
+    v.clicks_count || 0,
     `"${(v.clicked_buttons || '').replace(/"/g, '""')}"`,
-    `"${(v.utm_source || '').replace(/"/g, '""')}"`,
-    `"${(v.utm_medium || '').replace(/"/g, '""')}"`,
-    `"${(v.utm_campaign || '').replace(/"/g, '""')}"`,
-    `"${(v.utm_term || '').replace(/"/g, '""')}"`,
-    `"${(v.utm_content || '').replace(/"/g, '""')}"`,
-    `"${(v.cookie_consent || '').replace(/"/g, '""')}"`,
+    `"${(v.is_bot_detected || 'No').replace(/"/g, '""')}"`,
     `"${(v.page_url || '').replace(/"/g, '""')}"`,
+    `"${(v.page_title || '').replace(/"/g, '""')}"`,
     `"${(v.referrer || '').replace(/"/g, '""')}"`,
+    `"${(v.initial_referrer || '').replace(/"/g, '""')}"`,
+    `"${(v.landing_page || '').replace(/"/g, '""')}"`,
+    v.visit_count || 1,
+    `"${(v.cookie_consent || '').replace(/"/g, '""')}"`,
+    `"${(v.last_seen_date || '').replace(/"/g, '""')}"`,
     `"${(v.create_date || '').replace(/"/g, '""')}"`
   ]);
 
@@ -3998,18 +4866,312 @@ function copyUtmUrl() {
   });
 }
 
+let g_utmCampaigns = [];
+let g_currentUtmFilter = 'all';
+
+function closeUtmUsersModal() {
+  const m = document.getElementById('utmUsersModal');
+  if (m) m.style.display = 'none';
+}
+
+function showUtmUsersModal(campaignIndex) {
+  const c = g_utmCampaigns[campaignIndex];
+  if (!c) return;
+
+  const m = document.getElementById('utmUsersModal');
+  const title = document.getElementById('utmUsersModalTitle');
+  const sub = document.getElementById('utmUsersModalSubtitle');
+  const tbody = document.getElementById('utmUsersModalTableBody');
+
+  if (title) title.textContent = `Signups: ${c.campaign || 'Direct'} (${c.source})`;
+  if (sub) sub.textContent = `Source: ${c.source} | Medium: ${c.medium} | Total Registered Users: ${c.registrations} | Conv Rate: ${c.conversion_rate}%`;
+
+  if (tbody) {
+    if (!c.users || c.users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-dim)">No user registrations registered for this UTM yet.</td></tr>`;
+    } else {
+      tbody.innerHTML = c.users.map(u => {
+        const dateStr = u.created_at ? formatFullVisitorTimestamp(u.created_at, false) : '—';
+        const activeBadge = u.is_active
+          ? `<span style="background:rgba(31,136,61,0.15); color:#56d364; border:1px solid rgba(31,136,61,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">ACTIVE</span>`
+          : `<span style="background:rgba(207,34,46,0.15); color:#ff808a; border:1px solid rgba(207,34,46,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">PENDING</span>`;
+        return `
+          <tr>
+            <td><strong style="color:var(--text); font-family:var(--font-mono);">${escapeHtml(u.email)}</strong></td>
+            <td>${escapeHtml(u.nickname || '—')}</td>
+            <td style="font-size:0.75rem; color:var(--text-muted)">${dateStr}</td>
+            <td style="text-align:right" class="mono-val">${u.kbs || 0}</td>
+            <td style="text-align:right" class="mono-val">${u.dialogs || 0}</td>
+            <td style="text-align:center">${activeBadge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  if (m) m.style.display = 'flex';
+}
+
+function filterUtmTable(filter) {
+  g_currentUtmFilter = filter;
+
+  const btnAll = document.getElementById('utmFilterBtnAll');
+  const btnConv = document.getElementById('utmFilterBtnConverting');
+  const btnIneff = document.getElementById('utmFilterBtnIneffective');
+
+  if (btnAll) {
+    btnAll.style.background = filter === 'all' ? 'var(--primary)' : 'transparent';
+    btnAll.style.color = filter === 'all' ? '#000' : 'var(--text)';
+  }
+  if (btnConv) {
+    btnConv.style.background = filter === 'converting' ? 'rgba(31,136,61,0.2)' : 'transparent';
+    btnConv.style.borderColor = filter === 'converting' ? '#56d364' : 'var(--border)';
+  }
+  if (btnIneff) {
+    btnIneff.style.background = filter === 'ineffective' ? 'rgba(207,34,46,0.2)' : 'transparent';
+    btnIneff.style.borderColor = filter === 'ineffective' ? '#ff808a' : 'var(--border)';
+  }
+
+  renderCampaignsTable();
+}
+
+function renderCampaignsTable() {
+  const aggTbody = document.getElementById('utmAggTableBody');
+  if (!aggTbody) return;
+
+  let filtered = g_utmCampaigns || [];
+  if (g_currentUtmFilter === 'converting') {
+    filtered = filtered.filter(c => c.registrations > 0);
+  } else if (g_currentUtmFilter === 'ineffective') {
+    filtered = filtered.filter(c => c.registrations === 0);
+  }
+
+  if (filtered.length === 0) {
+    aggTbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-dim)">No campaigns match the filter '${g_currentUtmFilter}'.</td></tr>`;
+    return;
+  }
+
+  aggTbody.innerHTML = filtered.map(c => {
+    const originalIndex = g_utmCampaigns.indexOf(c);
+    const cr = c.conversion_rate || 0.0;
+    const durText = `${Math.floor((c.avg_duration || 0) / 60)}m ${(c.avg_duration || 0) % 60}s`;
+    const formattedDate = c.last_visit_date ? formatFullVisitorTimestamp(c.last_visit_date, false) : '—';
+
+    let verdictBadge = '';
+    if (c.verdict === 'high_performing') {
+      verdictBadge = `<span style="background:rgba(31,136,61,0.2); color:#56d364; border:1px solid rgba(31,136,61,0.4); padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:700;">🔥 High Converting</span>`;
+    } else if (c.verdict === 'converting') {
+      verdictBadge = `<span style="background:rgba(31,136,61,0.12); color:#56d364; border:1px solid rgba(31,136,61,0.25); padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:600;">✅ Working (${cr}%)</span>`;
+    } else {
+      verdictBadge = `<span style="background:rgba(207,34,46,0.12); color:#ff808a; border:1px solid rgba(207,34,46,0.25); padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:600;">❌ Ineffective (0 Signups)</span>`;
+    }
+
+    const regBadge = c.registrations > 0
+      ? `<strong style="color:#56d364; font-size:0.95rem; background:rgba(31,136,61,0.15); padding:2px 8px; border-radius:4px;">${c.registrations}</strong>`
+      : `<span style="color:var(--text-dim);">0</span>`;
+
+    const userBtn = c.registrations > 0
+      ? `<button class="btn-action" onclick="showUtmUsersModal(${originalIndex})" style="font-size:0.72rem; padding:3px 8px; color:var(--accent); border:1px solid rgba(232,168,32,0.3);">View Users (${c.registrations})</button>`
+      : `<span style="color:var(--text-dim); font-size:0.75rem;">—</span>`;
+
+    return `
+      <tr>
+        <td>
+          <strong style="color:var(--accent); font-family:var(--font-mono);">${escapeHtml(c.source)}</strong>
+          <span style="font-size:0.75rem; color:var(--text-dim)"> / ${escapeHtml(c.medium)}</span>
+        </td>
+        <td><strong class="mono-val" style="color:var(--blue);">${escapeHtml(c.campaign)}</strong></td>
+        <td style="text-align:right"><strong style="color:var(--text)">${c.visits}</strong></td>
+        <td style="text-align:right" class="mono-val">${c.unique_visitors}</td>
+        <td style="text-align:right">${regBadge}</td>
+        <td style="text-align:right">
+          <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+            <div style="width:40px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+              <div style="width:${Math.min(cr, 100)}%; height:100%; background:${cr > 0 ? '#56d364' : '#ff808a'};"></div>
+            </div>
+            <strong style="color:${cr > 0 ? '#56d364' : 'var(--text-muted)'}; font-size:0.85rem;">${cr}%</strong>
+          </div>
+        </td>
+        <td style="text-align:center">${verdictBadge}</td>
+        <td style="text-align:center">${userBtn}</td>
+        <td style="text-align:right; font-size:0.75rem; color:var(--text-muted)">${formattedDate}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
 async function loadUtmPageData() {
   const aggTbody = document.getElementById('utmAggTableBody');
   const logTbody = document.getElementById('utmLogTableBody');
   if (!aggTbody || !logTbody) return;
-  
+
   try {
-    const res = await fetch('/api/visitors');
+    // 1. Fetch comprehensive UTM conversion analytics
+    const utmRes = await fetch('/api/analytics/utm', { headers: getAuthHeaders() });
+    const utmJson = await safeFetchJson(utmRes);
+
+    if (utmJson.code === 0) {
+      g_utmCampaigns = utmJson.campaigns || [];
+      const summary = utmJson.summary || {};
+
+      const elTotal = document.getElementById('utmStatTotal');
+      const elRegs = document.getElementById('utmStatRegistrations');
+      const elCr = document.getElementById('utmStatConversionRate');
+      const elTop = document.getElementById('utmStatTopCampaign');
+      const elTopSub = document.getElementById('utmStatTopCampaignSub');
+
+      if (elTotal) elTotal.textContent = summary.total_utm_visits || 0;
+      if (elRegs) elRegs.textContent = summary.total_utm_registrations || 0;
+      if (elCr) elCr.textContent = `${summary.overall_conversion_rate || 0}%`;
+      if (elTop) elTop.textContent = summary.top_campaign || '—';
+      if (elTopSub) {
+        elTopSub.textContent = summary.top_campaign !== '—'
+          ? `${summary.top_source} • ${summary.top_cr}% CR`
+          : 'No converting campaigns yet';
+      }
+
+      renderCampaignsTable();
+    }
+
+    // 2. Fetch Detailed Visitor Logs
+    const visRes = await fetch('/api/visitors', { headers: getAuthHeaders() });
+    const visJson = await safeFetchJson(visRes);
+
+    if (visJson.code === 0 && Array.isArray(visJson.data)) {
+      const allVisitors = visJson.data;
+      const utmVisitors = allVisitors.filter(v => v.utm_source || v.utm_medium || v.utm_campaign || v.utm_content);
+
+      if (utmVisitors.length === 0) {
+        logTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-dim)">No visitor records with UTM tags logged yet.</td></tr>`;
+      } else {
+        logTbody.innerHTML = utmVisitors.map(v => {
+          let consentBadge = `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">PENDING</span>`;
+          if (v.cookie_consent === 'accepted') {
+            consentBadge = `<span style="background:rgba(31,136,61,0.15); color:#56d364; border:1px solid rgba(31,136,61,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">ACCEPTED</span>`;
+          } else if (v.cookie_consent === 'declined') {
+            consentBadge = `<span style="background:rgba(207,34,46,0.15); color:#ff808a; border:1px solid rgba(207,34,46,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">DECLINED</span>`;
+          }
+
+          const vpnBadge = v.is_proxy === 'Yes'
+            ? `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:1px 5px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono)">VPN</span>`
+            : `<span style="background:rgba(255,255,255,0.05); color:var(--text-dim); padding:1px 5px; border-radius:3px; font-size:0.68rem">Res</span>`;
+
+          const formattedDate = formatFullVisitorTimestamp(v.create_date);
+          const safeIp = escapeHtml(v.ip || '—');
+          const safeGeo = escapeHtml(v.country || '—') + (v.city ? `, ${escapeHtml(v.city)}` : '');
+          const safeIsp = escapeHtml(v.isp || '—');
+
+          const hwCpu = v.cpu_cores ? `${v.cpu_cores} C` : '';
+          const hwRam = v.ram_gb ? `${v.ram_gb} GB` : '';
+          const safeSpecs = `${v.device_type || 'Dev'} • ${v.os || 'OS'} (${hwCpu} ${hwRam})`;
+
+          return `
+            <tr>
+              <td>
+                <strong style="color:var(--text); font-family:var(--font-mono);">${safeIp}</strong>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">${safeGeo}</div>
+              </td>
+              <td>
+                <span class="sidebar-logo-tag" style="font-size:0.7rem; color:var(--accent); font-weight:600">${escapeHtml(v.utm_source || 'direct')}</span>
+                <span style="font-size:0.75rem; color:var(--text-dim)"> / ${escapeHtml(v.utm_campaign || '—')}</span>
+              </td>
+              <td>
+                <div>${safeIsp}</div>
+                <div style="font-size:0.75rem; margin-top:2px;">${vpnBadge}</div>
+              </td>
+              <td style="font-size:0.8rem; color:var(--text-muted);">${escapeHtml(safeSpecs)}</td>
+              <td>
+                <span style="font-size:0.8rem; color:var(--text); font-family:var(--font-mono);">${v.session_duration || 0}s</span>
+                <span style="font-size:0.72rem; color:var(--text-dim); display:block;">Depth: ${v.scroll_depth || 0}%</span>
+              </td>
+              <td>${consentBadge}</td>
+              <td style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap;">${formattedDate}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  } catch (err) {
+    console.error('Error loading UTM analytics:', err);
+    if (aggTbody) {
+      aggTbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:#ff808a">Error loading UTM analytics: ${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+}
+
+
+function buildUtmUrl() {
+  const baseInput = document.getElementById('utmBaseUrl');
+  let baseUrl = (baseInput ? baseInput.value.trim() : '') || 'https://swipies.app';
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    baseUrl = 'https://' + baseUrl;
+  }
+
+  const source = document.getElementById('utmSource') ? document.getElementById('utmSource').value.trim() : '';
+  const medium = document.getElementById('utmMedium') ? document.getElementById('utmMedium').value.trim() : '';
+  const campaign = document.getElementById('utmCampaign') ? document.getElementById('utmCampaign').value.trim() : '';
+  const content = document.getElementById('utmContent') ? document.getElementById('utmContent').value.trim() : '';
+  const ref = document.getElementById('utmRefCode') ? document.getElementById('utmRefCode').value.trim() : '';
+
+  try {
+    const urlObj = new URL(baseUrl);
+    if (source) urlObj.searchParams.set('utm_source', source);
+    if (medium) urlObj.searchParams.set('utm_medium', medium);
+    if (campaign) urlObj.searchParams.set('utm_campaign', campaign);
+    if (content) urlObj.searchParams.set('utm_content', content);
+    if (ref) urlObj.searchParams.set('ref', ref);
+
+    const finalUrl = urlObj.toString();
+    const resEl = document.getElementById('utmResultUrl');
+    if (resEl) resEl.textContent = finalUrl;
+    return finalUrl;
+  } catch (e) {
+    const resEl = document.getElementById('utmResultUrl');
+    if (resEl) resEl.textContent = baseUrl;
+    return baseUrl;
+  }
+}
+
+function applyUtmPreset(preset) {
+  const presets = {
+    telegram: { source: 'telegram', medium: 'channel', campaign: 'ai_launch', content: 'post_cta' },
+    google: { source: 'google', medium: 'cpc', campaign: 'enterprise_rag', content: 'search_ad' },
+    yandex: { source: 'yandex', medium: 'cpc', campaign: 'onpremise_ai', content: 'direct_banner' },
+    facebook: { source: 'facebook', medium: 'social_ad', campaign: 'saas_white_label', content: 'feed_video' },
+    email: { source: 'newsletter', medium: 'email', campaign: 'weekly_digest', content: 'button_link' }
+  };
+
+  const p = presets[preset];
+  if (p) {
+    if (document.getElementById('utmSource')) document.getElementById('utmSource').value = p.source;
+    if (document.getElementById('utmMedium')) document.getElementById('utmMedium').value = p.medium;
+    if (document.getElementById('utmCampaign')) document.getElementById('utmCampaign').value = p.campaign;
+    if (document.getElementById('utmContent')) document.getElementById('utmContent').value = p.content;
+    buildUtmUrl();
+  }
+}
+
+function copyUtmUrl() {
+  const finalUrl = buildUtmUrl();
+  navigator.clipboard.writeText(finalUrl).then(() => {
+    showToast('Copied!', 'UTM Campaign URL copied to clipboard.', 'success');
+  }).catch(err => {
+    showToast('Error', 'Failed to copy URL.', 'error');
+  });
+}
+
+async function loadUtmPageData() {
+  const aggTbody = document.getElementById('utmAggTableBody');
+  const logTbody = document.getElementById('utmLogTableBody');
+  if (!aggTbody || !logTbody) return;
+
+  try {
+    const res = await fetch('/api/visitors', { headers: getAuthHeaders() });
     const json = await safeFetchJson(res);
 
     if (json.code === 0 && Array.isArray(json.data)) {
       const allVisitors = json.data;
-      
+
       // Filter visitors that arrived via UTM
       const utmVisitors = allVisitors.filter(v => v.utm_source || v.utm_medium || v.utm_campaign || v.utm_content);
 
@@ -4036,7 +5198,7 @@ async function loadUtmPageData() {
 
       document.getElementById('utmStatTopSource').textContent = topSource;
       document.getElementById('utmStatTopSourceSub').textContent = sourceCounts[topSource] ? `${sourceCounts[topSource]} visits (${Math.round(sourceCounts[topSource]/totalUtmVisits*100)}%)` : 'No campaign visits';
-      
+
       document.getElementById('utmStatTopCampaign').textContent = topCampaign;
       document.getElementById('utmStatTopCampaignSub').textContent = campaignCounts[topCampaign] ? `${campaignCounts[topCampaign]} visits` : 'No active campaign';
 
@@ -4077,7 +5239,7 @@ async function loadUtmPageData() {
           const consentPct = Math.round((g.consents / g.visits) * 100);
           const avgD = Math.round(g.duration / g.visits);
           const durText = `${Math.floor(avgD / 60)}m ${avgD % 60}s`;
-          const formattedDate = g.lastDate ? new Date(g.lastDate).toLocaleString() : '—';
+          const formattedDate = g.lastDate ? formatFullVisitorTimestamp(g.lastDate, false) : '—';
 
           return `
             <tr>
@@ -4112,11 +5274,11 @@ async function loadUtmPageData() {
             ? `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:1px 5px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono)">VPN</span>`
             : `<span style="background:rgba(255,255,255,0.05); color:var(--text-dim); padding:1px 5px; border-radius:3px; font-size:0.68rem">Res</span>`;
 
-          const formattedDate = v.create_date ? new Date(v.create_date).toLocaleString() : '—';
+          const formattedDate = formatFullVisitorTimestamp(v.create_date);
           const safeIp = escapeHtml(v.ip || '—');
           const safeGeo = escapeHtml(v.country || '—') + (v.city ? `, ${escapeHtml(v.city)}` : '');
           const safeIsp = escapeHtml(v.isp || '—');
-          
+
           const hwCpu = v.cpu_cores ? `${v.cpu_cores} C` : '';
           const hwRam = v.ram_gb ? `${v.ram_gb} GB` : '';
           const safeSpecs = `${v.device_type || 'Dev'} • ${v.os || 'OS'} (${hwCpu} ${hwRam})`;
@@ -4157,6 +5319,7 @@ document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 });
 </script>
-<script src="/admin-analytics.js?v=20261031-1"></script>
+<script>window.SWIPIES_LANDING_NATIVE_AUTH = true;</script>
+<script src="/admin-analytics.js?v=20261031-2"></script>
 </body>
 </html>

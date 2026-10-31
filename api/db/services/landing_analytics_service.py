@@ -1,8 +1,12 @@
 """Read-only platform facts for the landing administrator's period comparison."""
 
-import json
-
-from api.analytics_reporting import Filters, MAX_RECORDS, assemble, platform_period
+from api.analytics_reporting import (
+    Filters,
+    MAX_RECORDS,
+    assemble,
+    platform_period,
+    payment_records,
+)
 
 
 def _bounded(query):
@@ -98,47 +102,7 @@ def report(parameters):
                     for field in ("id", "transaction_id")
                     if row.get(field)
                 )
-    payments = []
-    for row in ledger:
-        if str(row.get("plan_type", "")).lower() in {
-            "ads_deposit",
-            "advertiser_deposit",
-        }:
-            continue
-        payments.append({**row, "amount_uzs": row.get("paid_amount_uzs")})
-    for row in sorted(
-        orders,
-        key=lambda item: (
-            str(item.get("status", "")).upper() != "PAID",
-            -int(item.get("create_time") or 0),
-        ),
-    ):
-        if row["purpose"] == "advertiser_deposit" or any(
-            str(row.get(field)) in known
-            for field in ("id", "external_transaction_id")
-            if row.get(field)
-        ):
-            continue
-        metadata = row.get("metadata") or {}
-        if isinstance(metadata, str):
-            try:
-                metadata = json.loads(metadata)
-            except (ValueError, TypeError):
-                metadata = {}
-        if not isinstance(metadata, dict):
-            metadata = {}
-        payments.append(
-            {
-                **row,
-                "utm_source": metadata.get("utm_source", ""),
-                "utm_campaign": metadata.get("utm_campaign", ""),
-            }
-        )
-        known.update(
-            str(row[field])
-            for field in ("id", "external_transaction_id")
-            if row.get(field)
-        )
+    payments = payment_records(ledger, orders, known)
     return assemble(
         filters,
         platform_period(filters.current, filters, users, payments),

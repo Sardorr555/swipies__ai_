@@ -28,3 +28,6 @@ wait_*.py
 
 # Generated native widget configuration is provisioned on the server.
 /support-chat-config.json
+
+# Private server configuration must never be published.
+admin_reporting_private.json
