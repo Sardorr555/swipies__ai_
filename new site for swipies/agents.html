@@ -14,6 +14,15 @@
 <p lang="ru">Для ИИ: прочитайте <a href="/llms-full.txt">полную инструкцию подключения</a>. Для управления нужны MCP или API-инструменты в вашем ИИ-клиенте.</p>
 <p lang="uz">AI yordamchilari uchun: <a href="/llms-full.txt">to‘liq ulash ko‘rsatmalarini</a> o‘qing. Klient MCP yoki API vositalarini qo‘llashi kerak.</p>
 <div class="links"><a href="/llms-full.txt">Full agent instructions</a><a href="/agent-access.json">Discovery JSON</a><a href="https://api.swipies.app/api/v1/agent-access/manifest">Live server manifest</a></div>
+<section id="chatgpt" aria-labelledby="chatgpt-title">
+<h2 id="chatgpt-title">Connect ChatGPT with OAuth</h2>
+<p>For an eligible ChatGPT account with custom remote MCP support, connect once and then describe your task in chat. Your client and administrator control availability and tool approvals.</p>
+<ol><li>Check the <a href="https://api.swipies.app/api/v1/agent-access/manifest">live manifest</a>: <code>mcp.oauth.enabled</code> must be <code>true</code>.</li><li>Add a remote MCP connection in your AI client with OAuth authentication and this exact URL: <code>https://api.swipies.app/api/v1/agent-access/mcp</code>.</li><li>On the Swipies consent page, choose a separate Free workspace or sign in and connect your current owner account. No copied API key is needed.</li></ol>
+<p lang="ru">В ChatGPT нужно один раз добавить MCP-подключение с OAuth и подтвердить доступ. На странице Swipies можно создать отдельную Free-область или подключить свой текущий аккаунт. Затем агент работает через инструменты подключённой платформы.</p>
+<p class="note">If the flag is false or absent, OAuth has not been enabled on the running server. Visiting a webpage cannot install tools in your chat. An assistant that already has authorized HTTPS/code tools can use the direct flow below.</p>
+</section>
+
+
 <section id="automatic-access" aria-labelledby="automatic-title">
 <h2 id="automatic-title">Start directly: your agent registers over HTTPS</h2>
 <p>Give your assistant a task and <a href="/llms.txt">the Swipies instructions</a>. With authorized HTTP tools or network-enabled code, it can do the following itself:</p>

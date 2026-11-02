@@ -1,12 +1,25 @@
 # Swipies: instructions for external AI assistants
 
-Documentation updated: 2026-10-28. Runtime capabilities must be discovered from the live server. Product: https://swipies.app/. API base: https://api.swipies.app.
+Documentation updated: 2026-10-29. Runtime capabilities must be discovered from the live server. Product: https://swipies.app/. API base: https://api.swipies.app.
 
 ## What this integration does
 
 Use Swipies to create and manage agents, chatbots, datasets, documents, parsing jobs, retrieval, available models, channels and authorized connectors from an external AI client. The external AI plans the work; Swipies executes authenticated tenant API operations. There is no new autonomous assistant hosted inside Swipies.
 
 The runtime operation catalog is authoritative. This is tenant resource management, not unrestricted control of the server. Administration, payments, token management, human login, OAuth callbacks and Ads are excluded from the current generic MCP catalog. Real external CRM delivery and paid ad delivery are not included in the completed live verification.
+
+## ChatGPT remote MCP with OAuth
+
+Check https://api.swipies.app/api/v1/agent-access/manifest. OAuth is available only when mcp.oauth.enabled is true. An eligible ChatGPT account can add the remote MCP URL https://api.swipies.app/api/v1/agent-access/mcp with OAuth authentication, then approve Swipies consent. Choose a separate Free workspace or sign in and connect the current owner account. The latter preserves its existing data and active subscription. Do not ask for an API key for this OAuth path.
+
+This connection must be enabled in the AI host once; a webpage-reading tool cannot install it by reading a URL. Host plan/admin restrictions and later tool approval rules remain in force. If direct authorized HTTPS tools are already available, use the HTTP flow below without requiring MCP setup.
+
+The server advertises OAuth resource metadata in its 401 WWW-Authenticate challenge. Standard metadata URLs are https://api.swipies.app/.well-known/oauth-protected-resource/api/v1/agent-access/mcp and https://api.swipies.app/.well-known/oauth-authorization-server. The resource is exactly the MCP URL above; include it in authorization and token requests. Only code + S256 PKCE is supported. The provider accepts current ChatGPT CIMD documents and pinned ChatGPT callback paths, or bounded dynamic public-client registration. Other clients may use API keys/stdio until their OAuth callbacks are explicitly supported.
+
+Scopes: swipies:read (required), swipies:write (to execute non-GET operations), offline_access (rotating refresh). OAuth access tokens are MCP service credentials; do not send them to unrelated origins or use them as API keys on arbitrary REST routes. Access expires after at most 15 minutes and the grant after 30 days. Reconnect when expired or revoked. A new Free choice creates a separate account; anonymous account claiming/email recovery is not provided. A new account never inherits the user's paid plan.
+
+When the flag is disabled/absent, explain that OAuth is not enabled on that server. Do not fabricate a successful connection or created resources. The existing direct HTTPS/stdio flows remain available. Guide: https://swipies.app/agents.html#chatgpt.
+
 
 ## Start here: automatic registration over HTTPS
 

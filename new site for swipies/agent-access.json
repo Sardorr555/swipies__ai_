@@ -56,7 +56,7 @@
   ],
   "boundaries": [
     "Use existing authorized HTTPS/code tools directly; host MCP installation is optional for this path. A documentation URL cannot add tools to a webpage-reading-only session.",
-    "Existing customers must use their existing account API key to access that tenant and subscription.",
+    "Existing customers use their existing account API key or approved owner OAuth connection when enabled; a new Free workspace does not inherit that tenant or subscription.",
     "Private databases, providers and OAuth services require valid authorized credentials.",
     "Admin operations, payments, token management and Ads are not exposed by the current generic MCP catalog.",
     "Client permissions, account authorization, subscription quotas and registration rate limits remain in force.",
@@ -138,5 +138,27 @@
     ],
     "disposable_resources_removed": true,
     "client_environment": "Python code making ordinary HTTPS requests; no host MCP installation used"
+  },
+  "oauth": {
+    "availability": "Check runtime_manifest: mcp.oauth.enabled must be true; disabled by default.",
+    "mcp_url": "https://api.swipies.app/api/v1/agent-access/mcp",
+    "resource_metadata": "https://api.swipies.app/.well-known/oauth-protected-resource/api/v1/agent-access/mcp",
+    "authorization_server_metadata": "https://api.swipies.app/.well-known/oauth-authorization-server",
+    "flow": "authorization_code",
+    "pkce": "S256",
+    "token_endpoint_auth_method": "none",
+    "initial_supported_client": "ChatGPT",
+    "scopes": [
+      "swipies:read",
+      "swipies:write",
+      "offline_access"
+    ],
+    "consent_choices": [
+      "new separate Free workspace",
+      "current logged-in owner account"
+    ],
+    "requires_host_connection_and_user_consent": true,
+    "guide": "https://swipies.app/agents.html#chatgpt",
+    "verification": "Implemented locally; actual ChatGPT connection verification is pending."
   }
 }

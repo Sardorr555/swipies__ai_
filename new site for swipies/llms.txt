@@ -2,6 +2,13 @@
 
 > Use Swipies to manage tenant agents, chatbots, datasets, documents and supported connections over authenticated HTTPS API/MCP, without driving the web interface.
 
+## ChatGPT and OAuth-capable MCP hosts
+
+Read the live manifest first. If mcp.oauth.enabled is true, an eligible host can connect to https://api.swipies.app/api/v1/agent-access/mcp using OAuth with S256 PKCE. The owner connects once and approves either a new separate Free workspace or their existing logged-in owner account. No copied Swipies API key is needed for this path. Thereafter use the connected MCP tools. Host availability and tool permissions still apply; visiting this site cannot install a connector in a chat.
+
+If the OAuth flag is false or absent, do not claim OAuth is live. HTTPS/code clients can still use the bootstrap flow below; a webpage-reading-only session needs its host to enable a supported tool connection. [ChatGPT connection guide](https://swipies.app/agents.html#chatgpt).
+
+
 ## Agents with HTTPS or network-enabled code: start directly
 
 When the user has asked you to work in Swipies, use your existing authorized HTTP/code tools. A configured Swipies MCP connector is not a prerequisite for this path.

@@ -212,7 +212,17 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerApiKey": []
+          },
+          {
+            "SwipiesOAuth": [
+              "swipies:read"
+            ]
+          }
+        ]
       }
     },
     "/api/v1/agent-access/mcp": {
@@ -324,7 +334,17 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerApiKey": []
+          },
+          {
+            "SwipiesOAuth": [
+              "swipies:read"
+            ]
+          }
+        ]
       }
     }
   },
@@ -334,6 +354,22 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "Swipies API key"
+      },
+      "SwipiesOAuth": {
+        "type": "oauth2",
+        "description": "Available only when the live manifest reports mcp.oauth.enabled=true. OAuth bearer access is restricted to the MCP gateway and its operation catalog; current callback support is ChatGPT.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://api.swipies.app/api/v1/agent-access/oauth/authorize",
+            "tokenUrl": "https://api.swipies.app/api/v1/agent-access/oauth/token",
+            "refreshUrl": "https://api.swipies.app/api/v1/agent-access/oauth/token",
+            "scopes": {
+              "swipies:read": "Read/discover tenant resources (required)",
+              "swipies:write": "Execute non-GET tenant operations",
+              "offline_access": "Keep connection with rotating refresh, up to 30 days"
+            }
+          }
+        }
       }
     },
     "schemas": {
