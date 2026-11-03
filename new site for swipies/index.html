@@ -5460,9 +5460,42 @@
       trackVisitor(choice);
     };
 
+    
+    function decorateLinksWithUtm() {
+      const utm = getUtmParams();
+      const vId = getVisitorId();
+      const sId = getSessionId();
+      const ref = localStorage.getItem('swipies_ref') || '';
+
+      const links = document.querySelectorAll('a[href*="login.html"], a[href*="api.swipies.app"], a[href*="app.swipies.app"]');
+      links.forEach(link => {
+        try {
+          const rawHref = link.getAttribute('href');
+          if (!rawHref || rawHref.startsWith('#') || rawHref.startsWith('javascript:')) return;
+
+          const url = new URL(rawHref, window.location.origin);
+          if (utm.utm_source && !url.searchParams.has('utm_source')) url.searchParams.set('utm_source', utm.utm_source);
+          if (utm.utm_medium && !url.searchParams.has('utm_medium')) url.searchParams.set('utm_medium', utm.utm_medium);
+          if (utm.utm_campaign && !url.searchParams.has('utm_campaign')) url.searchParams.set('utm_campaign', utm.utm_campaign);
+          if (utm.utm_term && !url.searchParams.has('utm_term')) url.searchParams.set('utm_term', utm.utm_term);
+          if (utm.utm_content && !url.searchParams.has('utm_content')) url.searchParams.set('utm_content', utm.utm_content);
+          if (vId && !url.searchParams.has('vid')) url.searchParams.set('vid', vId);
+          if (sId && !url.searchParams.has('sid')) url.searchParams.set('sid', sId);
+          if (ref && !url.searchParams.has('ref')) url.searchParams.set('ref', ref);
+
+          if (rawHref.startsWith('login.html')) {
+            link.setAttribute('href', 'login.html' + (url.search ? url.search : ''));
+          } else {
+            link.setAttribute('href', url.toString());
+          }
+        } catch (e) {}
+      });
+    }
+
     function initCookieBanner() {
       initCtaClickTracking();
       initSectionObserver();
+      decorateLinksWithUtm();
       updateScrollDepth();
 
       // Trigger initial audio buffer compute

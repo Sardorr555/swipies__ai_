@@ -956,7 +956,7 @@ input:checked + .slider:before { transform: translateX(20px); }
   .header-left .live-badge { display: none; }
 }
 </style>
-<link rel="stylesheet" href="/admin-analytics.css?v=20261031-4">
+<link rel="stylesheet" href="/admin-analytics.css?v=20261103-1">
 </head>
 <body>
 
@@ -5170,159 +5170,6 @@ function copyUtmUrl() {
   });
 }
 
-async function loadUtmPageData() {
-  const aggTbody = document.getElementById('utmAggTableBody');
-  const logTbody = document.getElementById('utmLogTableBody');
-  if (!aggTbody || !logTbody) return;
-
-  try {
-    const res = await fetch('/api/visitors', { headers: getAuthHeaders() });
-    const json = await safeFetchJson(res);
-
-    if (json.code === 0 && Array.isArray(json.data)) {
-      const allVisitors = json.data;
-
-      // Filter visitors that arrived via UTM
-      const utmVisitors = allVisitors.filter(v => v.utm_source || v.utm_medium || v.utm_campaign || v.utm_content);
-
-      // Stat cards calculation
-      const totalUtmVisits = utmVisitors.length;
-      document.getElementById('utmStatTotal').textContent = totalUtmVisits;
-
-      // Group by utm_source and utm_campaign
-      const sourceCounts = {};
-      const campaignCounts = {};
-      let totalDuration = 0;
-
-      utmVisitors.forEach(v => {
-        const src = (v.utm_source || 'direct').toLowerCase();
-        const cmp = (v.utm_campaign || 'unnamed').toLowerCase();
-        sourceCounts[src] = (sourceCounts[src] || 0) + 1;
-        campaignCounts[cmp] = (campaignCounts[cmp] || 0) + 1;
-        totalDuration += (v.session_duration || 0);
-      });
-
-      const topSource = Object.keys(sourceCounts).sort((a,b) => sourceCounts[b] - sourceCounts[a])[0] || '—';
-      const topCampaign = Object.keys(campaignCounts).sort((a,b) => campaignCounts[b] - campaignCounts[a])[0] || '—';
-      const avgDur = totalUtmVisits > 0 ? Math.round(totalDuration / totalUtmVisits) : 0;
-
-      document.getElementById('utmStatTopSource').textContent = topSource;
-      document.getElementById('utmStatTopSourceSub').textContent = sourceCounts[topSource] ? `${sourceCounts[topSource]} visits (${Math.round(sourceCounts[topSource]/totalUtmVisits*100)}%)` : 'No campaign visits';
-
-      document.getElementById('utmStatTopCampaign').textContent = topCampaign;
-      document.getElementById('utmStatTopCampaignSub').textContent = campaignCounts[topCampaign] ? `${campaignCounts[topCampaign]} visits` : 'No active campaign';
-
-      document.getElementById('utmStatAvgDuration').textContent = `${Math.floor(avgDur / 60)}m ${avgDur % 60}s`;
-
-      // 1. Render Aggregated Campaign Traffic Table ("Кто сколько и откуда пришёл")
-      const campaignsMap = {};
-      utmVisitors.forEach(v => {
-        const key = `${v.utm_source || 'direct'}::${v.utm_medium || 'none'}::${v.utm_campaign || 'unnamed'}`;
-        if (!campaignsMap[key]) {
-          campaignsMap[key] = {
-            source: v.utm_source || 'direct',
-            medium: v.utm_medium || 'none',
-            campaign: v.utm_campaign || 'unnamed',
-            visits: 0,
-            ips: new Set(),
-            consents: 0,
-            duration: 0,
-            lastDate: v.create_date
-          };
-        }
-        const group = campaignsMap[key];
-        group.visits += 1;
-        if (v.ip) group.ips.add(v.ip);
-        if (v.cookie_consent === 'accepted') group.consents += 1;
-        group.duration += (v.session_duration || 0);
-        if (new Date(v.create_date) > new Date(group.lastDate)) {
-          group.lastDate = v.create_date;
-        }
-      });
-
-      const campaignGroups = Object.values(campaignsMap).sort((a, b) => b.visits - a.visits);
-
-      if (campaignGroups.length === 0) {
-        aggTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-dim)">No UTM campaign traffic logged yet. Build a link above and share it!</td></tr>`;
-      } else {
-        aggTbody.innerHTML = campaignGroups.map(g => {
-          const consentPct = Math.round((g.consents / g.visits) * 100);
-          const avgD = Math.round(g.duration / g.visits);
-          const durText = `${Math.floor(avgD / 60)}m ${avgD % 60}s`;
-          const formattedDate = g.lastDate ? formatFullVisitorTimestamp(g.lastDate, false) : '—';
-
-          return `
-            <tr>
-              <td>
-                <strong style="color:var(--accent); font-family:var(--font-mono);">${escapeHtml(g.source)}</strong>
-                <span style="font-size:0.75rem; color:var(--text-dim)"> / ${escapeHtml(g.medium)}</span>
-              </td>
-              <td><strong class="mono-val">${escapeHtml(g.campaign)}</strong></td>
-              <td style="text-align:right"><strong style="color:var(--text)">${g.visits}</strong></td>
-              <td style="text-align:right" class="mono-val">${g.ips.size}</td>
-              <td style="text-align:right"><span style="color:#56d364; font-weight:600">${consentPct}%</span></td>
-              <td style="text-align:right">${durText}</td>
-              <td style="text-align:right; font-size:0.75rem; color:var(--text-muted)">${formattedDate}</td>
-            </tr>
-          `;
-        }).join('');
-      }
-
-      // 2. Render Detailed UTM Visitor Log Table
-      if (utmVisitors.length === 0) {
-        logTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-dim)">No visitor records with UTM tags logged yet.</td></tr>`;
-      } else {
-        logTbody.innerHTML = utmVisitors.map(v => {
-          let consentBadge = `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">PENDING</span>`;
-          if (v.cookie_consent === 'accepted') {
-            consentBadge = `<span style="background:rgba(31,136,61,0.15); color:#56d364; border:1px solid rgba(31,136,61,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">ACCEPTED</span>`;
-          } else if (v.cookie_consent === 'declined') {
-            consentBadge = `<span style="background:rgba(207,34,46,0.15); color:#ff808a; border:1px solid rgba(207,34,46,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600">DECLINED</span>`;
-          }
-
-          const vpnBadge = v.is_proxy === 'Yes'
-            ? `<span style="background:rgba(232,168,32,0.15); color:var(--accent); border:1px solid rgba(232,168,32,0.3); padding:1px 5px; border-radius:3px; font-size:0.68rem; font-weight:600; font-family:var(--font-mono)">VPN</span>`
-            : `<span style="background:rgba(255,255,255,0.05); color:var(--text-dim); padding:1px 5px; border-radius:3px; font-size:0.68rem">Res</span>`;
-
-          const formattedDate = formatFullVisitorTimestamp(v.create_date);
-          const safeIp = escapeHtml(v.ip || '—');
-          const safeGeo = escapeHtml(v.country || '—') + (v.city ? `, ${escapeHtml(v.city)}` : '');
-          const safeIsp = escapeHtml(v.isp || '—');
-
-          const hwCpu = v.cpu_cores ? `${v.cpu_cores} C` : '';
-          const hwRam = v.ram_gb ? `${v.ram_gb} GB` : '';
-          const safeSpecs = `${v.device_type || 'Dev'} • ${v.os || 'OS'} (${hwCpu} ${hwRam})`;
-
-          const durationMin = v.session_duration ? `${Math.floor(v.session_duration / 60)}m ${v.session_duration % 60}s` : '0s';
-          const scrollPct = v.scroll_depth !== undefined ? `${v.scroll_depth}%` : '0%';
-
-          const campaignTag = `🏷️ ${escapeHtml(v.utm_source || 'direct')} / ${escapeHtml(v.utm_medium || '')} / ${escapeHtml(v.utm_campaign || '')}`;
-
-          return `
-            <tr>
-              <td>
-                <strong class="mono-val" style="color:var(--text)">${safeIp}</strong><br>
-                <span style="font-size:0.75rem; color:var(--text-muted)">📍 ${safeGeo}</span>
-              </td>
-              <td><span style="background:rgba(56,123,245,0.15); color:var(--blue); border:1px solid rgba(56,123,245,0.3); padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600; font-family:var(--font-mono);">${campaignTag}</span></td>
-              <td>
-                <span style="font-size:0.85rem">${safeIsp}</span> ${vpnBadge}
-              </td>
-              <td style="font-size:0.8rem">${safeSpecs}</td>
-              <td style="font-size:0.8rem"><strong>${durationMin}</strong> • ${scrollPct} scroll</td>
-              <td>${consentBadge}</td>
-              <td class="mono-val" style="font-size:0.72rem; color:var(--text-muted)">${formattedDate}</td>
-            </tr>
-          `;
-        }).join('');
-      }
-    }
-  } catch (err) {
-    console.error('Error fetching UTM page data:', err);
-    if (aggTbody) aggTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--red)">Failed to load UTM campaign data.</td></tr>`;
-    if (logTbody) logTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--red)">Failed to load UTM visitor logs.</td></tr>`;
-  }
-}
 
 // Start Checks on load
 document.addEventListener('DOMContentLoaded', () => {
@@ -5330,6 +5177,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script>window.SWIPIES_LANDING_NATIVE_AUTH = true;</script>
-<script src="/admin-analytics.js?v=20261031-4"></script>
+<script src="/admin-analytics.js?v=20261103-1"></script>
 </body>
 </html>

@@ -822,18 +822,7 @@
     });
     // recordControls("visitors", "visitorsTab"); // Visitors tab uses its own original UI
     recordControls("leads", "submissionsTab");
-    recordControls("users", "usersTab");
-    byId("usersTableBody").addEventListener("click", (event) => {
-      const button = event.target.closest("[data-user-action]");
-      if (!button) return;
-      if (button.dataset.userAction === "status")
-        window.toggleUserStatus(
-          button.dataset.email,
-          button.dataset.active === "true",
-        );
-      else window.deleteUser(button.dataset.email);
-    });
-    recordControls("campaigns", "utmTab");
+    // usersTab and utmTab use original admin.html product & conversion analytics
     toolbar.addEventListener("input", () => {
       if (state.report && !state.busy)
         status(
@@ -853,7 +842,7 @@
         oldSources.style.display = isVisitors ? "flex" : "none";
       }
       toolbar.hidden =
-        tab === "settings" || tab === "plans" || tab === "visitors";
+        tab === "settings" || tab === "plans" || tab === "visitors" || tab === "users" || tab === "utm";
       if (tab === "submissions") loadRecords("leads");
     };
     window.refreshDashboardData = function () {
@@ -867,12 +856,8 @@
     };
     // window.loadVisitorsFromDB preserved (original admin.html implementation handles visitors tab)
     window.loadLeadsFromDB = () => loadRecords("leads");
-    window.loadUsersFromDB = () => loadRecords("users");
-    // window.updateActiveUsers preserved (original admin.html handles active users)
-    window.loadUtmPageData = () => {
-      renderCampaigns();
-      return loadRecords("campaigns");
-    };
+    // window.loadUsersFromDB preserved (original admin.html handles registered users & product analytics)
+    // window.loadUtmPageData preserved (original admin.html handles UTM campaign conversions & registration attribution)
     // window.exportVisitorsToCSV preserved (original admin.html implementation)
     window.exportSubmissionsToCSV = () => download("leads", "csv");
     window.renderSubmissionsTable = renderLeadRows;
