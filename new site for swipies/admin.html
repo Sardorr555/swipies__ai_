@@ -956,7 +956,7 @@ input:checked + .slider:before { transform: translateX(20px); }
   .header-left .live-badge { display: none; }
 }
 </style>
-<link rel="stylesheet" href="/admin-analytics.css?v=20261103-1">
+<link rel="stylesheet" href="/admin-analytics.css?v=20261104-2">
 </head>
 <body>
 
@@ -2516,6 +2516,13 @@ function computeNativeDashboardData(period) {
   const totalUsers = uniqueIPs.size || activeSet.length || 0;
   const totalSessions = activeSet.length || 0;
 
+  // Visitors & Traffic Cards metrics for the active filtered period
+  const periodTotalVisits = activeSet.length;
+  const periodUniqueIPs = uniqueIPs.size;
+  const periodConsents = activeSet.filter(v => v.cookie_consent === 'accepted').length;
+  const periodConsentPct = periodTotalVisits > 0 ? ((periodConsents / periodTotalVisits) * 100).toFixed(1) : '0.0';
+  const periodBots = activeSet.filter(v => v.is_bot_detected && v.is_bot_detected !== 'No' && v.is_bot_detected !== '').length;
+
   // Bounce Rate: Visitors who left within 10s and only viewed 1 or 0 sections with < 15% scroll
   const bounced = activeSet.filter(v => {
     const dur = v.session_duration || 0;
@@ -2633,6 +2640,13 @@ function computeNativeDashboardData(period) {
     bounce: `${bounceRatePct}%`,
     duration: durationStr,
     views: views,
+    visitorStats: {
+      total: periodTotalVisits,
+      unique: periodUniqueIPs,
+      consent: `${periodConsentPct}%`,
+      bots: periodBots
+    },
+    activeVisitors: activeSet,
     timeline: {
       labels: labels,
       users: usersTrend,
@@ -2680,6 +2694,8 @@ async function refreshDashboardData() {
 
     const stats = computeNativeDashboardData(activeDateRange);
     populateDashboardUI(stats);
+    drawAcquisitionCharts(stats.channels, stats.devices);
+    renderTopPagesTable(stats.users, stats.activeVisitors);
     if (loader) loader.classList.remove('loading');
     return;
   }
@@ -3297,6 +3313,13 @@ function populateDashboardUI(data) {
   setText('statBounce', data.bounce);
   setText('statDuration', data.duration);
 
+  if (data.visitorStats) {
+    setText('vStatTotalVisits', data.visitorStats.total.toLocaleString());
+    setText('vStatUniqueIPs', data.visitorStats.unique.toLocaleString());
+    setText('vStatConsentRate', data.visitorStats.consent);
+    setText('vStatBotCount', data.visitorStats.bots > 0 ? data.visitorStats.bots.toLocaleString() : '-');
+  }
+
   // Ensure Visitors & Traffic trend subtitles remain visible
   const gaId = localStorage.getItem('swipies_ga_property_id');
   const serviceKey = localStorage.getItem('swipies_ga_service_key');
@@ -3599,9 +3622,53 @@ function drawLanguageCharts(languages, timelineLabels) {
   });
 }
 
-function renderTopPagesTable(totalUsers) {
+function renderTopPagesTable(totalUsers, activeVisitors) {
   const body = document.getElementById('topPagesTableBody');
+  if (!body) return;
   body.innerHTML = '';
+
+  const visitors = Array.isArray(activeVisitors) ? activeVisitors : (Array.isArray(currentVisitorsData) ? currentVisitorsData : []);
+
+  if (visitors.length > 0) {
+    const pageCounts = {};
+    const pageIps = {};
+    const pageDurations = {};
+
+    visitors.forEach(v => {
+      let rawUrl = (v.page_url || '/').trim();
+      if (!rawUrl) rawUrl = '/';
+      pageCounts[rawUrl] = (pageCounts[rawUrl] || 0) + 1;
+      if (!pageIps[rawUrl]) pageIps[rawUrl] = new Set();
+      if (v.ip) pageIps[rawUrl].add(v.ip);
+      if (!pageDurations[rawUrl]) pageDurations[rawUrl] = [];
+      if (v.session_duration) pageDurations[rawUrl].push(v.session_duration);
+    });
+
+    const sortedPages = Object.keys(pageCounts).map(path => {
+      const durList = pageDurations[path] || [];
+      const avgDur = durList.length > 0 ? Math.round(durList.reduce((a, b) => a + b, 0) / durList.length) : 0;
+      const m = Math.floor(avgDur / 60);
+      const s = avgDur % 60;
+      return {
+        path,
+        views: pageCounts[path],
+        unique: pageIps[path].size || pageCounts[path],
+        duration: m > 0 ? `${m}m ${s}s` : `${s}s`
+      };
+    }).sort((a, b) => b.views - a.views).slice(0, 20);
+
+    sortedPages.forEach(p => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="mono-val" style="color:var(--accent); word-break:break-all">${escapeHtml(p.path)}</td>
+        <td class="mono-val" style="text-align:right">${p.views.toLocaleString()}</td>
+        <td class="mono-val" style="text-align:right">${p.unique.toLocaleString()}</td>
+        <td class="mono-val" style="text-align:right">${p.duration}</td>
+      `;
+      body.appendChild(row);
+    });
+    return;
+  }
 
   const pages = [
     { path: '/', views: Math.round(totalUsers * 2.1), unique: Math.round(totalUsers * 0.95), duration: '2m 14s' },
@@ -3614,13 +3681,12 @@ function renderTopPagesTable(totalUsers) {
     { path: '/#contact', views: Math.round(totalUsers * 0.24), unique: Math.round(totalUsers * 0.18), duration: '1m 08s' }
   ];
 
-  // Sort descending by views
   pages.sort((a, b) => b.views - a.views);
 
   pages.forEach(p => {
     const row = document.createElement('tr');
     row.innerHTML = `
-      <td class="mono-val" style="color:var(--accent)">${p.path}</td>
+      <td class="mono-val" style="color:var(--accent)">${escapeHtml(p.path)}</td>
       <td class="mono-val" style="text-align:right">${p.views.toLocaleString()}</td>
       <td class="mono-val" style="text-align:right">${p.unique.toLocaleString()}</td>
       <td class="mono-val" style="text-align:right">${p.duration}</td>
@@ -4353,27 +4419,18 @@ async function loadVisitorsFromDB() {
   if (!tbody) return;
 
   try {
-    const res = await fetch('/api/visitors', { headers: getAuthHeaders() });
+    const res = await fetch('/api/visitors?limit=10000', { headers: getAuthHeaders() });
     const json = await safeFetchJson(res);
 
     if (json.code === 0 && Array.isArray(json.data)) {
       currentVisitorsData = json.data;
-      const stats = json.stats || {};
-
-      const totalEl = document.getElementById('vStatTotalVisits');
-      const uniqueEl = document.getElementById('vStatUniqueIPs');
-      const consentEl = document.getElementById('vStatConsentRate');
-      const botEl = document.getElementById('vStatBotCount');
-
-      if (totalEl) totalEl.textContent = stats.total_visits !== undefined ? stats.total_visits : json.data.length;
-      if (uniqueEl) uniqueEl.textContent = stats.unique_ips !== undefined ? stats.unique_ips : '-';
-      if (consentEl) consentEl.textContent = stats.consent_rate !== undefined ? stats.consent_rate + '%' : '-';
-      if (botEl) botEl.textContent = stats.bot_count !== undefined ? stats.bot_count : '0';
+      window.visitorGlobalStats = json.stats || {};
 
       applyVisitorFilters();
       const vStats = computeNativeDashboardData(activeDateRange);
+      populateDashboardUI(vStats);
       drawAcquisitionCharts(vStats.channels, vStats.devices);
-      renderTopPagesTable(vStats.users);
+      renderTopPagesTable(vStats.users, vStats.activeVisitors);
     }
   } catch (err) {
     console.error('Error fetching visitor telemetry:', err);
@@ -5044,7 +5101,7 @@ async function loadUtmPageData() {
     }
 
     // 2. Fetch Detailed Visitor Logs
-    const visRes = await fetch('/api/visitors', { headers: getAuthHeaders() });
+    const visRes = await fetch('/api/visitors?limit=10000', { headers: getAuthHeaders() });
     const visJson = await safeFetchJson(visRes);
 
     if (visJson.code === 0 && Array.isArray(visJson.data)) {
@@ -5177,6 +5234,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script>window.SWIPIES_LANDING_NATIVE_AUTH = true;</script>
-<script src="/admin-analytics.js?v=20261103-1"></script>
+<script src="/admin-analytics.js?v=20261104-2"></script>
 </body>
 </html>

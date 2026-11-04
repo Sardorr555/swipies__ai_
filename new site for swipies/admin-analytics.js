@@ -227,15 +227,21 @@
       "payment_rate",
       "lead_rate",
     ];
-    byId("analyticsMetrics").innerHTML = primary
-      .map((key) => report.metrics.find((metric) => metric.key === key))
-      .filter(Boolean)
-      .map(renderMetric)
-      .join("");
-    byId("analyticsExtraMetrics").innerHTML = report.metrics
-      .filter((metric) => !primary.includes(metric.key))
-      .map(renderMetric)
-      .join("");
+    const mEl = byId("analyticsMetrics");
+    if (mEl) {
+      mEl.innerHTML = primary
+        .map((key) => report.metrics.find((metric) => metric.key === key))
+        .filter(Boolean)
+        .map(renderMetric)
+        .join("");
+    }
+    const emEl = byId("analyticsExtraMetrics");
+    if (emEl) {
+      emEl.innerHTML = report.metrics
+        .filter((metric) => !primary.includes(metric.key))
+        .map(renderMetric)
+        .join("");
+    }
     if (byId("analyticsCurrentRange"))
       byId("analyticsCurrentRange").textContent =
         dateLabel(report.filters.start) + " — " + dateLabel(report.filters.end);
@@ -246,17 +252,23 @@
         dateLabel(report.filters.compare_end);
     if (byId("analyticsZoneLabel"))
       byId("analyticsZoneLabel").textContent = report.filters.timezone;
-    byId("analyticsNotes").innerHTML =
-      report.notes.map((note) => `<p>${escape(note)}</p>`).join("") +
-      (report.filters.equal_duration
-        ? ""
-        : "<p>У периодов разная длительность. Изменение сравнивает фактические итоги без нормализации на число дней.</p>");
-    byId("analyticsMetricSelect").innerHTML = report.metrics
-      .map(
-        (metric) =>
-          `<option value="${metric.key}">${escape(metric.label)}</option>`,
-      )
-      .join("");
+    const notesEl = byId("analyticsNotes");
+    if (notesEl) {
+      notesEl.innerHTML =
+        report.notes.map((note) => `<p>${escape(note)}</p>`).join("") +
+        (report.filters.equal_duration
+          ? ""
+          : "<p>У периодов разная длительность. Изменение сравнивает фактические итоги без нормализации на число дней.</p>");
+    }
+    const selEl = byId("analyticsMetricSelect");
+    if (selEl) {
+      selEl.innerHTML = report.metrics
+        .map(
+          (metric) =>
+            `<option value="${metric.key}">${escape(metric.label)}</option>`,
+        )
+        .join("");
+    }
   }
   function renderChart() {
     if (!state.report) return;
@@ -330,8 +342,11 @@
       }).format(date);
       grid += `<text x="${x(index)}" y="${height - 15}" text-anchor="middle">${escape(label)}</text>`;
     }
-    byId("analyticsChart").innerHTML =
-      `<svg class="analytics-chart" role="img" aria-label="${escape(metric.label)}: текущий период и период сравнения. Точные значения приведены в таблице ниже." viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">${grid}${paths(previous, "#8792a2", true)}${paths(current, "#e8a820", false)}</svg>`;
+    const chartEl = byId("analyticsChart");
+    if (chartEl) {
+      chartEl.innerHTML =
+        `<svg class="analytics-chart" role="img" aria-label="${escape(metric.label)}: текущий период и период сравнения. Точные значения приведены в таблице ниже." viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">${grid}${paths(previous, "#8792a2", true)}${paths(current, "#e8a820", false)}</svg>`;
+    }
     if (byId("analyticsChartSubtitle")) byId("analyticsChartSubtitle").textContent =
       metric.label + " · сравнение по порядку временных групп";
     renderDetail();
@@ -371,6 +386,7 @@
       byId("analyticsDetailNext").disabled = start + 50 >= count;
   }
   function breakdown(container, key, title) {
+    if (!container) return;
     const a = state.report.current.breakdowns[key] || [],
       b = state.report.previous.breakdowns[key] || [];
     const previous = new Map(b.map((item) => [item.name, item.value]));
@@ -518,9 +534,9 @@
     try {
       const payload = body();
       state.busy = true;
-      byId("analyticsApply").disabled = true;
+      if (byId("analyticsApply")) byId("analyticsApply").disabled = true;
       status("Загружаем оба периода…");
-      byId("analyticsMetrics").setAttribute("aria-busy", "true");
+      byId("analyticsMetrics")?.setAttribute("aria-busy", "true");
       const result = await jsonPost("report", payload, state.controller.signal);
       if (id !== state.request) return;
       state.report = result.data;
@@ -530,10 +546,11 @@
         filters: payload.filters,
         source: payload.source,
       });
-      const selected = byId("analyticsMetricSelect").value || "visitors";
+      const metricEl = byId("analyticsMetricSelect");
+      const selected = (metricEl ? metricEl.value : null) || "visitors";
       renderCards(state.report);
-      if (state.report.metrics.some((item) => item.key === selected))
-        byId("analyticsMetricSelect").value = selected;
+      if (metricEl && state.report.metrics.some((item) => item.key === selected))
+        metricEl.value = selected;
       renderChart();
       breakdown(byId("analyticsChannels"), "channels", "Источники трафика");
       breakdown(byId("analyticsDevices"), "devices", "Устройства");
@@ -567,8 +584,8 @@
     } finally {
       if (id === state.request) {
         state.busy = false;
-        byId("analyticsApply").disabled = false;
-        byId("analyticsMetrics").setAttribute("aria-busy", "false");
+        if (byId("analyticsApply")) byId("analyticsApply").disabled = false;
+        byId("analyticsMetrics")?.setAttribute("aria-busy", "false");
       }
     }
   }
