@@ -40,6 +40,10 @@ export function getRootDomain(): string {
   ) {
     return '';
   }
+  // Test / demo environments must NOT share cookies with production api.swipies.app
+  if (hostname === 'demo.swipies.app' || hostname.startsWith('demo.')) {
+    return '';
+  }
   if (hostname.endsWith('swipies.app')) {
     return '.swipies.app';
   }
@@ -91,8 +95,26 @@ export function deleteCookie(name: string) {
 }
 
 /**
- * Resolves the primary login URL across subdomains with a return redirect parameter.
+ * Keep platform users on their portal. Other Swipies subdomains use the API portal.
+ * Custom installations keep their own origin.
  */
+export function getMainAppUrl(): string {
+  if (typeof window === 'undefined') return '/';
+  const host = window.location.hostname.toLowerCase();
+  // Demo / test environments must always stay on their own origin and never cross to production
+  if (host === 'demo.swipies.app' || host.startsWith('demo.')) {
+    return `${window.location.origin}/`;
+  }
+  if (host === 'swipies.app' || host.endsWith('.swipies.app')) {
+    if (host === 'api.swipies.app' || host === 'app.swipies.app') {
+      return `${window.location.origin}/`;
+    }
+    return `${window.location.protocol}//api.swipies.app/`;
+  }
+  return `${window.location.origin}/`;
+}
+
+/** Resolves the login URL with a return destination, preserving local development. */
 export function getMainLoginUrl(returnUrl?: string): string {
   if (typeof window === 'undefined') return '/login';
   const host = window.location.hostname.toLowerCase();
@@ -107,16 +129,12 @@ export function getMainLoginUrl(returnUrl?: string): string {
     return `/login${redirectParam}`;
   }
 
-  if (host.includes('app.swipies.app')) {
-    return `${window.location.protocol}//app.swipies.app/login${redirectParam}`;
+  // Demo / test environments always use local /login without crossing over to production api.swipies.app
+  if (host === 'demo.swipies.app' || host.startsWith('demo.')) {
+    return `${window.location.origin}/login${redirectParam}`;
   }
 
-  if (host.endsWith('swipies.app')) {
-    // Primary platform portal is demo.swipies.app (for ads.swipies.app, demo.swipies.app, etc.)
-    return `${window.location.protocol}//demo.swipies.app/login${redirectParam}`;
-  }
-
-  return `${window.location.origin}/login${redirectParam}`;
+  return `${getMainAppUrl()}login${redirectParam}`;
 }
 
 export function redirectToLogin(returnUrl?: string) {
@@ -220,10 +238,20 @@ export const getAuthorization = (): string => {
     return formatted;
   }
 
+  const host = window.location.hostname.toLowerCase();
+  const isDemo = host === 'demo.swipies.app' || host.startsWith('demo.');
   const rootDomain = getRootDomain();
   const cookieAuth = getCookie(AUTH_COOKIE_NAME);
   const loggedInCookie = getCookie(LOGGED_IN_COOKIE_NAME);
   const localAuth = localStorage.getItem(Authorization);
+
+  // In demo environment, use local storage / host cookies and never sync production .swipies.app cookies
+  if (isDemo) {
+    if (localAuth) {
+      return localAuth;
+    }
+    return '';
+  }
 
   // If in multi-subdomain environment (e.g. .swipies.app)
   if (rootDomain) {
