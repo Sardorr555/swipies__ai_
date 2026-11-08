@@ -6,7 +6,15 @@ target=${1:?Expected a full commit SHA}
 [[ "$target" =~ ^[0-9a-f]{40}$ ]] || exit 2
 cd "$HOME/swipies__ai_"
 exec 200>.git/swipies-deploy.lock
-flock -n 200 || { echo 'Another deployment is active'; exit 1; }
+if ! flock -n 200; then
+  echo 'Another deployment is active; inspecting processes holding lock:'
+  fuser -v .git/swipies-deploy.lock 2>&1 || true
+  echo 'Attempting to terminate stale orphaned deployment process...'
+  fuser -k -9 .git/swipies-deploy.lock 2>/dev/null || true
+  sleep 2
+  flock -n 200 || { echo 'Deployment lock still held; aborting'; exit 1; }
+  echo 'Stale deployment lock successfully cleared'
+fi
 git cat-file -e "$target^{commit}"
 git diff --quiet --ignore-submodules=all && git diff --cached --quiet --ignore-submodules=all || {
   echo 'Tracked server changes must be reviewed before deployment'

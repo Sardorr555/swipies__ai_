@@ -33,6 +33,12 @@ jobs:
           script: |
             bash -seuo pipefail <<'DEPLOY'
             cd "$HOME/swipies__ai_"
+            # Clear orphaned lock from cancelled workflows if any
+            if [ -f .git/swipies-deploy.lock ]; then
+              fuser -k -9 .git/swipies-deploy.lock 2>/dev/null || true
+              rm -f /tmp/swipies_deploying.lock 2>/dev/null || true
+              sleep 1
+            fi
             git fetch origin swipies_26
             test "$(git rev-parse FETCH_HEAD)" = "$DEPLOY_SHA" || { echo 'A newer release is queued; refusing stale deployment'; exit 1; }
             git show "$DEPLOY_SHA:docker/deploy_main.sh" | bash -s -- "$DEPLOY_SHA"
