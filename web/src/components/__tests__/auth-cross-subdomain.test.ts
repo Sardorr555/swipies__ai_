@@ -69,6 +69,11 @@ describe('Cross-Subdomain Authorization & Session Sync Test Suite', () => {
       mockHostname('127.0.0.1');
       expect(getRootDomain()).toBe('');
     });
+
+    it('returns empty string for demo.swipies.app to isolate test sessions from production', () => {
+      mockHostname('demo.swipies.app');
+      expect(getRootDomain()).toBe('');
+    });
   });
 
   describe('Canonical Login Portal Resolution (getMainLoginUrl)', () => {
@@ -85,9 +90,18 @@ describe('Cross-Subdomain Authorization & Session Sync Test Suite', () => {
       expect(loginUrl).toContain('https://api.swipies.app/login?redirect=');
     });
 
+    it('keeps demo.swipies.app strictly on demo.swipies.app/login and never redirects to api.swipies.app', () => {
+      mockHostname('demo.swipies.app', 'https:');
+      const loginUrl = getMainLoginUrl('https://demo.swipies.app/chat');
+      expect(loginUrl).toContain('https://demo.swipies.app/login?redirect=');
+      expect(loginUrl).not.toContain('api.swipies.app');
+      expect(getMainAppUrl()).toBe('https://demo.swipies.app/');
+    });
+
     it.each([
       ['api.swipies.app', 'https://api.swipies.app/'],
       ['app.swipies.app', 'https://app.swipies.app/'],
+      ['demo.swipies.app', 'https://demo.swipies.app/'],
       ['ads.swipies.app', 'https://api.swipies.app/'],
       ['swipies.app', 'https://api.swipies.app/'],
       ['customer.example', 'https://customer.example/'],

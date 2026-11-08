@@ -160,7 +160,7 @@ export function LicenseActivationModal() {
         <div className="p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg text-sm text-text-primary flex items-center justify-between">
           <span>Need a license key?</span>
           <a
-            href="https://api.swipies.app/user-setting/license"
+            href="/user-setting/license"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1 font-semibold text-accent-primary hover:underline"

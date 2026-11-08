@@ -632,6 +632,20 @@ const Login = () => {
     try {
       dest = decodeURIComponent(rawDest);
     } catch {}
+
+    const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+    const isDemo = host === 'demo.swipies.app' || host.startsWith('demo.');
+
+    // If on demo environment, sanitize any cross-origin redirect to production api.swipies.app
+    if (isDemo && (dest.includes('api.swipies.app') || dest.includes('app.swipies.app'))) {
+      try {
+        const parsed = new URL(dest, window.location.origin);
+        dest = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+      } catch {
+        dest = defaultDestination;
+      }
+    }
+
     if (
       dest.startsWith('http://') ||
       dest.startsWith('https://') ||
