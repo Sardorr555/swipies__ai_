@@ -34,3 +34,5 @@
 
 - [ADR-006](ADR-006-mcp-oauth.md): OAuth authorization for the tenant MCP gateway (2026-10-29; implemented locally, feature disabled by default).
 - [ADR-007](ADR-007-landing-period-reporting.md): Shared factual-period reporting and filtered exports across the landing and platform APIs (2026-10-31; implemented locally, release pending).
+
+- [ADR-008](ADR-008-isolated-posthog-analytics.md): Isolated consent-gated PostHog collection and server-side reporting alongside existing landing analytics (2026-11-08; local implementation, no production enablement).

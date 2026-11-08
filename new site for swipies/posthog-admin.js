@@ -232,13 +232,15 @@
       [
         "Источник",
         "UTM-кампания",
+        "Referrer (домен)",
         "Посетители сейчас",
         "Просмотры сейчас",
         "Посетители было",
       ],
-      pairs(data.acquisition, 2).map((row) => [
+      pairs(data.acquisition, 3).map((row) => [
         row.keys[0] || "Не указан",
         row.keys[1] || "Не указана",
+        row.keys[2] || "Прямой / не передан",
         number(row.current?.[0]),
         number(row.current?.[1]),
         number(row.previous?.[0]),

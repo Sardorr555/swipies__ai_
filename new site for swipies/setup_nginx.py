@@ -40,6 +40,7 @@ server {
     # Isolated PostHog routing (no changes to existing locations).
 # Include inside the existing swipies.app HTTPS server block.
 # More specific than the existing /api/ handler: avoid duplicate wildcard CORS.
+location = /posthog.html { return 404; }
 location /api/posthog/ {
     client_max_body_size 1k;
     proxy_pass http://127.0.0.1:5005;

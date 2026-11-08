@@ -171,7 +171,13 @@
       ].includes(event.event)
     )
       return null;
-    const safe = { ...properties(), distinct_id: identity };
+    const safe = {
+      ...properties(),
+      distinct_id: identity,
+      $process_person_profile: false,
+      $geoip_disable: true,
+      $ip: null,
+    };
     const input = event.properties || {};
     // Preserve only SDK identifiers required for delivery/session counting.
     for (const key of [
@@ -231,6 +237,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ visitor_id: visitor, granted }),
           keepalive: true,
+          referrerPolicy: "no-referrer",
         });
         return response.ok;
       } catch {
@@ -307,7 +314,7 @@
   }
   async function syncConsent() {
     const allowed = consent() && !internal();
-    if (lastConsent === allowed) return;
+    if (lastConsent === allowed && (!allowed || ready || loading)) return;
     lastConsent = allowed;
     const current = ++generation;
     if (!allowed) {
@@ -333,6 +340,7 @@
         credentials: "omit",
         cache: "no-store",
         mode: "cors",
+        referrerPolicy: "no-referrer",
       });
       if (!response.ok) throw new Error("configuration unavailable");
       config = await response.json();
@@ -375,6 +383,7 @@
       script.src = config.asset_host + "/static/array.js";
       script.async = true;
       script.crossOrigin = "anonymous";
+      script.referrerPolicy = "no-referrer";
       script.onload = () => {
         sdkLoading = false;
         if (lastConsent) initialize();

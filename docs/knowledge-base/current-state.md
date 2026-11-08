@@ -181,3 +181,15 @@ Local implementation on swipies_26 adds OAuthLib code/S256 PKCE, resource/server
 ### Landing admin period comparison (2026-10-31)
 
 Local changes on swipies_26 add factual current/reference metrics, hour/day/week/month timezone groups, filtered/paginated traffic/users/leads/UTM and complete Excel/CSV exports with date/search metadata. New reporting routes require a current platform superuser and preserve normal login/email verification. Payment reporting uses creation date/current PAID status, deduplicates mirrors and excludes advertiser deposits. No schema migration or production deployment has been performed. See [implementation, validation and release notes](landing-admin-analytics.md).
+
+
+### Isolated landing PostHog analytics (2026-11-08)
+
+Local implementation adds an optional official SDK, anonymous consent receipt, private confirmed-conversion outbox, protected `/admin/posthog` page and server-only `query:read` reports. Existing landing presentation/auth/analytics are preserved. Defaults are disabled, keys are not invented and no production deployment is authorized. Validation: 73 Python tests and 10 isolated browser tests, including the actual CDN SDK privacy hook. Payment comparison is explicitly unavailable when old creation-time reports cannot match confirmation time. See [PostHog configuration and limits](posthog.md) and [ADR-008](decisions/ADR-008-isolated-posthog-analytics.md).
+
+
+PostHog account verification on 2026-11-08: official plugin access to project 718705 (US) is confirmed, Replay is off, and all seven application SQL queries execute successfully on the empty real project. The public capture configuration is saved only in the ignored local `.env`, with collection disabled. The owner subsequently supplied the separate server reporting key; the application's own authenticated report endpoint completed all seven real Query API calls. Actual production conversion verification and enablement remain pending. See the connected-account section in [posthog.md](posthog.md).
+
+PostHog diagnostic follow-up: two labeled test/internal diagnostics confirmed Capture API delivery and exclusion from working reports; the second also confirmed no GeoIP enrichment. IP persistence and replay console recording are disabled in the actual PostHog project; Replay remains off. Browser/server payloads now disable GeoIP explicitly, and rate-limit cooldown supports a full hour. This does not enable or deploy the landing. Validation remains 73 Python + 10 browser tests.
+
+PostHog application credential verification: the supplied reporting key is saved only in the ignored local `.env`; the isolated native-auth report endpoint returned HTTP 200 / ready using the actual provider transport, unauthenticated calls were denied and no key appeared in the browser response. No capture daemon was started. `POSTHOG_ENABLED=0` and the production landing remain unchanged. Deployment and production registration/payment verification still require a separate owner instruction.

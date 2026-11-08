@@ -83,3 +83,6 @@ See [Agent access](agent-access.md) and [ADR-005](decisions/ADR-005-external-age
 See [ChatGPT OAuth](oauth-access.md) and [ADR-006](decisions/ADR-006-mcp-oauth.md) for the feature-gated OAuth connection, consent, PKCE and release procedure. Implemented locally on swipies_26; production enablement and actual ChatGPT verification are pending.
 
 See [Landing administrator analytics](landing-admin-analytics.md) and [ADR-007](decisions/ADR-007-landing-period-reporting.md) for factual period comparisons, timezone grouping and filtered Excel/CSV exports. Implemented locally on swipies_26; deployment and live-provider checks are pending.
+
+
+See [PostHog landing analytics](posthog.md) and [ADR-008](decisions/ADR-008-isolated-posthog-analytics.md) for the isolated administrator page, consent-gated official SDK and read-only confirmed conversion collector. Implemented and tested locally; real PostHog queries, diagnostic ingestion and the application reporting credential are verified. Production enablement and the real conversion journey are pending.

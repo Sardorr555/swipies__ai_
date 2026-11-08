@@ -4,16 +4,15 @@ Only this integration's separate private SQLite file is written. A failure here
 never propagates into registration, billing, the landing or existing reports.
 """
 
-from contextlib import closing
-from datetime import datetime, timezone
-import ipaddress
 import json
 import os
-from pathlib import Path
 import re
 import sqlite3
 import threading
 import time
+from contextlib import closing
+from datetime import UTC, datetime
+from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
 
 from landing_admin_api import load_core
@@ -24,7 +23,7 @@ ID = re.compile(r"(?:v_[a-z0-9]{6,20}_[0-9]{13}|[a-f0-9-]{36})\Z")
 def safe_tag(value):
     text = str(value or "")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_. -]{0,63}", text) or re.search(
-        r"[a-f0-9]{32,}|(?:phc_|phx_|eyJ)", text, re.I
+        r"[a-f0-9]{32,}|(?:phc_|phx_|eyJ)", text, re.IGNORECASE
     ):
         return ""
     return text
@@ -98,7 +97,7 @@ class State:
                 else str(
                     uuid5(
                         NAMESPACE_URL,
-                        "swipies/posthog/" + event + "/" + sorted(aliases)[0],
+                        "swipies/posthog/" + event + "/" + min(aliases),
                     )
                 )
             )
@@ -111,11 +110,13 @@ class State:
                 "uuid": ident,
                 "event": event,
                 "distinct_id": visitor,
-                "timestamp": datetime.fromtimestamp(at, timezone.utc).isoformat(),
+                "timestamp": datetime.fromtimestamp(at, UTC).isoformat(),
                 "properties": {
                     **properties,
                     "$insert_id": ident,
                     "$process_person_profile": False,
+                    "$geoip_disable": True,
+                    "$ip": None,
                     "swipies_origin": "server",
                     "swipies_schema": "1",
                     "swipies_environment": "production",
@@ -143,7 +144,7 @@ class State:
     def finish(self, ident, success, attempts, retry_after=0):
         with closing(self.db()) as db, db:
             db.execute(
-                "UPDATE outbox SET status=?,attempts=?,next_attempt=?,lease=0 WHERE uuid=?",
+                "UPDATE outbox SET status=?,attempts=?,next_attempt=?,lease=0 WHERE uuid=? AND status='pending'",
                 [
                     "sent" if success else "pending",
                     attempts + 1,
@@ -187,7 +188,7 @@ def read_facts(since):
             return rows
 
         users = read(
-            "SELECT id,visitor_id,create_time,is_superuser FROM user WHERE create_time >= %s ORDER BY create_time LIMIT %s"
+            "SELECT u.id,u.visitor_id,u.create_time,u.is_superuser FROM user u WHERE u.create_time >= %s AND EXISTS (SELECT 1 FROM tenant t WHERE t.id=u.id) AND EXISTS (SELECT 1 FROM user_tenant ut WHERE ut.user_id=u.id AND ut.tenant_id=u.id AND ut.role='owner') AND EXISTS (SELECT 1 FROM file f WHERE f.tenant_id=u.id AND f.type='folder') ORDER BY u.create_time LIMIT %s"
         )
         ledger = read(
             "SELECT p.id,p.transaction_id,p.user_id,p.status,p.plan_type,p.create_time,p.provisioned_at,u.visitor_id,u.is_superuser FROM payment_transaction p JOIN user u ON u.id=p.user_id WHERE p.create_time >= %s ORDER BY p.create_time LIMIT %s"
@@ -218,10 +219,6 @@ class Collector:
             or Path(database).resolve().with_name("posthog-state.sqlite"),
             clock,
         )
-        if transport is None:
-            import requests
-
-            transport = requests
         self.transport = transport
         self.error = None
 
@@ -236,7 +233,7 @@ class Collector:
             return bool(
                 ID.fullmatch(visitor)
                 and visitor not in self.config.internal_visitors
-                and not row.get("is_superuser")
+                and row.get("is_superuser") not in (True, 1, "1")
             )
 
         for row in snapshot["users"]:
@@ -285,6 +282,7 @@ class Collector:
                         else "first_observed_paid",
                     },
                 )
+        delivery_error = None
         for _ in range(20):
             row = self.state.claim()
             if not row:
@@ -294,6 +292,10 @@ class Collector:
                 self.state.consent(visitor, False)
                 continue
             try:
+                if self.transport is None:
+                    import requests
+
+                    self.transport = requests
                 response = self.transport.post(
                     self.config.ingest_host + "/i/v0/e/",
                     json={"api_key": self.config.project_token, **json.loads(payload)},
@@ -310,20 +312,24 @@ class Collector:
                     ident,
                     success,
                     attempts,
-                    max(0, min(300, int(retry))) if retry.isdigit() else 60,
+                    max(0, min(3600, int(retry))) if retry.isdigit() else 60,
                 )
                 if not success:
+                    delivery_error = "Доставка в PostHog отложена; события сохранены для повторной попытки."
                     break
-            except Exception:
+            except Exception:  # noqa: BLE001 -- optional delivery must retain retry state.
                 self.state.finish(ident, False, attempts)
+                delivery_error = (
+                    "PostHog недоступен; события сохранены для повторной попытки."
+                )
                 break
-        self.error = None
+        self.error = delivery_error
 
     def run(self):
         while not self.stop.is_set():
             try:
                 self.tick()
-            except Exception:
+            except Exception:  # noqa: BLE001 -- isolate the optional background worker.
                 self.error = (
                     "Сборщик событий временно недоступен; источник данных не изменён."
                 )
