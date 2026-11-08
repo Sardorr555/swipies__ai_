@@ -81,6 +81,16 @@ changed=true
 git checkout --detach "$target"
 compose config --quiet
 echo 'Building frontend while the existing containers remain running'
+# Ensure sufficient swap space and free page caches so Docker build has headroom alongside running containers
+if [[ $(swapon --show | wc -l) -le 1 ]]; then
+  if [[ ! -f /swapfile_deploy ]]; then
+    sudo fallocate -l 4G /swapfile_deploy 2>/dev/null || sudo dd if=/dev/zero of=/swapfile_deploy bs=1M count=4096 2>/dev/null || true
+    sudo chmod 600 /swapfile_deploy 2>/dev/null || true
+    sudo mkswap /swapfile_deploy 2>/dev/null || true
+  fi
+  sudo swapon /swapfile_deploy 2>/dev/null || true
+fi
+sync; sudo sysctl -w vm.drop_caches=3 2>/dev/null || true
 ( while true; do sleep 25; echo "[deploy heartbeat $(date -u +%T)] compiling frontend assets..."; done ) &
 heartbeat_pid=$!
 compose build frontend 2>&1 | tee "$state/build.log" || { kill "$heartbeat_pid" 2>/dev/null || true; echo 'Build failed; inspect private build.log'; exit 1; }
