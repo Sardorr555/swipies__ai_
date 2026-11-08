@@ -141,6 +141,7 @@ export const useRegister = () => {
       utm_term?: string;
       utm_content?: string;
     }) => {
+      window.dispatchEvent(new Event('swipies:registration-started'));
       const { data = {} } = await userService.register(params);
       if (data.code === 0) {
         message.success(data.message || t('message.registered'));

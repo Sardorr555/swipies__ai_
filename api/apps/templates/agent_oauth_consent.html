@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Подключить Swipies</title>
+<style>body{margin:0;background:#080c14;color:#e8e6e0;font:16px/1.6 system-ui,sans-serif}main{max-width:560px;margin:8vh auto;padding:32px}h1{line-height:1.2}p,li{color:#b7bdc7}a{color:#f0b84f}button{display:block;width:100%;margin:12px 0;padding:14px;border:1px solid #49505c;border-radius:4px;background:#171c28;color:#e8e6e0;font:inherit;cursor:pointer}button.primary{background:#f0b84f;color:#241b0c;border-color:#f0b84f}button:disabled{opacity:.5;cursor:wait}button:focus-visible,a:focus-visible{outline:2px solid #f0b84f;outline-offset:4px}#status{min-height:28px}</style></head>
+<body><main><div>Swipies × {{ client_name }}</div><h1>Разрешить подключение?</h1>
+<p>ИИ-клиент получит доступ к выбранной рабочей области через MCP. Подтверждение действий также зависит от правил вашего ИИ-клиента.</p>
+<ul><li>Чтение агентов, чатботов, датасетов и доступных настроек.</li>{% if 'swipies:write' in scopes %}<li>Создание, изменение и удаление доступных ресурсов этой рабочей области.</li>{% endif %}{% if 'offline_access' in scopes %}<li>Сохранение подключения до 30 дней с возможностью отзыва.</li>{% endif %}</ul>
+<p>Новая Free-область создаётся отдельно. Она не получает доступ к вашим другим аккаунтам. В Free сохраняется подпись Swipies; убрать её позволяют действующие Plus и Pro.</p>
+<button type="button" class="primary" data-choice="free">Создать отдельную Free-область и подключить</button>
+<button type="button" data-choice="existing">Подключить мой текущий аккаунт</button>
+<p>Для существующего аккаунта сначала <a href="{{ login_url }}">войдите в Swipies</a>, затем подтвердите подключение. Управляющие API-ключи не передаются ИИ-клиенту.</p>
+<p>Используя новую область, вы принимаете <a href="https://swipies.app/terms.html" target="_blank" rel="noopener noreferrer">условия использования</a> и ознакомлены с <a href="https://swipies.app/privacy.html" target="_blank" rel="noopener noreferrer">политикой конфиденциальности</a>.</p>
+<button type="button" data-choice="deny">Отменить</button><p id="status" role="status" aria-live="polite"></p>
+</main><script nonce="{{ nonce }}">
+(() => {
+  const pending = {{ pending | tojson }};
+  const status = document.getElementById('status');
+  document.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', async () => {
+    document.querySelectorAll('button').forEach(item => item.disabled = true);
+    status.textContent = 'Подключаем…';
+    try {
+      const cookie = document.cookie.split(';').map(value => value.trim()).find(value => value.startsWith('swipies_auth_token='));
+      const authorization = cookie ? decodeURIComponent(cookie.slice(cookie.indexOf('=') + 1)) : '';
+      const response = await fetch(location.pathname, {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json',...(authorization?{'Authorization':authorization}:{})},body:JSON.stringify({pending,choice:button.dataset.choice})});
+      const result = await response.json();
+      if (!response.ok || !result.redirect) throw new Error(result.error === 'login_required' ? 'Сначала войдите в Swipies и заново откройте подключение.' : 'Подключение не завершено. Откройте подключение заново.');
+      location.assign(result.redirect);
+    } catch (error) {
+      status.textContent = error.message;
+      document.querySelectorAll('button').forEach(item => item.disabled = false);
+    }
+  }));
+})();
+</script></body></html>

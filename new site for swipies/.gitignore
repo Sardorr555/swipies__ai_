@@ -31,3 +31,7 @@ wait_*.py
 
 # Private server configuration must never be published.
 admin_reporting_private.json
+
+# Private PostHog runtime state and credentials
+posthog-state.sqlite*
+posthog.env

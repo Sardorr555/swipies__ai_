@@ -73,7 +73,7 @@ Only persisted active `plus` or `pro` tenant plans omit attribution. Expired/mal
 - Third-party OAuth permissions/credentials must already be available or supplied through that service's supported authorization. No connector can invent access to a private database.
 - MCP request limit is 24 MiB, upload total 16 MiB, result limit 8 MiB, execution timeout 90 seconds. Large downloads and long-lived streams should use the direct REST API. Parsing jobs run in existing workers and can be polled; no new background AI is created.
 - A timed-out write may have completed; inspect resource state before repeating it. No generic write retry or payment retry is performed.
-- Service accounts are real isolated Free tenants. They do not silently acquire another customer's data or paid plan. Existing customers should use their own API key to access their existing subscription. Account claiming, email recovery and OAuth-based seamless linking are separate features.
+- Service accounts are real isolated Free tenants. They do not silently acquire another customer's data or paid plan. Existing customers should use their own API key to access their existing subscription. Account claiming and email recovery are separate features. Owner linking through feature-gated OAuth is documented in [OAuth access](oauth-access.md); it requires explicit consent.
 - The platform enforces branding on its own outputs; an external application receiving text can still edit it. Technical API access cannot prevent all downstream transformations.
 
 ## Validation
@@ -135,3 +135,32 @@ document-grounded chatbot replies, attribution and reconnect. Test resources
 were removed. See the [release record](handoffs/2026-10-28-direct-https-agent-onboarding.md)
 for exact scope and publication procedure. Runtime endpoints and permissions
 are unchanged; Ads/admin/payment exclusions remain.
+
+
+## OAuth-capable ChatGPT clients
+
+The optional OAuth adapter supports one-time consent and a new isolated Free workspace or the logged-in owner account without copying an API key into ChatGPT. It defaults disabled; inspect `manifest.mcp.oauth.enabled`. See [OAuth access](oauth-access.md) for implementation, scopes, token lifetime, rollback and pending production verification. A website visit alone cannot install tools in a chat.
+
+## Billing, Quotas & Subscription Management via MCP
+
+External AI assistants can inspect subscription limits, diagnose quota errors, compare plans, pre-estimate dataset ingestion workloads, and guide users through subscription upgrades without browser automation or handling sensitive card data.
+
+### Available Billing & Quota Tools
+
+| Tool | Permission | Purpose |
+|---|---|---|
+| `swipies_get_account_limits` | `swipies:read` | Returns plan, status, expiry, daily/monthly quotas, used, remaining, reset times with timezone, credit balance, conversion rules (1 credit = 1,000 tokens / 1 page OCR), and breakdown by embeddings, generation, indexing, storage, documents, and bots. When `error_message` is passed, returns structured error diagnosis distinguishing Swipies quota limits vs external provider limits without leaking credentials. |
+| `swipies_list_plans` | `swipies:read` | Single source of truth across payment gateway, cabinet, and landing ($20 Plus, $40 Pro, $199 Self-Hosted License, Free) with quotas, BYOK policies, add-on credit packages, and renewal/cancellation terms. |
+| `swipies_estimate_dataset_plan` | `swipies:read` | Pre-estimates plan requirements and ingestion duration for unparsed dataset documents or explicit token volume (e.g. 7 books / 1.68M tokens). Calculates chunk overlap overhead (+15%), checks if current quotas suffice, and provides recommendations with assumptions and ±15% variance disclaimer. |
+| `swipies_create_subscription_quote` | `swipies:read` | Generates a binding, time-limited purchase quote (15 min TTL) with exact gross/net amounts, currency (UZS/USD), VAT breakdown, auto-renew conditions, and user confirmation prompt. |
+| `swipies_create_payment_session` | `swipies:write` | Creates a secure hosted payment session for an accepted quote. Requires explicit user confirmation (`user_confirmed: True`) and write scope. Does NOT handle card credentials in MCP. Generates a secure hosted checkout URL for card entry and 3-D Secure. Idempotent via `idempotency_key`. |
+| `swipies_check_payment_status` | `swipies:read` | Checks payment order status (`pending`, `paid`, `failed`, `canceled`) and verifies actual subscription activation in the tenant account. |
+
+### Security & Compliance Controls
+
+1. **No Card Data in MCP:** The MCP protocol never accepts, stores, or transmits credit card numbers, CVV, or SMS OTP codes. Card entry and 3-D Secure verification are performed exclusively on the secure hosted checkout page (`/v1/payment/checkout/<order_id>`) powered by the Atmos gateway.
+2. **Mandatory User Consent:** `swipies_create_payment_session` enforces explicit user confirmation (`user_confirmed: True`). Automated agents cannot trigger charges without user consent.
+3. **Scope Enforcement:** Initiating payment sessions requires `swipies:write`. Read-only tokens (`swipies:read`) receive 403 Forbidden.
+4. **Idempotency:** Payment session requests require an `idempotency_key` (min 8 chars). Retrying with the same key returns the existing session immediately without creating duplicate orders or double-charging.
+5. **Credential Masking:** Diagnostic analysis of error strings automatically strips and redacts Bearer tokens, API keys, and sensitive authorization parameters.
+

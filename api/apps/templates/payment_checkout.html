@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Swipies Checkout — Безопасная оплата</title>
+  <style>
+    :root {
+      --bg: #080c14;
+      --card-bg: #111726;
+      --border: #222c42;
+      --accent: #f0b84f;
+      --accent-hover: #d99f36;
+      --text: #e8e6e0;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .checkout-container {
+      width: 100%;
+      max-width: 480px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+    .brand-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+    .brand-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    .badge {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(240, 184, 79, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(240, 184, 79, 0.3);
+    }
+    .order-summary {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .summary-row:last-child {
+      margin-bottom: 0;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border);
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .summary-label { color: var(--text-muted); }
+    .summary-value { color: var(--text); }
+    .amount-highlight { color: var(--accent); }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 12px 14px;
+      background: #0b101c;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 16px;
+      font-family: monospace;
+      letter-spacing: 1px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      border-color: var(--accent);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 12px;
+    }
+    button.btn-pay {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: #171105;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background 0.2s, transform 0.1s;
+    }
+    button.btn-pay:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    .otp-section {
+      display: none;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .otp-info {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .security-notice {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    .security-badges {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 12px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    #statusMessage {
+      margin-top: 16px;
+      font-size: 14px;
+      text-align: center;
+      min-height: 24px;
+    }
+    .status-error { color: var(--danger); }
+    .status-success { color: var(--success); }
+    .status-info { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="checkout-container">
+    <div class="brand-header">
+      <div class="brand-title">Swipies Checkout</div>
+      <div class="badge">Atmos 3-D Secure</div>
+    </div>
+
+    <div class="order-summary">
+      <div class="summary-row">
+        <span class="summary-label">Назначение</span>
+        <span class="summary-value" id="summaryPurpose">{{ plan_name or 'Подписка Swipies' }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Номер заказа</span>
+        <span class="summary-value" style="font-family: monospace;">{{ order_id }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Сумма к оплате</span>
+        <span class="summary-value amount-highlight" id="summaryAmount">{{ "{:,}".format(amount_uzs) if amount_uzs else '' }} сум (${{ amount_usd }})</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Card details -->
+    <div id="stepCard">
+      <div class="form-group">
+        <label for="cardNumber">Номер карты (Uzcard / Humo / Visa / Mastercard)</label>
+        <input type="text" id="cardNumber" placeholder="8600 0000 0000 0000" maxlength="19" autocomplete="cc-number">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="cardExpiry">Срок действия (ММ/ГГ)</label>
+          <input type="text" id="cardExpiry" placeholder="12/28" maxlength="5" autocomplete="cc-exp">
+        </div>
+        <div class="form-group">
+          <label for="currencyStatic">Валюта</label>
+          <input type="text" id="currencyStatic" value="UZS" readonly style="opacity: 0.6; text-align: center;">
+        </div>
+      </div>
+      <button type="button" class="btn-pay" id="btnRequestOtp">Получить код подтверждения по СМС</button>
+    </div>
+
+    <!-- Step 2: SMS OTP -->
+    <div id="stepOtp" class="otp-section">
+      <div class="otp-info" id="otpPhoneText">
+        Код подтверждения отправлен на привязанный номер телефона.
+      </div>
+      <div class="form-group">
+        <label for="otpCode">СМС-код подтверждения</label>
+        <input type="text" id="otpCode" placeholder="111111" maxlength="6" autocomplete="one-time-code" style="text-align: center; font-size: 20px; letter-spacing: 4px;">
+      </div>
+      <button type="button" class="btn-pay" id="btnConfirmOtp">Подтвердить оплату и активировать</button>
+    </div>
+
+    <div id="statusMessage" role="status" aria-live="polite"></div>
+
+    <div class="security-notice">
+      🔒 Платёж осуществляется через защищённый платёжный шлюз Atmos.<br>
+      Реквизиты карты и коды 3-D Secure не передаются внешним AI-агентам и не сохраняются в открытом виде.
+      <div class="security-badges">
+        <span>PCI-DSS</span> • <span>3-D Secure</span> • <span>Uzcard</span> • <span>Humo</span> • <span>Visa</span> • <span>Mastercard</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const orderId = "{{ order_id }}";
+      const btnRequestOtp = document.getElementById('btnRequestOtp');
+      const btnConfirmOtp = document.getElementById('btnConfirmOtp');
+      const stepCard = document.getElementById('stepCard');
+      const stepOtp = document.getElementById('stepOtp');
+      const statusMsg = document.getElementById('statusMessage');
+      const cardInput = document.getElementById('cardNumber');
+      const expiryInput = document.getElementById('cardExpiry');
+      const otpInput = document.getElementById('otpCode');
+      const otpPhoneText = document.getElementById('otpPhoneText');
+
+      // Card formatting
+      cardInput.addEventListener('input', (e) => {
+        let val = e.target.value.replace(/\D/g, '').substring(0, 16);
+        let parts = val.match(/.{1,4}/g);
+        e.target.value = parts ? parts.join(' ') : val;
+      });
+
+      // Expiry formatting
+      expiryInput.addEventListener('input', (e) => {
+        let val = e.target.value.replace(/\D/g, '').substring(0, 4);
+        if (val.length >= 2) {
+          e.target.value = val.substring(0, 2) + '/' + val.substring(2);
+        } else {
+          e.target.value = val;
+        }
+      });
+
+      function setStatus(text, type) {
+        statusMsg.textContent = text;
+        statusMsg.className = type ? ('status-' + type) : '';
+      }
+
+      // Step 1: Pre-apply card
+      btnRequestOtp.addEventListener('click', async () => {
+        const cleanCard = cardInput.value.replace(/\s+/g, '');
+        const cleanExpiry = expiryInput.value.trim();
+
+        if (cleanCard.length < 16) {
+          setStatus('Введите 16-значный номер карты.', 'error');
+          return;
+        }
+        if (cleanExpiry.length !== 5 || !cleanExpiry.includes('/')) {
+          setStatus('Укажите срок действия карты в формате ММ/ГГ.', 'error');
+          return;
+        }
+
+        btnRequestOtp.disabled = true;
+        setStatus('Отправка запроса в платёжный шлюз…', 'info');
+
+        try {
+          const resp = await fetch('/v1/payment/atmos/pre-apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order_id: orderId,
+              card_number: cleanCard,
+              expiry: cleanExpiry,
+            }),
+          });
+          const res = await resp.json();
+          if (res.code === 0) {
+            stepCard.style.display = 'none';
+            stepOtp.style.display = 'block';
+            if (res.data && res.data.phone_masked) {
+              otpPhoneText.textContent = `Код подтверждения отправлен на номер ${res.data.phone_masked}.`;
+            }
+            setStatus('СМС с кодом подтверждения успешно отправлено.', 'success');
+            otpInput.focus();
+          } else {
+            setStatus(res.message || 'Ошибка обработки карты.', 'error');
+            btnRequestOtp.disabled = false;
+          }
+        } catch (err) {
+          setStatus('Сетевая ошибка при связи с платёжным шлюзом.', 'error');
+          btnRequestOtp.disabled = false;
+        }
+      });
+
+      // Step 2: Apply OTP
+      btnConfirmOtp.addEventListener('click', async () => {
+        const otpVal = otpInput.value.trim();
+        if (otpVal.length < 6) {
+          setStatus('Введите 6-значный СМС-код подтверждения.', 'error');
+          return;
+        }
+
+        btnConfirmOtp.disabled = true;
+        setStatus('Проверка кода и активация тарифа…', 'info');
+
+        try {
+          const resp = await fetch('/v1/payment/atmos/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order_id: orderId,
+              otp: otpVal,
+            }),
+          });
+          const res = await resp.json();
+          if (res.code === 0) {
+            stepOtp.style.display = 'none';
+            setStatus('Оплата прошла успешно! Подписка активирована.', 'success');
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 3000);
+          } else {
+            setStatus(res.message || 'Неверный код подтверждения.', 'error');
+            btnConfirmOtp.disabled = false;
+          }
+        } catch (err) {
+          setStatus('Сетевая ошибка при подтверждении оплаты.', 'error');
+          btnConfirmOtp.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

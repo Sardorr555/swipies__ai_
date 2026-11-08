@@ -1,0 +1,247 @@
+.ph-page {
+  color-scheme: dark;
+  --ph-bg: #080c14;
+  --ph-panel: #0d121c;
+  --ph-border: #202734;
+  --ph-text: #e8e6e0;
+  --ph-muted: #97a0af;
+  --ph-accent: #e8a820;
+  background: var(--ph-bg);
+  color: var(--ph-text);
+  font:
+    14px/1.55 Geist,
+    Inter,
+    system-ui,
+    sans-serif;
+  margin: 0;
+  padding: 28px;
+  box-sizing: border-box;
+}
+.ph-page * {
+  box-sizing: border-box;
+}
+.ph-page header,
+.ph-page main {
+  max-width: 1360px;
+  margin: auto;
+}
+.ph-page a {
+  color: var(--ph-accent);
+}
+.ph-page h1 {
+  font-size: 28px;
+  margin: 14px 0 4px;
+}
+.ph-page h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+.ph-page h3 {
+  font-size: 14px;
+}
+.ph-page header p,
+.ph-muted {
+  color: var(--ph-muted);
+}
+.ph-panel {
+  border: 1px solid var(--ph-border);
+  background: var(--ph-panel);
+  padding: 20px;
+  margin: 18px 0;
+  border-radius: 5px;
+}
+.ph-filters {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ph-page label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ph-muted);
+}
+.ph-page input,
+.ph-page select,
+.ph-page button {
+  font: inherit;
+  min-height: 38px;
+  border: 1px solid var(--ph-border);
+  border-radius: 4px;
+  background: var(--ph-bg);
+  color: var(--ph-text);
+  padding: 8px 10px;
+}
+.ph-page button {
+  cursor: pointer;
+  color: var(--ph-bg);
+  background: var(--ph-accent);
+  font-weight: 600;
+}
+.ph-page button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.ph-page :focus-visible {
+  outline: 2px solid var(--ph-accent);
+  outline-offset: 3px;
+}
+.ph-page [hidden] {
+  display: none !important;
+}
+#phStatus {
+  min-height: 22px;
+}
+#phStatus.ph-error {
+  color: #ff9ca6;
+}
+.ph-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.ph-metric {
+  padding: 18px;
+  border: 1px solid var(--ph-border);
+  background: var(--ph-panel);
+  border-radius: 5px;
+}
+.ph-label {
+  font-size: 12px;
+  color: var(--ph-muted);
+}
+.ph-value {
+  font-size: 29px;
+  font-weight: 600;
+  margin: 7px 0;
+  font-variant-numeric: tabular-nums;
+}
+.ph-before,
+.ph-delta {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ph-before {
+  color: var(--ph-muted);
+}
+.ph-delta {
+  margin-top: 6px;
+}
+.ph-columns {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 18px;
+}
+.ph-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+.ph-scroll {
+  overflow: auto;
+  max-width: 100%;
+}
+.ph-page table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ph-page td,
+.ph-page th {
+  padding: 10px 9px;
+  border-bottom: 1px solid var(--ph-border);
+  text-align: right;
+  white-space: nowrap;
+}
+.ph-page td:first-child,
+.ph-page th:first-child {
+  text-align: left;
+  white-space: normal;
+}
+.ph-page th {
+  color: var(--ph-muted);
+  font-weight: 500;
+}
+.ph-page td:last-child {
+  white-space: normal;
+}
+.ph-page dt {
+  font-weight: 600;
+  margin-top: 12px;
+}
+.ph-page dd {
+  margin: 4px 0 0;
+  color: var(--ph-muted);
+}
+.ph-page summary {
+  cursor: pointer;
+  color: var(--ph-muted);
+  padding: 8px 0;
+}
+.ph-step {
+  margin: 12px 0;
+}
+.ph-step-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.ph-step-track {
+  height: 6px;
+  background: var(--ph-border);
+  margin: 7px 0;
+}
+.ph-step-bar {
+  height: 100%;
+  background: var(--ph-accent);
+}
+#phChart svg {
+  width: 100%;
+  height: 260px;
+}
+#phChart text {
+  fill: var(--ph-muted);
+  font-size: 11px;
+}
+.ph-page li {
+  margin: 5px 0;
+}
+@media (max-width: 1000px) {
+  .ph-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ph-columns {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .ph-page {
+    padding: 14px;
+  }
+  .ph-panel {
+    padding: 14px;
+  }
+  .ph-filters label {
+    flex: 1;
+    min-width: 135px;
+  }
+  .ph-filters input,
+  .ph-filters select {
+    width: 100%;
+    min-width: 0;
+  }
+  .ph-metrics {
+    grid-template-columns: 1fr;
+  }
+  .ph-heading {
+    display: block;
+  }
+  .ph-page h1 {
+    font-size: 25px;
+  }
+}

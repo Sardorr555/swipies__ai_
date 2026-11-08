@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 import logging
-from quart import Blueprint, request
+from quart import Blueprint, request, render_template
 
 from api.apps import current_user, login_required
 from api.db.services.payment_service import AtmosService, PaymentOrderService
@@ -163,6 +163,39 @@ async def get_order_status(order_id: str):
     if not order:
         return get_data_error_result(message="Payment order not found.", code=RetCode.NOT_FOUND)
     return get_json_result(data=order)
+
+
+@manager.route("/checkout/<order_id>", methods=["GET"])  # noqa: F821
+async def hosted_checkout(order_id: str):
+    """
+    Hosted checkout page for card entry and 3-D Secure OTP verification.
+    External AI assistants direct users here to prevent handling card data in MCP.
+    """
+    order = None
+    try:
+        from api.db.db_models import PaymentOrder
+        order = PaymentOrder.get_or_none(PaymentOrder.id == order_id)
+    except Exception:
+        pass
+
+    if not order:
+        return "<h3>Платёжный заказ не найден или истёк. Пожалуйста, сформируйте новый заказ.</h3>", 404
+
+    plan_name = f"Тариф {order.plan_id.capitalize()}" if order.plan_id else "Пополнение баланса"
+    if order.purpose == "subscription_upgrade":
+        plan_name = f"Подписка Swipies {order.plan_id.upper()} (30 дней, без рекламы)"
+    elif order.purpose == "credit_pack":
+        plan_name = "Пакет AI Кредитов Swipies"
+
+    return await render_template(
+        "payment_checkout.html",
+        order_id=order.id,
+        plan_name=plan_name,
+        amount_uzs=order.amount_uzs,
+        amount_usd=float(order.amount_usd or 0.0),
+        purpose=order.purpose,
+        status=order.status,
+    )
 
 
 @manager.route("/atmos/webhook", methods=["POST"])  # noqa: F821

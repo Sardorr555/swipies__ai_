@@ -86,7 +86,17 @@ def test_initialize_and_tools(app):
     assert status == 200 and response["result"]["protocolVersion"] == "2025-03-26"
     assert headers["Cache-Control"] == "no-store"
     _, response, _ = rpc(app, "tools/list")
-    assert {tool["name"] for tool in response["result"]["tools"]} == {"swipies_list_operations", "swipies_describe_operation", "swipies_execute"}
+    assert {tool["name"] for tool in response["result"]["tools"]} == {
+        "swipies_list_operations",
+        "swipies_describe_operation",
+        "swipies_execute",
+        "swipies_get_account_limits",
+        "swipies_list_plans",
+        "swipies_estimate_dataset_plan",
+        "swipies_create_subscription_quote",
+        "swipies_create_payment_session",
+        "swipies_check_payment_status",
+    }
 
 
 def test_only_authenticated_user_routes_in_catalog(app):
@@ -435,7 +445,7 @@ def test_official_mcp_sdk_can_initialize_discover_and_execute(app):
             async with ClientSession(read, write) as session:
                 initialized = await session.initialize()
                 assert initialized.serverInfo.name == "swipies-agent-access"
-                assert len((await session.list_tools()).tools) == 3
+                assert len((await session.list_tools()).tools) == 9
                 listing = await session.call_tool("swipies_list_operations", {"keyword": "datasets"})
                 assert not listing.isError
                 response = await session.call_tool("swipies_execute", {"operation_id": operation(app, "/api/v1/datasets")})

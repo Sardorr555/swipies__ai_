@@ -90,7 +90,7 @@ def server(monkeypatch):
     async def bootstrap(data, address):
         return service.provision(data, address)
     gateway.register_agent_access(app, lambda: auth["_load_user"](("API",)), bootstrap, lambda _: True)
-    yield SimpleNamespace(app=app, db=db, User=User, Tenant=Tenant, Membership=Membership, File=File, APIToken=APIToken, service=service, gateway=gateway)
+    yield SimpleNamespace(app=app, db=db, User=User, Tenant=Tenant, Membership=Membership, File=File, APIToken=APIToken, service=service, gateway=gateway, auth=auth)
     db.close()
 
 
@@ -191,7 +191,7 @@ def test_stdio_client_bootstraps_over_verified_https(server, tmp_path, monkeypat
             async with stdio_client(parameters) as (read, write):
                 async with ClientSession(read, write) as client:
                     assert (await client.initialize()).serverInfo.name == "swipies-agent-access"
-                    assert len((await client.list_tools()).tools) == 3
+                    assert len((await client.list_tools()).tools) == 9
                     op_id = next(op["operation_id"] for op in server.gateway.operations(server.app).values() if op["path"] == "/api/v1/users/me")
                     result = await client.call_tool("swipies_execute", {"operation_id": op_id})
                     assert not result.isError
@@ -202,3 +202,68 @@ def test_stdio_client_bootstraps_over_verified_https(server, tmp_path, monkeypat
             stop.set()
             await task
     asyncio.run(scenario())
+
+
+
+
+
+def test_oauth_production_delegate_uses_real_owner_and_isolated_free_models(server, monkeypatch):
+    """Production adapter on real model definitions, with isolated in-memory DB.
+
+    The executor stays in-thread and DB close is suppressed only because this
+    fixture's SQLite database disappears on disconnect. Business code is real.
+    """
+    adapter = load("api/db/services/agent_oauth_service.py", "real_model_oauth_adapter")
+    first = server.service.provision({"registration_secret": "first-owner-" + "a" * 43}, "127.0.0.1")
+    second = server.service.provision({"registration_secret": "other-owner-" + "b" * 43}, "127.0.0.1")
+    server.Tenant.update(plan_type="pro").where(server.Tenant.id == first["tenant_id"]).execute()
+    module = ModuleType("api.apps")
+    module.AUTH_JWT, module._load_user = "JWT", server.auth["_load_user"]
+    monkeypatch.setitem(sys.modules, "api.apps", module)
+    monkeypatch.setitem(sys.modules, "api.db.services.agent_access_service", server.service)
+    async def execute(function, *args, **kwargs):
+        return function(*args, **kwargs)
+    monkeypatch.setattr(sys.modules["common.misc_utils"], "thread_pool_exec", execute, raising=False)
+    real_close = server.db.close
+    monkeypatch.setattr(server.db, "close", lambda: None)
+    server.app.secret_key = "isolated-synthetic-session-secret"
+
+    async def scenario():
+        async with server.app.test_request_context("/", method="POST"):
+            # A platform API key cannot authorize linking an existing account;
+            # it requires an actual owner login/session.
+            assert await adapter.delegate("existing", "unused") is None
+        async with server.app.test_request_context("/", method="POST"):
+            session["_user_id"] = first["tenant_id"]
+            principal = await adapter.delegate("existing", "unused")
+            assert principal["tenant_id"] == first["tenant_id"]
+            assert principal["api_key"] != first["api_key"]
+            assert adapter.key_active(principal)
+            token = server.APIToken.get(server.APIToken.token == principal["api_key"])
+            assert token.tenant_id != second["tenant_id"] and token.name == "ChatGPT OAuth connection"
+            assert server.Tenant.get_by_id(first["tenant_id"]).plan_type == "pro"
+            server.User.update(access_token="INVALID_" + "x" * 32).where(server.User.id == first["tenant_id"]).execute()
+            assert adapter.key_active(principal), "OAuth must survive browser logout"
+            adapter.revoke_key(principal)
+            assert not adapter.key_active(principal)
+            assert server.APIToken.get(server.APIToken.token == first["api_key"]).status == "1"
+        async with server.app.test_request_context("/", method="POST"):
+            session["_user_id"] = first["tenant_id"]
+            assert await adapter.delegate("existing", "unused") is None
+        async with server.app.test_request_context("/", method="POST"):
+            session["_user_id"] = second["tenant_id"]
+            server.Membership.update(role="normal").where(server.Membership.user_id == second["tenant_id"]).execute()
+            assert await adapter.delegate("existing", "unused") is None
+        async with server.app.test_request_context("/", method="POST"):
+            free = await adapter.delegate("free", "oauth-new-free-" + "c" * 43)
+            assert free["tenant_id"] not in {first["tenant_id"], second["tenant_id"]}
+            assert adapter.key_active(free)
+            assert server.Tenant.get_by_id(free["tenant_id"]).plan_type == "free"
+            assert not server.User.get_by_id(free["tenant_id"]).is_superuser
+            assert server.Membership.get(server.Membership.user_id == free["tenant_id"]).role == "owner"
+            server.User.update(status="0").where(server.User.id == free["tenant_id"]).execute()
+            assert not adapter.key_active(free)
+    try:
+        asyncio.run(scenario())
+    finally:
+        monkeypatch.setattr(server.db, "close", real_close)

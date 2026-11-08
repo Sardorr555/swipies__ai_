@@ -173,6 +173,11 @@ were removed. See the [release record](handoffs/2026-10-28-direct-https-agent-on
 for exact scope and publication procedure. Runtime endpoints and permissions
 are unchanged; Ads/admin/payment exclusions remain.
 
+
+### ChatGPT OAuth connection (2026-10-29)
+
+Local implementation on swipies_26 adds OAuthLib code/S256 PKCE, resource/server discovery, bounded ChatGPT CIMD/DCR, explicit owner/Free consent and encrypted Redis grants with rotating refresh/revocation. API-key clients retain their previous behavior. The flag defaults off. No production change or actual ChatGPT connection has been performed. Validation and release requirements are in [oauth-access.md](oauth-access.md).
+
 ### Landing admin period comparison (2026-10-31)
 
 Local changes on swipies_26 add factual current/reference metrics, hour/day/week/month timezone groups, filtered/paginated traffic/users/leads/UTM and complete Excel/CSV exports with date/search metadata. New reporting routes require a current platform superuser and preserve normal login/email verification. Payment reporting uses creation date/current PAID status, deduplicates mirrors and excludes advertiser deposits. No schema migration or production deployment has been performed. See [implementation, validation and release notes](landing-admin-analytics.md).

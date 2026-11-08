@@ -391,11 +391,18 @@ client_urls_prefix = [p for p in (register_page(path) for directory in pages_dir
 from api.agent_access import register_agent_access
 from api.db.services.agent_access_service import bootstrap as agent_bootstrap, origin_allowed as agent_origin_allowed
 
+from api.agent_oauth import register_agent_oauth
+from api.db.services.agent_oauth_service import make_service as make_agent_oauth, delegate as delegate_agent_oauth, address as agent_oauth_address
+
+agent_oauth = make_agent_oauth()
+register_agent_oauth(app, agent_oauth, delegate_agent_oauth, agent_oauth_address)
+
 register_agent_access(
     app,
     authenticate=lambda: _load_user((AUTH_API,)),
     bootstrap=agent_bootstrap,
     origin_allowed=agent_origin_allowed,
+    oauth=agent_oauth,
 )
 
 

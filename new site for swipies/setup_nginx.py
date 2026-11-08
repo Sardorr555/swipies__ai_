@@ -37,6 +37,29 @@ server {
         return 301 /admin.html;
     }
 
+    # Isolated PostHog routing (no changes to existing locations).
+# Include inside the existing swipies.app HTTPS server block.
+# More specific than the existing /api/ handler: avoid duplicate wildcard CORS.
+location /api/posthog/ {
+    client_max_body_size 1k;
+    proxy_pass http://127.0.0.1:5005;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+location = /admin/posthog {
+    proxy_pass http://127.0.0.1:5005;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+location = /admin/posthog/ {
+    proxy_pass http://127.0.0.1:5005;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
     # --- Proxy API calls to the Flask backend (port 5005) ---
     location /api/ {
         proxy_pass         http://127.0.0.1:5005;

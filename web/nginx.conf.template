@@ -55,6 +55,15 @@ server {
         chunked_transfer_encoding on;
     }
 
+    # OAuth discovery must reach Python rather than the SPA HTML fallback.
+    location ~ ^/\.well-known/oauth-(authorization-server|protected-resource)(/|$) {
+        proxy_pass ${RAGFLOW_BACKEND};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache off;
+    }
+
     location ~ ^/(v1|api) {
         proxy_pass ${RAGFLOW_BACKEND};
         proxy_http_version 1.1;

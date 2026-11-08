@@ -1016,22 +1016,39 @@ def track_visitor():
 @app.route('/api/visitors', methods=['GET'])
 @admin_required
 def get_visitors():
+    limit = request.args.get('limit', default=10000, type=int)
+    if limit <= 0 or limit > 50000:
+        limit = 10000
+
     with sqlite3.connect(DB_FILE) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM visitors ORDER BY id DESC LIMIT 500')
+
+        # Database-wide aggregated metrics across the entire visitors table
+        cursor.execute("SELECT COUNT(*), COUNT(DISTINCT CASE WHEN ip IS NOT NULL AND ip != '' THEN ip END) FROM visitors")
+        tot_row = cursor.fetchone()
+        total_count = tot_row[0] if tot_row else 0
+        unique_ips = tot_row[1] if tot_row else 0
+
+        cursor.execute("SELECT COUNT(*) FROM visitors WHERE cookie_consent = 'accepted'")
+        accepted_count = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM visitors WHERE is_proxy = 'Yes'")
+        vpn_count = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM visitors WHERE is_bot_detected IS NOT NULL AND is_bot_detected != 'No' AND is_bot_detected != ''")
+        bot_count = cursor.fetchone()[0]
+
+        cursor.execute("SELECT AVG(session_duration), AVG(scroll_depth) FROM visitors")
+        avg_row = cursor.fetchone()
+        avg_duration = round(avg_row[0] or 0) if avg_row else 0
+        avg_scroll = round(avg_row[1] or 0) if avg_row else 0
+
+        cursor.execute('SELECT * FROM visitors ORDER BY id DESC LIMIT ?', (limit,))
         rows = cursor.fetchall()
 
     visitors = [dict(row) for row in rows]
-    total_count = len(visitors)
-    unique_ips = len(set(v['ip'] for v in visitors if v.get('ip')))
-    accepted_count = sum(1 for v in visitors if v.get('cookie_consent') == 'accepted')
-    consent_rate = round((accepted_count / total_count * 100), 1) if total_count > 0 else 100.0
-    vpn_count = sum(1 for v in visitors if v.get('is_proxy') == 'Yes')
-    bot_count = sum(1 for v in visitors if v.get('is_bot_detected') and v.get('is_bot_detected') != 'No')
-
-    avg_duration = round(sum(v.get('session_duration') or 0 for v in visitors) / total_count) if total_count > 0 else 0
-    avg_scroll = round(sum(v.get('scroll_depth') or 0 for v in visitors) / total_count) if total_count > 0 else 0
+    consent_rate = round((accepted_count / total_count * 100), 1) if total_count > 0 else 0.0
 
     return jsonify({
         "code": 0,
@@ -1752,6 +1769,15 @@ def _reporting_provider_defaults(source):
 
 register_admin_analytics(app, DB_FILE, landing_authorizer=get_authenticated_admin,
                          platform_reader=platform_report, provider_defaults=_reporting_provider_defaults)
+
+# Optional, isolated analytics: failures must not affect existing services.
+try:
+    from landing_posthog import register_posthog
+    register_posthog(app, DB_FILE, admin_required=admin_required,
+                     admin_identity=get_authenticated_admin,
+                     platform_reader=platform_report, client_ip=get_client_ip)
+except Exception:
+    app.logger.warning("PostHog module unavailable; existing analytics remains enabled")
 
 if __name__ == '__main__':
     init_db()

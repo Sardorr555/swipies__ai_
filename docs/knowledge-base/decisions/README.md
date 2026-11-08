@@ -31,4 +31,6 @@
 - **Заменено (Superseded):** Решение утратило актуальность и заменено более новым ADR (со ссылкой на новый документ).
 - **Отклонено (Rejected):** Решение отклонено после анализа рисков.
 
+
+- [ADR-006](ADR-006-mcp-oauth.md): OAuth authorization for the tenant MCP gateway (2026-10-29; implemented locally, feature disabled by default).
 - [ADR-007](ADR-007-landing-period-reporting.md): Shared factual-period reporting and filtered exports across the landing and platform APIs (2026-10-31; implemented locally, release pending).
