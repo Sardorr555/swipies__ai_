@@ -91,6 +91,21 @@ class LLMType(StrEnum):
     RERANK = "rerank"
     TTS = "tts"
     OCR = "ocr"
+    SPEECH2TEXT = "speech2text"
+    IMAGE2TEXT = "image2text"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            val_lower = value.lower()
+            if val_lower in ("speech2text", "speech_to_text"):
+                return cls.SPEECH2TEXT
+            if val_lower in ("image2text", "image_to_text"):
+                return cls.IMAGE2TEXT
+            for member in cls:
+                if member.value == val_lower:
+                    return member
+        return super()._missing_(value)
 
 
 class ModelTypeBinary(Enum):

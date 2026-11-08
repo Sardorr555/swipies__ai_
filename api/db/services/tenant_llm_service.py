@@ -372,7 +372,7 @@ class TenantLLMService(CommonService):
                 return None
             return RerankModel[model_config["llm_factory"]](api_key, model_config["llm_name"], base_url=model_config["api_base"], max_token=model_config.get("max_tokens"))
 
-        elif model_config["model_type"] == LLMType.VISION.value:
+        elif model_config["model_type"] in [LLMType.VISION.value, LLMType.IMAGE2TEXT.value, "vision", "image2text"]:
             if model_config["llm_factory"] not in CvModel:
                 logging.error("Factory not in cv model. Supported factories: %s", list(CvModel.keys()))
                 return None
@@ -384,7 +384,7 @@ class TenantLLMService(CommonService):
                 return None
             return ChatModel[model_config["llm_factory"]](api_key, model_config["llm_name"], base_url=model_config["api_base"], **kwargs)
 
-        elif model_config["model_type"] == LLMType.ASR.value:
+        elif model_config["model_type"] in [LLMType.ASR.value, LLMType.SPEECH2TEXT.value, "asr", "speech2text"]:
             if model_config["llm_factory"] not in Seq2txtModel:
                 logging.error("Factory not in asr model. Supported factories: %s", list(Seq2txtModel.keys()))
                 return None

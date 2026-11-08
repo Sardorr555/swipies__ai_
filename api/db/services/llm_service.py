@@ -350,12 +350,28 @@ class LLMBundle(LLM4Tenant):
 
         return txt
 
-    def transcription(self, audio):
+    def transcription(self, audio, **kwargs):
         if self.langfuse:
             generation = self._start_langfuse_observation(trace_context=self.trace_context, as_type="generation", name="transcription", metadata={"model": self.model_config["llm_name"]})
 
-        txt, used_tokens = self.mdl.transcription(audio)
+        txt, used_tokens = self.mdl.transcription(audio, **kwargs)
         logging.info("LLMBundle.transcription used_tokens: %d", used_tokens)
+
+        if used_tokens > 0 and self.tenant_id and self.tenant_id != "system":
+            try:
+                from api.db.services.ai_policy_service import AIPolicyManager
+                AIPolicyManager.record_token_usage(
+                    tenant_id=self.tenant_id,
+                    user_id=getattr(self, "user_id", None) or self.tenant_id,
+                    model_id=self.model_config.get("llm_name", "whisper-1"),
+                    model_type="asr",
+                    input_tokens=used_tokens,
+                    output_tokens=0,
+                    total_tokens=used_tokens,
+                    provider_id=self.model_config.get("llm_factory"),
+                )
+            except Exception as e:
+                logging.debug("LLMBundle.transcription AIPolicyManager logging warning: %s", e)
 
         if self.langfuse:
             generation.update(output={"output": txt}, usage_details={"total_tokens": used_tokens})

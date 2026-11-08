@@ -46,9 +46,32 @@ class Base(ABC):
         pass
 
     def transcription(self, audio_path, **kwargs):
-        with open(audio_path, "rb") as audio_file:
-            transcription = self.client.audio.transcriptions.create(model=self.model_name, file=audio_file)
-        return transcription.text.strip(), num_tokens_from_string(transcription.text.strip())
+        filename = os.path.basename(audio_path)
+        ext = os.path.splitext(filename)[1].lower()
+        upload_name = filename
+        if ext in [".opus", ".oga"]:
+            upload_name = os.path.splitext(filename)[0] + ".ogg"
+        elif not ext:
+            upload_name = f"{filename}.wav"
+
+        create_kwargs = {"model": self.model_name}
+        if kwargs.get("language"):
+            create_kwargs["language"] = kwargs["language"]
+        if kwargs.get("prompt"):
+            create_kwargs["prompt"] = kwargs["prompt"]
+        if kwargs.get("temperature") is not None:
+            create_kwargs["temperature"] = kwargs["temperature"]
+
+        try:
+            with open(audio_path, "rb") as audio_file:
+                audio_bytes = audio_file.read()
+            create_kwargs["file"] = (upload_name, audio_bytes)
+            transcription = self.client.audio.transcriptions.create(**create_kwargs)
+            res_text = transcription.text.strip() if hasattr(transcription, "text") else str(transcription).strip()
+            return res_text, num_tokens_from_string(res_text)
+        except Exception as e:
+            logger.error("Audio transcription failed for model %s: %s", getattr(self, "model_name", "unknown"), str(e))
+            return f"**ERROR**: {str(e)}", 0
 
     @staticmethod
     def _generate_test_wav(duration_seconds=0.5, sample_rate=16000):

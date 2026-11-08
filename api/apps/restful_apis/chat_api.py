@@ -1142,65 +1142,100 @@ async def tts():
 @manager.route("/chat/audio/transcription", methods=["POST"])  # noqa: F821
 @login_required
 async def transcription():
+    from api.db.services.audio_service import AudioTranscriptionService, SUPPORTED_AUDIO_EXTENSIONS, MAX_AUDIO_SIZE_BYTES
+
     req = await request.form
     stream_mode = req.get("stream", "false").lower() == "true"
+    language = req.get("language")
+    prompt = req.get("prompt")
+
     files = await request.files
-    if "file" not in files:
-        return get_data_error_result(message="Missing 'file' in multipart form-data")
+    if not files or "file" not in files:
+        return get_json_result(code=RetCode.ARGUMENT_ERROR, message="Missing 'file' parameter in multipart/form-data upload.")
 
     uploaded = files["file"]
-
-    ALLOWED_EXTS = {
-        ".wav",
-        ".mp3",
-        ".m4a",
-        ".aac",
-        ".flac",
-        ".ogg",
-        ".webm",
-        ".opus",
-        ".wma",
-    }
-
-    filename = uploaded.filename or ""
+    filename = uploaded.filename or "recording.wav"
     suffix = os.path.splitext(filename)[-1].lower()
-    if suffix not in ALLOWED_EXTS:
-        return get_data_error_result(message=f"Unsupported audio format: {suffix}. Allowed: {', '.join(sorted(ALLOWED_EXTS))}")
+    if not suffix:
+        suffix = ".wav"
+
+    if suffix not in SUPPORTED_AUDIO_EXTENSIONS:
+        allowed_str = ", ".join(sorted(SUPPORTED_AUDIO_EXTENSIONS))
+        return get_json_result(
+            code=RetCode.ARGUMENT_ERROR,
+            message=f"Unsupported audio format: '{suffix}'. Supported formats: {allowed_str}.",
+        )
 
     fd, temp_audio_path = tempfile.mkstemp(suffix=suffix)
     os.close(fd)
-    await uploaded.save(temp_audio_path)
 
     try:
-        default_asr_model_config = get_tenant_default_model_by_type(current_user.id, LLMType.ASR)
-    except Exception as e:
-        return get_data_error_result(message=str(e))
+        await uploaded.save(temp_audio_path)
 
-    asr_mdl = LLMBundle(current_user.id, default_asr_model_config)
-    if not stream_mode:
-        text = asr_mdl.transcription(temp_audio_path)
+        # Validate file size
         try:
-            os.remove(temp_audio_path)
-        except Exception as e:
-            logging.error(f"Failed to remove temp audio file: {str(e)}")
-        if "**ERROR**" in text:
-            return get_data_error_result(message=text)
-        return get_json_result(data={"text": text})
+            file_size = os.path.getsize(temp_audio_path)
+        except OSError as oe:
+            return get_json_result(code=RetCode.OPERATING_ERROR, message=f"Could not read uploaded audio: {oe}")
 
-    async def event_stream():
+        if file_size == 0:
+            return get_json_result(code=RetCode.ARGUMENT_ERROR, message="Uploaded audio file is empty (0 bytes).")
+
+        if file_size > MAX_AUDIO_SIZE_BYTES:
+            mb = MAX_AUDIO_SIZE_BYTES // (1024 * 1024)
+            return get_json_result(
+                code=RetCode.ARGUMENT_ERROR,
+                message=f"Audio file size exceeds the {mb}MB limit (received {file_size} bytes).",
+            )
+
+        if not stream_mode:
+            ok, text_or_err, code = AudioTranscriptionService.transcribe_audio(
+                tenant_id=current_user.id,
+                audio_path=temp_audio_path,
+                user_id=current_user.id,
+                language=language,
+                prompt=prompt,
+            )
+            if not ok:
+                return get_json_result(code=code, message=text_or_err)
+            return get_json_result(code=RetCode.SUCCESS, data={"text": text_or_err})
+
+        # Stream transcription path
         try:
-            for evt in asr_mdl.stream_transcription(temp_audio_path):
-                yield f"data: {json.dumps(evt, ensure_ascii=False)}\n\n"
+            default_asr_model_config = get_tenant_default_model_by_type(current_user.id, LLMType.ASR)
         except Exception as e:
-            err = {"event": "error", "text": str(e)}
-            yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n"
-        finally:
+            return get_json_result(code=RetCode.DATA_ERROR, message=str(e))
+
+        if not default_asr_model_config:
+            return get_json_result(
+                code=RetCode.NOT_FOUND,
+                message="No default ASR/speech-to-text model configured for this account.",
+            )
+
+        asr_mdl = LLMBundle(current_user.id, default_asr_model_config)
+
+        async def event_stream():
+            try:
+                for evt in asr_mdl.stream_transcription(temp_audio_path):
+                    yield f"data: {json.dumps(evt, ensure_ascii=False)}\n\n"
+            except Exception as e:
+                err = {"event": "error", "text": str(e)}
+                yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n"
+            finally:
+                if os.path.exists(temp_audio_path):
+                    try:
+                        os.remove(temp_audio_path)
+                    except Exception as e:
+                        logging.error(f"Failed to remove temp audio file: {e}")
+
+        return Response(event_stream(), content_type="text/event-stream")
+
+    finally:
+        if not stream_mode and os.path.exists(temp_audio_path):
             try:
                 os.remove(temp_audio_path)
             except Exception as e:
-                logging.error(f"Failed to remove temp audio file: {str(e)}")
-
-    return Response(event_stream(), content_type="text/event-stream")
+                logging.error(f"Failed to remove temp audio file: {e}")
 
 
 @manager.route("/chat/mindmap", methods=["POST"])  # noqa: F821

@@ -31,6 +31,18 @@ MODEL_TYPE_TO_FIELD = {
     "embedding": "embd_id",
     "rerank": "rerank_id",
     "asr": "asr_id",
+    "speech2text": "asr_id",
+    "vision": "img2txt_id",
+    "image2text": "img2txt_id",
+    "tts": "tts_id",
+    "ocr": "ocr_id",
+}
+
+DEFAULT_MODEL_CAPABILITY_FIELDS = {
+    "chat": "llm_id",
+    "embedding": "embd_id",
+    "rerank": "rerank_id",
+    "asr": "asr_id",
     "vision": "img2txt_id",
     "tts": "tts_id",
     "ocr": "ocr_id",
@@ -41,7 +53,9 @@ MODEL_TYPE_TO_TENANT_ID_FIELD = {
     "embedding": "tenant_embd_id",
     "rerank": "tenant_rerank_id",
     "asr": "tenant_asr_id",
+    "speech2text": "tenant_asr_id",
     "vision": "tenant_img2txt_id",
+    "image2text": "tenant_img2txt_id",
     "tts": "tenant_tts_id",
     "ocr": "tenant_ocr_id",
 }
@@ -51,7 +65,9 @@ MODEL_TAG_TO_TYPE = {
     "embedding": "embedding",
     "rerank": "rerank",
     "asr": "asr",
+    "speech2text": "asr",
     "vision": "vision",
+    "image2text": "vision",
     "tts": "tts",
     "ocr": "ocr",
 }
@@ -65,10 +81,10 @@ def normalize_model_type(m_type: str) -> str:
         "chat": "chat",
         "embedding": "embedding",
         "rerank": "rerank",
-        "vision": "image2text",
-        "image2text": "image2text",
-        "asr": "speech2text",
-        "speech2text": "speech2text",
+        "vision": "vision",
+        "image2text": "vision",
+        "asr": "asr",
+        "speech2text": "asr",
         "tts": "tts",
         "ocr": "ocr",
     }
@@ -383,7 +399,7 @@ def list_tenant_default_models(tenant_id: str):
     models = []
     tenant_updates = {}
 
-    for model_type, field_name in MODEL_TYPE_TO_FIELD.items():
+    for model_type, field_name in DEFAULT_MODEL_CAPABILITY_FIELDS.items():
         default_model = getattr(tenant, field_name, None)
         tenant_model_id = getattr(tenant, MODEL_TYPE_TO_TENANT_ID_FIELD.get(model_type, ""), None)
         model_info = None
@@ -449,10 +465,12 @@ def set_tenant_default_models(tenant_id: str, model_provider: str, model_instanc
     :param model_id: tenant_model id
     :return: (success, result_or_error_message)
     """
-    field_name = MODEL_TYPE_TO_FIELD.get(model_type)
+    norm_model_type = normalize_model_type(model_type)
+    field_name = MODEL_TYPE_TO_FIELD.get(norm_model_type) or MODEL_TYPE_TO_FIELD.get(model_type)
     if not field_name:
         return False, f"model type '{model_type}' is invalid"
-    tenant_field_name = MODEL_TYPE_TO_TENANT_ID_FIELD.get(model_type)
+    tenant_field_name = MODEL_TYPE_TO_TENANT_ID_FIELD.get(norm_model_type) or MODEL_TYPE_TO_TENANT_ID_FIELD.get(model_type)
+    model_type = norm_model_type
 
     e, tenant = TenantService.get_by_id(tenant_id)
     if not e:

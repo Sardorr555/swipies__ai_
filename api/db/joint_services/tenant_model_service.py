@@ -170,7 +170,7 @@ def ensure_paddleocr_from_env(tenant_id: str) -> str | None:
 
 def get_tenant_default_model_by_type(tenant_id: str, model_type: str | enum.Enum):
     exist, tenant = TenantService.get_by_id(tenant_id)
-    model_type_val = model_type if isinstance(model_type, str) else model_type.value
+    model_type_val = (model_type if isinstance(model_type, str) else model_type.value).lower()
     model_id: str | None = None
     model_name: str = ""
     if exist and tenant:
@@ -178,10 +178,10 @@ def get_tenant_default_model_by_type(tenant_id: str, model_type: str | enum.Enum
             case LLMType.EMBEDDING.value:
                 model_id = getattr(tenant, "tenant_embd_id", None)
                 model_name = tenant.embd_id
-            case LLMType.SPEECH2TEXT.value | LLMType.ASR.value:
+            case LLMType.SPEECH2TEXT.value | LLMType.ASR.value | "speech2text" | "asr":
                 model_id = getattr(tenant, "tenant_asr_id", None)
                 model_name = tenant.asr_id
-            case LLMType.IMAGE2TEXT.value | LLMType.VISION.value:
+            case LLMType.IMAGE2TEXT.value | LLMType.VISION.value | "image2text" | "vision":
                 model_id = getattr(tenant, "tenant_img2txt_id", None)
                 model_name = tenant.img2txt_id
             case LLMType.CHAT.value:
@@ -208,9 +208,9 @@ def get_tenant_default_model_by_type(tenant_id: str, model_type: str | enum.Enum
                     model_name = g_stats.get("default_embd_id")
                 case LLMType.RERANK.value:
                     model_name = g_stats.get("default_rerank_id")
-                case LLMType.IMAGE2TEXT.value | LLMType.VISION.value:
+                case LLMType.IMAGE2TEXT.value | LLMType.VISION.value | "image2text" | "vision":
                     model_name = g_stats.get("default_image2text_model")
-                case LLMType.SPEECH2TEXT.value | LLMType.ASR.value:
+                case LLMType.SPEECH2TEXT.value | LLMType.ASR.value | "speech2text" | "asr":
                     model_name = g_stats.get("default_asr_model")
                 case LLMType.TTS.value:
                     model_name = g_stats.get("default_tts_model")
@@ -427,12 +427,14 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
             aim = AIModel.get_or_none(AIModel.model_name == pure_model_name)
 
         if aim and aim.api_key and len(aim.api_key.strip()) > 0:
+            aim_mtype = str(aim.model_type).lower() if aim.model_type else ""
+            norm_mtype = "asr" if aim_mtype in ("speech2text", "asr") else ("vision" if aim_mtype in ("image2text", "vision") else aim.model_type)
             return {
                 "llm_factory": aim.provider,
                 "api_key": decrypt_api_key(aim.api_key),
                 "llm_name": aim.model_name,
                 "api_base": aim.base_url or "",
-                "model_type": aim.model_type,
+                "model_type": norm_mtype,
                 "is_tools": True,
                 "max_tokens": aim.max_tokens or 8192,
             }
@@ -448,12 +450,14 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
                     aip = cand
                     break
         if aip and aip.api_key and len(aip.api_key.strip()) > 0:
+            mtype_lower = str(model_type_val).lower() if model_type_val else ""
+            norm_mtype = "asr" if mtype_lower in ("speech2text", "asr") else ("vision" if mtype_lower in ("image2text", "vision") else model_type_val)
             return {
                 "llm_factory": aip.provider_name,
                 "api_key": decrypt_api_key(aip.api_key),
                 "llm_name": pure_model_name or model_name,
                 "api_base": aip.base_url or "",
-                "model_type": model_type_val,
+                "model_type": norm_mtype,
                 "is_tools": True,
                 "max_tokens": 8192,
             }
