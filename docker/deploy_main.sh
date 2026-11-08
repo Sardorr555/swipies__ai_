@@ -81,7 +81,11 @@ changed=true
 git checkout --detach "$target"
 compose config --quiet
 echo 'Building frontend while the existing containers remain running'
-compose build frontend 2>&1 | tee "$state/build.log" || { echo 'Build failed; inspect private build.log'; exit 1; }
+( while true; do sleep 25; echo "[deploy heartbeat $(date -u +%T)] compiling frontend assets..."; done ) &
+heartbeat_pid=$!
+compose build frontend 2>&1 | tee "$state/build.log" || { kill "$heartbeat_pid" 2>/dev/null || true; echo 'Build failed; inspect private build.log'; exit 1; }
+kill "$heartbeat_pid" 2>/dev/null || true
+wait "$heartbeat_pid" 2>/dev/null || true
 echo 'Updating only Swipies application containers'
 restarted=true
 compose up -d --no-deps --no-build --force-recreate ragflow-cpu frontend > "$state/start.log" 2>&1 || { echo 'Container start failed; inspect private start.log'; exit 1; }
