@@ -38,9 +38,10 @@ jobs:
       - name: Install Docker and Deploy Swipies
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: "51.20.190.248"
+          host: ${{ secrets.TEST_SERVER_HOST || secrets.EC2_HOST_LICENSED || '51.20.190.248' }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          timeout: 60s
           command_timeout: 45m
           script: |
             set -e
@@ -102,6 +103,15 @@ jobs:
             sudo docker rm -f swipies-minio swipies-mysql swipies-redis swipies-es01 swipies-frontend swipies-cpu swipies-gpu swipies-infinity swipies-seekdb || true
 
             echo "🐳 Собираем фронтенд (с кэшированием для скорости)..."
+            if [[ $(swapon --show | wc -l) -le 1 ]]; then
+              if [[ ! -f /swapfile_deploy ]]; then
+                sudo fallocate -l 6G /swapfile_deploy 2>/dev/null || sudo dd if=/dev/zero of=/swapfile_deploy bs=1M count=6144 2>/dev/null || true
+                sudo chmod 600 /swapfile_deploy 2>/dev/null || true
+                sudo mkswap /swapfile_deploy 2>/dev/null || true
+              fi
+              sudo swapon /swapfile_deploy 2>/dev/null || true
+            fi
+            sync; sudo sysctl -w vm.drop_caches=3 2>/dev/null || true
             sudo docker compose build frontend
 
             echo "🚀 Запускаем..."
