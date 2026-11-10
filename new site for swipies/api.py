@@ -103,18 +103,68 @@ def clear_rate_limits():
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
 
-def validate_lead_payload(data):
+ALLOWED_LANDINGS = {
+    'sales', 'support', 'knowledge', 'booking', 'education',
+    'hr', 'operations', 'enterprise', 'b2c'
+}
+
+LANDING_TITLES = {
+    'sales': 'ИИ-продавец',
+    'support': 'Поддержка клиентов',
+    'knowledge': 'Помощник по документам',
+    'booking': 'Запись на услуги',
+    'education': 'Учебные центры',
+    'hr': 'Помощник HR',
+    'operations': 'CRM и ERP',
+    'enterprise': 'Enterprise',
+    'b2c': 'B2C Cloud',
+}
+
+def resolve_landing_slug(req, payload_slug):
+    """Determine and verify landing slug against request host to prevent form spoofing."""
+    host = ''
+    if req is not None:
+        raw_host = req.headers.get('X-Forwarded-Host') or req.host or ''
+        host = raw_host.split(':')[0].strip().lower()
+
+    host_slug = None
+    if host.endswith('.swipies.app'):
+        sub = host[:-len('.swipies.app')]
+        if sub in ALLOWED_LANDINGS:
+            host_slug = sub
+    elif host == 'enterprise.swipies.app':
+        host_slug = 'enterprise'
+    elif host in ('swipies.app', 'www.swipies.app'):
+        host_slug = 'b2c'
+
+    payload_slug = (payload_slug or '').strip().lower()
+    if payload_slug and payload_slug not in ALLOWED_LANDINGS:
+        return None, "Invalid landing slug"
+
+    if host_slug:
+        if payload_slug and payload_slug != host_slug and host_slug != 'b2c':
+            return None, f"Landing slug mismatch with origin host: {host_slug}"
+        return (payload_slug if host_slug == 'b2c' and payload_slug else host_slug), None
+
+    return (payload_slug or 'b2c'), None
+
+def validate_lead_payload(data, req=None):
     """Validate and sanitize lead submission payload."""
     raw_name = (data.get('name') or '').strip()
     raw_company = (data.get('company') or '').strip()
     raw_email = (data.get('email') or '').strip()
     raw_phone = (data.get('phone') or '').strip()
     raw_message = (data.get('message') or '').strip()
+    raw_telegram = (data.get('telegram') or '').strip()
     raw_referral = (data.get('referral_code') or '').strip()
-    source = (data.get('source') or 'b2c').strip().lower()
+    source = (data.get('source') or '').strip().lower()
+
+    landing_slug, slug_err = resolve_landing_slug(req, data.get('landing_slug'))
+    if slug_err:
+        return None, slug_err
 
     if source not in ('b2c', 'enterprise'):
-        source = 'b2c'
+        source = 'enterprise' if landing_slug == 'enterprise' else 'b2c'
 
     if not raw_name:
         return None, "Name is required"
@@ -124,6 +174,8 @@ def validate_lead_payload(data):
         return None, "Company exceeds maximum length of 150 characters"
     if len(raw_message) > 3000:
         return None, "Message exceeds maximum length of 3000 characters"
+    if len(raw_telegram) > 120:
+        return None, "Telegram contact exceeds maximum length of 120 characters"
 
     if not raw_email and not raw_phone:
         return None, "Either email or phone number is required as a contact method"
@@ -141,14 +193,22 @@ def validate_lead_payload(data):
         if len(digits) < 5:
             return None, "Phone number must contain at least 5 digits"
 
+    final_message = raw_message
+    if raw_telegram:
+        if final_message:
+            final_message = f"Telegram: {raw_telegram}\n\n{final_message}"
+        else:
+            final_message = f"Telegram: {raw_telegram}"
+
     return {
         'name': html.escape(raw_name),
         'company': html.escape(raw_company),
         'email': raw_email,
         'phone': raw_phone,
-        'message': html.escape(raw_message),
+        'message': html.escape(final_message),
         'referral_code': html.escape(raw_referral[:50]),
-        'source': source
+        'source': source,
+        'landing_slug': landing_slug
     }, None
 
 
@@ -280,14 +340,15 @@ def init_db():
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS leads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                company TEXT NOT NULL,
+                company TEXT,
                 name TEXT NOT NULL,
-                email TEXT NOT NULL,
+                email TEXT,
                 phone TEXT,
                 message TEXT,
                 referral_code TEXT,
                 status TEXT DEFAULT '1', -- 1 = unread, 2 = read
                 source TEXT DEFAULT 'b2c', -- 'b2c' or 'enterprise'
+                landing_slug TEXT,
                 create_date TEXT NOT NULL
             )
         ''')
@@ -353,6 +414,8 @@ def init_db():
         existing_lead_cols = [row[1] for row in cursor.fetchall()]
         if 'source' not in existing_lead_cols:
             cursor.execute("ALTER TABLE leads ADD COLUMN source TEXT DEFAULT 'b2c'")
+        if 'landing_slug' not in existing_lead_cols:
+            cursor.execute("ALTER TABLE leads ADD COLUMN landing_slug TEXT")
 
         cursor.execute("PRAGMA table_info(visitors)")
         existing_cols = [row[1] for row in cursor.fetchall()]
@@ -670,6 +733,7 @@ def auth_change_password():
     return jsonify({"code": 0, "message": "Password updated successfully"})
 
 
+@app.route('/api/contact', methods=['POST'])
 @app.route('/api/leads', methods=['POST'])
 def create_lead():
     ip = get_client_ip()
@@ -687,21 +751,22 @@ def create_lead():
 
     # Honeypot spam bot trap
     hp_field = (data.get('hp_field') or data.get('website_url') or data.get('address_field') or '').strip()
-    source = (data.get('source') or 'b2c').strip().lower()
+    raw_slug = (data.get('landing_slug') or '').strip().lower()
+    source = (data.get('source') or '').strip().lower()
     if source not in ('b2c', 'enterprise'):
-        source = 'b2c'
+        source = 'enterprise' if raw_slug == 'enterprise' else 'b2c'
 
     if hp_field:
         # Silent drop: fake 201 so the spam bot believes it succeeded,
         # but do not store in DB and do not send Telegram notification
         return jsonify({
             "code": 0,
-            "data": {"id": -1, "source": source},
+            "data": {"id": -1, "source": source, "landing_slug": raw_slug or 'b2c'},
             "message": "Success"
         }), 201
 
-    # Validate and sanitize inputs
-    cleaned, err = validate_lead_payload(data)
+    # Validate and sanitize inputs with origin host verification
+    cleaned, err = validate_lead_payload(data, req=request)
     if err:
         return jsonify({"code": 1, "message": err}), 400
 
@@ -712,25 +777,28 @@ def create_lead():
     message       = cleaned['message']
     referral_code = cleaned['referral_code']
     source        = cleaned['source']
+    landing_slug  = cleaned['landing_slug']
     create_date   = utc_now_iso()
 
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO leads (company, name, email, phone, message, referral_code, source, create_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (company, name, email, phone, message, referral_code, source, create_date))
+            INSERT INTO leads (company, name, email, phone, message, referral_code, status, source, landing_slug, create_date)
+            VALUES (?, ?, ?, ?, ?, ?, '1', ?, ?, ?)
+        ''', (company, name, email, phone, message, referral_code, source, landing_slug, create_date))
         conn.commit()
         lead_id = cursor.lastrowid
 
     # Notify admin via Telegram
-    channel_label = "Enterprise (enterprise.swipies.app)" if source == "enterprise" else "B2C Cloud (swipies.app)"
+    landing_label = LANDING_TITLES.get(landing_slug, landing_slug or 'B2C Cloud')
+    channel_label = "Enterprise" if source == "enterprise" else "B2C"
     tg_msg = (
-        f"📬 <b>New Lead — {channel_label}</b>\n\n"
-        f"🌐 <b>Channel:</b> {channel_label}\n"
+        f"📬 <b>New Lead — {landing_label}</b>\n\n"
+        f"🌐 <b>Landing:</b> {landing_label} ({landing_slug})\n"
+        f"🏷 <b>Channel:</b> {channel_label}\n"
         f"👤 <b>Name:</b> {name}\n"
-        f"🏢 <b>Company:</b> {company}\n"
-        f"📧 <b>Email:</b> {email}\n"
+        f"🏢 <b>Company:</b> {company or '—'}\n"
+        f"📧 <b>Email:</b> {email or '—'}\n"
         f"📞 <b>Phone:</b> {phone or '—'}\n"
         f"💬 <b>Message:</b> {message or '—'}\n"
         f"🔗 <b>Ref Code:</b> {referral_code or '—'}\n"
@@ -738,7 +806,15 @@ def create_lead():
     )
     send_telegram(tg_msg)
 
-    return jsonify({"code": 0, "message": "Success", "data": {"id": lead_id, "source": source}}), 201
+    return jsonify({
+        "code": 0,
+        "message": "Success",
+        "data": {
+            "id": lead_id,
+            "source": source,
+            "landing_slug": landing_slug
+        }
+    }), 201
 
 
 @app.route('/api/leads', methods=['GET'])
@@ -751,6 +827,9 @@ def get_leads():
         rows = cursor.fetchall()
 
     leads = [dict(row) for row in rows]
+    for lead in leads:
+        if 'landing_slug' not in lead or lead['landing_slug'] is None:
+            lead['landing_slug'] = ''
     return jsonify({"code": 0, "data": leads})
 
 
@@ -1778,6 +1857,11 @@ try:
                      platform_reader=platform_report, client_ip=get_client_ip)
 except Exception:
     app.logger.warning("PostHog module unavailable; existing analytics remains enabled")
+
+# Independent solution-landing attribution; public landing HTML is unchanged.
+from landing_acquisition import register_acquisition
+register_acquisition(app, DB_FILE, admin_required=admin_required,
+                     admin_identity=get_authenticated_admin, client_ip=get_client_ip)
 
 if __name__ == '__main__':
     init_db()

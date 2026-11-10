@@ -86,3 +86,25 @@ See [Landing administrator analytics](landing-admin-analytics.md) and [ADR-007](
 
 
 See [PostHog landing analytics](posthog.md) and [ADR-008](decisions/ADR-008-isolated-posthog-analytics.md) for the isolated administrator page, consent-gated official SDK and read-only confirmed conversion collector. Implemented and tested locally; real PostHog queries, diagnostic ingestion and the application reporting credential are verified. Production enablement and the real conversion journey are pending.
+
+
+## Multi-landing acquisition (2026-11-08)
+
+Published to production by owner authorization: protected `/admin/acquisition`, per-landing UTM campaigns,
+fixed-origin CTA handoff and read-only account matching. Main public landing
+unchanged; production release verified, main public landing unchanged. See [landing attribution](landing-acquisition.md)
+and [ADR-009](decisions/ADR-009-multi-landing-attribution.md).
+
+
+## Support landing (2026-11-09)
+
+[Support landing](support-landing.md): published UZ/RU/EN, original brand and SVG
+icons, shared acquisition admin, isolated hostname and certificate. Main site and
+Sales are unchanged.
+
+
+## Knowledge landing (2026-11-09)
+
+[Knowledge landing](knowledge-landing.md): published UZ/RU/EN using Design-It
+Editorial Design, interactive source excerpts, original brand and shared acquisition.
+Main site, Sales and Support remain unchanged.

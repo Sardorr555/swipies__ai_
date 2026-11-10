@@ -61,6 +61,22 @@ location = /admin/posthog/ {
     proxy_set_header X-Forwarded-Proto $scheme;
 }
 
+# Include in existing swipies.app HTTPS server. Public landing content is unchanged.
+location = /acquisition.html { return 404; }
+location = /admin/acquisition {
+    proxy_pass http://127.0.0.1:5005;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+# Central server-side CTA handoff. No cross-origin fetch or wildcard CORS needed.
+location /api/acquisition/ {
+    proxy_pass http://127.0.0.1:5005;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+
     # --- Proxy API calls to the Flask backend (port 5005) ---
     location /api/ {
         proxy_pass         http://127.0.0.1:5005;

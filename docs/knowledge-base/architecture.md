@@ -163,3 +163,11 @@ flowchart LR
 
 * **Чтение устаревших данных (`enc:v1:`):** Поддерживается дешифрование легаси-полезных нагрузок через fallback HMAC/CTR.
 * **Дефолтные ключи ротации:** Если ключ указан в `RAGFLOW_SECRET_KEYS_ROTATION`, он принимается **исключительно на чтение (decrypt-only)**. Попытка зашифровать новые данные дефолтным ключом жестко блокируется (fail-closed).
+
+
+## Multi-landing acquisition (2026-11-08)
+
+Published to production by owner authorization: protected `/admin/acquisition`, per-landing UTM campaigns,
+fixed-origin CTA handoff and read-only account matching. Main public landing
+unchanged; production release verified, main public landing unchanged. See [landing attribution](landing-acquisition.md)
+and [ADR-009](decisions/ADR-009-multi-landing-attribution.md).

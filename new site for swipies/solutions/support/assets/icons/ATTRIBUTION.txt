@@ -1,0 +1,3 @@
+Telegram and Instagram: canonical brand SVG glyphs from the installed Simple Icons package (CC0).
+Interface icons: canonical Lucide SVG nodes from the installed lucide-react package (ISC).
+Brand glyph path geometry is preserved. All icons are embedded locally; no external icon service is used.

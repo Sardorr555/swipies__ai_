@@ -285,3 +285,6 @@ test/*.db
 
 *.pem
 swipies_test_pem_ssh.pem
+
+# Private multi-landing attribution state
+/new site for swipies/acquisition-state.sqlite*

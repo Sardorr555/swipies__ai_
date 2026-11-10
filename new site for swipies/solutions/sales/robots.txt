@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://sales.swipies.app/sitemap.xml

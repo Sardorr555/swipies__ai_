@@ -1751,9 +1751,16 @@ input:checked + .slider:before { transform: translateX(20px); }
           </h3>
           <div style="display:flex; gap:0.75rem; align-items:center;">
             <select id="leadSourceFilter" onchange="renderSubmissionsTable()" style="background:var(--bg2); border:1px solid var(--border); color:var(--text); padding:0.4rem 0.75rem; border-radius:var(--radius); font-size:0.85rem; outline:none; font-family:var(--font-display); cursor:pointer;">
-              <option value="all">All Channels (B2C &amp; Enterprise)</option>
+              <option value="all">Все заявки (All Sources)</option>
               <option value="enterprise">Enterprise (enterprise.swipies.app)</option>
-              <option value="b2c">B2C (swipies.app)</option>
+              <option value="b2c">B2C Cloud (swipies.app)</option>
+              <option value="sales">ИИ-продавец (sales)</option>
+              <option value="support">ИИ-поддержка (support)</option>
+              <option value="knowledge">ИИ-помощник (knowledge)</option>
+              <option value="booking">ИИ-запись (booking)</option>
+              <option value="education">ИИ-обучение (education)</option>
+              <option value="hr">ИИ-HR (hr)</option>
+              <option value="operations">ИИ-операции (operations)</option>
             </select>
             <button class="btn-secondary-dashboard" onclick="exportSubmissionsToCSV()">
               <svg style="width:14px;height:14px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1769,6 +1776,7 @@ input:checked + .slider:before { transform: translateX(20px); }
               <tr>
                 <th style="width: 80px;">Status</th>
                 <th style="width: 100px;">Channel</th>
+                <th style="width: 120px;">Лендинг</th>
                 <th>Sender / Company</th>
                 <th>Contact Details</th>
                 <th>Message Content</th>
@@ -3717,6 +3725,7 @@ function mapDatabaseLeads(leads) {
     message: sub.message || '',
     referralCode: sub.referral_code || '',
     source: sub.source || 'b2c',
+    landingSlug: sub.landing_slug || '',
     date: sub.create_date || new Date().toISOString(),
     read: sub.status !== '1'
   }));
@@ -3754,9 +3763,23 @@ function renderSubmissionsTable() {
   const sourceFilterEl = document.getElementById('leadSourceFilter');
   const selectedSource = sourceFilterEl ? sourceFilterEl.value : 'all';
 
+  const LANDING_LABELS = {
+    'sales': 'ИИ-продавец',
+    'support': 'ИИ-поддержка',
+    'knowledge': 'ИИ-помощник',
+    'booking': 'ИИ-запись',
+    'education': 'ИИ-обучение',
+    'hr': 'ИИ-HR',
+    'operations': 'ИИ-операции',
+    'enterprise': 'Enterprise',
+    'b2c': 'B2C Cloud'
+  };
+
   const filteredSubs = databaseSubmissions.filter(sub => {
     if (selectedSource === 'all') return true;
-    return (sub.source || 'b2c') === selectedSource;
+    if (selectedSource === 'enterprise') return sub.source === 'enterprise' || sub.landingSlug === 'enterprise';
+    if (selectedSource === 'b2c') return (sub.source === 'b2c' || !sub.source) && (!sub.landingSlug || sub.landingSlug === 'b2c');
+    return sub.landingSlug === selectedSource;
   });
 
   if (filteredSubs.length === 0) {
@@ -3777,6 +3800,11 @@ function renderSubmissionsTable() {
       ? `<span class="badge-enterprise">Enterprise</span>`
       : `<span class="badge-b2c">B2C</span>`;
 
+    const landingLabel = sub.landingSlug ? (LANDING_LABELS[sub.landingSlug] || sub.landingSlug) : 'Не определён';
+    const landingBadge = sub.landingSlug
+      ? `<span class="badge-landing" style="display:inline-block; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:4px; background:rgba(217, 119, 6, 0.12); color:#f59e0b; border:1px solid rgba(217, 119, 6, 0.25); white-space:nowrap;">${landingLabel}</span>`
+      : `<span class="badge-landing" style="display:inline-block; font-size:0.75rem; font-weight:500; padding:2px 8px; border-radius:4px; background:rgba(255, 255, 255, 0.05); color:var(--text-muted); border:1px solid var(--border); white-space:nowrap;">Не определён</span>`;
+
     const readBtnLabel = sub.read ? 'Mark Unread' : 'Mark Read';
 
     const refBadge = sub.referralCode
@@ -3788,6 +3816,7 @@ function renderSubmissionsTable() {
     row.innerHTML = `
       <td>${statusBadge}</td>
       <td>${channelBadge}</td>
+      <td>${landingBadge}</td>
       <td>
         <div style="font-weight:600;display:flex;align-items:center">${sub.name}${refBadge}</div>
         <div style="font-size:0.8rem;color:var(--text-muted)">${sub.company}</div>
@@ -3925,14 +3954,28 @@ function exportSubmissionsToCSV() {
     return;
   }
 
+  const LANDING_LABELS = {
+    'sales': 'ИИ-продавец',
+    'support': 'ИИ-поддержка',
+    'knowledge': 'ИИ-помощник',
+    'booking': 'ИИ-запись',
+    'education': 'ИИ-обучение',
+    'hr': 'ИИ-HR',
+    'operations': 'ИИ-операции',
+    'enterprise': 'Enterprise',
+    'b2c': 'B2C Cloud'
+  };
+
   let csvContent = "data:text/csv;charset=utf-8,";
-  csvContent += "ID,Name,Company,Email,Phone,Message,Date,Read Status,Referral Code\n";
+  csvContent += "ID,Channel,Landing,Name,Company,Email,Phone,Message,Date,Read Status,Referral Code\n";
 
   databaseSubmissions.forEach(sub => {
     const cleanMsg = sub.message.replace(/"/g, '""');
     const readLabel = sub.read ? "READ" : "UNREAD";
     const refVal = sub.referralCode || "";
-    csvContent += `"${sub.id}","${sub.name}","${sub.company}","${sub.email}","${sub.phone}","${cleanMsg}","${sub.date}","${readLabel}","${refVal}"\n`;
+    const channelVal = sub.source === "enterprise" ? "Enterprise" : "B2C";
+    const landingVal = sub.landingSlug ? (LANDING_LABELS[sub.landingSlug] || sub.landingSlug) : "Не определён";
+    csvContent += `"${sub.id}","${channelVal}","${landingVal}","${sub.name}","${sub.company}","${sub.email}","${sub.phone}","${cleanMsg}","${sub.date}","${readLabel}","${refVal}"\n`;
   });
 
   const encodedUri = encodeURI(csvContent);
@@ -5236,5 +5279,6 @@ document.addEventListener('DOMContentLoaded', () => {
 <script>window.SWIPIES_LANDING_NATIVE_AUTH = true;</script>
 <script src="/admin-analytics.js?v=20261104-2"></script>
 <script src="/posthog-nav.js?v=20261108-1" defer></script>
+<script src="/acquisition-nav.js?v=20261108-1" defer></script>
 </body>
 </html>

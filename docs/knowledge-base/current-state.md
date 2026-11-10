@@ -193,3 +193,11 @@ PostHog account verification on 2026-11-08: official plugin access to project 71
 PostHog diagnostic follow-up: two labeled test/internal diagnostics confirmed Capture API delivery and exclusion from working reports; the second also confirmed no GeoIP enrichment. IP persistence and replay console recording are disabled in the actual PostHog project; Replay remains off. Browser/server payloads now disable GeoIP explicitly, and rate-limit cooldown supports a full hour. This does not enable or deploy the landing. Validation remains 73 Python + 10 browser tests.
 
 PostHog application credential verification: the supplied reporting key is saved only in the ignored local `.env`; the isolated native-auth report endpoint returned HTTP 200 / ready using the actual provider transport, unauthenticated calls were denied and no key appeared in the browser response. No capture daemon was started. `POSTHOG_ENABLED=0` and the production landing remain unchanged. Deployment and production registration/payment verification still require a separate owner instruction.
+
+
+## Multi-landing acquisition (2026-11-08)
+
+Published to production by owner authorization: protected `/admin/acquisition`, per-landing UTM campaigns,
+fixed-origin CTA handoff and read-only account matching. Main public landing
+unchanged; production release verified, main public landing unchanged. See [landing attribution](landing-acquisition.md)
+and [ADR-009](decisions/ADR-009-multi-landing-attribution.md).
