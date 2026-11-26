@@ -529,13 +529,40 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
     raise LookupError(f"Provider {provider_name or 'unknown'} not found or not configured for model {model_name}.")
 
 
+def _platform_model_config_by_id(tenant_id, model_type, model_id):
+    """Resolve the exact enabled platform model; credentials stay server-side."""
+    from api.db.db_models import AIModel, AIProvider
+    from api.db.services.ai_policy_service import AIPolicyManager
+    from api.utils.key_crypto import decrypt_api_key
+    model = AIModel.get_or_none(AIModel.id == model_id, AIModel.is_global == True, AIModel.enabled == True)
+    if not model or str(model.status).lower() not in ('active', 'verified'):
+        raise LookupError('Platform model is unavailable.')
+    requested = model_type if isinstance(model_type, str) else model_type.value
+    actual = str(model.model_type).lower()
+    actual = {"speech2text": "asr", "image2text": "vision"}.get(actual, actual)
+    supported = calculate_model_type(actual)
+    if not (supported & calculate_model_type(requested)) and not (requested == 'chat' and supported & calculate_model_type('vision')):
+        raise LookupError('Platform model does not support the requested capability.')
+    allowed, _, _ = AIPolicyManager.check_model_access(tenant_id, model.id, requested)
+    if not allowed:
+        raise LookupError('Platform model is not available for this account.')
+    provider = next((p for p in AIProvider.select().where(AIProvider.is_global == True, AIProvider.status.in_(['active', 'verified']))
+                     if p.provider_name.lower() == model.provider.lower()), None)
+    key = model.api_key or (provider.api_key if provider else '')
+    if not key:
+        raise LookupError('Platform model credentials are not configured.')
+    return {'llm_factory': model.provider, 'llm_name': model.model_name, 'api_key': decrypt_api_key(key),
+            'api_base': model.base_url or (provider.base_url if provider else '') or '',
+            'model_type': requested, 'is_tools': True, 'max_tokens': model.max_tokens or 8192}
+
+
 def get_model_config_by_id(tenant_id: str, model_type: str | enum.Enum, model_id: str):
     """Get model config from tenant_model by its id (CharField PK)."""
     model_type_val = model_type if isinstance(model_type, str) else model_type.value
     model_type_bin = calculate_model_type(model_type_val)
     exist, model_obj = TenantModelService.get_by_id(model_id)
     if not exist:
-        raise LookupError(f"TenantModel id={model_id} not found.")
+        return _platform_model_config_by_id(tenant_id, model_type, model_id)
     if model_obj.status == ActiveStatusEnum.INACTIVE.value:
         raise LookupError(f"TenantModel id={model_id} is disabled.")
     if model_obj.status == ActiveStatusEnum.UNSUPPORTED.value:
@@ -552,7 +579,17 @@ def get_model_config_by_id(tenant_id: str, model_type: str | enum.Enum, model_id
         joined_tenants = TenantService.get_joined_tenants_by_user_id(tenant_id)
         joined_tenant_ids = [t["tenant_id"] for t in joined_tenants]
         if provider_obj.tenant_id not in joined_tenant_ids:
-            raise LookupError(f"Tenant {tenant_id} has no access to provider owned by tenant {provider_obj.tenant_id}.")
+            # Legacy selections may contain the admin tenant's model row ID.
+            # Permit only the corresponding registered, enabled platform model.
+            from api.db.db_models import AIModel
+            if provider_obj.tenant_id != TenantModelProviderService._get_admin_tenant_id():
+                raise LookupError('Model belongs to another tenant.')
+            platform = next((m for m in AIModel.select().where(AIModel.is_global == True, AIModel.enabled == True,
+                            AIModel.model_name == model_obj.model_name)
+                            if m.provider.lower() == provider_obj.provider_name.lower()), None)
+            if not platform:
+                raise LookupError('Model is not a published platform model.')
+            return _platform_model_config_by_id(tenant_id, model_type, platform.id)
 
     ok, instance_obj = TenantModelInstanceService.get_by_id(model_obj.instance_id)
     if not ok:
@@ -585,6 +622,15 @@ def resolve_model_id(tenant_id: str, model_type: str | enum.Enum, model_name: st
     look up the corresponding tenant_model.id. Returns None if not found."""
     pure_model_name, instance_name, provider_name = split_model_name(model_name)
     model_type_val = model_type if isinstance(model_type, str) else model_type.value
+
+    from api.db.db_models import AIModel
+    platform = AIModel.get_or_none(AIModel.id == model_name, AIModel.is_global == True)
+    if not platform and provider_name:
+        platform = next((m for m in AIModel.select().where(AIModel.is_global == True, AIModel.model_name == pure_model_name)
+                        if m.provider.lower() == provider_name.lower()), None)
+    if platform:
+        _platform_model_config_by_id(tenant_id, model_type, platform.id)
+        return platform.id
 
     # Builtin TEI embedding — no tenant_model row exists
     compose_profiles = os.getenv("COMPOSE_PROFILES", "")
@@ -822,6 +868,10 @@ def get_composite_model_name_by_id(model_id: str) -> str:
     """
     exist, model_obj = TenantModelService.get_by_id(model_id)
     if not exist:
+        from api.db.db_models import AIModel
+        platform = AIModel.get_or_none(AIModel.id == model_id, AIModel.is_global == True, AIModel.enabled == True)
+        if platform:
+            return f'{platform.model_name}@default@{platform.provider}'
         raise LookupError(f"TenantModel id={model_id} not found.")
 
     ok, instance_obj = TenantModelInstanceService.get_by_id(model_obj.instance_id)

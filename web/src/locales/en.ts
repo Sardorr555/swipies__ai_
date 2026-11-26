@@ -134,6 +134,7 @@ export default {
       or: 'or',
     },
     header: {
+      upgrade: 'Upgrade to Pro',
       knowledgeBase: 'Dataset',
       chat: 'Chat',
       register: 'Register',

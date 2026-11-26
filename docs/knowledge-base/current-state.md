@@ -201,3 +201,8 @@ Published to production by owner authorization: protected `/admin/acquisition`, 
 fixed-origin CTA handoff and read-only account matching. Main public landing
 unchanged; production release verified, main public landing unchanged. See [landing attribution](landing-acquisition.md)
 and [ADR-009](decisions/ADR-009-multi-landing-attribution.md).
+
+
+## Main provider security hotfix (2026-11-27)
+
+Owner authorized release on `swipies_26`: tenant-scoped provider management, write-only non-admin credential responses, authorized global/legacy chat model IDs and localized upgrade labels. See [release handoff](handoffs/2026-11-27-main-provider-security.md).

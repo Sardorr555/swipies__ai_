@@ -539,7 +539,7 @@ def show_provider_instance(tenant_id: str = None, provider_id_or_name: str = Non
           type: object
     """
     try:
-        success, result = provider_api_service.show_provider_instance(tenant_id, provider_id_or_name, instance_id_or_name)
+        success, result = provider_api_service.show_provider_instance(tenant_id, provider_id_or_name, instance_id_or_name, reveal_secrets=bool(getattr(current_user, "is_superuser", False)))
         if success:
             return get_result(data=result)
         else:

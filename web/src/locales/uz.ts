@@ -107,6 +107,7 @@ export default {
       backToLoginTip: "Fikrini o'zgartirdingizmi?",
     },
     header: {
+      upgrade: 'Pro tarifiga o‘tish',
       knowledgeBase: "Ma'lumotlar to'plami",
       chat: 'Suhbat',
       register: "Ro'yxatdan o'tish",

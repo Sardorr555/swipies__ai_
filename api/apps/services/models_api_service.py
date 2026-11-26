@@ -245,6 +245,7 @@ def _get_model_info(tenant_id: str, default_model: str, model_type: str, model_i
                 can_use = bool(gm.api_key and gm.api_key.strip()) or (gm_prov.lower() in active_provs)
                 if can_use:
                     return {
+                        "model_id": gm.id,
                         "model_provider": gm_prov,
                         "model_instance": instance_name,
                         "model_name": gm.model_name,
@@ -286,7 +287,7 @@ def _get_model_info(tenant_id: str, default_model: str, model_type: str, model_i
                 "enable": True,
             }
 
-    model_record = TenantModelService.get_by_provider_id_and_instance_id_and_model_name(provider_obj.id, instance_obj.id, model_name)
+    model_record = TenantModelService.get_by_provider_id_and_instance_id_and_model_name(provider_obj.id, instance_obj.id, model_name) if provider_obj and instance_obj else None
     if model_record:
         if not model_record.status == ActiveStatusEnum.ACTIVE.value:
             logging.warning(f"Model '{model_name}' is disabled")
@@ -354,9 +355,13 @@ def _check_model_available(tenant_id: str, provider_name: str, instance_name: st
     model_type = MODEL_TAG_TO_TYPE.get(model_type, model_type)
     # Check if model is disabled
     model_record = TenantModelService.get_by_provider_id_and_instance_id_and_model_name(provider_obj.id, instance_obj.id, model_name)
+    if not model_record:
+        return False, f"Model '{model_name}' not found for provider '{provider_name}'"
     if model_record.status != ActiveStatusEnum.ACTIVE.value:
         return False, f"Model '{model_name}' isn't available"
-    if model_type not in get_model_type_human(model_record.model_type):
+    norm_req_type = normalize_model_type(model_type)
+    human_types = [normalize_model_type(ht) for ht in get_model_type_human(model_record.model_type)]
+    if norm_req_type not in human_types:
         return False, f"Model '{model_name}' isn't a {model_type} model"
     return True, None
 
@@ -492,8 +497,9 @@ def set_tenant_default_models(tenant_id: str, model_provider: str, model_instanc
         if not instance_ok:
             return False, f"Instance id '{model_obj.instance_id}' not found for model_id '{model_id}'"
 
-        normalized_model_type = MODEL_TAG_TO_TYPE.get(model_type, model_type)
-        if normalized_model_type not in get_model_type_human(model_obj.model_type):
+        norm_req_type = normalize_model_type(model_type)
+        human_types = [normalize_model_type(ht) for ht in get_model_type_human(model_obj.model_type)]
+        if norm_req_type not in human_types:
             return False, f"Model '{model_obj.model_name}' isn't a {model_type} model"
         if model_obj.status != ActiveStatusEnum.ACTIVE.value:
             return False, f"Model '{model_obj.model_name}' isn't available"

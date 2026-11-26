@@ -177,14 +177,14 @@ def list_providers(tenant_id: str, all_available: bool = False):
         return True, providers
 
     # List tenant-configured providers
-    factory_names = TenantModelProviderService.list_provider_names_by_tenant_id(tenant_id)
+    factory_names = TenantModelProviderService.list_provider_names_by_tenant_id(tenant_id, include_admin=False)
 
     providers = []
     factory_info_mapping = {f["name"]: f for f in FACTORY_LLM_INFOS}
     for name in factory_names:
         if name not in ["Youdao", "FastEmbed", "BAAI", "Builtin", "siliconflow_intl"] and factory_info_mapping.get(name):
             factory_info = factory_info_mapping[name]
-            provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, name)
+            provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, name, fallback_admin=False)
             has_instance = bool(provider_obj and TenantModelInstanceService.get_all_by_provider_id(provider_obj.id))
             model_types = sorted(set(model_type for llm in factory_info.get("llm", []) for model_type in _factory_model_types(llm))) if factory_info.get("llm", []) else []
             if name in ["MinerU", "PaddleOCR", "OpenDataLoader", "Mistral OCR"]:
@@ -216,7 +216,7 @@ def add_provider(tenant_id: str, provider_name: str):
     if provider_name not in allowed_factories:
         return False, f"Provider '{provider_name}' is not allowed"
 
-    existing = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+    existing = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name, fallback_admin=False)
     if existing:
         return False, f"Provider {provider_name} already exists"
 
@@ -232,9 +232,9 @@ def delete_provider(tenant_id: str, provider_id_or_name: str):
     :param provider_id_or_name: provider ID or provider/factory name
     :return: (success, result_or_error_message)
     """
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"Provider {provider_id_or_name} not found"
     instance_objs = TenantModelInstanceService.get_all_by_provider_id(provider_obj.id)
@@ -402,9 +402,9 @@ async def update_provider_instance(
     if not provider_id_or_name:
         return False, "Provider ID or name is required"
 
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"Provider '{provider_id_or_name}' does not exist"
 
@@ -421,6 +421,9 @@ async def update_provider_instance(
     if not instance_obj:
         return False, f"No instance found for provider '{provider_id_or_name}' and instance '{instance_id_or_name}'"
 
+    if not api_key and instance_obj.api_key:
+        from api.utils.key_crypto import decrypt_api_key
+        api_key = decrypt_api_key(instance_obj.api_key)
     base_url = _normalize_provider_base_url(provider_name, base_url)
     api_key = _normalize_provider_api_key(provider_name, api_key)
     region = (region or "").strip()
@@ -584,9 +587,9 @@ async def create_provider_instance(tenant_id: str, provider_id_or_name: str, ins
     if not provider_id_or_name:
         return False, "Provider ID or name is required"
 
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"Provider '{provider_id_or_name}' does not exist"
 
@@ -692,7 +695,7 @@ async def create_name_only_provider_instance(tenant_id: str, provider_name: str,
     if provider_name not in allowed_factories:
         return False, f"Provider '{provider_name}' is not allowed"
 
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_name, fallback_admin=False)
     if not provider_obj:
         return False, f"Provider '{provider_name}' does not exist"
 
@@ -708,9 +711,9 @@ def list_provider_instances(tenant_id: str, provider_id_or_name: str):
     :param provider_id_or_name: provider/factory ID or name
     :return: (success, result_or_error_message)
     """
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_id_or_name}'"
     provider_id = provider_obj.id
@@ -1033,7 +1036,7 @@ async def verify_api_key(provider_id_or_name: str, api_key: str | dict, base_url
     return success, "success" if success else msg, model_verify_result
 
 
-def show_provider_instance(tenant_id: str, provider_id_or_name: str, instance_id_or_name: str):
+def show_provider_instance(tenant_id: str, provider_id_or_name: str, instance_id_or_name: str, reveal_secrets: bool = False):
     """
     Show a specific provider instance.
 
@@ -1042,9 +1045,9 @@ def show_provider_instance(tenant_id: str, provider_id_or_name: str, instance_id
     :param instance_id_or_name: instance ID or name
     :return: (success, result_or_error_message)
     """
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_id_or_name}'"
     provider_id = provider_obj.id
@@ -1066,7 +1069,8 @@ def show_provider_instance(tenant_id: str, provider_id_or_name: str, instance_id
         "provider_id": provider_id,
         "region": extra_fields.get("region", ""),
         "base_url": extra_fields.get("base_url", ""),
-        "api_key": instance_obj.api_key,
+        "api_key": instance_obj.api_key if reveal_secrets else "",
+        "has_api_key": bool(instance_obj.api_key),
         "status": instance_obj.status,
     }
 
@@ -1081,9 +1085,9 @@ def drop_provider_instances(tenant_id: str, provider_id_or_name: str, instance_i
     :param instance_id_or_names: list of instance IDs or names to drop
     :return: (success, result_or_error_message)
     """
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_id_or_name}'"
     provider_id = provider_obj.id
@@ -1216,9 +1220,9 @@ async def list_instance_models(tenant_id: str, provider_id_or_name: str, instanc
     :param supported_only: if True, only list supported models (from LLM dictionary)
     :return: (success, result_or_error_message)
     """
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_id_or_name}'"
 
@@ -1284,9 +1288,9 @@ def update_instance_models(tenant_id: str, provider_id_or_name: str, instance_id
     if not model_names or not model_types:
         return False, "model_name and model_type are required"
 
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_id_or_name}'"
     instance_obj = None
@@ -1313,9 +1317,9 @@ def update_instance_models(tenant_id: str, provider_id_or_name: str, instance_id
 
 
 def add_model_to_instance(tenant_id: str, provider_id_or_name: str, instance_id_or_name: str, model_name: str, model_type: str | list[str], max_tokens: int = 8192, extra: dict = None):
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_id_or_name}'"
     instance_obj = None
@@ -1375,9 +1379,9 @@ def update_model(tenant_id: str, provider_id_or_name: str, instance_id_or_name: 
         return False, f"status must be '{ActiveStatusEnum.ACTIVE.value}' or '{ActiveStatusEnum.INACTIVE.value}'"
 
     # Check if provider exists for this tenant
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_id_or_name}'"
 
@@ -1429,9 +1433,9 @@ async def delete_models_from_instance(tenant_id: str, provider_id_or_name: str, 
     :param model_name: list of model name
     """
     # Check if provider exists for this tenant (by ID first, then by name)
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_id_or_name}'"
 
@@ -1471,9 +1475,9 @@ async def chat_to_model(tenant_id: str, provider_id_or_name: str, instance_id_or
     """
     from api.db.services.llm_service import LLMBundle
 
-    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name)
+    provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_id(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
-        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name)
+        provider_obj = TenantModelProviderService.get_by_tenant_id_and_provider_name(tenant_id, provider_id_or_name, fallback_admin=False)
     if not provider_obj:
         return False, f"No provider found for provider '{provider_id_or_name}'"
 

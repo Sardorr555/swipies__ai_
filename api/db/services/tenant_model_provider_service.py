@@ -119,8 +119,8 @@ class TenantModelProviderService(CommonService):
                         if g.provider_name.lower() == provider_name.lower():
                             gp = g
                             break
-                if gp and gp.api_key:
-                    target_tenant = admin_tenant_id or tenant_id
+                if gp and gp.api_key and admin_tenant_id:
+                    target_tenant = admin_tenant_id
                     p_obj = cls.model.get_or_none(cls.model.tenant_id == target_tenant, cls.model.provider_name == gp.provider_name)
                     if not p_obj:
                         p_id = get_uuid()

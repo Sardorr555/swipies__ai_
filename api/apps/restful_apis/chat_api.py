@@ -342,7 +342,15 @@ async def _normalize_model_pair(req, tenant_id, name_field, id_field, model_type
 
     if model_id and model_name:
         if resolved_name_id != model_id:
-            return f"`{name_field}` and `{id_field}` must refer to the same model"
+            # Published models also have legacy admin TenantModel IDs. Compare
+            # the already-authorized model identities, never arbitrary IDs.
+            try:
+                left = await thread_pool_exec(get_model_config_by_id, tenant_id, model_type, model_id)
+                right = await thread_pool_exec(get_model_config_by_id, tenant_id, model_type, resolved_name_id)
+                if (left['llm_factory'].lower(), left['llm_name']) != (right['llm_factory'].lower(), right['llm_name']):
+                    return f"`{name_field}` and `{id_field}` must refer to the same model"
+            except LookupError:
+                return f"`{name_field}` and `{id_field}` must refer to the same model"
     elif model_name:
         req[id_field] = resolved_name_id
     elif model_id:

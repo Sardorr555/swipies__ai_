@@ -118,6 +118,7 @@ export default {
       or: 'или',
     },
     header: {
+      upgrade: 'Перейти на Pro',
       knowledgeBase: 'База знаний',
       chat: 'Чат',
       register: 'Регистрация',

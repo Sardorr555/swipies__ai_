@@ -23,6 +23,7 @@ import {
   LucideZap,
 } from 'lucide-react';
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import { BellButton } from './bell-button';
 import { MobileNavbar } from './global-navbar';
@@ -36,6 +37,7 @@ export function Header({
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const changeLanguage = useChangeLanguage();
+  const { t } = useTranslation();
 
   const { data: userInfo } = useFetchUserInfo();
   const { language = 'en', avatar, nickname } = userInfo || {};
@@ -52,8 +54,8 @@ export function Header({
     if (currentPlan.includes('pro')) return 'Pro Plan';
     if (currentPlan.includes('license')) return 'License';
     if (currentPlan.includes('enterprise')) return 'Enterprise';
-    return 'Upgrade to Pro';
-  }, [currentPlan]);
+    return t('header.upgrade', { defaultValue: 'Upgrade to Pro' });
+  }, [currentPlan, t]);
 
   const hasNotification = useMemo(
     () => tenantData?.some((x) => x.role === TenantRole.Invite),
