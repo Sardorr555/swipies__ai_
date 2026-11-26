@@ -583,6 +583,7 @@ class SandboxMgr:
 
     # Provider registry with metadata
     PROVIDER_REGISTRY = {
+        "isolated": {"name": "Isolated Python", "description": "Disposable gVisor runtime with account limits and Telegram-only egress", "tags": ["gvisor", "managed", "isolated"]},
         "local": {
             "name": "Local",
             "description": "Execute code directly on the current host process.",
@@ -633,6 +634,7 @@ class SandboxMgr:
         """Get configuration schema for a specific provider."""
         from agent.sandbox.providers import (
             LocalProvider,
+            IsolatedProvider,
             SelfManagedProvider,
             SSHProvider,
             AliyunCodeInterpreterProvider,
@@ -642,6 +644,7 @@ class SandboxMgr:
         )
 
         schemas = {
+            "isolated": IsolatedProvider.get_config_schema(),
             "local": LocalProvider.get_config_schema(),
             "self_managed": SelfManagedProvider.get_config_schema(),
             "ssh": SSHProvider.get_config_schema(),
@@ -686,10 +689,13 @@ class SandboxMgr:
                     if field_schema.get("default") is not None:
                         provider_config[field_name] = field_schema["default"]
 
-            return {
-                "provider_type": provider_type,
-                "config": provider_config,
-            }
+            from agent.sandbox.client import get_provider_info
+            for key, meta in SandboxMgr.get_provider_config_schema(provider_type).items():
+                if meta.get("secret") and provider_config.get(key):
+                    provider_config[key] = "********"
+            return {"provider_type": provider_type, "config": provider_config,
+                    "health": get_provider_info()}
+
         except Exception as e:
             raise AdminException(f"Failed to get sandbox config: {str(e)}")
 
@@ -710,6 +716,7 @@ class SandboxMgr:
         """
         from agent.sandbox.providers import (
             LocalProvider,
+            IsolatedProvider,
             SelfManagedProvider,
             SSHProvider,
             AliyunCodeInterpreterProvider,
@@ -719,6 +726,16 @@ class SandboxMgr:
         )
 
         try:
+            if provider_type == "local" and set_active:
+                raise AdminException("Local processes cannot be used for platform user code")
+            config = dict(config)
+            previous = SystemSettingsService.get_by_name(f"sandbox.{provider_type}")
+            old = json.loads(previous[0].value) if previous else {}
+            from api.utils.key_crypto import encrypt_api_key
+            for key, meta in SandboxMgr.get_provider_config_schema(provider_type).items():
+                if meta.get("secret"):
+                    if config.get(key) == "********": config[key] = old.get(key, "")
+                    elif config.get(key): config[key] = encrypt_api_key(config[key])
             # Validate provider type
             if provider_type not in SandboxMgr.PROVIDER_REGISTRY:
                 raise AdminException(f"Unknown provider type: {provider_type}")
@@ -755,6 +772,7 @@ class SandboxMgr:
 
             # Provider-specific custom validation
             provider_classes = {
+                "isolated": IsolatedProvider,
                 "local": LocalProvider,
                 "self_managed": SelfManagedProvider,
                 "ssh": SSHProvider,
@@ -779,7 +797,7 @@ class SandboxMgr:
 
             reload_provider()
 
-            return {"provider_type": provider_type, "config": config}
+            return SandboxMgr.get_config()
         except AdminException:
             raise
         except Exception as e:
@@ -803,8 +821,15 @@ class SandboxMgr:
             dict with test results including stdout, stderr, exit_code, execution_time
         """
         try:
+            config = dict(config)
+            previous = SystemSettingsService.get_by_name(f"sandbox.{provider_type}")
+            old = json.loads(previous[0].value) if previous else {}
+            for key, meta in SandboxMgr.get_provider_config_schema(provider_type).items():
+                if meta.get("secret") and config.get(key) == "********":
+                    config[key] = old.get(key, "")
             from agent.sandbox.providers import (
                 LocalProvider,
+            IsolatedProvider,
                 SelfManagedProvider,
                 SSHProvider,
                 AliyunCodeInterpreterProvider,
@@ -815,6 +840,7 @@ class SandboxMgr:
 
             # Instantiate provider based on type
             provider_classes = {
+                "isolated": IsolatedProvider,
                 "local": LocalProvider,
                 "self_managed": SelfManagedProvider,
                 "ssh": SSHProvider,
@@ -857,11 +883,12 @@ def main() -> dict:
 """
 
                 # Execute test code with timeout
-                execution_result = provider.execute_code(
+                execution_result = (provider.execute_for_account if provider_type == "isolated" else provider.execute_code)(
                     instance_id=instance.instance_id,
                     code=test_code,
                     language="python",
                     timeout=10,
+                    **({"tenant_id": "__admin_health__"} if provider_type == "isolated" else {}),
                 )
             finally:
                 try:

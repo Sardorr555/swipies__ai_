@@ -1,253 +1,49 @@
-#
-#  Copyright 2025 The InfiniFlow Authors. All Rights Reserved.
-#
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
-#
-
-"""
-Sandbox client for agent components.
-
-This module provides a unified interface for agent components to interact
-with the configured sandbox provider.
-"""
-
+"""Load current platform settings per call; account code may use only isolation."""
 import json
-import logging
-from typing import Dict, Any, Optional
-
 from api.db.services.system_settings_service import SystemSettingsService
 from agent.sandbox.providers import ProviderManager
-from agent.sandbox.providers.base import ExecutionResult, SandboxProviderConfigError
 
-logger = logging.getLogger(__name__)
+def get_provider_manager():
+    from agent.sandbox.providers import (SelfManagedProvider,LocalProvider,SSHProvider,E2BProvider,
+        AliyunCodeInterpreterProvider,TenkiProvider,UCloudAgentSandboxProvider)
+    from agent.sandbox.providers.isolated import IsolatedProvider
+    manager=ProviderManager()
+    rows=SystemSettingsService.get_by_name('sandbox.provider_type')
+    kind=rows[0].value if rows else 'isolated'
+    rows=SystemSettingsService.get_by_name('sandbox.'+kind)
+    config=json.loads(rows[0].value) if rows else {}
+    cls={'isolated':IsolatedProvider,'self_managed':SelfManagedProvider,'local':LocalProvider,
+         'ssh':SSHProvider,'e2b':E2BProvider,'aliyun_codeinterpreter':AliyunCodeInterpreterProvider,
+         'tenki':TenkiProvider,'ucloud_agent_sandbox':UCloudAgentSandboxProvider}.get(kind)
+    if cls:
+        provider=cls()
+        if provider.initialize(config): manager.set_provider(kind,provider)
+    return manager
 
+def reload_provider():
+    pass
 
-# Global provider manager instance
-_provider_manager: Optional[ProviderManager] = None
-
-
-def get_provider_manager() -> ProviderManager:
-    """
-    Get the global provider manager instance.
-
-    Returns:
-        ProviderManager instance with active provider loaded
-    """
-    global _provider_manager
-
-    if _provider_manager is not None:
-        return _provider_manager
-
-    _provider_manager = ProviderManager()
-    _load_provider_from_settings()
-
-    return _provider_manager
-
-
-def _load_provider_from_settings() -> None:
-    """
-    Load sandbox provider from system settings and configure the provider manager.
-
-    This function resolves the active provider type, then loads configuration
-    from system settings.
-    """
-    global _provider_manager
-
-    if _provider_manager is None:
-        return
-
+def execute_code(code,language='python',timeout=30,arguments=None,tenant_id=None):
+    manager=get_provider_manager()
+    if not manager.is_configured(): raise RuntimeError('CodeExec is temporarily unavailable; retry later')
+    provider=manager.get_provider()
+    if tenant_id and manager.get_provider_name()!='isolated':
+        raise RuntimeError('The isolated CodeExec runtime is temporarily unavailable')
+    instance=provider.create_instance(template=language)
     try:
-        provider_type = _resolve_provider_type()
-        config = _load_provider_config(provider_type)
-
-        # Import and instantiate the provider
-        from agent.sandbox.providers import (
-            SelfManagedProvider,
-            AliyunCodeInterpreterProvider,
-            E2BProvider,
-            LocalProvider,
-            SSHProvider,
-            TenkiProvider,
-            UCloudAgentSandboxProvider,
-        )
-
-        provider_classes = {
-            "self_managed": SelfManagedProvider,
-            "aliyun_codeinterpreter": AliyunCodeInterpreterProvider,
-            "e2b": E2BProvider,
-            "local": LocalProvider,
-            "ssh": SSHProvider,
-            "tenki": TenkiProvider,
-            "ucloud_agent_sandbox": UCloudAgentSandboxProvider,
-        }
-
-        if provider_type not in provider_classes:
-            logger.error(f"Unknown provider type: {provider_type}")
-            return
-
-        provider_class = provider_classes[provider_type]
-        provider = provider_class()
-
-        # Initialize the provider
-        if not provider.initialize(config):
-            message = f"Failed to initialize sandbox provider: {provider_type}. Config keys: {list(config.keys())}"
-            if provider_type in {"local", "ssh", "tenki", "ucloud_agent_sandbox"}:
-                raise SandboxProviderConfigError(message)
-            logger.error(message)
-            return
-
-        # Set the active provider
-        _provider_manager.set_provider(provider_type, provider)
-        logger.info(f"Sandbox provider '{provider_type}' initialized successfully")
-
-    except SandboxProviderConfigError:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to load sandbox provider from settings: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-
-def _load_provider_config_from_settings(provider_type: str) -> Dict[str, Any]:
-    provider_config_settings = SystemSettingsService.get_by_name(f"sandbox.{provider_type}")
-    if not provider_config_settings:
-        logger.warning(f"No configuration found for provider: {provider_type}")
-        return {}
-
-    try:
-        return json.loads(provider_config_settings[0].value)
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse sandbox config for {provider_type}: {e}")
-        return {}
-
-
-def _resolve_provider_type() -> str:
-    provider_type_settings = SystemSettingsService.get_by_name("sandbox.provider_type")
-    if not provider_type_settings:
-        return "self_managed"
-    return provider_type_settings[0].value
-
-
-def _load_provider_config(provider_type: str) -> Dict[str, Any]:
-    return _load_provider_config_from_settings(provider_type)
-
-
-def reload_provider() -> None:
-    """
-    Reload the sandbox provider from system settings.
-
-    Use this function when sandbox settings have been updated.
-    """
-    global _provider_manager
-    _provider_manager = None
-    _load_provider_from_settings()
-
-
-def execute_code(code: str, language: str = "python", timeout: int = 30, arguments: Optional[Dict[str, Any]] = None) -> ExecutionResult:
-    """
-    Execute code in the configured sandbox.
-
-    This is the main entry point for agent components to execute code.
-
-    Args:
-        code: Source code to execute
-        language: Programming language (python, nodejs, javascript)
-        timeout: Maximum execution time in seconds
-        arguments: Optional arguments dict to pass to main() function
-
-    Returns:
-        ExecutionResult containing stdout, stderr, exit_code, and metadata
-
-    Raises:
-        RuntimeError: If no provider is configured or execution fails
-    """
-    provider_manager = get_provider_manager()
-
-    if not provider_manager.is_configured():
-        raise RuntimeError("No sandbox provider configured. Please configure sandbox settings in the admin panel.")
-
-    provider = provider_manager.get_provider()
-    provider_name = provider_manager.get_provider_name() or getattr(provider, "__class__", type(provider)).__name__
-
-    logger.info(
-        "CodeExec using sandbox provider '%s' (language=%s, timeout=%ss)",
-        provider_name,
-        language,
-        timeout,
-    )
-
-    # Create a sandbox instance
-    instance = provider.create_instance(template=language)
-
-    try:
-        # Execute the code
-        result = provider.execute_code(instance_id=instance.instance_id, code=code, language=language, timeout=timeout, arguments=arguments)
-
-        return result
-
+        if manager.get_provider_name()=='isolated':
+            return provider.execute_for_account(instance.instance_id,code,language,timeout,arguments,tenant_id)
+        return provider.execute_code(instance.instance_id,code,language,timeout,arguments)
     finally:
-        # Clean up the instance
-        try:
-            provider.destroy_instance(instance.instance_id)
-        except Exception as e:
-            logger.warning(f"Failed to destroy sandbox instance {instance.instance_id}: {e}")
+        provider.destroy_instance(instance.instance_id)
 
+def health_check(): return get_provider_info()['healthy']
 
-def health_check() -> bool:
-    """
-    Check if the sandbox provider is healthy.
-
-    Returns:
-        True if provider is configured and healthy, False otherwise
-    """
+def get_provider_info():
     try:
-        provider_manager = get_provider_manager()
-
-        if not provider_manager.is_configured():
-            return False
-
-        provider = provider_manager.get_provider()
-        return provider.health_check()
-
-    except Exception as e:
-        logger.error(f"Sandbox health check failed: {e}")
-        return False
-
-
-def get_provider_info() -> Dict[str, Any]:
-    """
-    Get information about the current sandbox provider.
-
-    Returns:
-        Dictionary with provider information:
-        - provider_type: Type of the active provider
-        - configured: Whether provider is configured
-        - healthy: Whether provider is healthy
-    """
-    try:
-        provider_manager = get_provider_manager()
-
-        return {
-            "provider_type": provider_manager.get_provider_name(),
-            "configured": provider_manager.is_configured(),
-            "healthy": health_check(),
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to get provider info: {e}")
-        return {
-            "provider_type": None,
-            "configured": False,
-            "healthy": False,
-        }
+        manager=get_provider_manager()
+        ready=manager.is_configured()
+        return {'provider_type':manager.get_provider_name(),'configured':ready,
+                'healthy':bool(ready and manager.get_provider().health_check())}
+    except Exception:
+        return {'provider_type':None,'configured':False,'healthy':False}

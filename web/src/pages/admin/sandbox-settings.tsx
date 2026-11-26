@@ -58,6 +58,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Provider icons mapping
 const PROVIDER_ICONS: Record<string, React.ElementType> = {
+  isolated: LucideServer,
   local: LucideMonitor,
   self_managed: LucideServer,
   ssh: LucideTerminal,
@@ -104,6 +105,9 @@ function AdminSandboxSettings() {
     queryKey: ['admin/getSandboxConfig'],
     queryFn: async () => (await getSandboxConfig()).data.data,
   });
+  const runtimeHealth = (
+    currentConfig as { health?: { healthy?: boolean } } | undefined
+  )?.health;
 
   // Fetch provider schema when provider is selected
   const { data: providerSchema = {} } = useQuery({
@@ -444,6 +448,15 @@ function AdminSandboxSettings() {
             <CardDescription className="text-text-secondary">
               {t('admin.sandboxSettingsPage.description')}
             </CardDescription>
+            {runtimeHealth && (
+              <p role="status" className="text-sm text-text-secondary">
+                {runtimeHealth.healthy
+                  ? t('admin.codeexecReady', { defaultValue: 'CodeExec is ready' })
+                  : t('admin.codeexecUnavailable', {
+                      defaultValue: 'CodeExec is unavailable',
+                    })}
+              </p>
+            )}
           </CardHeader>
 
           <CardContent>

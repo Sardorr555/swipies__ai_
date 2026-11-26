@@ -1,0 +1,21 @@
+services:
+  codeexec-manager:
+    build: .
+    image: swipies-codeexec:2026-11-22
+    container_name: swipies-codeexec-manager
+    restart: unless-stopped
+    env_file: .manager.env
+    read_only: true
+    tmpfs: [/tmp:size=16m]
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 1
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes: [/var/run/docker.sock:/var/run/docker.sock]
+    networks: [control]
+networks:
+  control:
+    name: swipies-codeexec-control
+    internal: true

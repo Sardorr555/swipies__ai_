@@ -27,6 +27,28 @@ class ChatChannelService(CommonService):
     model = ChatChannel
 
     @classmethod
+    def insert(cls, **kwargs):
+        from api.utils.key_crypto import encrypt_connector_config
+        if isinstance(kwargs.get("config"), dict):
+            kwargs["config"] = encrypt_connector_config(kwargs["config"])
+        return super().insert(**kwargs)
+
+    @classmethod
+    def save(cls, **kwargs):
+        from api.utils.key_crypto import encrypt_connector_config
+        if isinstance(kwargs.get("config"), dict):
+            kwargs["config"] = encrypt_connector_config(kwargs["config"])
+        return super().save(**kwargs)
+
+    @classmethod
+    def update_by_id(cls, pid, data):
+        from api.utils.key_crypto import encrypt_connector_config
+        data = dict(data)
+        if isinstance(data.get("config"), dict):
+            data["config"] = encrypt_connector_config(data["config"])
+        return super().update_by_id(pid, data)
+
+    @classmethod
     @DB.connection_context()
     def list(cls, tenant_id):
         """List a tenant's chat channel bots with their connected dialog (no credentials)."""
@@ -40,7 +62,7 @@ class ChatChannelService(CommonService):
             Dialog.name.alias("dialog_name"),
             UserCanvas.title.alias("agent_name"),
         ]
-        return list(
+        rows = list(
             cls.model.select(*fields)
             .join(
                 Dialog,
@@ -57,6 +79,15 @@ class ChatChannelService(CommonService):
             .order_by(cls.model.create_time.desc())
             .dicts()
         )
+
+        try:
+            from api.db.telegram_analytics_models import TelegramAnalyticsBot
+            known = {b.channel_id for b in TelegramAnalyticsBot.select(TelegramAnalyticsBot.channel_id).where(TelegramAnalyticsBot.tenant_id == tenant_id)}
+        except Exception:
+            known = set()
+        for row in rows:
+            row["analytics_available"] = row["channel"] == "telegram" and row["id"] in known
+        return rows
 
     @classmethod
     @DB.connection_context()

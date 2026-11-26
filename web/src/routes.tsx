@@ -158,6 +158,7 @@ const withLazyRoute = (
 };
 
 const routeConfigOptions = [
+  { path: '/shared/telegram-analytics', Component: () => import('@/pages/user-setting/chat-channel/analytics/public'), layout: false },
   {
     path: '/login',
     Component: () => import('@/pages/login-next'),
@@ -402,6 +403,7 @@ const routeConfigOptions = [
             path: `${Routes.UserSetting}${Routes.DataSource}`,
             Component: () => import('@/pages/user-setting/data-source'),
           },
+          { path: '/user-setting/chat-channel/:channelId/analytics', Component: () => import('@/pages/user-setting/chat-channel/analytics') },
           {
             path: `${Routes.UserSetting}${Routes.ChatChannel}`,
             Component: () => import('@/pages/user-setting/chat-channel'),

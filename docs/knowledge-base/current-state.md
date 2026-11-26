@@ -1,5 +1,14 @@
 # Текущее состояние системы (Current State)
 
+## 2026-11-23: isolated CodeExec prepared, production release deferred
+
+A separate staging source copy now exercises a platform-managed gVisor provider,
+account limits, bounded data URI/multipart attachments and trusted Telegram upload.
+Real synthetic photo/document delivery returned Telegram message IDs 32 and 33.
+The existing production provider settings and channel binding are unchanged.
+The owner explicitly deferred Git push and publication. See
+[CodeExec release requirements and limits](codeexec-platform.md).
+
 > **Статус документа:** Актуален  
 > **Дата последней проверки:** 2026-10-15  
 > **Основная ветка:** `test` (commit `a9b3e9f28`)
@@ -201,3 +210,8 @@ Published to production by owner authorization: protected `/admin/acquisition`, 
 fixed-origin CTA handoff and read-only account matching. Main public landing
 unchanged; production release verified, main public landing unchanged. See [landing attribution](landing-acquisition.md)
 and [ADR-009](decisions/ADR-009-multi-landing-attribution.md).
+
+
+## Prepared Telegram analytics (2026-11-26)
+
+[Telegram bot analytics](telegram-bot-analytics.md) and [ADR-011](decisions/ADR-011-telegram-bot-analytics.md) document the bot-scoped ledger, confirmed payments and revocable aggregate widgets. Combined with the CodeExec release; push authorized on 2026-11-26, production deployment deferred. See [handoff](handoffs/2026-11-26-telegram-analytics.md).

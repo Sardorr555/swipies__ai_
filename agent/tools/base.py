@@ -71,7 +71,7 @@ class LLMToolPluginCallSession(ToolCallSession):
         """Invoke a tool asynchronously, applying the default timeout when needed."""
         request_timeout = self.default_timeout if request_timeout is None else request_timeout
         assert name in self.tools_map, f"LLM tool {name} does not exist"
-        logging.info(f"[ToolCall] invoke name={name} arguments={str(arguments)[:200]} request_timeout={request_timeout}")
+        logging.info("[ToolCall] invoke name=%s request_timeout=%s", name, request_timeout)
         if not isinstance(arguments, Mapping):
             raise TypeError(f"Tool arguments for {name} must be an object, got {type(arguments).__name__}")
         st = timer()
@@ -101,7 +101,7 @@ class LLMToolPluginCallSession(ToolCallSession):
                 logging.warning(f"[ToolCall] resp is None and output fallback failed name={name} err={e}")
 
         elapsed = timer() - st
-        logging.info(f"[ToolCall] done name={name} elapsed={elapsed:.2f}s result={str(resp)[:200]}")
+        logging.info("[ToolCall] done name=%s elapsed=%.2fs", name, elapsed)
         self.callback(name, arguments, resp, elapsed_time=elapsed)
         return resp
 

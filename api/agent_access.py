@@ -21,11 +21,15 @@ PROTOCOL_VERSION = "2025-03-26"
 MAX_BODY = 24 * 1024 * 1024
 MAX_RESULT = 8 * 1024 * 1024
 OPERATION_TIMEOUT = 90
-SENSITIVE_RESPONSE_FIELDS = frozenset({"password", "access_token", "refresh_token", "api_key", "client_secret", "authorization", "authorization_token", "beta"})
+SENSITIVE_RESPONSE_FIELDS = frozenset({
+    "password", "access_token", "refresh_token", "api_key", "client_secret",
+    "authorization", "authorization_token", "beta", "bot_token", "token",
+    "webhook_secret", "app_secret", "private_key", "secret_key",
+})
 # Explicit user-facing API families. Admin, payments and authentication are never
 # implicitly exposed when a new route is added to those modules.
 FAMILIES = frozenset({
-    "datasets", "documents", "agents", "chats", "chat-channels", "connectors",
+    "codeexec", "datasets", "documents", "agents", "chats", "chat-channels", "connectors",
     "providers", "models", "memories", "messages", "files", "workspaces",
     "workspace-files", "searches", "tasks", "mcp", "tenants", "plugins",
     "compilation-templates", "compilation-template-groups", "openai",
@@ -139,11 +143,20 @@ def redact_response(value, authorization):
     """Do not expose login/provider credentials through tool results."""
     parts = authorization.split(maxsplit=1)
     bearer = parts[1] if len(parts) == 2 and parts[0].lower() == "bearer" else authorization
-    def clean(item):
+    def clean(item, parent_key=None):
         if isinstance(item, dict):
-            return {key: ("[REDACTED]" if str(key).lower() in SENSITIVE_RESPONSE_FIELDS else clean(data)) for key, data in item.items()}
+            res = {}
+            for key, data in item.items():
+                k_lower = str(key).lower()
+                if k_lower in SENSITIVE_RESPONSE_FIELDS:
+                    res[key] = "[REDACTED]"
+                elif parent_key in ("credential", "credentials", "config") and k_lower in ("token", "secret", "key", "password"):
+                    res[key] = "[REDACTED]"
+                else:
+                    res[key] = clean(data, parent_key=k_lower)
+            return res
         if isinstance(item, list):
-            return [clean(data) for data in item]
+            return [clean(data, parent_key=parent_key) for data in item]
         if isinstance(item, str) and len(bearer) >= 32:
             return item.replace(bearer, "[REDACTED]")
         return item
@@ -250,6 +263,8 @@ def register_agent_access(app, authenticate, bootstrap, origin_allowed, oauth=No
     """Dependency injection keeps the protocol testable without production DBs."""
     def no_store(response):
         response.headers["Cache-Control"] = "no-store"
+        response.headers["X-MCP-Server"] = "https://api.swipies.app/api/v1/agent-access/mcp"
+        response.headers["Link"] = '<https://api.swipies.app/api/v1/agent-access/mcp>; rel="mcp-server"'
         return response
 
     oauth_slots = asyncio.Semaphore(8)
@@ -273,19 +288,110 @@ def register_agent_access(app, authenticate, bootstrap, origin_allowed, oauth=No
 
     @app.get("/api/v1/agent-access/manifest")
     async def agent_manifest():
-        mcp = {"path": "/api/v1/agent-access/mcp", "transport": "streamable-http", "protocol_version": PROTOCOL_VERSION, "authentication": "bearer-api-key"}
+        mcp = {
+            "path": "/api/v1/agent-access/mcp",
+            "endpoint": "https://api.swipies.app/api/v1/agent-access/mcp",
+            "transport": "streamable-http",
+            "protocol_version": PROTOCOL_VERSION,
+            "authentication": "bearer-api-key",
+            "instructions": "Send JSON-RPC 2.0 POST requests directly to https://api.swipies.app/api/v1/agent-access/mcp with 'Authorization: Bearer <key>'. No browser required."
+        }
         available = bool(oauth and oauth.enabled())
         mcp["authentication_methods"] = ["bearer-api-key"] + (["oauth2-pkce"] if available else [])
         mcp["oauth"] = {"enabled": available}
         if available:
             mcp["oauth"].update({"resource": oauth.resource, "resource_metadata": oauth.origin + "/api/v1/agent-access/oauth/resource-metadata", "authorization_server": oauth.origin + "/api/v1/agent-access/oauth/server-metadata"})
-        return no_store(jsonify(
+        resp = no_store(jsonify(
             name="Swipies Agent Access", version="1.0.0",
             mcp=mcp,
+            mcp_endpoint="https://api.swipies.app/api/v1/agent-access/mcp",
+            llms_txt_url="https://api.swipies.app/llms.txt",
+            well_known_url="https://api.swipies.app/.well-known/mcp.json",
             bootstrap={"path": "/api/v1/agent-access/bootstrap", "method": "POST", "required": ["registration_secret"], "description": "Generate and persist 32 random bytes as URL-safe base64 locally. Send as registration_secret. The same secret resolves the same free account. Never use a user's email or password."},
             operations_path="/api/v1/agent-access/operations",
             branding={"removal_plans": ["plus", "pro"], "default": "required"},
         ))
+        resp.headers["Link"] = '<https://api.swipies.app/api/v1/agent-access/mcp>; rel="mcp-server", <https://api.swipies.app/llms.txt>; rel="help"'
+        resp.headers["X-MCP-Server"] = "https://api.swipies.app/api/v1/agent-access/mcp"
+        return resp
+
+    @app.get("/.well-known/mcp.json")
+    @app.get("/.well-known/mcp/manifest.json")
+    async def well_known_mcp():
+        mcp_data = {
+            "schema_version": "v1",
+            "name_for_model": "swipies",
+            "name_for_human": "Swipies AI Platform",
+            "description_for_model": (
+                "Swipies Model Context Protocol (MCP) server. Allows autonomous AI agents to manage "
+                "datasets, documents, chatbots, Telegram channels, check AI token quotas and subscription limits, "
+                "and verify voice transcriptions (Whisper ASR) directly via MCP without needing a web browser."
+            ),
+            "description_for_human": "Connect to Swipies AI via Model Context Protocol.",
+            "mcp_endpoint": "https://api.swipies.app/api/v1/agent-access/mcp",
+            "protocol_version": PROTOCOL_VERSION,
+            "transport": "streamable-http",
+            "auth": {
+                "type": "bearer",
+                "instructions": "Pass your Swipies API key as 'Authorization: Bearer <key>' or bootstrap a new free service account.",
+                "bootstrap_endpoint": "https://api.swipies.app/api/v1/agent-access/bootstrap"
+            },
+            "tools_endpoint": "https://api.swipies.app/api/v1/agent-access/mcp",
+            "manifest_url": "https://api.swipies.app/api/v1/agent-access/manifest",
+            "documentation_url": "https://api.swipies.app/llms.txt"
+        }
+        resp = jsonify(mcp_data)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Cache-Control"] = "public, max-age=3600"
+        resp.headers["Link"] = '<https://api.swipies.app/api/v1/agent-access/mcp>; rel="mcp-server"'
+        resp.headers["X-MCP-Server"] = "https://api.swipies.app/api/v1/agent-access/mcp"
+        return resp
+
+    @app.get("/.well-known/ai-plugin.json")
+    async def well_known_ai_plugin():
+        plugin_data = {
+            "schema_version": "v1",
+            "name_for_human": "Swipies AI",
+            "name_for_model": "swipies_ai",
+            "description_for_human": "AI Platform for RAG, Knowledge Bases and Autonomous Agents.",
+            "description_for_model": "Access Swipies datasets, Telegram bot status, token limits, and AI tools via MCP.",
+            "auth": {"type": "user_http", "authorization_type": "bearer"},
+            "api": {"type": "openapi", "url": "https://api.swipies.app/api/v1/agent-access/manifest"},
+            "mcp": {"url": "https://api.swipies.app/api/v1/agent-access/mcp", "protocol": "streamable-http"}
+        }
+        resp = jsonify(plugin_data)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        return resp
+
+    @app.get("/llms.txt")
+    async def llms_txt():
+        content = (
+            "# Swipies AI - Agent & MCP Integration Guide\n\n"
+            "> Swipies is an enterprise-grade AI and RAG platform with multi-channel bots (Telegram, WhatsApp, Web), "
+            "knowledge base indexing, Whisper ASR, and autonomous agent orchestration.\n\n"
+            "## Direct Agent Access (No Browser Required)\n\n"
+            "External AI agents can interact with Swipies directly through the Model Context Protocol (MCP):\n\n"
+            "- **MCP Server URL**: `https://api.swipies.app/api/v1/agent-access/mcp`\n"
+            "- **Transport**: `streamable-http`\n"
+            "- **Protocol Version**: `2025-03-26`\n"
+            "- **Authentication**: Pass header `Authorization: Bearer <your-swipies-api-key>`\n\n"
+            "### Available MCP Tools\n"
+            "- `swipies_list_operations`: Discover available dataset, document, chat, bot, and retrieval endpoints.\n"
+            "- `swipies_describe_operation`: Inspect endpoint schema and requirements.\n"
+            "- `swipies_execute`: Execute operations (CRUD datasets, manage files, trigger queries) within tenant scope.\n"
+            "- `swipies_get_account_limits`: Check daily/monthly AI token quotas, reset timestamps, and diagnose limit errors.\n"
+            "- `swipies_list_plans`: Inspect subscription plans and quotas.\n\n"
+            "### Agent Bootstrap (Headless Quick-Connect)\n"
+            "If you do not have an existing API key, generate 32 random bytes (URL-safe base64) and POST to:\n"
+            "`https://api.swipies.app/api/v1/agent-access/bootstrap` with `{\"registration_secret\": \"<secret>\"}`.\n"
+            "You will immediately receive an API key and free tenant account without browser interaction.\n"
+        )
+        return Response(content, mimetype="text/markdown", headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=3600",
+            "Link": '<https://api.swipies.app/api/v1/agent-access/mcp>; rel="mcp-server"',
+            "X-MCP-Server": "https://api.swipies.app/api/v1/agent-access/mcp",
+        })
 
     @app.post("/api/v1/agent-access/bootstrap")
     async def agent_bootstrap():
@@ -405,7 +511,8 @@ def register_agent_access(app, authenticate, bootstrap, origin_allowed, oauth=No
                     value = agent_billing.check_payment_status(principal, args)
                 else:
                     return error(-32602, "Unknown tool", ident)
-                result = {"content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False)}]}
+                value = redact_response(value, principal["authorization"])
+                result = {"content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False, default=str)}]}
             except PermissionError as exc:
                 response = no_store(jsonify(error=str(exc)))
                 if oauth:

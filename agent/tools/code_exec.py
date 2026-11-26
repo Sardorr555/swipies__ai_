@@ -303,6 +303,7 @@ Note: the sandbox has NO outbound network access by default (SANDBOX_CONTAINER_N
         self.lang = Language.PYTHON.value
         self.script = 'def main(arg1: str, arg2: str) -> dict: return {"result": arg1 + arg2}'
         self.arguments = {}
+        self.telegram_delivery = None
         self.outputs = {
             "result": {"value": "", "type": "object"},
             "attachments": {"value": [], "type": "Array<String>"},
@@ -335,7 +336,7 @@ class CodeExec(ToolBase, ABC):
         script = kwargs.get("script", self._param.script)
         arguments = {}
         for k, v in self._param.arguments.items():
-            if kwargs.get(k):
+            if k in kwargs:
                 arguments[k] = kwargs[k]
                 continue
             arguments[k] = self._canvas.get_variable_value(v) if v else None
@@ -343,102 +344,30 @@ class CodeExec(ToolBase, ABC):
         return self._execute_code(language=lang, code=script, arguments=arguments)
 
     def _execute_code(self, language: str, code: str, arguments: dict):
-        import requests
-
         if self.check_if_canceled("CodeExec execution"):
             return self.output()
-
-        timeout_seconds = int(os.environ.get("COMPONENT_EXEC_TIMEOUT", 10 * 60))
-
         try:
-            # Try using the new sandbox provider system first
-            try:
-                from agent.sandbox.client import execute_code as sandbox_execute_code
-                from agent.sandbox.client import get_provider_info, reload_provider
-                from agent.sandbox.providers.base import SandboxProviderConfigError
-
-                if self.check_if_canceled("CodeExec execution"):
-                    return
-
-                reload_provider()
-                provider_info = get_provider_info()
-                provider_type = provider_info.get("provider_type") or "unknown"
-                logging.info(f"[CodeExec]: dispatching execution to sandbox provider '{provider_type}' (language={language}, timeout={timeout_seconds}s)")
-
-                # Execute code using the provider system
-                result = sandbox_execute_code(code=code, language=language, timeout=timeout_seconds, arguments=arguments)
-
-                if self.check_if_canceled("CodeExec execution"):
-                    return
-
-                artifacts = result.metadata.get("artifacts", []) if result.metadata else []
-                return self._process_execution_result(
-                    result.stdout,
-                    result.stderr,
-                    f"Provider system ({provider_type})",
-                    artifacts,
-                    execution_metadata=result.metadata,
-                )
-
-            except SandboxProviderConfigError as provider_error:
-                self.set_output("_ERROR", str(provider_error))
+            business_name, _ = select_business_output(self._param.outputs)
+            self.set_output(business_name, None)
+            from api.db.services.codeexec_service import execute_for_account
+            result = execute_for_account(
+                self._canvas.get_tenant_id(), code, arguments,
+                min(30, int(os.environ.get("COMPONENT_EXEC_TIMEOUT", 30))), language,
+                getattr(self._param, "telegram_delivery", None),
+            )
+            if result.exit_code != 0:
+                self.set_output("_ERROR", "CodeExec failed: " + (result.stderr or "Python exited unsuccessfully")[:2000])
                 return self.output()
-            except ImportError as provider_error:
-                # Provider modules are unavailable, fall back to legacy HTTP sandbox.
-                logging.info(f"[CodeExec]: Provider system not available, using HTTP fallback: {provider_error}")
-            except RuntimeError as provider_error:
-                self.set_output("_ERROR", f"Provider system execution failed: {provider_error}")
-                return self.output()
-
-            # Fallback to direct HTTP request
-            code_b64 = self._encode_code(code)
-            code_req = CodeExecutionRequest(code_b64=code_b64, language=language, arguments=arguments).model_dump()
-        except Exception as e:
-            if self.check_if_canceled("CodeExec execution"):
-                return self.output()
-
-            self.set_output("_ERROR", "construct code request error: " + str(e))
-            return self.output()
-
-        try:
-            if self.check_if_canceled("CodeExec execution"):
-                self.set_output("_ERROR", "Task has been canceled")
-                return self.output()
-
-            # Shared-secret authentication towards the executor manager;
-            # no header when no token is configured (backwards compatibility).
-            headers = {"Content-Type": "application/json"}
-            api_token = (os.getenv("SANDBOX_EXECUTOR_MANAGER_API_TOKEN") or "").strip()
-            if api_token:
-                headers["Authorization"] = f"Bearer {api_token}"
-
-            resp = requests.post(url=f"http://{settings.SANDBOX_HOST}:9385/run", json=code_req, headers=headers, timeout=timeout_seconds)
-            logging.info(f"http://{settings.SANDBOX_HOST}:9385/run,  code_req: {code_req}, resp.status_code {resp.status_code}:")
-
-            if self.check_if_canceled("CodeExec execution"):
-                return "Task has been canceled"
-
-            if resp.status_code != 200:
-                resp.raise_for_status()
-            body = resp.json()
-            if body:
-                return self._process_execution_result(
-                    body.get("stdout", ""),
-                    body.get("stderr"),
-                    f"http://{settings.SANDBOX_HOST}:9385/run",
-                    body.get("artifacts", []),
-                    execution_metadata=self._build_http_execution_metadata(body),
-                )
-            else:
-                self.set_output("_ERROR", "There is no response from sandbox")
-                return self.output()
-
-        except Exception as e:
-            if self.check_if_canceled("CodeExec execution"):
-                return self.output()
-
-            self.set_output("_ERROR", "Exception executing code: " + str(e))
-
+            return self._process_execution_result(result.stdout, result.stderr, "isolated runtime",
+                result.metadata.get("artifacts", []), execution_metadata=result.metadata)
+        except PermissionError as error:
+            self.set_output("_ERROR", str(error))
+        except TimeoutError:
+            self.set_output("_ERROR", "CodeExec execution timed out")
+        except ValueError as error:
+            self.set_output("_ERROR", str(error))
+        except Exception:
+            self.set_output("_ERROR", "CodeExec is temporarily unavailable, please retry later")
         return self.output()
 
     def _process_execution_result(
@@ -460,12 +389,12 @@ class CodeExec(ToolBase, ABC):
         self.set_output("_ERROR", "")
 
         if stderr:
-            logging.warning(f"[CodeExec]: stderr (non-fatal): {stderr[:500]}")
+            logging.warning("[CodeExec]: execution produced stderr")
 
         if used_stdout_fallback and str(stdout or "").strip():
             logging.warning("[CodeExec]: Falling back to stdout deserialization because no structured result metadata was provided")
 
-        logging.info(f"[CodeExec]: {source} -> {resolved_value}")
+        logging.info("[CodeExec]: execution result processed")
         content_parts = []
         base_content = self._apply_business_output(resolved_value)
         if base_content:

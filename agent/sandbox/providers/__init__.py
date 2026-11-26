@@ -54,3 +54,5 @@ __all__ = [
     "TenkiProvider",
     "UCloudAgentSandboxProvider",
 ]
+
+from .isolated import IsolatedProvider

@@ -1,0 +1,4 @@
+.manager.env
+.manager.env.*
+*.credential
+__pycache__/

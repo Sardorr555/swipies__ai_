@@ -28,7 +28,7 @@ const KeySet = [Authorization, Token, UserInfo];
 /** Public embeds use their own credential and never replace the owner's session. */
 export function isSharedChatView(): boolean {
   return typeof window !== 'undefined' &&
-    /^\/(?:chats\/(?:widget|share)|agent\/share)\/?$/.test(window.location.pathname);
+    /^\/(?:chats\/(?:widget|share)|agent\/share|shared\/telegram-analytics)\/?$/.test(window.location.pathname);
 }
 
 
