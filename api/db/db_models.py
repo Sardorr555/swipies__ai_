@@ -1175,16 +1175,18 @@ class User(DataBaseModel, AuthUser):
         jwt = Serializer(secret_key=settings.get_secret_key())
         return jwt.dumps(str(self.access_token))
 
-    def to_safe_dict(self, *, for_self: bool = False):
+    def to_safe_dict(self, *, for_self: bool = False, include_token: bool = False):
         """Return a dict with sensitive fields stripped for API responses.
 
         Email is treated as sensitive in generic serialization. Pass for_self=True
         when returning the authenticated user's own record (login, profile, etc.).
+        Authentication secrets (access_token, password) are excluded by default.
         """
         result = {k: v for k, v in self.to_dict().items() if k not in self.SENSITIVE_FIELDS}
         if for_self:
             result["email"] = self.email
-            result["access_token"] = self.access_token
+            if include_token:
+                result["access_token"] = self.access_token
         logging.debug("User %s serialized safely, filtered fields: %s", self.id, self.SENSITIVE_FIELDS)
         return result
 

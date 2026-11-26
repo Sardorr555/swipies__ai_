@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import tempfile
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -14,6 +15,118 @@ from ..core.base import Channel, IncomingMessage, OutgoingMessage
 from ..core.registry import register_channel
 
 LOGGER = logging.getLogger(__name__)
+
+_live_channels: dict[str, TelegramChannel] = {}
+
+
+def get_runtime_snapshot(account_id: str) -> dict | None:
+    from api.db.services.chat_channel_service import ChatChannelService
+    from api.db.services.dialog_service import DialogService
+    from api.db.services.user_service import TenantService
+    from api.db.db_models import UserCanvas
+
+    e, conn = ChatChannelService.get_by_id(account_id)
+    if not e or not conn:
+        return None
+
+    live = _live_channels.get(account_id)
+    is_polling = bool(live and live._app and live._app.updater and live._app.updater.running)
+
+    cred = (conn.config or {}).get("credential", {}) if isinstance(conn.config, dict) else {}
+    raw_token = cred.get("token") or (live.account.token if live and live.account else "")
+    has_token = bool(raw_token)
+
+    # Bot metadata (never disclose raw token)
+    bot_info = getattr(live, "_bot_info", None) if live else None
+    if not bot_info and has_token:
+        bot_id = str(raw_token).split(":", 1)[0] if ":" in str(raw_token) else None
+        bot_info = {
+            "id": bot_id,
+            "username": conn.name,
+            "first_name": conn.name,
+            "can_join_groups": True,
+        }
+
+    # Masked token
+    masked_token = None
+    if raw_token and isinstance(raw_token, str):
+        if ":" in raw_token:
+            b_id, rest = raw_token.split(":", 1)
+            masked_token = f"{b_id}:***{rest[-4:] if len(rest) >= 4 else '***'}"
+        else:
+            masked_token = f"***{raw_token[-4:] if len(raw_token) >= 4 else '***'}"
+
+    # Assistant readiness
+    assistant_info = {
+        "ready": False,
+        "type": None,
+        "id": None,
+        "name": None,
+        "kb_count": 0,
+    }
+    if conn.chat_id:
+        e_dia, dia = DialogService.get_by_id(conn.chat_id)
+        if e_dia and dia:
+            kb_list = dia.kb_ids if isinstance(dia.kb_ids, list) else ([dia.kb_ids] if dia.kb_ids else [])
+            assistant_info = {
+                "ready": True,
+                "type": "dialog",
+                "id": dia.id,
+                "name": dia.name,
+                "kb_count": len(kb_list),
+                "prompt_summary": (dia.prompt_config.get("system", "")[:80] + "...") if dia.prompt_config else "",
+            }
+    elif conn.agent_id:
+        try:
+            ag = UserCanvas.get_or_none(UserCanvas.id == conn.agent_id)
+            if ag:
+                assistant_info = {
+                    "ready": True,
+                    "type": "agent",
+                    "id": ag.id,
+                    "name": ag.title,
+                    "kb_count": 0,
+                }
+        except Exception:
+            pass
+
+    # ASR model readiness
+    asr_info = {"ready": False, "model_name": None}
+    try:
+        e_t, tenant = TenantService.get_by_id(conn.tenant_id)
+        if e_t and tenant:
+            asr_model = getattr(tenant, "asr_id", None) or getattr(tenant, "tenant_asr_id", None)
+            asr_info = {
+                "ready": bool(asr_model),
+                "model_name": asr_model or "not_configured",
+            }
+    except Exception:
+        pass
+
+    worker_status = "running" if is_polling else ("idle" if conn.status == 1 else "disabled")
+
+    return {
+        "channel_id": conn.id,
+        "channel": "telegram",
+        "name": conn.name,
+        "status": conn.status,
+        "worker_status": worker_status,
+        "mode": "long_polling",
+        "polling_active": is_polling,
+        "credential_configured": has_token,
+        "bot": bot_info,
+        "credential_metadata": {
+            "masked_token": masked_token,
+            "bot_id": bot_info.get("id") if bot_info else None,
+        },
+        "assistant": assistant_info,
+        "asr": asr_info,
+        "metrics": {
+            "processed_updates": len(live._processed_updates) if live else 0,
+            "update_lag": 0,
+        },
+        "last_error": None,
+    }
 
 
 @dataclass
@@ -53,11 +166,21 @@ class TelegramChannel(Channel):
     async def _send_reply(self, msg, text: str) -> None:
         try:
             if self._app and self._app.bot:
-                await self._app.bot.send_message(
-                    chat_id=msg.chat.id,
-                    text=text,
-                    reply_parameters=ReplyParameters(message_id=msg.message_id, allow_sending_without_reply=True),
-                )
+                try:
+                    await self._app.bot.send_message(
+                        chat_id=msg.chat.id,
+                        text=text,
+                        reply_parameters=ReplyParameters(message_id=msg.message_id, allow_sending_without_reply=True),
+                        parse_mode="Markdown",
+                    )
+                except Exception:
+                    clean_text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+                    clean_text = clean_text.replace("\n\n---\n", "\n\n")
+                    await self._app.bot.send_message(
+                        chat_id=msg.chat.id,
+                        text=clean_text,
+                        reply_parameters=ReplyParameters(message_id=msg.message_id, allow_sending_without_reply=True),
+                    )
         except Exception as e:
             LOGGER.error("[telegram:%s] failed to send reply: %s", self.account_id, e)
 
@@ -67,9 +190,24 @@ class TelegramChannel(Channel):
         LOGGER.info("[telegram:%s] starting long-poll", self.account_id)
         await self._app.initialize()
         await self._app.start()
+        try:
+            me = await self._app.bot.get_me()
+            self._bot_info = {
+                "id": getattr(me, "id", None),
+                "username": getattr(me, "username", None),
+                "first_name": getattr(me, "first_name", None),
+                "can_join_groups": getattr(me, "can_join_groups", True),
+                "can_read_all_group_messages": getattr(me, "can_read_all_group_messages", False),
+                "supports_inline_queries": getattr(me, "supports_inline_queries", False),
+            }
+        except Exception as bot_err:
+            LOGGER.warning("[telegram:%s] failed to get bot info during start: %s", self.account_id, bot_err)
+            self._bot_info = None
+        _live_channels[self.account_id] = self
         await self._app.updater.start_polling(drop_pending_updates=True)
 
     async def stop(self) -> None:
+        _live_channels.pop(self.account_id, None)
         if self._app is None:
             return
         try:
@@ -105,9 +243,19 @@ class TelegramChannel(Channel):
                 chat_id=chat_id,
                 text=message.text,
                 reply_parameters=reply_parameters,
+                parse_mode="Markdown",
             )
         except Exception:
-            LOGGER.error("[telegram:%s] send failed", self.account_id, exc_info=True)
+            try:
+                clean_text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', message.text)
+                clean_text = clean_text.replace("\n\n---\n", "\n\n")
+                await self._app.bot.send_message(
+                    chat_id=chat_id,
+                    text=clean_text,
+                    reply_parameters=reply_parameters,
+                )
+            except Exception:
+                LOGGER.error("[telegram:%s] send failed", self.account_id, exc_info=True)
 
     async def _on_update(self, update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         try:

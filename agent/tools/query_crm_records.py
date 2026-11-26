@@ -43,6 +43,8 @@ def parse_sql_crm_query(sql: str) -> Dict[str, Any]:
         "columns": [],
         "query": "",
         "status": "",
+        "warehouse": "",
+        "price_type": "",
         "min_price": None,
         "max_price": None,
         "aggregate": "",  # "count", "sum", "avg", "min", "max"
@@ -115,6 +117,16 @@ def parse_sql_crm_query(sql: str) -> Dict[str, Any]:
     if status_match:
         parsed["status"] = status_match.group(1).strip()
 
+    # 5b. Parse Warehouse
+    wh_match = re.search(r"(?:warehouse|склад)\s*(?:=|is|like)\s*['\"]([^'\"]+)['\"]", clean_sql, re.IGNORECASE)
+    if wh_match:
+        parsed["warehouse"] = wh_match.group(1).strip()
+
+    # 5c. Parse Price Type
+    pt_match = re.search(r"(?:price_type|вид_цены|видцены)\s*(?:=|is|like)\s*['\"]([^'\"]+)['\"]", clean_sql, re.IGNORECASE)
+    if pt_match:
+        parsed["price_type"] = pt_match.group(1).strip()
+
     # 6. Parse numeric price/opportunity comparisons
     min_price_match = re.search(r"(?:price|opportunity|сумма|цена|amount)\s*(?:>=|>)\s*(\d+(?:\.\d+)?)", clean_sql, re.IGNORECASE)
     if min_price_match:
@@ -144,7 +156,8 @@ def parse_sql_crm_query(sql: str) -> Dict[str, Any]:
                 for t in raw_text.split()
                 if len(t.strip()) > 2 and t.lower() not in (
                     "and", "or", "not", "where", "like", "is", "null", "limit",
-                    "status", "stage", "price", "amount", "order", "by", "desc", "asc"
+                    "status", "stage", "price", "amount", "order", "by", "desc", "asc",
+                    "warehouse", "склад", "price_type", "вид_цены"
                 )
             ]
             if tokens:
@@ -176,6 +189,18 @@ class QueryCRMRecordsParam(ToolParamBase):
                 "status": {
                     "type": "string",
                     "description": "Optional stage or status filter (e.g. 'WON', 'NEW', 'IN_PROGRESS', or status ID).",
+                    "default": "",
+                    "required": False,
+                },
+                "warehouse": {
+                    "type": "string",
+                    "description": "Optional warehouse filter for inventory/catalog queries.",
+                    "default": "",
+                    "required": False,
+                },
+                "price_type": {
+                    "type": "string",
+                    "description": "Optional price type filter (e.g. 'Розничная', 'Дилер с НДС'). Confidential cost prices are barred.",
                     "default": "",
                     "required": False,
                 },
@@ -214,6 +239,8 @@ class QueryCRMRecordsParam(ToolParamBase):
             },
             "query": {"name": "Search Query", "type": "line"},
             "status": {"name": "Status / Stage Filter", "type": "line", "optional": True},
+            "warehouse": {"name": "Warehouse Filter", "type": "line", "optional": True},
+            "price_type": {"name": "Price Type Filter", "type": "line", "optional": True},
             "limit": {"name": "Limit (1-50)", "type": "line", "optional": True},
             "sql": {"name": "SQL Query (Optional)", "type": "line", "optional": True},
         }
@@ -259,6 +286,8 @@ class QueryCRMRecords(ToolBase, ABC):
         if query is None or query == "{sys.query}":
             query = parsed_sql.get("query") or ""
         status = kwargs.get("status") or parsed_sql.get("status") or getattr(self._param, "status", "") or ""
+        warehouse = kwargs.get("warehouse") or parsed_sql.get("warehouse") or ""
+        price_type = kwargs.get("price_type") or parsed_sql.get("price_type") or ""
 
         limit_val = kwargs.get("limit") or parsed_sql.get("limit") or getattr(self._param, "limit", 5) or 5
         try:
@@ -288,12 +317,12 @@ class QueryCRMRecords(ToolBase, ABC):
         decrypted_config = CRMConnectionService.get_decrypted_config(connection)
         crm_type = connection.crm_type
         logger.info(
-            "QueryCRMRecords invoking provider: crm_type=%s, entity=%s, query='%s', status='%s', limit=%d",
-            crm_type, entity, query, status, limit
+            "QueryCRMRecords invoking provider: crm_type=%s, entity=%s, query='%s', status='%s', wh='%s', pt='%s', limit=%d",
+            crm_type, entity, query, status, warehouse, price_type, limit
         )
 
         # 5. Check in-memory short-term cache
-        cache_key = f"{tenant_id}:{connection.id}:{entity}:{query}:{status}:{limit}"
+        cache_key = f"{tenant_id}:{connection.id}:{entity}:{query}:{status}:{warehouse}:{price_type}:{limit}"
         now = time.time()
         if cache_key in _QUERY_CACHE:
             ts, cached_records = _QUERY_CACHE[cache_key]
@@ -310,6 +339,10 @@ class QueryCRMRecords(ToolBase, ABC):
             filters: Dict[str, Any] = {}
             if status:
                 filters["status"] = status
+            if warehouse:
+                filters["warehouse"] = warehouse
+            if price_type:
+                filters["price_type"] = price_type
             if parsed_sql.get("min_price") is not None:
                 filters["min_price"] = parsed_sql["min_price"]
             if parsed_sql.get("max_price") is not None:
@@ -356,7 +389,6 @@ class QueryCRMRecords(ToolBase, ABC):
                 return self.output("formalized_content")
 
             elif aggregate in ("sum", "avg", "min", "max"):
-                # Extract numeric prices
                 prices = []
                 currency = "RUB"
                 for r in records:
@@ -390,7 +422,6 @@ class QueryCRMRecords(ToolBase, ABC):
         display_columns = ["id", "title", "status", "price", "phone", "email", "updated_at"]
         req_columns = parsed_sql.get("columns", [])
         if req_columns:
-            # Map requested columns
             selected_display_cols = [c for c in req_columns if c in display_columns]
             if selected_display_cols:
                 display_columns = selected_display_cols
@@ -413,7 +444,6 @@ class QueryCRMRecords(ToolBase, ABC):
             "updated_at": "Updated At",
         }
         df.rename(columns={k: rename_map[k] for k in display_columns if k in rename_map}, inplace=True)
-        # Drop columns that are completely empty
         cols_to_keep = [col for col in df.columns if not (df[col] == "").all() and not df[col].isna().all()]
         if cols_to_keep:
             df = df[cols_to_keep]

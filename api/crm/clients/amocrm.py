@@ -573,12 +573,12 @@ class AmoCRMClient(CRMProviderBase):
         if not token:
             raise AmoCRMAuthError("Missing access_token in amoCRM connection configuration")
 
-        entity_clean = entity.lower().strip().rstrip("s")
-        if entity_clean in ("deal", "lead", "order"):
+        entity_clean = entity.lower().strip()
+        if entity_clean in ("deal", "deals", "lead", "leads", "order", "orders"):
             endpoint = "leads"
-        elif entity_clean == "contact":
+        elif entity_clean in ("contact", "contacts", "customer", "customers", "client", "clients"):
             endpoint = "contacts"
-        elif entity_clean == "company":
+        elif entity_clean in ("company", "companies"):
             endpoint = "companies"
         else:
             endpoint = "leads"

@@ -16,7 +16,12 @@
 import logging
 
 from api.apps import current_user, login_required
-from api.channels.targets import validate_agent_target
+from api.channels.targets import (
+    validate_agent_target,
+    mask_secret,
+    sanitize_channel_config,
+    channel_to_safe_dict,
+)
 from api.db.services.chat_channel_service import ChatChannelService
 from api.db.services.dialog_service import DialogService
 from api.utils.api_utils import get_data_error_result, get_json_result, get_request_json, validate_request
@@ -63,14 +68,22 @@ async def create_chat_channel():
     e, conn = ChatChannelService.get_by_id(channel["id"])
     if not e:
         return get_data_error_result(message="Failed to create chat channel!")
-    return get_json_result(data=conn.to_dict())
+    return get_json_result(data=channel_to_safe_dict(conn.to_dict()))
 
 
 @manager.route("/chat-channels", methods=["GET"])  # noqa: F821
 @login_required
 def list_chat_channel():
     """List chat channel bots owned by the current tenant."""
-    return get_json_result(data=ChatChannelService.list(current_user.id))
+    raw_list = ChatChannelService.list(current_user.id)
+    safe_list = []
+    for item in raw_list:
+        d = dict(item) if not isinstance(item, dict) else item
+        if "config" in d:
+            d["config"] = sanitize_channel_config(d.get("config") or {}, d.get("channel", ""))
+        d["credential_configured"] = bool(d.get("config", {}).get("credential_configured", False)) if "config" in d else True
+        safe_list.append(d)
+    return get_json_result(data=safe_list)
 
 
 @manager.route("/chat-channels/<channel_id>", methods=["GET"])  # noqa: F821
@@ -83,7 +96,7 @@ def get_chat_channel(channel_id):
     e, conn = ChatChannelService.get_by_id(channel_id)
     if not e:
         return get_data_error_result(message="Can't find this chat channel!")
-    return get_json_result(data=conn.to_dict())
+    return get_json_result(data=channel_to_safe_dict(conn.to_dict()))
 
 
 @manager.route("/chat-channels/<channel_id>", methods=["PATCH"])  # noqa: F821
@@ -120,6 +133,18 @@ async def update_chat_channel(channel_id):
             return _chat_channel_auth_error(channel_id, current_user.id)
 
     update_fields = {fld: req[fld] for fld in ["name", "config", "chat_id", "agent_id"] if fld in req}
+    # Preserve existing credentials if masked or omitted
+    if "config" in update_fields and isinstance(update_fields["config"], dict):
+        new_cfg = update_fields["config"]
+        old_cfg = conn.config if isinstance(conn.config, dict) else {}
+        if isinstance(new_cfg.get("credential"), dict) and isinstance(old_cfg.get("credential"), dict):
+            new_cred = new_cfg["credential"]
+            old_cred = old_cfg["credential"]
+            for secret_field in ("token", "bot_token", "secret", "password", "api_key", "client_secret"):
+                val = new_cred.get(secret_field)
+                if (not val or "***" in str(val)) and old_cred.get(secret_field):
+                    new_cred[secret_field] = old_cred[secret_field]
+
     if req.get("chat_id"):
         update_fields["agent_id"] = None
     elif req.get("agent_id"):
@@ -130,7 +155,7 @@ async def update_chat_channel(channel_id):
     e, conn = ChatChannelService.get_by_id(channel_id)
     if not e:
         return get_data_error_result(message="Can't find this chat channel!")
-    return get_json_result(data=conn.to_dict())
+    return get_json_result(data=channel_to_safe_dict(conn.to_dict()))
 
 
 @manager.route("/chat-channels/<channel_id>", methods=["DELETE"])  # noqa: F821
@@ -155,30 +180,42 @@ def get_chat_channel_runtime(channel_id):
     if not e:
         return get_data_error_result(message="Can't find this chat channel!")
 
-    if conn.channel != "whatsapp":
-        return get_data_error_result(message="Runtime snapshot is only available for WhatsApp.")
+    if conn.channel == "whatsapp":
+        try:
+            from api.channels.whatsapp.channel import get_runtime_snapshot
+        except Exception as ex:
+            LOGGER.error("failed to load whatsapp runtime helper: %s", ex, exc_info=True)
+            return get_data_error_result(message="WhatsApp runtime is unavailable.")
 
-    try:
-        from api.channels.whatsapp.channel import get_runtime_snapshot
-    except Exception as ex:
-        LOGGER.error("failed to load whatsapp runtime helper: %s", ex, exc_info=True)
-        return get_data_error_result(message="WhatsApp runtime is unavailable.")
+        snapshot = get_runtime_snapshot(channel_id)
+        if snapshot is None:
+            return get_json_result(
+                data={
+                    "account_id": channel_id,
+                    "session_key": channel_id,
+                    "status": "waiting",
+                    "connected_at": None,
+                    "qr_updated_at": None,
+                    "qr_data_url": None,
+                    "last_error": None,
+                    "session_id": None,
+                    "last_snapshot_at": None,
+                    "gateway_base_url": None,
+                    "event_cursor": 0,
+                }
+            )
+        return get_json_result(data=snapshot)
 
-    snapshot = get_runtime_snapshot(channel_id)
-    if snapshot is None:
-        return get_json_result(
-            data={
-                "account_id": channel_id,
-                "session_key": channel_id,
-                "status": "waiting",
-                "connected_at": None,
-                "qr_updated_at": None,
-                "qr_data_url": None,
-                "last_error": None,
-                "session_id": None,
-                "last_snapshot_at": None,
-                "gateway_base_url": None,
-                "event_cursor": 0,
-            }
-        )
-    return get_json_result(data=snapshot)
+    elif conn.channel == "telegram":
+        try:
+            from api.channels.telegram.channel import get_runtime_snapshot
+        except Exception as ex:
+            LOGGER.error("failed to load telegram runtime helper: %s", ex, exc_info=True)
+            return get_data_error_result(message="Telegram runtime is unavailable.")
+
+        snapshot = get_runtime_snapshot(channel_id)
+        if snapshot is None:
+            return get_data_error_result(message="Can't find this chat channel!")
+        return get_json_result(data=snapshot)
+
+    return get_data_error_result(message=f"Runtime snapshot is not supported for channel type '{conn.channel}'.")

@@ -1036,7 +1036,7 @@ async def verify_api_key(provider_id_or_name: str, api_key: str | dict, base_url
     return success, "success" if success else msg, model_verify_result
 
 
-def show_provider_instance(tenant_id: str, provider_id_or_name: str, instance_id_or_name: str, reveal_secrets: bool = False):
+def show_provider_instance(tenant_id: str, provider_id_or_name: str, instance_id_or_name: str):
     """
     Show a specific provider instance.
 
@@ -1069,7 +1069,7 @@ def show_provider_instance(tenant_id: str, provider_id_or_name: str, instance_id
         "provider_id": provider_id,
         "region": extra_fields.get("region", ""),
         "base_url": extra_fields.get("base_url", ""),
-        "api_key": instance_obj.api_key if reveal_secrets else "",
+        "api_key": "",
         "has_api_key": bool(instance_obj.api_key),
         "status": instance_obj.status,
     }

@@ -214,15 +214,26 @@ def _load_user(auth_types=None):
             objs = APIToken.query(token=auth_token)
             objs = [o for o in objs if getattr(o, "status", "1") != "0"]
             if objs:
-                user = UserService.query(id=objs[0].tenant_id, status=StatusEnum.VALID.value)
+                tenant_id = objs[0].tenant_id
+                user = UserService.query(id=tenant_id, status=StatusEnum.VALID.value)
+                if not user:
+                    try:
+                        from api.db.services.user_service import UserTenantService
+                        from api.db import UserTenantRole
+                        ut_objs = UserTenantService.query(tenant_id=tenant_id, role=UserTenantRole.OWNER.value)
+                        if ut_objs:
+                            user = UserService.query(id=ut_objs[0].user_id, status=StatusEnum.VALID.value)
+                    except Exception as ut_err:
+                        logging.warning(f"load_user UserTenant owner lookup warning: {ut_err}")
                 if user:
-                    if not user[0].access_token or not user[0].access_token.strip():
-                        logging.warning(f"User {user[0].email} has empty access_token in database")
+                    if getattr(user[0], "is_active", "1") == "0":
+                        logging.warning(f"User {user[0].email} is deactivated")
                         return None
                     g.auth_type = AUTH_API
                     g.user = user[0]
+                    g.tenant_id = tenant_id
                     return user[0]
-                logging.warning(f"load_user: No user found for tenant_id={objs[0].tenant_id} from APIToken")
+                logging.warning(f"load_user: No valid user found for tenant_id={tenant_id} from APIToken")
             else:
                 logging.warning(f"load_user: No APIToken found for token={auth_token[:10]}...")
         except Exception as e_api_token:

@@ -37,8 +37,9 @@ def normalize_model_types(model_type_name_list: List[str] | str) -> List[str]:
 
     normalized = []
     for model_type in model_type_name_list:
-        canonical = _LEGACY_MODEL_TYPE_ALIASES.get(model_type, model_type)
-        if canonical not in normalized:
+        mt_lower = str(model_type).lower() if model_type else ""
+        canonical = _LEGACY_MODEL_TYPE_ALIASES.get(mt_lower, mt_lower)
+        if canonical and canonical not in normalized:
             normalized.append(canonical)
     return normalized
 

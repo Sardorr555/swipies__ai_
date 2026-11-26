@@ -35,3 +35,5 @@ copied key. No key value is recorded here.
 Only reviewed paths are staged. Existing unrelated server changes, settings and
 data are preserved. Private rollback copies are outside Git. Production release
 checks and the final commit are recorded in the external verification report.
+
+Follow-up: Model Providers never returns a saved key, including for superusers. Only write-only replacement is exposed; runtime configurations continue to use server-side platform credentials. Saved credential inputs are optional on edit and query-cache values are cleared.

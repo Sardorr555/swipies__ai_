@@ -640,6 +640,8 @@ export default {
       tocEnhanceTip: "Hujjat tahlili paytida mundarija ma'lumotlari yaratildi.",
     },
     setting: {
+      storedCredentialsHidden: "Saqlangan kalitlar ko‘rsatilmaydi. Kalitni saqlash uchun maydonni bo‘sh qoldiring; almashtirish uchun yangi kalit kiriting.",
+
       deleteModel: "Modelni o'chirish",
       modelEmptyTip:
         "Modellar mavjud emas. <br>O'ng paneldan modellar qo'shing.",

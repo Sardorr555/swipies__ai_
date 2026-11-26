@@ -245,10 +245,10 @@ class OAuthService:
             or not isinstance(grants, list)
             or not all(isinstance(item, str) for item in grants)
             or "authorization_code" not in grants
-            or not set(grants) <= {"authorization_code", "refresh_token"}
             or value.get("response_types", ["code"]) != ["code"]
         ):
             raise ValueError("Unsupported redirect URI or client authentication")
+        grants = [g for g in grants if g in ("authorization_code", "refresh_token")]  # SUPPORTED_GRANTS_FILTER: ignore extra grant types (e.g. jwt-bearer) advertised by ChatGPT CIMD
         return {"redirect_uris": redirects, "grant_types": list(dict.fromkeys(grants)), "client_name": str(value.get("client_name", "AI client"))[:80]}
 
     def client(self, client_id):

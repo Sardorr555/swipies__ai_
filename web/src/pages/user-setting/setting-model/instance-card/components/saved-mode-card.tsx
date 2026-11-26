@@ -201,6 +201,7 @@ export function SavedModeCard({
       </CollapsibleTrigger>
       <CollapsibleContent forceMount className="data-[state=closed]:hidden">
         <div className="pb-4 flex flex-col gap-4">
+          <p className="text-xs text-text-secondary" data-testid="stored-credentials-hidden">{tSetting('storedCredentialsHidden')}</p>
           <DynamicForm.Root
             key={`${providerName}-${instanceName}-false`}
             ref={formRef as RefObject<DynamicFormRef>}

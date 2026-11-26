@@ -34,7 +34,7 @@ class CheckStockParam(ToolParamBase):
     def __init__(self):
         self.meta: ToolMeta = {
             "name": "check_stock",
-            "description": "Queries product inventory balances and stock levels across warehouses from 1C:Enterprise over OData. Invoke this tool when a customer asks about product availability, stock count, or warehouse balances.",
+            "description": "Queries product inventory balances, commercial stock levels across warehouses, and prices from 1C:Enterprise over OData. Invoke this tool when a customer asks about product availability, stock count, warehouse locations, or pricing.",
             "parameters": {
                 "query": {
                     "type": "string",
@@ -44,7 +44,13 @@ class CheckStockParam(ToolParamBase):
                 },
                 "warehouse": {
                     "type": "string",
-                    "description": "Optional specific warehouse name or code to filter balances.",
+                    "description": "Optional specific warehouse name or code to filter balances. If omitted, stock is aggregated across all commercial saleable warehouses.",
+                    "default": "",
+                    "required": False,
+                },
+                "price_type": {
+                    "type": "string",
+                    "description": "Optional target price category (e.g. 'Розничная', 'Дилер с НДС', 'Оптовая'). Confidential internal cost prices are strictly barred.",
                     "default": "",
                     "required": False,
                 },
@@ -61,6 +67,7 @@ class CheckStockParam(ToolParamBase):
         return {
             "query": {"name": "Product SKU or Name", "type": "line"},
             "warehouse": {"name": "Warehouse", "type": "line"},
+            "price_type": {"name": "Price Category", "type": "line"},
         }
 
 
@@ -96,7 +103,6 @@ class CheckStock(ToolBase, ABC):
             )
 
         # 1. Server-side channel determination based strictly on authentication method (Point 1)
-        # Client request body (custom_header.channel) is UNTRUSTED and NEVER used for authorization.
         server_channel = getattr(self._canvas, "get_channel", lambda: None)()
         if not server_channel:
             server_channel = getattr(self._canvas, "_channel", None)
@@ -137,6 +143,9 @@ class CheckStock(ToolBase, ABC):
 
         raw_wh = kwargs.get("warehouse") or ""
         clean_wh = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", str(raw_wh).strip())[:128]
+
+        raw_pt = kwargs.get("price_type") or kwargs.get("price_category") or kwargs.get("вид_цены") or ""
+        clean_pt = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", str(raw_pt).strip())[:128]
 
         # 3. Connection resolution
         tenant_id = getattr(self._canvas, "get_tenant_id", lambda: None)()
@@ -184,5 +193,10 @@ class CheckStock(ToolBase, ABC):
         # 4. Decrypt config and execute read-only stock query
         config = CRMConnectionService.get_decrypted_config(conn)
         client = OneCClient()
-        result = client.check_stock(config, clean_query, clean_wh or None)
+        result = client.check_stock(
+            connection_config=config,
+            item_query=clean_query,
+            warehouse=clean_wh or None,
+            price_type=clean_pt or None,
+        )
         return result

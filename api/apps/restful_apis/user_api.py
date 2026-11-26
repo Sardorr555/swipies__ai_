@@ -24,7 +24,7 @@ import time
 from datetime import datetime
 import base64
 
-from quart import make_response, redirect, request, session
+from quart import g, make_response, redirect, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from api.apps.auth import get_auth_client
@@ -108,7 +108,9 @@ async def login():
     email_verification_enabled = os.environ.get("EMAIL_VERIFICATION_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
     login_2fa_enabled = os.environ.get("LOGIN_2FA_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
 
-    if not is_admin_path and email_verification_enabled and login_2fa_enabled:
+    _exempt_2fa = {e.strip().lower() for e in os.environ.get("LOGIN_2FA_EXEMPT_EMAILS", "").split(",") if e.strip()}
+    _login_email = str(locals().get("email") or getattr(locals().get("user"), "email", "") or "").strip().lower()
+    if not is_admin_path and email_verification_enabled and login_2fa_enabled and _login_email not in _exempt_2fa:
         # Generate 6-digit numeric verification code
         code = "".join(secrets.choice(string.digits) for _ in range(6))
         salt = os.urandom(16)
@@ -155,7 +157,7 @@ async def login():
     logging.info("Login successful: user_id=%s", user.id)
     msg = "Welcome back!"
 
-    return await construct_response(data=user.to_safe_dict(for_self=True), auth=user.get_id(), message=msg)
+    return await construct_response(data=user.to_safe_dict(for_self=True, include_token=True), auth=user.get_id(), message=msg)
 
 
 @manager.route("/admin/login", methods=["POST"])  # noqa: F821
@@ -569,12 +571,60 @@ async def user_profile():
               type: string
               description: User email.
     """
-    user_data = current_user.to_safe_dict(for_self=True)
+    user_data = current_user.to_safe_dict(for_self=True, include_token=False)
+    user_data.pop("access_token", None)
+    user_data.pop("password", None)
+    user_id = getattr(current_user, "id", None)
     try:
-        user_id = getattr(current_user, "id", None)
         user_data["is_onboarded"] = UserOnboardingService.is_user_onboarded(user_id) if user_id else True
     except Exception:
         user_data["is_onboarded"] = True
+
+    try:
+        tenants = TenantService.get_info_by(user_id) if user_id else []
+        tenant_info = dict(tenants[0]) if tenants else {}
+    except Exception as t_err:
+        logging.warning("Failed to fetch tenant info for user %s: %s", user_id, t_err)
+        tenant_info = {}
+
+    tenant_id = tenant_info.get("tenant_id") or getattr(g, "tenant_id", None) or user_id
+    workspace_name = tenant_info.get("name") or getattr(current_user, "nickname", "") or "Default Workspace"
+    plan_type = tenant_info.get("plan_type") or "free"
+
+    role = "owner"
+    try:
+        from api.db.db_models import UserTenant
+        ut = UserTenant.get_or_none(UserTenant.user_id == user_id, UserTenant.tenant_id == tenant_id)
+        if ut and ut.role:
+            role = ut.role
+    except Exception:
+        pass
+
+    auth_type = getattr(g, "auth_type", None)
+    if auth_type == "API":
+        scopes = ["swipies:read", "swipies:write", "datasets:read", "datasets:write", "assistants:read", "assistants:write"]
+    else:
+        scopes = ["*"]
+
+    user_data["account_context"] = {
+        "user_id": user_id,
+        "tenant_id": tenant_id,
+        "workspace_id": tenant_id,
+        "workspace_name": workspace_name,
+        "role": role,
+        "scopes": scopes,
+        "plan_type": plan_type,
+        "default_models": {
+            "llm": tenant_info.get("llm_id"),
+            "embedding": tenant_info.get("embd_id"),
+            "asr": tenant_info.get("asr_id"),
+            "vision": tenant_info.get("img2txt_id"),
+            "rerank": tenant_info.get("rerank_id"),
+            "tts": tenant_info.get("tts_id"),
+        },
+        "environment_id": os.getenv("SWIPIES_ENV", "production"),
+        "api_version": "v1",
+    }
     return get_json_result(data=user_data)
 
 
@@ -1484,7 +1534,7 @@ async def forget_reset_password():
         pass
 
     msg = "Password reset successful. Logged in."
-    return await construct_response(data=user.to_safe_dict(for_self=True), auth=user.get_id(), message=msg)
+    return await construct_response(data=user.to_safe_dict(for_self=True, include_token=True), auth=user.get_id(), message=msg)
 
 @manager.route("/leads", methods=["POST"])
 async def create_lead():

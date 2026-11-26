@@ -46,10 +46,15 @@ def key_active(principal):
     with DB.connection_context():
         token = APIToken.get_or_none(APIToken.token == principal["api_key"], APIToken.tenant_id == principal["tenant_id"], APIToken.status == "1")
         user = User.get_or_none(User.id == principal["tenant_id"], User.status == "1")
+        if not user:
+            from api.db.db_models import UserTenant
+            ut = UserTenant.get_or_none(UserTenant.tenant_id == principal["tenant_id"], UserTenant.role == "owner")
+            if ut:
+                user = User.get_or_none(User.id == ut.user_id, User.status == "1")
         # An approved OAuth grant survives browser logout just like its private
         # API key. Account disable/delete or explicit key/grant revocation stops
         # it; the browser's login token is only required at initial owner consent.
-        return bool(token and user and str(user.access_token or "").strip())
+        return bool(token and user and getattr(user, "is_active", "1") != "0")
 
 
 def revoke_key(principal):
@@ -80,11 +85,13 @@ async def delegate(choice, registration_secret):
         from api.db.db_models import APIToken, DB, UserTenant
 
         try:
-            if not UserTenant.get_or_none(UserTenant.user_id == owner_id, UserTenant.tenant_id == owner_id, UserTenant.role == "owner"):
+            ut = UserTenant.get_or_none(UserTenant.user_id == owner_id, UserTenant.role == "owner")
+            if not ut:
                 return None
+            tenant_id = ut.tenant_id
             value = "ragflow-" + secrets.token_urlsafe(48)
-            APIToken.create(tenant_id=owner_id, token=value, beta=secrets.token_urlsafe(32), name="ChatGPT OAuth connection", status="1")
-            return {"tenant_id": owner_id, "api_key": value}
+            APIToken.create(tenant_id=tenant_id, token=value, beta=secrets.token_urlsafe(32), name="ChatGPT OAuth connection", status="1")
+            return {"tenant_id": tenant_id, "api_key": value}
         finally:
             if not DB.is_closed():
                 DB.close()

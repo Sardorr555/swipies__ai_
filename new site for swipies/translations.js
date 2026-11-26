@@ -13,6 +13,8 @@ const T = {
     hero_sub: "Deploy on-premise RAG pipelines powered by any LLM — directly on your servers. Your data never leaves your environment. Ever.",
     hero_cta1: "Try Demo",
     hero_cta2: "Talk to Sales",
+    hero_impact_title: "Proven Business Impact",
+    hero_impact_text: "Full payback in 14 days, up to +50% sales conversion boost, 60% reduction in support costs, and 24/7 execution.",
     prob_num: "01 — The Problem",
     prob_title: "Why Standard AI Fails Enterprise",
     prob1_h: "Data Leaves Your Perimeter",

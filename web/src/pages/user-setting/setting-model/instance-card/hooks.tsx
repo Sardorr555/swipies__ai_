@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-import { DynamicFormRef } from '@/components/dynamic-form';
+import { DynamicFormRef, FormFieldType } from '@/components/dynamic-form';
 import {
   useDeleteProviderInstance,
   useFetchAvailableProviders,
@@ -743,8 +743,10 @@ export function useFormFields(
   });
 
   const formFields = useMemo(
-    () => fields.filter((f) => f.name !== 'instance_name'),
-    [fields],
+    () => fields.filter((f) => f.name !== 'instance_name').map((field) =>
+      !_isDraft && field.type === FormFieldType.Password
+        ? { ...field, required: false } : field),
+    [fields, _isDraft],
   );
 
   const defaultValuesKey = JSON.stringify(defaultValues);

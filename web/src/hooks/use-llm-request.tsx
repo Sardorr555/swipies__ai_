@@ -220,7 +220,8 @@ export const useFetchProviderInstance = (providerName: string, id: string) => {
         { provider_name: providerName, id },
         true,
       );
-      return (data?.data ?? {}) as IProviderInstance;
+      // Saved credentials must never populate the query cache or form.
+      return { ...(data?.data ?? {}), api_key: '' } as IProviderInstance;
     },
   });
 };

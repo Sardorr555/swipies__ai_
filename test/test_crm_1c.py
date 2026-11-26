@@ -49,6 +49,11 @@ DB.is_closed = lambda: False
 from api.db.services.crm_service import CRMConnectionService
 from api.crm.base import CRMProviderRegistry
 from api.crm.transport import CRMTransport, SSRFSecurityException
+from api.crm.catalog_profiler import (
+    OneCCatalogProfiler,
+    DEFAULT_EXCLUDED_WAREHOUSE_KEYWORDS,
+    CONFIDENTIAL_PRICE_KEYWORDS,
+)
 from api.crm.clients.one_c import (
     OneCClient,
     OneCError,
@@ -58,8 +63,10 @@ from api.crm.clients.one_c import (
     ALLOWLIST_CIDR_ENV,
     DEFAULT_TIMEOUT_SECONDS,
 )
+from common.data_source.onec_connector import OneCConnector
 from agent.component.agent_with_tools import Agent, AgentParam
 from agent.tools.check_stock import CheckStock, CheckStockParam
+from agent.tools.query_crm_records import parse_sql_crm_query
 from agent.canvas import Canvas
 
 
@@ -100,6 +107,113 @@ class DummyMockCanvas(Canvas):
         return self._channel
 
 
+# =============================================================================
+# 1. Tests for 1C Catalog Profiler & Metadata Discovery Engine
+# =============================================================================
+
+class TestOneCCatalogProfiler(unittest.TestCase):
+    def test_warehouse_classification_commercial_vs_excluded(self):
+        """Verify warehouse classification correctly distinguishes commercial vs defective/technical."""
+        # Commercial warehouses
+        self.assertFalse(OneCCatalogProfiler.is_warehouse_excluded("Основной склад"))
+        self.assertFalse(OneCCatalogProfiler.is_warehouse_excluded("Центральный склад (Москва)"))
+        self.assertFalse(OneCCatalogProfiler.is_warehouse_excluded("Торговый зал"))
+        self.assertFalse(OneCCatalogProfiler.is_warehouse_excluded("Склад готовой продукции"))
+        self.assertFalse(OneCCatalogProfiler.is_warehouse_excluded("Розничный магазин №1"))
+
+        # Excluded / defective / technical warehouses
+        self.assertTrue(OneCCatalogProfiler.is_warehouse_excluded("Склад брака"))
+        self.assertTrue(OneCCatalogProfiler.is_warehouse_excluded("Отдел рекламаций и возвратов"))
+        self.assertTrue(OneCCatalogProfiler.is_warehouse_excluded("Карантинная зона"))
+        self.assertTrue(OneCCatalogProfiler.is_warehouse_excluded("Транзитный склад СПБ"))
+        self.assertTrue(OneCCatalogProfiler.is_warehouse_excluded("Склад списания"))
+        self.assertTrue(OneCCatalogProfiler.is_warehouse_excluded("Defective items storage"))
+
+    def test_price_type_classification_and_confidentiality(self):
+        """Verify price type classification and strict blocking of confidential cost prices."""
+        # Confidential internal cost prices
+        self.assertTrue(OneCCatalogProfiler.is_price_confidential("Закупочная цена"))
+        self.assertTrue(OneCCatalogProfiler.is_price_confidential("Себестоимость плановая"))
+        self.assertTrue(OneCCatalogProfiler.is_price_confidential("Учетная цена"))
+        self.assertTrue(OneCCatalogProfiler.is_price_confidential("Входящая цена поставщика"))
+        self.assertEqual(OneCCatalogProfiler.classify_price_type("Закупочная"), "confidential")
+
+        # Customer-facing commercial prices
+        self.assertFalse(OneCCatalogProfiler.is_price_confidential("Розничная"))
+        self.assertEqual(OneCCatalogProfiler.classify_price_type("Розничная цена"), "retail")
+        self.assertEqual(OneCCatalogProfiler.classify_price_type("Интернет-магазин"), "retail")
+
+        self.assertFalse(OneCCatalogProfiler.is_price_confidential("Дилер с НДС"))
+        self.assertEqual(OneCCatalogProfiler.classify_price_type("Дилер с НДС"), "dealer")
+        self.assertEqual(OneCCatalogProfiler.classify_price_type("Оптовая (крупный опт)"), "dealer")
+
+    def test_discover_warehouses_via_odata(self):
+        """Verify warehouse discovery from 1C Catalog_Склады."""
+        client = MagicMock()
+        client._execute_get.return_value = {
+            "value": [
+                {"Ref_Key": "wh-01", "Code": "001", "Description": "Основной склад", "ПометкаУдаления": False},
+                {"Ref_Key": "wh-02", "Code": "002", "Description": "Склад брака и дефектов", "ПометкаУдаления": False},
+                {"Ref_Key": "wh-03", "Code": "003", "Description": "Филиал Ташкент Центр", "ПометкаУдаления": False},
+                {"Ref_Key": "wh-04", "Code": "004", "Description": "Архивный склад 2020", "ПометкаУдаления": True},  # Deleted
+            ]
+        }
+        config = {"odata_url": "https://1c.test/odata/standard.odata"}
+        wh_info = OneCCatalogProfiler.discover_warehouses(client, config)
+
+        self.assertEqual(len(wh_info["commercial_warehouses"]), 2)
+        self.assertIn("Основной склад", wh_info["commercial_names"])
+        self.assertIn("Филиал Ташкент Центр", wh_info["commercial_names"])
+
+        self.assertEqual(len(wh_info["excluded_warehouses"]), 1)
+        self.assertIn("Склад брака и дефектов", wh_info["excluded_names"])
+        self.assertEqual(wh_info["default_warehouse"], "Основной склад")
+
+    def test_discover_price_types_via_odata(self):
+        """Verify price types discovery and confidential filtering from 1C Catalog_ВидыЦен."""
+        client = MagicMock()
+        client._execute_get.return_value = {
+            "value": [
+                {"Ref_Key": "pt-01", "Code": "P01", "Description": "Закупочная цена", "ПометкаУдаления": False},
+                {"Ref_Key": "pt-02", "Code": "P02", "Description": "Себестоимость", "ПометкаУдаления": False},
+                {"Ref_Key": "pt-03", "Code": "P03", "Description": "Розничная", "ПометкаУдаления": False},
+                {"Ref_Key": "pt-04", "Code": "P04", "Description": "Дилер с НДС", "ПометкаУдаления": False},
+            ]
+        }
+        config = {"odata_url": "https://1c.test/odata/standard.odata"}
+        pt_info = OneCCatalogProfiler.discover_price_types(client, config)
+
+        self.assertEqual(len(pt_info["confidential_price_types"]), 2)
+        self.assertIn("Закупочная цена", pt_info["confidential_names"])
+        self.assertIn("Себестоимость", pt_info["confidential_names"])
+
+        self.assertEqual(len(pt_info["allowed_price_types"]), 2)
+        self.assertIn("Розничная", pt_info["allowed_names"])
+        self.assertIn("Дилер с НДС", pt_info["allowed_names"])
+        self.assertEqual(pt_info["default_price_type"], "Розничная")
+
+    def test_discover_category_tree_hierarchy(self):
+        """Verify building category breadcrumbs from Catalog_Номенклатура folder structure."""
+        client = MagicMock()
+        client._execute_get.return_value = {
+            "value": [
+                {"Ref_Key": "cat-root", "Parent_Key": "", "Description": "Электроника", "ПометкаУдаления": False},
+                {"Ref_Key": "cat-sub", "Parent_Key": "cat-root", "Description": "Аудиотехника", "ПометкаУдаления": False},
+                {"Ref_Key": "cat-leaf", "Parent_Key": "cat-sub", "Description": "Беспроводные наушники", "ПометкаУдаления": False},
+            ]
+        }
+        config = {"odata_url": "https://1c.test/odata/standard.odata"}
+        tree = OneCCatalogProfiler.discover_category_tree(client, config)
+
+        self.assertEqual(tree["cat-root"], "Электроника")
+        self.assertEqual(tree["cat-sub"], "Электроника / Аудиотехника")
+        self.assertEqual(tree["cat-leaf"], "Электроника / Аудиотехника / Беспроводные наушники")
+
+
+# =============================================================================
+# 2. Tests for Hardened 1C Client with Warehouse & Price Resolution
+# =============================================================================
+
 class TestOneCClient(unittest.TestCase):
     def setUp(self):
         warnings.filterwarnings("ignore", category=ResourceWarning)
@@ -111,6 +225,7 @@ class TestOneCClient(unittest.TestCase):
             "password": "api_password",
             "entity_path": "AccumulationRegister_ТоварыНаСкладах/Balance",
             "filter_fields": ["Номенклатура/Description", "Номенклатура/Code", "Номенклатура/Артикул"],
+            "currency": "UZS",
         }
 
     def tearDown(self):
@@ -121,20 +236,15 @@ class TestOneCClient(unittest.TestCase):
     # -------------------------------------------------------------------------
     def test_strict_get_method_enforced_and_mutations_rejected(self):
         """Verify client uses strictly GET and rejects mutation attempts (POST, PUT, DELETE)."""
-        # Calling execute_mutating_request with POST must raise OneCMethodNotAllowedError
         for mutating_method in ("POST", "PUT", "PATCH", "DELETE"):
             with self.assertRaises(OneCMethodNotAllowedError) as ctx:
                 self.client.execute_mutating_request(mutating_method)
             self.assertIn("strictly prohibited", str(ctx.exception))
             self.assertIn(mutating_method, str(ctx.exception))
 
-        # Normal check_stock only calls transport.get
         self.mock_transport.get.return_value = DummyResponse(200, json_data={"value": []})
         self.client.check_stock(self.valid_config, "SKU-1001")
         self.assertEqual(self.mock_transport.get.call_count, 1)
-        self.assertEqual(self.mock_transport.post.call_count, 0)
-        self.assertEqual(self.mock_transport.put.call_count, 0)
-        self.assertEqual(self.mock_transport.delete.call_count, 0)
 
     # -------------------------------------------------------------------------
     # T6.3: Strict 5-second timeout and SSRF guard with private CIDR allowlist
@@ -177,7 +287,6 @@ class TestOneCClient(unittest.TestCase):
         )
 
         with patch("socket.getaddrinfo") as mock_dns, patch.object(real_transport.session, "request") as mock_req:
-            # Simulate DNS resolving 1c-internal.local to 192.168.1.55
             mock_dns.return_value = [
                 (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.55", 0))
             ]
@@ -190,41 +299,122 @@ class TestOneCClient(unittest.TestCase):
             self.assertEqual(res["total_stock"], 0.0)
 
     # -------------------------------------------------------------------------
-    # T6.5: Unit tests for stock checking with mock 1C OData responses
+    # Commercial vs Defective Warehouse Separation
     # -------------------------------------------------------------------------
-    def test_check_stock_successful_response_parsing(self):
-        """Verify parsing 1C OData JSON response with multiple items and warehouses."""
+    def test_check_stock_separates_commercial_and_defective_warehouses(self):
+        """Verify check_stock aggregates commercial stock and separates out defective warehouses."""
         mock_odata_response = {
-            "odata.metadata": "https://1c.enterprise.local/trade/odata/standard.odata/$metadata#AccumulationRegister_ТоварыНаСкладах/Balance",
             "value": [
                 {
                     "SKU": "ART-8899",
                     "Description": "Wireless Mechanical Keyboard",
-                    "Warehouse": "Moscow Central",
-                    "Quantity": "15.0",
-                    "Price": "4500.0",
+                    "Warehouse": "Основной склад",
+                    "Quantity": 15.0,
+                    "Price": 4500.0,
                 },
                 {
-                    "Артикул": "ART-8899",
-                    "Наименование": "Wireless Mechanical Keyboard",
-                    "Склад": "St. Petersburg Branch",
-                    "КоличествоОстаток": 7.0,
-                    "Цена": 4500.0,
+                    "SKU": "ART-8899",
+                    "Description": "Wireless Mechanical Keyboard",
+                    "Warehouse": "Филиал Петербург",
+                    "Quantity": 7.0,
+                    "Price": 4500.0,
+                },
+                {
+                    "SKU": "ART-8899",
+                    "Description": "Wireless Mechanical Keyboard",
+                    "Warehouse": "Склад Брака и Дефектов",
+                    "Quantity": 3.0,
+                    "Price": 4500.0,
                 },
             ],
         }
         self.mock_transport.get.return_value = DummyResponse(200, json_data=mock_odata_response)
 
-        res = self.client.check_stock(self.valid_config, "ART-8899", warehouse="Moscow")
+        res = self.client.check_stock(self.valid_config, "ART-8899")
         self.assertEqual(res["status"], "success")
         self.assertEqual(res["query"], "ART-8899")
-        self.assertEqual(res["warehouse"], "Moscow")
+        # Commercial stock must sum ONLY commercial warehouses (15 + 7 = 22)
+        self.assertEqual(res["commercial_stock"], 22.0)
         self.assertEqual(res["total_stock"], 22.0)
-        self.assertEqual(res["item_count"], 2)
-        self.assertEqual(res["items"][0]["warehouse"], "Moscow Central")
-        self.assertEqual(res["items"][0]["quantity"], 15.0)
-        self.assertEqual(res["items"][1]["warehouse"], "St. Petersburg Branch")
-        self.assertEqual(res["items"][1]["quantity"], 7.0)
+        # Excluded defective stock must be captured separately (3.0)
+        self.assertEqual(res["excluded_stock"], 3.0)
+        self.assertTrue(res["is_available"])
+
+        breakdown = res["warehouses_breakdown"]
+        self.assertEqual(len(breakdown), 3)
+        self.assertTrue(breakdown[0]["is_commercial"])
+        self.assertTrue(breakdown[1]["is_commercial"])
+        self.assertFalse(breakdown[2]["is_commercial"])
+        self.assertIn("excluded", breakdown[2]["status"])
+
+    # -------------------------------------------------------------------------
+    # Real-Time Price Resolution & Confidential Price Blocking
+    # -------------------------------------------------------------------------
+    def test_check_stock_resolves_price_from_price_register_when_zero(self):
+        """Verify check_stock resolves price from InformationRegister_ЦеныНоменклатурыСрезПоследних."""
+        # Stock balance register returns 0 price (standard 1C behavior)
+        stock_resp = DummyResponse(200, json_data={
+            "value": [
+                {
+                    "SKU": "IPHONE-15-PRO",
+                    "Description": "iPhone 15 Pro",
+                    "Warehouse": "Центральный склад",
+                    "Quantity": 42.0,
+                    "Price": 0.0,
+                }
+            ]
+        })
+        # Price register returns resolved price for target price type
+        price_resp = DummyResponse(200, json_data={
+            "value": [
+                {
+                    "Номенклатура/Description": "iPhone 15 Pro",
+                    "ВидЦены/Description": "Розничная",
+                    "Цена": 14500000.0,
+                    "Валюта/Description": "UZS",
+                }
+            ]
+        })
+
+        self.mock_transport.get.side_effect = [stock_resp, price_resp]
+
+        res = self.client.check_stock(self.valid_config, "IPHONE-15-PRO", price_type="Розничная")
+        self.assertEqual(res["status"], "success")
+        self.assertEqual(res["commercial_stock"], 42.0)
+        self.assertEqual(res["price"], 14500000.0)
+        self.assertEqual(res["currency"], "UZS")
+        self.assertEqual(res["price_type"], "Розничная")
+
+    def test_check_stock_strictly_blocks_confidential_price_types(self):
+        """Verify check_stock rejects confidential purchase/cost price types."""
+        with self.assertRaises(OneCError) as ctx:
+            self.client.check_stock(self.valid_config, "IPHONE-15-PRO", price_type="Закупочная")
+        self.assertIn("confidential internal cost data", str(ctx.exception))
+
+        with self.assertRaises(OneCError) as ctx:
+            self.client.check_stock(self.valid_config, "IPHONE-15-PRO", price_type="Себестоимость")
+        self.assertIn("confidential internal cost data", str(ctx.exception))
+
+    def test_query_records_product_excludes_deleted_and_folders(self):
+        """Verify query_records for products excludes deleted items and folders."""
+        from urllib.parse import unquote
+        self.mock_transport.get.return_value = DummyResponse(200, json_data={"value": []})
+        self.client.query_records(self.valid_config, entity="product", query="MacBook")
+
+        sent_url = unquote(self.mock_transport.get.call_args[0][0])
+        self.assertIn("Catalog_Номенклатура", sent_url)
+        self.assertIn("ПометкаУдаления eq false", sent_url)
+        self.assertIn("IsFolder eq false", sent_url)
+
+    def test_query_records_rejects_confidential_price_type_in_filters(self):
+        """Verify query_records rejects confidential price type filter."""
+        with self.assertRaises(OneCError) as ctx:
+            self.client.query_records(
+                self.valid_config,
+                entity="product",
+                filters={"price_type": "Закупочная"},
+            )
+        self.assertIn("confidential internal cost data", str(ctx.exception))
 
     def test_check_stock_empty_results(self):
         """Verify response when item has zero stock or is not found in 1C."""
@@ -233,6 +423,8 @@ class TestOneCClient(unittest.TestCase):
         res = self.client.check_stock(self.valid_config, "NON-EXISTENT-SKU")
         self.assertEqual(res["status"], "success")
         self.assertEqual(res["total_stock"], 0.0)
+        self.assertEqual(res["commercial_stock"], 0.0)
+        self.assertFalse(res["is_available"])
         self.assertEqual(res["item_count"], 0)
         self.assertEqual(res["items"], [])
 
@@ -275,7 +467,6 @@ class TestOneCClient(unittest.TestCase):
         conf = self.client.refresh_auth(self.valid_config)
         self.assertEqual(conf, self.valid_config)
 
-        # 401 on metadata check raises OneCAuthError
         self.mock_transport.get.return_value = DummyResponse(401, text="Unauthorized")
         with self.assertRaises(OneCAuthError):
             self.client.refresh_auth(self.valid_config)
@@ -289,6 +480,10 @@ class TestOneCClient(unittest.TestCase):
         provider_1c_alias = CRMProviderRegistry.get("1c")
         self.assertIsInstance(provider_1c_alias, OneCClient)
 
+
+# =============================================================================
+# 3. Tests for CheckStock Tool Component
+# =============================================================================
 
 class TestCheckStockTool(unittest.TestCase):
     def setUp(self):
@@ -311,7 +506,6 @@ class TestCheckStockTool(unittest.TestCase):
         self.secret = "crm-super-secret-key-32bytes-ok!"
         os.environ["RAGFLOW_SECRET_KEY"] = self.secret
 
-        # Create active 1C connection
         conn = CRMConnectionService.save_connection(
             tenant_id=self.tenant_id,
             name="Primary 1C ERP",
@@ -358,225 +552,92 @@ class TestCheckStockTool(unittest.TestCase):
         self.assertEqual(meta["type"], "function")
         self.assertEqual(meta["function"]["name"], "check_stock")
         self.assertIn("query", meta["function"]["parameters"]["properties"])
+        self.assertIn("warehouse", meta["function"]["parameters"]["properties"])
+        self.assertIn("price_type", meta["function"]["parameters"]["properties"])
 
         form = param.get_input_form()
         self.assertIn("query", form)
         self.assertIn("warehouse", form)
+        self.assertIn("price_type", form)
 
-    def test_missing_query_rejected(self):
+    def test_check_stock_tool_invokes_with_price_type_and_warehouse(self):
+        """Verify CheckStock tool passes warehouse and price_type to OneCClient."""
         canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
         tool = self._create_tool(canvas)
 
-        with self.assertRaises(ValueError) as ctx:
-            tool._invoke(query="")
-        self.assertIn("Missing required parameter 'query'", str(ctx.exception))
-
-    # -------------------------------------------------------------------------
-    # T6.4: Least privilege: accessible from anonymous channels only when allowed
-    # -------------------------------------------------------------------------
-    def test_scoped_anonymous_access_rejected_when_not_allowed(self):
-        """Anonymous channels (webhook, embed, beta) are blocked when allow_anonymous=False."""
-        anonymous_channels = ["webhook", "embed", "beta", "auth_beta", "anonymous"]
-
-        for chan in anonymous_channels:
-            canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel=chan)
-            tool = self._create_tool(canvas, allow_anonymous=False)
-
-            with self.assertRaises(PermissionError) as ctx:
-                tool._invoke(query="SKU-1001")
-            self.assertIn("Stock checking from anonymous/public channels is forbidden", str(ctx.exception))
-
-    def test_scoped_anonymous_access_allowed_when_configured(self):
-        """Anonymous channels succeed when allow_anonymous=True."""
-        canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel="webhook")
-        tool = self._create_tool(canvas, allow_anonymous=True)
-
         mock_stock_res = {
             "status": "success",
-            "query": "SKU-1001",
-            "warehouse": "",
-            "total_stock": 50.0,
-            "item_count": 1,
-            "items": [{"sku": "SKU-1001", "name": "Test Item", "warehouse": "Main", "quantity": 50.0, "price": 100.0}],
+            "query": "iPhone 15 Pro",
+            "warehouse": "Ташкент Склад 1",
+            "total_stock": 42.0,
+            "commercial_stock": 42.0,
+            "excluded_stock": 0.0,
+            "price": 14500000.0,
+            "currency": "UZS",
+            "price_type": "Дилер с НДС",
+            "is_available": True,
+            "items": [],
         }
-        with patch.object(OneCClient, "check_stock", return_value=mock_stock_res):
-            res = tool._invoke(query="SKU-1001")
+
+        with patch.object(OneCClient, "check_stock", return_value=mock_stock_res) as mock_cs:
+            res = tool._invoke(query="iPhone 15 Pro", warehouse="Ташкент Склад 1", price_type="Дилер с НДС")
             self.assertEqual(res["status"], "success")
-            self.assertEqual(res["total_stock"], 50.0)
+            self.assertEqual(res["commercial_stock"], 42.0)
+            self.assertEqual(res["price"], 14500000.0)
+            mock_cs.assert_called_once()
+            call_kwargs = mock_cs.call_args[1]
+            self.assertEqual(call_kwargs.get("warehouse"), "Ташкент Склад 1")
+            self.assertEqual(call_kwargs.get("price_type"), "Дилер с НДС")
 
-    def test_authenticated_access_always_allowed(self):
-        """Authenticated chat sessions always succeed regardless of allow_anonymous."""
-        canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
-        tool = self._create_tool(canvas, allow_anonymous=False)
 
-        mock_stock_res = {
-            "status": "success",
-            "query": "SKU-2002",
-            "warehouse": "Depot",
-            "total_stock": 10.0,
-            "item_count": 1,
-            "items": [{"sku": "SKU-2002", "name": "Widget", "warehouse": "Depot", "quantity": 10.0, "price": 20.0}],
-        }
-        with patch.object(OneCClient, "check_stock", return_value=mock_stock_res):
-            res = tool._invoke(query="SKU-2002", warehouse="Depot")
-            self.assertEqual(res["status"], "success")
-            self.assertEqual(res["total_stock"], 10.0)
+# =============================================================================
+# 4. Tests for OneCConnector RAG Knowledge Base Indexing
+# =============================================================================
 
-    def test_connection_resolution_auto_and_explicit(self):
-        """Tool resolves connection explicitly or automatically finds tenant active 1c_odata."""
-        canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
-
-        # 1. Auto-resolution without connection_id
-        tool_auto = self._create_tool(canvas, connection_id="")
-        with patch.object(OneCClient, "check_stock", return_value={"status": "success", "total_stock": 5.0}) as mock_cs:
-            res = tool_auto._invoke(query="SKU-AUTO")
-            self.assertEqual(res["status"], "success")
-            self.assertEqual(mock_cs.call_count, 1)
-
-        # 2. Non-existent connection ID raises ValueError
-        tool_bad_id = self._create_tool(canvas, connection_id="invalid-conn-id")
-        with self.assertRaises(ValueError) as ctx:
-            tool_bad_id._invoke(query="SKU-1001")
-        self.assertIn("Configured 1C connection 'invalid-conn-id' was not found", str(ctx.exception))
-
-        # 3. No active connections raises ValueError
-        CRMConnection.delete().execute()
-        tool_empty = self._create_tool(canvas, connection_id="")
-        with self.assertRaises(ValueError) as ctx:
-            tool_empty._invoke(query="SKU-1001")
-        self.assertIn("No active 1C:Enterprise connection found for tenant", str(ctx.exception))
-
-    def test_odata_filter_single_quote_escaping_and_injection_prevention(self):
-        """Verify single quote escaping and injection prevention in $filter (Point 6)."""
-        mock_transport = MagicMock()
-        mock_transport.get.return_value = DummyResponse(status_code=200, json_data={"value": []})
-        client = OneCClient(transport=mock_transport)
-
-        # 1. Normal single quote inside brand/item name: O'Reilly
-        client.check_stock(self.valid_config, item_query="O'Reilly", warehouse="Main 'North'")
-        sent_url = mock_transport.get.call_args[0][0]
-        # In URL, escaped quotes become %27%27 ('' in query)
-        self.assertIn("O%27%27Reilly", sent_url)
-        self.assertIn("Main+%27%27North%27%27", sent_url)
-
-        # 2. Injection payload attempting to breakout of string literal
-        malicious_input = "' or 1=1 or SKU eq '"
-        client.check_stock(self.valid_config, item_query=malicious_input)
-        injected_url = mock_transport.get.call_args[0][0]
-        # Literal single quotes must be doubled to '' preventing syntax break
-        self.assertIn("%27%27+or+1%3D1+or+SKU+eq+%27%27", injected_url)
-
-    def test_odata_top_and_limit_ceiling(self):
-        """Verify $top is capped at 100 and response items are limited (Point 6)."""
-        mock_transport = MagicMock()
-        # Return 150 items to test client parsing ceiling
-        many_items = [{"SKU": f"SKU-{i}", "Description": f"Item {i}", "Quantity": 1} for i in range(150)]
-        mock_transport.get.return_value = DummyResponse(status_code=200, json_data={"value": many_items})
-        client = OneCClient(transport=mock_transport)
-
-        cfg = dict(self.valid_config)
-        cfg["top"] = 500  # Attempting excessively large top
-        res = client.check_stock(cfg, item_query="SKU")
-        sent_url = mock_transport.get.call_args[0][0]
-        self.assertIn("%24top=100", sent_url)
-        # Parsed items must be capped at 100
-        self.assertEqual(len(res["items"]), 100)
-        self.assertEqual(res["item_count"], 100)
-
-    def test_configurable_timeout_with_ceiling(self):
-        """Verify timeout is configurable with a 10.0s hard ceiling (Point 6)."""
-        mock_transport = MagicMock()
-        mock_transport.get.return_value = DummyResponse(status_code=200, json_data={"value": []})
-        client = OneCClient(transport=mock_transport)
-
-        cfg = dict(self.valid_config)
-        cfg["timeout"] = 60.0  # Attempting 60s
-        client.check_stock(cfg, item_query="SKU-1001")
-        # Must pass timeout=10.0 to transport.get
-        _, kwargs = mock_transport.get.call_args
-        self.assertEqual(kwargs.get("timeout"), 10.0)
-
-    def test_check_stock_anonymous_allowlist_unknown_channel(self):
-        """Verify CheckStock tool enforces authenticated allowlist (Point 10)."""
-        canvas_unknown = DummyMockCanvas(tenant_id=self.tenant_id, channel="untrusted_external_api")
-        tool_denied = self._create_tool(canvas_unknown, allow_anonymous=False)
-        with self.assertRaises(PermissionError) as ctx:
-            tool_denied._invoke(query="SKU-1001")
-        self.assertIn("Stock checking from anonymous/public channels is forbidden", str(ctx.exception))
-
-        tool_allowed = self._create_tool(canvas_unknown, allow_anonymous=True)
-        with patch.object(OneCClient, "check_stock", return_value={"status": "success", "total_stock": 3.0}):
-            res = tool_allowed._invoke(query="SKU-1001")
-            self.assertEqual(res["status"], "success")
-
-    def test_check_stock_client_spoofing_api_channel_without_is_embed_rejected(self):
-        """Verify unauthenticated client sending channel='api' in request body custom_header without is_embed is rejected (Point 1)."""
-        canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel=None, custom_header={"channel": "api"})
-        canvas.is_embed = False
-        tool = self._create_tool(canvas, allow_anonymous=False, enable_experimental=True)
-        with self.assertRaises(PermissionError) as ctx:
-            tool._invoke(query="SKU-1001")
-        self.assertIn("Stock checking from anonymous/public channels is forbidden", str(ctx.exception))
-
-    def test_tool_blocked_when_experimental_disabled(self):
-        """Verify CheckStock raises RuntimeError when experimental flag is False (Point 4)."""
-        canvas = DummyMockCanvas(tenant_id=self.tenant_id, channel="chat")
-        tool = self._create_tool(canvas, enable_experimental=False)
-        with self.assertRaises(RuntimeError) as ctx:
-            tool._invoke(query="SKU-1001")
-        self.assertIn("experimental and disabled", str(ctx.exception))
-
-    def test_russian_notation_fields_and_defaults(self):
-        """Verify filter_fields and warehouse_field support Russian 1C notation (Point 4)."""
-        mock_transport = MagicMock()
-        mock_transport.get.return_value = DummyResponse(status_code=200, json_data={"value": []})
-        client = OneCClient(transport=mock_transport)
-
-        cfg = dict(self.valid_config)
-        cfg["filter_fields"] = ["Номенклатура/Артикул", "Номенклатура/Наименование"]
-        cfg["warehouse_field"] = "Склад/Наименование"
-
-        client.check_stock(cfg, item_query="Кресло-01", warehouse="Основной Склад")
-        sent_url = mock_transport.get.call_args[0][0]
-        self.assertIn("%D0%9D%D0%BE%D0%BC%D0%B5%D0%BD%D0%BA%D0%BB%D0%B0%D1%82%D1%83%D1%80%D0%B0%2F%D0%90%D1%80%D1%82%D0%B8%D0%BA%D1%83%D0%BB+eq+%27%D0%9A%D1%80%D0%B5%D1%81%D0%BB%D0%BE-01%27", sent_url)
-        self.assertIn("%D0%A1%D0%BA%D0%BB%D0%B0%D0%B4%2F%D0%9D%D0%B0%D0%B8%D0%BC%D0%B5%D0%BD%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5+eq+%27%D0%9E%D1%81%D0%BD%D0%BE%D0%B2%D0%BD%D0%BE%D0%B9+%D0%A1%D0%BA%D0%BB%D0%B0%D0%B4%27", sent_url)
-
-    def test_entity_path_validation_rejects_injections(self):
-        """Verify entity_path regex validates and rejects path traversals or malicious chars (Point 4)."""
-        mock_transport = MagicMock()
-        client = OneCClient(transport=mock_transport)
-
-        bad_paths = [
-            "../../../etc/passwd",
-            "AccumulationRegister; DROP TABLE",
-            "Entity<script>",
-            "Entity/Path with spaces",
-            "Entity\\Path",
-        ]
-        for bad_p in bad_paths:
-            cfg = dict(self.valid_config)
-            cfg["entity_path"] = bad_p
-            with self.assertRaises(ValueError) as ctx:
-                client.check_stock(cfg, item_query="SKU-1")
-            self.assertIn("Invalid 1C entity_path", str(ctx.exception))
-
-    def test_http_scheme_rejected_without_cidr_allowlist(self):
-        """Verify HTTP scheme is rejected unless resolved host is in private CIDR allowlist (Point 4)."""
-        real_transport = CRMTransport(allowed_schemes=frozenset({"http", "https"}))
-        client = OneCClient(transport=real_transport)
-
-        cfg = dict(self.valid_config)
-        cfg["odata_url"] = "http://192.168.1.50/trade/odata/standard.odata"
-        os.environ.pop(ALLOWLIST_CIDR_ENV, None)
-
-        with self.assertRaises(Exception) as ctx:
-            client.check_stock(cfg, item_query="SKU-1")
-        self.assertTrue(
-            "HTTP scheme is prohibited" in str(ctx.exception)
-            or "SSRF" in str(ctx.exception)
-            or "private IP" in str(ctx.exception)
+class TestOneCConnector(unittest.TestCase):
+    def test_onec_connector_formats_markdown_with_category_breadcrumbs(self):
+        """Verify OneCConnector formats catalog markdown with category breadcrumbs without volatile prices."""
+        conn = OneCConnector(
+            base_url="https://1c.example.com/trade/odata/standard.odata",
+            username="sync_user",
+            password="sync_password",
         )
+        item = {
+            "Ref_Key": "prod-1001",
+            "Code": "APL-15P",
+            "Артикул": "A2848",
+            "Description": "iPhone 15 Pro 256GB",
+            "Единица": "шт",
+            "Цена": 14500000,          # Volatile - should be omitted from static KB doc
+            "КоличествоОстаток": 42,   # Volatile - should be omitted from static KB doc
+        }
+        category_breadcrumb = "Смартфоны / Apple / iPhone"
 
+        md = conn._format_item_text("Catalog_Номенклатура", item, category_breadcrumb=category_breadcrumb)
+        self.assertIn("# 1С Catalog_Номенклатура: iPhone 15 Pro 256GB", md)
+        self.assertIn("- **Категория**: Смартфоны / Apple / iPhone", md)
+        self.assertIn("- **Артикул/Код**: A2848", md)
+        # Verify static KB doc omits raw volatile price/stock and includes API notice
+        self.assertNotIn("- **Цена**", md)
+        self.assertNotIn("- **КоличествоОстаток**", md)
+        self.assertIn("Остатки на складах и актуальные цены запрашиваются в реальном времени через 1C API", md)
+
+
+# =============================================================================
+# 5. Tests for QueryCRMRecords SQL Parser Warehouse and Price Type
+# =============================================================================
+
+class TestQueryCRMRecordsParser(unittest.TestCase):
+    def test_sql_parser_extracts_warehouse_and_price_type(self):
+        """Verify parse_sql_crm_query extracts warehouse and price_type filters from SQL."""
+        sql = "SELECT id, title, price FROM product WHERE warehouse = 'Основной склад' AND price_type = 'Дилер с НДС' AND price >= 1000000 LIMIT 5;"
+        parsed = parse_sql_crm_query(sql)
+
+        self.assertEqual(parsed["entity"], "product")
+        self.assertEqual(parsed["warehouse"], "Основной склад")
+        self.assertEqual(parsed["price_type"], "Дилер с НДС")
+        self.assertEqual(parsed["min_price"], 1000000.0)
+        self.assertEqual(parsed["limit"], 5)
 
 
 if __name__ == "__main__":

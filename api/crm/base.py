@@ -129,22 +129,23 @@ class CRMProviderRegistry:
         if crm_type in cls._providers:
             return cls._providers[crm_type]
 
-        if crm_type in ("amocrm", "kommo"):
+        crm_norm = str(crm_type).lower().strip()
+        if crm_norm in ("amocrm", "kommo", "amo_crm"):
             from api.crm.clients.amocrm import AmoCRMClient
             provider = AmoCRMClient()
             cls._providers[crm_type] = provider
             return provider
-        elif crm_type in ("bitrix24", "bitrix24_onprem"):
+        elif crm_norm in ("bitrix24", "bitrix24_onprem", "bitrix"):
             from api.crm.clients.bitrix24 import Bitrix24Client
             provider = Bitrix24Client()
             cls._providers[crm_type] = provider
             return provider
-        elif crm_type in ("1c", "1c_odata"):
+        elif crm_norm in ("1c", "1c_odata", "onec", "1c_enterprise", "onec_odata"):
             from api.crm.clients.one_c import OneCClient
             provider = OneCClient()
             cls._providers[crm_type] = provider
             return provider
-        elif crm_type == "hubspot":
+        elif crm_norm == "hubspot":
             from api.crm.clients.hubspot import HubSpotClient
             provider = HubSpotClient()
             cls._providers[crm_type] = provider

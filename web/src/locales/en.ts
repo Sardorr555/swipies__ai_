@@ -1290,6 +1290,8 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
         'Select which metadata fields to display with each chunk',
     },
     setting: {
+      storedCredentialsHidden: "Saved credentials are hidden. Leave the key blank to keep it; enter a new key only to replace it.",
+
       Verify: 'Verify',
       keyValid: 'Your API Key is valid.',
       keyInvalid: 'Your API Key is invalid.',

@@ -37,6 +37,7 @@ from common.data_source.interfaces import (
 )
 from common.data_source.models import Document, SlimDocument
 from api.crm.transport import CRMTransport, validate_crm_url_and_resolve
+from api.crm.catalog_profiler import OneCCatalogProfiler
 
 logger = logging.getLogger("OneCConnector")
 
@@ -125,24 +126,33 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
             "User-Agent": "RAGFlow-1C-OData-Sync/1.0",
         }
         if self.username or self.password:
-            auth_str = f"{self.username}:{self.password}"
-            b64_auth = base64.b64encode(auth_str.encode("utf-8")).decode("ascii")
-            headers["Authorization"] = f"Basic {b64_auth}"
+            auth_str = f"{self.username}:{self.password}".encode("utf-8")
+            headers["Authorization"] = f"Basic {base64.b64encode(auth_str).decode('ascii')}"
         return headers
 
-    def _call_odata(self, endpoint_url: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        headers = self._headers()
-        try:
-            resp = self.transport.get(endpoint_url, headers=headers, params=params or {}, timeout=30.0)
-        except Exception as e:
-            raise ConnectorValidationError(f"1C OData network error on {endpoint_url}: {e}") from e
+    def _get_auth_headers(self, connection_config: Dict[str, Any]) -> Dict[str, str]:
+        """Satisfies profiler duck-typing requirement."""
+        return self._headers()
 
-        if resp.status_code == 401:
-            raise ConnectorMissingCredentialError("1C OData authentication failed (HTTP 401)")
-        if resp.status_code == 403:
-            raise InsufficientPermissionsError("1C OData access forbidden (HTTP 403)")
-        if not resp.ok:
-            raise UnexpectedValidationError(f"1C OData returned HTTP {resp.status_code}: {resp.text[:200]}")
+    def _execute_get(self, url: str, headers: Dict[str, str], timeout: float = 10.0) -> Any:
+        """Satisfies profiler duck-typing requirement."""
+        return self._call_odata(url, timeout=timeout)
+
+    def _call_odata(self, url: str, params: Optional[Dict[str, Any]] = None, timeout: float = 30.0) -> Dict[str, Any]:
+        validate_crm_url_and_resolve(
+            url,
+            allowed_schemes=frozenset({"https", "http"}),
+            private_cidr_env="RAGFLOW_CRM_PRIVATE_ALLOWLIST_CIDR",
+        )
+        try:
+            resp = self.transport.get(url, headers=self._headers(), params=params, timeout=timeout)
+        except Exception as e:
+            raise ConnectorValidationError(f"Failed to connect to 1C OData service: {e}") from e
+
+        if resp.status_code in (401, 403):
+            raise InsufficientPermissionsError("1C OData authorization failed: invalid credentials or insufficient rights")
+        if resp.status_code >= 400:
+            raise ConnectorValidationError(f"1C OData returned error {resp.status_code}: {resp.text[:200]}")
 
         try:
             return resp.json()
@@ -161,18 +171,32 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
         except Exception as e:
             raise ConnectorValidationError(f"1C Base URL failed validation: {e}") from e
 
-        # Probe first entity
         target_entity = self.entity_paths[0] if self.entity_paths else DEFAULT_ENTITY
         probe_url = f"{self.base_url}/{target_entity}"
         res = self._call_odata(probe_url, params={"$top": 1, "$format": "json"})
         if not isinstance(res, dict) or "value" not in res:
             raise ConnectorValidationError(f"1C validation failed: unexpected response structure from {probe_url}")
 
-    def _format_item_text(self, entity: str, item: Dict[str, Any]) -> str:
+    def _format_item_text(
+        self,
+        entity: str,
+        item: Dict[str, Any],
+        category_breadcrumb: str = "",
+    ) -> str:
         name = item.get("Description") or item.get("Наименование") or item.get("Code") or item.get("Ref_Key") or "Item"
+        sku = item.get("Артикул") or item.get("Code") or item.get("Код") or ""
+        
         lines = [f"# 1С {entity}: {name}"]
+        if category_breadcrumb:
+            lines.append(f"- **Категория**: {category_breadcrumb}")
+        if sku:
+            lines.append(f"- **Артикул/Код**: {sku}")
+
         for k in sorted(item.keys()):
-            if k.startswith("odata.") or "@" in k:
+            if k in ("odata.metadata", "Ref_Key", "Parent_Key", "IsFolder", "ПометкаУдаления") or k.startswith("odata.") or "@" in k:
+                continue
+            # Omit volatile or internal prices/balances from static knowledge base markdown
+            if k.lower() in ("цена", "price", "остаток", "balance", "количествоостаток", "вналичииостаток"):
                 continue
             val = item[k]
             if val is None or val == "":
@@ -180,6 +204,8 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
             if isinstance(val, (dict, list)):
                 val = json.dumps(val, ensure_ascii=False)
             lines.append(f"- **{k}**: {val}")
+
+        lines.append("\n> [!NOTE]\n> Остатки на складах и актуальные цены запрашиваются в реальном времени через 1C API (инструмент check_stock).")
         return "\n".join(lines)
 
     def _fetch_entity_records(
@@ -201,8 +227,12 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
             if select_fields:
                 params["$select"] = select_fields
 
-            # Add date filter if requested and possible
             filters = []
+            # For product catalog, automatically filter out folders and deleted items
+            if entity == "Catalog_Номенклатура":
+                filters.append("ПометкаУдаления eq false")
+                filters.append("IsFolder eq false")
+
             if start_ts is not None and start_ts > 0:
                 start_iso = datetime.fromtimestamp(start_ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
                 filters.append(f"Period ge datetime'{start_iso}'")
@@ -215,7 +245,7 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
             try:
                 res = self._call_odata(url, params=params)
             except Exception as e:
-                # If $filter=Period fails (e.g. catalog doesn't have Period field), retry without filter
+                # If $filter fails (e.g. entity lacks Period or IsFolder field), retry without filter
                 if filters and "$filter" in params:
                     params.pop("$filter", None)
                     res = self._call_odata(url, params=params)
@@ -242,9 +272,23 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
         parsed_url = urlsplit(self.base_url)
         host_tag = parsed_url.hostname or "1c"
 
+        # Pre-build category tree for product breadcrumbs
+        category_tree: Dict[str, str] = {}
+        try:
+            category_tree = OneCCatalogProfiler.discover_category_tree(
+                self,
+                {"odata_url": self.base_url, "username": self.username, "password": self.password},
+            )
+        except Exception as e:
+            logger.warning("Could not pre-discover category hierarchy for 1C: %s", e)
+
         for entity in self.entity_paths:
             try:
                 for item in self._fetch_entity_records(entity, start_ts, end_ts):
+                    # Skip folders or deleted items if returned by OData
+                    if item.get("IsFolder") is True or item.get("ПометкаУдаления") is True:
+                        continue
+
                     item_id = str(item.get("Ref_Key") or item.get("Code") or item.get("ID") or "")
                     if not item_id:
                         continue
@@ -259,7 +303,10 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
                             except Exception:
                                 pass
 
-                    text = self._format_item_text(entity, item)
+                    parent_key = str(item.get("Parent_Key") or "")
+                    category_breadcrumb = category_tree.get(parent_key, "")
+
+                    text = self._format_item_text(entity, item, category_breadcrumb=category_breadcrumb)
                     blob = text.encode("utf-8")
 
                     doc = Document(
@@ -276,6 +323,7 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
                             "entity": entity,
                             "record_id": item_id,
                             "title": name,
+                            "category": category_breadcrumb,
                         },
                     )
                     batch.append(doc)
@@ -312,7 +360,9 @@ class OneCConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
 
         for entity in self.entity_paths:
             try:
-                for item in self._fetch_entity_records(entity, select_fields="Ref_Key,Code"):
+                for item in self._fetch_entity_records(entity, select_fields="Ref_Key,Code,IsFolder,ПометкаУдаления"):
+                    if item.get("IsFolder") is True or item.get("ПометкаУдаления") is True:
+                        continue
                     item_id = str(item.get("Ref_Key") or item.get("Code") or "")
                     if not item_id:
                         continue

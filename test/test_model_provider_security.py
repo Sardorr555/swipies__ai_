@@ -58,11 +58,26 @@ class MainHotfixTests(unittest.TestCase):
     def test_normal_user_own_key_is_write_only(self):
         ok,result=providers.show_provider_instance(self.normal,self.own.id,self.personal.id)
         self.assertTrue(ok); self.assertEqual(result['api_key'],''); self.assertTrue(result['has_api_key'])
-    def test_admin_can_manage_own_key(self):
-        ok,result=providers.show_provider_instance(self.owner,self.platform.id,self.instance.id,reveal_secrets=True)
-        self.assertTrue(ok); self.assertEqual(result['api_key'],'qa-platform-secret')
+    def test_admin_saved_key_is_also_write_only(self):
+        ok,result=providers.show_provider_instance(self.owner,self.platform.id,self.instance.id)
+        self.assertTrue(ok); self.assertEqual(result['api_key'],''); self.assertTrue(result['has_api_key'])
     def test_stranger_cannot_read_personal_key(self):
         self.assertFalse(providers.show_provider_instance(self.stranger,self.own.id,self.personal.id)[0])
+    def test_blank_update_preserves_server_key(self):
+        result=asyncio.run(providers.update_provider_instance(self.owner,self.platform.id,self.instance.id,'default','','','',model_info=[],verify=False))
+        self.assertTrue(result[0])
+        self.assertEqual(TenantModelInstance.get_by_id(self.instance.id).api_key,'qa-platform-secret')
+        self.assertEqual(runtime.get_model_config_by_id(self.normal,'chat',self.model.id)['api_key'],'qa-platform-secret')
+    def test_admin_http_does_not_return_stored_key(self):
+        async def run():
+            client=app.test_client()
+            response=await client.get(f'/api/v1/providers/{self.platform.id}/instances/{self.instance.id}',
+                headers={'Authorization':User.get_by_id(self.owner).get_id()})
+            body=await response.get_json()
+            self.assertEqual(body['code'],0)
+            self.assertEqual(body['data']['api_key'],'')
+            self.assertNotIn('qa-platform-secret',json.dumps(body))
+        asyncio.run(run())
     def test_platform_model_id_resolves_for_chat(self):
         result=runtime.get_model_config_by_id(self.normal,'chat',self.model.id)
         self.assertEqual(result['llm_name'],self.model.model_name); self.assertEqual(result['api_key'],'qa-platform-secret')
