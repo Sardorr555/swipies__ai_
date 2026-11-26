@@ -14,6 +14,8 @@
  *  limitations under the License.
  */
 
+import { Link } from 'react-router';
+import { BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal/modal';
@@ -123,7 +125,7 @@ export const AddedChannelCard = (props: IAddedChannelCardProps) => {
         {list.map((item) => (
           <div
             key={item.id}
-            className="flex flex-row items-center justify-between rounded-md bg-bg-card px-[10px] py-4"
+            className="flex flex-wrap gap-3 items-center justify-between rounded-md bg-bg-card px-[10px] py-4"
           >
             <div className="flex flex-col gap-0.5">
               <div className="text-sm text-text-primary">{item.name}</div>
@@ -141,6 +143,11 @@ export const AddedChannelCard = (props: IAddedChannelCardProps) => {
               )}
             </div>
             <div className="text-sm text-text-secondary flex gap-2">
+              {item.channel === ChatChannelKey.TELEGRAM && (
+                <Button variant="outline" className="text-xs" asChild>
+                  <Link to={`/user-setting/chat-channel/${item.id}/analytics`}><BarChart3 size={14} />Аналитика</Link>
+                </Button>
+              )}
               <Button
                 variant={'ghost'}
                 className="rounded-lg px-2 py-1 bg-transparent hover:bg-bg-card"

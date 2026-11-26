@@ -117,7 +117,8 @@ def _desired_channels() -> dict:
 
     desired: dict = {}
     for row in ChatChannelService.list_active():
-        credential = (row.config or {}).get("credential", {}) or {}
+        from api.utils.key_crypto import decrypt_connector_config
+        credential = decrypt_connector_config(row.config or {}).get("credential", {}) or {}
         desired[row.id] = (row.channel, credential, _fingerprint(row.channel, credential))
     return desired
 
@@ -162,7 +163,7 @@ def _make_chat_handler(ch):
     from common.misc_utils import get_uuid
 
     async def handle(msg: IncomingMessage) -> None:
-        if not (msg.text or "").strip():
+        if not (msg.text or "").strip() and not msg.attachments:
             return
 
         # account_id == chat_channel.id; re-read so target changes apply live.
@@ -195,6 +196,7 @@ def _make_chat_handler(ch):
                     agent_id=cc.agent_id,
                     session_id=session.id if session else None,
                     query=query,
+                    files=msg.attachments or [],
                     inputs=inputs,
                     user_id=user_id,
                 ):
@@ -369,6 +371,8 @@ async def run_channels(stop_event: threading.Event) -> None:
     """Reconcile and run channels until ``stop_event`` is set."""
     _register_channels()
 
+    from api.channels.telegram.analytics import worker as analytics_worker
+    analytics_task = asyncio.create_task(analytics_worker(stop_event))
     running: dict = {}
     failed: dict = {}
     try:
@@ -388,6 +392,11 @@ async def run_channels(stop_event: threading.Event) -> None:
                     break
                 await asyncio.sleep(1)
     finally:
+        analytics_task.cancel()
+        try:
+            await analytics_task
+        except asyncio.CancelledError:
+            pass
         LOGGER.info("Stopping chat channels...")
         for account_id in list(running.keys()):
             await _stop_channel(running, account_id)

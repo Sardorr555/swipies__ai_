@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from telegram import ReplyParameters, Update
-from telegram.ext import Application, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, ContextTypes, MessageHandler, CallbackQueryHandler, filters
 
 from ..core.base import Channel, IncomingMessage, OutgoingMessage
 from ..core.registry import register_channel
@@ -32,7 +32,8 @@ def get_runtime_snapshot(account_id: str) -> dict | None:
     live = _live_channels.get(account_id)
     is_polling = bool(live and live._app and live._app.updater and live._app.updater.running)
 
-    cred = (conn.config or {}).get("credential", {}) if isinstance(conn.config, dict) else {}
+    from api.utils.key_crypto import decrypt_connector_config
+    cred = decrypt_connector_config(conn.config or {}).get("credential", {})
     raw_token = cred.get("token") or (live.account.token if live and live.account else "")
     has_token = bool(raw_token)
 
@@ -154,6 +155,7 @@ class TelegramChannel(Channel):
         self.account = account
         self.account_id = account.account_id
         self._app: Optional[Application] = None
+        self._bot_info = None
         self._processed_updates: OrderedDict[int, bool] = OrderedDict()
 
     def _mark_update_processed(self, update_id: int) -> None:
@@ -163,11 +165,25 @@ class TelegramChannel(Channel):
                     self._processed_updates.popitem(last=False)
         self._processed_updates[update_id] = True
 
+    async def _send_message(self, **kwargs):
+        sent = await self._app.bot.send_message(**kwargs)
+        from .analytics import capture_reply
+        await capture_reply(self.account_id, self._bot_info or {}, sent)
+        return sent
+
+    async def _analytics_callback(self, update, context):
+        from .analytics import capture_update
+        await capture_update(self.account_id, self._bot_info or {}, update)
+        try:
+            await update.callback_query.answer()
+        except Exception:
+            pass
+
     async def _send_reply(self, msg, text: str) -> None:
         try:
             if self._app and self._app.bot:
                 try:
-                    await self._app.bot.send_message(
+                    await self._send_message(
                         chat_id=msg.chat.id,
                         text=text,
                         reply_parameters=ReplyParameters(message_id=msg.message_id, allow_sending_without_reply=True),
@@ -176,7 +192,7 @@ class TelegramChannel(Channel):
                 except Exception:
                     clean_text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
                     clean_text = clean_text.replace("\n\n---\n", "\n\n")
-                    await self._app.bot.send_message(
+                    await self._send_message(
                         chat_id=msg.chat.id,
                         text=clean_text,
                         reply_parameters=ReplyParameters(message_id=msg.message_id, allow_sending_without_reply=True),
@@ -187,6 +203,7 @@ class TelegramChannel(Channel):
     async def start(self) -> None:
         self._app = Application.builder().token(self.account.token).build()
         self._app.add_handler(MessageHandler(filters.ALL, self._on_update))
+        self._app.add_handler(CallbackQueryHandler(self._analytics_callback))
         LOGGER.info("[telegram:%s] starting long-poll", self.account_id)
         await self._app.initialize()
         await self._app.start()
@@ -203,6 +220,12 @@ class TelegramChannel(Channel):
         except Exception as bot_err:
             LOGGER.warning("[telegram:%s] failed to get bot info during start: %s", self.account_id, bot_err)
             self._bot_info = None
+        try:
+            from api.db.services.telegram_analytics_ingest import register_bot
+            import asyncio
+            await asyncio.to_thread(register_bot, self.account_id, self._bot_info or {})
+        except Exception:
+            LOGGER.warning("Telegram analytics awaits migration for channel=%s", self.account_id)
         _live_channels[self.account_id] = self
         await self._app.updater.start_polling(drop_pending_updates=True)
 
@@ -239,7 +262,7 @@ class TelegramChannel(Channel):
             except (TypeError, ValueError):
                 reply_parameters = None
         try:
-            await self._app.bot.send_message(
+            await self._send_message(
                 chat_id=chat_id,
                 text=message.text,
                 reply_parameters=reply_parameters,
@@ -249,7 +272,7 @@ class TelegramChannel(Channel):
             try:
                 clean_text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', message.text)
                 clean_text = clean_text.replace("\n\n---\n", "\n\n")
-                await self._app.bot.send_message(
+                await self._send_message(
                     chat_id=chat_id,
                     text=clean_text,
                     reply_parameters=reply_parameters,
@@ -266,6 +289,8 @@ class TelegramChannel(Channel):
                 LOGGER.debug("[telegram:%s] duplicate update_id %s ignored", self.account_id, update.update_id)
                 return
 
+            from .analytics import capture_update
+            await capture_update(self.account_id, self._bot_info or {}, update)
             self._mark_update_processed(update.update_id)
 
             msg = update.effective_message
@@ -372,7 +397,28 @@ class TelegramChannel(Channel):
                         except Exception as rm_err:
                             LOGGER.debug("[telegram:%s] temp audio cleanup error: %s", self.account_id, rm_err)
 
-            if not (text or "").strip():
+            attachments = []
+            photos = getattr(msg, "photo", None) or []
+            document = getattr(msg, "document", None)
+            media = photos[-1] if photos else document
+            if media:
+                if (getattr(media, "file_size", 0) or 0) > 10 * 1024 * 1024:
+                    await self._send_reply(msg, "Файл превышает 10 МБ, пришлите файл меньшего размера")
+                    return
+                import base64
+                from api.db.services.codeexec_service import attachment
+                tg_file = await _ctx.bot.get_file(media.file_id)
+                raw = await tg_file.download_as_bytearray()
+                mime = "image/jpeg" if photos else (getattr(document, "mime_type", None) or "application/octet-stream")
+                uri = "data:" + mime + ";base64," + base64.b64encode(raw).decode()
+                try:
+                    attachment(uri, getattr(document, "file_name", None) or "receipt.jpg")
+                except ValueError:
+                    await self._send_reply(msg, "Не удалось прочитать вложение, пришлите изображение или документ до 10 МБ")
+                    return
+                attachments = [uri]
+                text = text or "Получен файл чека"
+            if not (text or "").strip() and not attachments:
                 return
 
             incoming = IncomingMessage(
@@ -384,6 +430,7 @@ class TelegramChannel(Channel):
                 sender_id=str(msg.from_user.id),
                 text=text,
                 raw=update,
+                attachments=attachments,
             )
             await self._dispatch(incoming)
         except Exception:
@@ -391,7 +438,8 @@ class TelegramChannel(Channel):
 
 
 def _build(account_id: str, cfg: dict) -> Channel:
-    token = cfg.get("token")
+    from api.utils.key_crypto import decrypt_connector_config
+    token = decrypt_connector_config(cfg).get("token")
     if not token:
         raise ValueError(f"telegram account '{account_id}' is missing token")
     return TelegramChannel(TelegramAccount(account_id=account_id, token=str(token)))

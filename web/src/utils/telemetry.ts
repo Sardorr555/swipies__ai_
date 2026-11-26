@@ -89,7 +89,7 @@ class PlatformTelemetryTracker {
   private flushTimer: any = null;
 
   public init() {
-    if (this.isInitialized || typeof window === 'undefined') return;
+    if (this.isInitialized || typeof window === 'undefined' || window.location.pathname.startsWith('/shared/telegram-analytics')) return;
     this.isInitialized = true;
 
     this.currentPath = window.location.pathname;
@@ -255,6 +255,7 @@ class PlatformTelemetryTracker {
     try {
       const target = e.target as HTMLElement | null;
       if (!target) return;
+      if (target.closest('[data-telemetry-private]')) return;
 
       // Selector capturing all interactive elements
       const selector = [
@@ -346,6 +347,7 @@ class PlatformTelemetryTracker {
   };
 
   private pushEvent(event: TelemetryRawEvent) {
+    if (window.location.pathname.startsWith('/shared/telegram-analytics')) return;
     this.queue.push(event);
     if (this.queue.length >= 15) {
       this.flushQueue(false);

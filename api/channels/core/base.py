@@ -18,6 +18,7 @@ class IncomingMessage:
     sender_id: str
     text: str
     raw: Any = None
+    attachments: list | None = None
 
 
 @dataclass

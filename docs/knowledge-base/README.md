@@ -1,5 +1,7 @@
 # База знаний Swipies RAGFlow
 
+for the isolated Python runtime, encrypted Telegram delivery and deferred release.
+
 > **Статус документа:** Актуален  
 > **Дата последней проверки:** 2026-10-15  
 > **Основная ветка разработки:** `test`  
@@ -108,3 +110,8 @@ Sales are unchanged.
 [Knowledge landing](knowledge-landing.md): published UZ/RU/EN using Design-It
 Editorial Design, interactive source excerpts, original brand and shared acquisition.
 Main site, Sales and Support remain unchanged.
+
+
+## Prepared Telegram analytics (2026-11-26)
+
+[Telegram bot analytics](telegram-bot-analytics.md) and [ADR-011](decisions/ADR-011-telegram-bot-analytics.md) document the bot-scoped ledger, confirmed payments and revocable aggregate widgets. Combined with the CodeExec release; push authorized on 2026-11-26, production deployment deferred. See [handoff](handoffs/2026-11-26-telegram-analytics.md).

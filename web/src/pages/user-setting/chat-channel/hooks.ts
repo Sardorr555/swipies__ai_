@@ -39,6 +39,7 @@ export const useListChatChannel = () => {
   const { chatChannelInfo } = useChatChannelInfo();
   const { data: list, isFetching } = useQuery<IChatChannelBase[]>({
     queryKey: ChatChannelKeys.list(),
+    refetchInterval: 10000,
     queryFn: async () => {
       const { data } = await chatChannelService.chatChannelList();
       return data.data;
