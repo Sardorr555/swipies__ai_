@@ -319,6 +319,8 @@ async def _normalize_model_pair(req, tenant_id, name_field, id_field, model_type
     if model_id:
         try:
             await thread_pool_exec(get_model_config_by_id, tenant_id, model_type, model_id)
+        except PermissionError:
+            return "Model is not available for your subscription."
         except LookupError as e:
             logging.error("Fail to get %s config by tenant model id %s: %s", model_type, model_id, e)
             return f"`{id_field}` must be a valid tenant model id"
@@ -336,6 +338,8 @@ async def _normalize_model_pair(req, tenant_id, name_field, id_field, model_type
                     resolved_name_id = model_name
                 except LookupError:
                     resolved_name_id = await thread_pool_exec(resolve_model_id, tenant_id, model_type, model_name)
+            except PermissionError:
+                return "Model is not available for your subscription."
             except LookupError as e:
                 logging.error("Fail to resolve %s %s: %s", name_field, model_name, e)
                 return f"`{name_field}` {model_name} doesn't exist"
@@ -349,7 +353,7 @@ async def _normalize_model_pair(req, tenant_id, name_field, id_field, model_type
                 right = await thread_pool_exec(get_model_config_by_id, tenant_id, model_type, resolved_name_id)
                 if (left['llm_factory'].lower(), left['llm_name']) != (right['llm_factory'].lower(), right['llm_name']):
                     return f"`{name_field}` and `{id_field}` must refer to the same model"
-            except LookupError:
+            except (LookupError, PermissionError):
                 return f"`{name_field}` and `{id_field}` must refer to the same model"
     elif model_name:
         req[id_field] = resolved_name_id

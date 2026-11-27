@@ -30,6 +30,29 @@ from api.utils.key_crypto import encrypt_api_key, decrypt_api_key, mask_api_key
 logger = logging.getLogger(__name__)
 
 
+async def _catalog_response(url, headers, items_key, cursor_key, cursor_param):
+    """Read every catalog page without sending credentials in URLs or logs."""
+    items, params, seen = [], {}, set()
+    for _ in range(100):
+        response = await asyncio.to_thread(requests.get, url, headers=headers, params=params, timeout=10)
+        if response.status_code != 200:
+            return response
+        body = response.json()
+        items.extend(body.get(items_key, []))
+        cursor = body.get(cursor_key)
+        if cursor_key == "last_id" and not body.get("has_more"):
+            cursor = None
+        if not cursor:
+            # Preserve the Response interface used by the existing discovery code.
+            response._content = json.dumps({**body, items_key: items}).encode()
+            return response
+        if cursor in seen:
+            raise ValueError("Provider returned a repeated catalog cursor")
+        seen.add(cursor)
+        params = {cursor_param: cursor}
+    raise ValueError("Provider catalog exceeds supported pagination limit")
+
+
 class AIProviderService(CommonService):
     model = AIProvider
 
@@ -75,8 +98,8 @@ class AIProviderService(CommonService):
         # 1. Google Gemini / Google
         if "gemini" in prov_lower or "google" in prov_lower:
             try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models?key={raw_api_key}"
-                resp = await asyncio.to_thread(requests.get, url, timeout=10)
+                url = "https://generativelanguage.googleapis.com/v1beta/models"
+                resp = await _catalog_response(url, {"x-goog-api-key": raw_api_key}, "models", "nextPageToken", "pageToken")
                 if resp.status_code == 200:
                     data = resp.json()
                     for m in data.get("models", []):
@@ -108,7 +131,7 @@ class AIProviderService(CommonService):
                         err_msg = resp.text
                     return False, f"Google Gemini API error: {err_msg}", []
             except Exception as ge:
-                logger.warning("Google Gemini live discovery request error: %s", ge)
+                logger.warning("Google Gemini live discovery request failed (%s)", type(ge).__name__)
 
         # 2. Ollama
         elif "ollama" in prov_lower:
@@ -135,7 +158,7 @@ class AIProviderService(CommonService):
             try:
                 url = "https://api.anthropic.com/v1/models"
                 headers = {"x-api-key": raw_api_key, "anthropic-version": "2023-06-01"}
-                resp = await asyncio.to_thread(requests.get, url, headers=headers, timeout=10)
+                resp = await _catalog_response(url, headers, "data", "last_id", "after_id")
                 if resp.status_code == 200:
                     for m in resp.json().get("data", []):
                         m_name = m.get("id")
@@ -508,6 +531,8 @@ class AIProviderService(CommonService):
                             "update_time": now,
                         }
                         if existing_aimodel:
+                            aimodel_data["enabled"] = existing_aimodel[0].enabled
+                            aimodel_data["status"] = existing_aimodel[0].status
                             AIModelService.model.update(**aimodel_data).where(AIModelService.model.id == m_id).execute()
                         else:
                             aimodel_data["create_time"] = now
@@ -527,7 +552,7 @@ class AIProviderService(CommonService):
                                     is_default_llm=(plan_id == "free" and m_name.lower().startswith("gpt-4o-mini")),
                                     is_default_embd=False,
                                     is_default_rerank=False,
-                                    enabled=True,
+                                    enabled=False,
                                     create_time=now,
                                     update_time=now,
                                 )

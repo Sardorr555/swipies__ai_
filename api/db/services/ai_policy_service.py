@@ -47,107 +47,31 @@ class AIModelService(CommonService):
     model = AIModel
 
     @classmethod
+    def get_available_platform_models(cls, tenant_id):
+        return [m for m in cls.get_platform_models()
+                if AIPolicyManager.check_model_access_extended(tenant_id, m['id'], check_quotas=False)[0]]
+
+    @classmethod
     @DB.connection_context()
-    def get_platform_models(cls) -> list[dict]:
-        from common.settings import FACTORY_LLM_INFOS
-        from common.time_utils import current_timestamp
-
-        # Fetch active providers with valid configured API keys
-        active_providers = {
-            p.provider_name.lower(): p
-            for p in AIProvider.select().where(
-                AIProvider.is_global == True,
-                AIProvider.status == "active",
-                AIProvider.api_key.is_null(False),
-                AIProvider.api_key != "",
-            )
-        }
-
-        # Purge placeholder/garbage models like "open ai models" or "openai models"
-        placeholder_models = cls.model.select().where(
-            cls.model.is_global == True,
-            (cls.model.model_name.contains("open ai models") | 
-             cls.model.model_name.contains("openai models") |
-             cls.model.model_name.contains("placeholder"))
-        )
-        for pm in placeholder_models:
-            pm.delete_instance()
-
-        now = current_timestamp()
-
-        # For every active provider with an API key, ensure all capabilities are present in AIModel
-        for prov_lower, p_obj in active_providers.items():
-            prov_name = p_obj.provider_name
-            count = cls.model.select().where(
-                cls.model.is_global == True,
-                cls.model.provider == prov_name,
-                cls.model.enabled == True,
-            ).count()
-
-            if count == 0:
-                fac_entry = next(
-                    (f for f in (FACTORY_LLM_INFOS or []) if f.get("name", "").lower() == prov_lower),
-                    None,
-                )
-                if fac_entry and fac_entry.get("llm"):
-                    for llm in fac_entry["llm"]:
-                        m_name = llm.get("llm_name") or llm.get("name", "")
-                        if not m_name:
-                            continue
-                        raw_types = llm.get("model_type", ["chat"])
-                        m_types = raw_types if isinstance(raw_types, list) else [raw_types]
-                        max_tok = llm.get("max_tokens", 8192) or 8192
-
-                        for mt in m_types:
-                            norm_type = str(mt).upper()
-                            if "EMBED" in norm_type:
-                                norm_type = "EMBEDDING"
-                            elif "RERANK" in norm_type or "RE-RANK" in norm_type:
-                                norm_type = "RERANK"
-                            elif "IMAGE2TEXT" in norm_type or "VISION" in norm_type:
-                                norm_type = "IMAGE2TEXT"
-                            elif "SPEECH2TEXT" in norm_type or "ASR" in norm_type or "AUDIO" in norm_type:
-                                norm_type = "SPEECH2TEXT"
-                            elif "TTS" in norm_type or "TEXT2SPEECH" in norm_type:
-                                norm_type = "TTS"
-                            else:
-                                norm_type = "CHAT"
-
-                            m_id = f"{prov_lower}/{m_name}" if norm_type == "CHAT" else f"{prov_lower}/{m_name}_{norm_type.lower()}"
-
-                            if not cls.model.select().where(cls.model.id == m_id).count():
-                                cls.model.create(
-                                    id=m_id,
-                                    provider=prov_name,
-                                    model_name=m_name,
-                                    model_type=norm_type,
-                                    base_url=p_obj.base_url or "",
-                                    api_key=p_obj.api_key or "",
-                                    max_tokens=max_tok,
-                                    input_token_price=0.0,
-                                    output_token_price=0.0,
-                                    enabled=True,
-                                    is_global=True,
-                                    is_custom=False,
-                                    global_instance_id=GLOBAL_INSTANCE_ID,
-                                    status="active",
-                                    create_time=now,
-                                    update_time=now,
-                                )
-
-        models = list(cls.model.select().where(cls.model.is_global == True, cls.model.enabled == True))
-        res = []
-        for m in models:
-            prov_key = (m.provider or "").lower()
-            # Only include models that have a direct key or whose provider is authenticated
-            if prov_key in active_providers or (m.api_key and len(m.api_key.strip()) > 0):
-                md = m.to_dict()
-                prov_obj = active_providers.get(prov_key)
-                effective_key = m.api_key or (prov_obj.api_key if prov_obj else "")
-                md["api_key_masked"] = mask_api_key(effective_key)
-                del md["api_key"]
-                res.append(md)
-        return res
+    def get_platform_models(cls, include_disabled=False) -> list[dict]:
+        """Read the published catalog; GET must not seed models or reset operator settings."""
+        active = {p.provider_name.lower(): p for p in AIProvider.select().where(
+            AIProvider.is_global == True, AIProvider.status.in_(["active", "verified"]),
+            AIProvider.api_key.is_null(False), AIProvider.api_key != "")}
+        result = []
+        for model in cls.model.select().where(cls.model.is_global == True, cls.model.is_custom == False):
+            if not include_disabled and (not model.enabled or model.status not in ("active", "verified")):
+                continue
+            provider = active.get(model.provider.lower())
+            configured = bool(model.api_key or provider)
+            if not include_disabled and not configured:
+                continue
+            data = model.to_dict()
+            data.pop("api_key", None)
+            data["has_api_key"] = configured
+            data["api_key_masked"] = "<configured>" if configured else ""
+            result.append(data)
+        return result
 
     @classmethod
     @DB.connection_context()
@@ -487,6 +411,7 @@ class AIPolicyManager:
         model_name: str,
         model_type: str = None,
         user_id: str = None,
+        check_quotas: bool = True,
     ) -> tuple[bool, str, int, str]:
         """
         5-Tier Pre-Flight Policy Evaluation:
@@ -637,6 +562,16 @@ class AIPolicyManager:
         plan = cls.get_user_plan(tenant_id, target_user_id)
         plan_id = plan["id"].lower()
 
+        if not is_super and not byok_model and not ai_model and provider_name:
+            global_provider = AIProvider.select().where(AIProvider.is_global == True,
+                fn.LOWER(AIProvider.provider_name) == provider_name.lower()).exists()
+            if global_provider:
+                from api.db.services.tenant_model_provider_service import TenantModelProviderService
+                own_provider = TenantModelProviderService.get_by_tenant_id_and_provider_name(
+                    tenant_id, provider_name, fallback_admin=False)
+                if not own_provider:
+                    return False, "This platform model has not been published for your subscription.", 403, "PLAN_RESTRICTED"
+
         if byok_model:
             # Enforce BYOK access rules
             if not is_super:
@@ -657,42 +592,24 @@ class AIPolicyManager:
 
         policy = None
         if not is_super and not user_explicit_allowed:
-            # Check if this model is the designated default model for the user's specific plan
-            is_plan_default = False
-            plan_default = plan.get("default_llm_id") or plan.get("default_embd_id") or plan.get("default_rerank_id")
-            if plan_default and (plan_default in candidate_ids or pure_name == plan_default):
-                is_plan_default = True
+            ids = list(dict.fromkeys(([ai_model.id] if ai_model else []) + candidate_ids))
+            for cid in ids:
+                matches = list(SubscriptionAIPolicy.select().where(
+                    SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.model_id == cid))
+                if matches:
+                    # Legacy rows used two PK formats. An explicit denial wins.
+                    policy = next((p for p in matches if not p.enabled), matches[0])
+                    break
+            if policy is not None and not policy.enabled:
+                return False, f"Model '{model_name}' is not authorized for your {plan['name']} subscription plan.", 403, "PLAN_RESTRICTED"
+            if policy is None and ai_model:
+                defaults = [plan.get(key) for key in ("default_llm_id", "default_embd_id", "default_rerank_id")]
+                if not any(default and default in ids for default in defaults):
+                    return False, f"Model '{model_name}' is not included in your {plan['name']} subscription plan.", 403, "PLAN_RESTRICTED"
 
-            if not is_plan_default:
-                if ai_model:
-                    policy = SubscriptionAIPolicy.get_or_none(SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.model_id == ai_model.id)
-
-                if not policy:
-                    for cid in candidate_ids:
-                        policy = SubscriptionAIPolicy.get_or_none(SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.model_id == cid)
-                        if policy:
-                            break
-
-                if policy is not None:
-                    if not policy.enabled:
-                        return False, f"Model '{model_name}' is not authorized for your {plan['name']} subscription plan.", 403, "PLAN_RESTRICTED"
-                else:
-                    allowed_plans = getattr(ai_model, "allowed_plans", None)
-                    if not allowed_plans and ai_model and isinstance(ai_model.extra, dict):
-                        allowed_plans = ai_model.extra.get("allowed_plans")
-                    elif not allowed_plans and ai_model and isinstance(ai_model.extra, str):
-                        try:
-                            allowed_plans = json.loads(ai_model.extra).get("allowed_plans")
-                        except Exception:
-                            allowed_plans = None
-                    if allowed_plans:
-                        if isinstance(allowed_plans, str):
-                            try:
-                                allowed_plans = json.loads(allowed_plans)
-                            except Exception:
-                                allowed_plans = [allowed_plans]
-                        if plan_id not in [p.lower() for p in allowed_plans]:
-                            return False, f"Model '{model_name}' is not included in your {plan['name']} subscription plan.", 403, "PLAN_RESTRICTED"
+        # A model remains selectable when quota is exhausted; inference still checks limits.
+        if not check_quotas:
+            return True, "OK", 200, "OK"
 
         # -------------------------------------------------------------
         # Level 5: Token Quota & Request Limits Check

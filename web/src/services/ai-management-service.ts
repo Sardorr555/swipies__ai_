@@ -330,6 +330,9 @@ export const toggleModelExclusion = (provider: string, modelName: string, exclud
 // Models & Global Kill-Switch Governance
 // ============================================================
 
+export const syncAdminModelCatalog = () =>
+  request.post<ResponseData<{ count: number; providers: { provider: string; success: boolean; count: number }[] }>>('/v1/admin/ai/models/sync', { data: {} });
+
 export const getAdminModels = () =>
   request.get<ResponseData<AIModelItem[]>>('/v1/admin/ai/models');
 

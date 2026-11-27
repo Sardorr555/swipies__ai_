@@ -200,10 +200,12 @@ def get_tenant_default_model_by_type(tenant_id: str, model_type: str | enum.Enum
     if not model_name:
         try:
             from api.db.services.global_instance_service import GlobalInstanceService
+            from api.db.services.ai_policy_service import AIPolicyManager
             g_stats = GlobalInstanceService.get_instance_stats()
+            plan = AIPolicyManager.get_user_plan(tenant_id)
             match model_type_val:
                 case LLMType.CHAT.value:
-                    model_name = g_stats.get("default_chat_model") or g_stats.get("default_free_model_id")
+                    model_name = plan.get("default_llm_id") or g_stats.get(f"default_{plan['id']}_model_id") or g_stats.get("default_chat_model") or g_stats.get("default_free_model_id")
                 case LLMType.EMBEDDING.value:
                     model_name = g_stats.get("default_embd_id")
                 case LLMType.RERANK.value:
@@ -221,7 +223,7 @@ def get_tenant_default_model_by_type(tenant_id: str, model_type: str | enum.Enum
         # Check first available verified platform model
         try:
             from api.db.services.ai_policy_service import AIModelService
-            p_models = AIModelService.get_platform_models()
+            p_models = AIModelService.get_available_platform_models(tenant_id)
             matched = [
                 m for m in p_models
                 if m.get("model_type", "").upper() == model_type_val.upper()
@@ -245,10 +247,12 @@ def get_tenant_default_model_by_type(tenant_id: str, model_type: str | enum.Enum
     try:
         return resolve_model_config(tenant_id, model_type, model_name)
     except Exception as exc:
+        if isinstance(exc, PermissionError):
+            raise
         # If the specific model failed to resolve, try resolving any active verified platform model of this type
         try:
             from api.db.services.ai_policy_service import AIModelService
-            p_models = AIModelService.get_platform_models()
+            p_models = AIModelService.get_available_platform_models(tenant_id)
             matched = [
                 m for m in p_models
                 if m.get("model_type", "").upper() == model_type_val.upper()
@@ -315,6 +319,10 @@ def resolve_model_config(tenant_id, model_type: str | enum.Enum, model_ref: str)
     except LookupError:
         return get_model_config_from_provider_instance(tenant_id, model_type, model_ref)
 def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.Enum, model_name: str):
+    from api.db.services.ai_policy_service import AIPolicyManager
+    allowed, _, _, _ = AIPolicyManager.check_model_access_extended(tenant_id, model_name)
+    if not allowed:
+        raise PermissionError('Model is not available for this account.')
     pure_model_name, instance_name, provider_name = split_model_name(model_name)
     model_type_val = model_type if isinstance(model_type, str) else model_type.value
     # Builtin embedding model
@@ -501,7 +509,7 @@ def get_model_config_from_provider_instance(tenant_id, model_type: str | enum.En
     try:
         from api.db.services.ai_policy_service import AIModelService
         from api.utils.key_crypto import decrypt_api_key
-        p_models = AIModelService.get_platform_models()
+        p_models = AIModelService.get_available_platform_models(tenant_id)
         matched = [
             m for m in p_models
             if m.get("model_type", "").upper() == model_type_val.upper()
@@ -545,7 +553,7 @@ def _platform_model_config_by_id(tenant_id, model_type, model_id):
         raise LookupError('Platform model does not support the requested capability.')
     allowed, _, _ = AIPolicyManager.check_model_access(tenant_id, model.id, requested)
     if not allowed:
-        raise LookupError('Platform model is not available for this account.')
+        raise PermissionError('Platform model is not available for this account.')
     provider = next((p for p in AIProvider.select().where(AIProvider.is_global == True, AIProvider.status.in_(['active', 'verified']))
                      if p.provider_name.lower() == model.provider.lower()), None)
     key = model.api_key or (provider.api_key if provider else '')
@@ -632,7 +640,7 @@ def resolve_model_id(tenant_id: str, model_type: str | enum.Enum, model_name: st
         _platform_model_config_by_id(tenant_id, model_type, platform.id)
         return platform.id
 
-    # Builtin TEI embedding — no tenant_model row exists
+    # Builtin TEI embedding вЂ” no tenant_model row exists
     compose_profiles = os.getenv("COMPOSE_PROFILES", "")
     is_tei_builtin_embedding = (
         model_type_val == LLMType.EMBEDDING.value and "tei-" in compose_profiles and pure_model_name == os.getenv("TEI_MODEL", "") and (provider_name == "Builtin" or not provider_name)
@@ -654,7 +662,7 @@ def resolve_model_id(tenant_id: str, model_type: str | enum.Enum, model_name: st
     return model_obj.id
 
 
-# Mapping from model-name field → (LLMType, tenant_model id field)
+# Mapping from model-name field в†’ (LLMType, tenant_model id field)
 _MODEL_NAME_TO_ID_FIELD_MAP: dict[str, tuple[str, str]] = {
     "llm_id": (LLMType.CHAT, "tenant_llm_id"),
     "embd_id": (LLMType.EMBEDDING, "tenant_embd_id"),

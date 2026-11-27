@@ -486,6 +486,20 @@ async def admin_get_provider_models_dynamic(provider_name):
 # ==========================================
 
 
+@manager.route("/models/sync", methods=["POST"])
+@login_required
+async def admin_sync_model_catalog():
+    auth_err = require_superuser()
+    if auth_err:
+        return auth_err
+    from api.db.services.platform_model_catalog_service import PlatformModelCatalogService
+    req = await get_request_json() or {}
+    results = await PlatformModelCatalogService.refresh(req.get("provider"))
+    AIAuditLogService.log_action(user_id=current_user.id, action="MODEL_CATALOG_SYNC",
+        target_type="ai_model", target_id="catalog", new_val={"results": results})
+    return get_json_result(data={"providers": results, "count": sum(p["count"] for p in results)})
+
+
 @manager.route("/models", methods=["GET"])  # noqa: F821
 @login_required
 async def admin_get_models():
@@ -495,7 +509,7 @@ async def admin_get_models():
 
     try:
         # Query all global platform models
-        models = AIModelService.get_platform_models()
+        models = AIModelService.get_platform_models(include_disabled=True)
 
         # Attach subscription plan access for each model
         policies = SubscriptionAIPolicyService.get_all()
@@ -575,23 +589,21 @@ async def admin_save_model():
             AIModelService.save(**model_data)
 
         # Update subscription plan mappings if provided
-        allowed_plans = req.get("allowed_plans", [])
+        allowed_plans = req.get("allowed_plans")
         if isinstance(allowed_plans, list):
             for plan_id in ["free", "plus", "pro"]:
                 pol_id = f"{plan_id}_{model_id}"
                 is_enabled = plan_id in [p.lower() for p in allowed_plans]
-                if SubscriptionAIPolicyService.query(id=pol_id):
-                    SubscriptionAIPolicyService.filter_update(
-                        [SubscriptionAIPolicyService.model.id == pol_id],
-                        {"enabled": is_enabled},
-                    )
-                elif is_enabled:
+                matching = SubscriptionAIPolicy.select().where(SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.model_id == model_id)
+                if matching.exists():
+                    SubscriptionAIPolicy.update(enabled=is_enabled).where(SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.model_id == model_id).execute()
+                else:
                     SubscriptionAIPolicyService.save(
-                        id=pol_id,
+                        id=get_uuid(),
                         plan_id=plan_id,
                         model_id=model_id,
                         model_token_limit=0,
-                        enabled=True,
+                        enabled=is_enabled,
                     )
 
         # Audit log
@@ -867,9 +879,14 @@ async def admin_update_policies():
                 "enabled": bool(item.get("enabled", True)),
             }
 
-            if SubscriptionAIPolicyService.query(id=pol_id):
-                SubscriptionAIPolicyService.filter_update([SubscriptionAIPolicyService.model.id == pol_id], pol_data)
+            if not AIModel.get_or_none(AIModel.id == model_id, AIModel.is_global == True):
+                return get_data_error_result(message="Unknown platform model.")
+            rows = SubscriptionAIPolicy.select().where(SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.model_id == model_id)
+            if rows.exists():
+                updates = {key: value for key, value in pol_data.items() if key != "id"}
+                SubscriptionAIPolicy.update(**updates).where(SubscriptionAIPolicy.plan_id == plan_id, SubscriptionAIPolicy.model_id == model_id).execute()
             else:
+                pol_data["id"] = get_uuid()
                 SubscriptionAIPolicyService.save(**pol_data)
 
         AIAuditLogService.log_action(
@@ -1290,6 +1307,8 @@ async def user_get_allowed_models():
         plan = AIPolicyManager.get_user_plan(tenant_id, current_user.id)
         policies = SubscriptionAIPolicyService.query(plan_id=plan["id"], enabled=True)
         policies_list = [p.to_dict() for p in policies]
+        from api.apps.services.models_api_service import list_tenant_added_models
+        _, available = list_tenant_added_models(tenant_id)
 
         is_super = getattr(current_user, "is_superuser", False)
         plan_id = (plan.get("id") or "").lower()
@@ -1301,6 +1320,7 @@ async def user_get_allowed_models():
         return get_json_result(data={
             "plan": plan,
             "models": policies_list,
+            "available_models": available,
             "byok_models": byok_models,
             "is_superuser": is_super,
             "can_add_custom": can_add,

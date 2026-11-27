@@ -35,8 +35,9 @@ class MainHotfixTests(unittest.TestCase):
         self.legacy=TenantModel.create(id=secrets.token_hex(16),provider_id=self.platform.id,instance_id=self.instance.id,model_name=self.model.model_name,model_type=1,extra='{}',status='1')
         self.cache=patch.object(ps_module,'_ADMIN_TENANT_ID_CACHE',self.owner); self.cache.start()
         self.policy=patch.object(AIPolicyManager,'check_model_access',return_value=(True,'OK',200)); self.policy.start()
+        self.catalog_policy=patch.object(AIPolicyManager,'check_model_access_extended',return_value=(True,'OK',200,'OK')); self.catalog_policy.start()
     def tearDown(self):
-        self.policy.stop(); self.cache.stop()
+        self.policy.stop(); self.catalog_policy.stop(); self.cache.stop()
         AIModel.delete().where(AIModel.id==self.model.id).execute()
         TenantModel.delete().where(TenantModel.provider_id.in_([self.platform.id,self.own.id])).execute()
         TenantModelInstance.delete().where(TenantModelInstance.provider_id.in_([self.platform.id,self.own.id])).execute()
@@ -85,7 +86,7 @@ class MainHotfixTests(unittest.TestCase):
         self.assertEqual(runtime.get_model_config_by_id(self.normal,'chat',self.legacy.id)['llm_name'],self.model.model_name)
     def test_platform_model_respects_plan_denial(self):
         with patch.object(AIPolicyManager,'check_model_access',return_value=(False,'restricted',403)):
-            with self.assertRaises(LookupError): runtime.get_model_config_by_id(self.normal,'chat',self.model.id)
+            with self.assertRaises(PermissionError): runtime.get_model_config_by_id(self.normal,'chat',self.model.id)
     def test_platform_model_type_checked(self):
         with self.assertRaises(LookupError): runtime.get_model_config_by_id(self.normal,'embedding',self.model.id)
     def test_disabled_platform_model_rejected(self):

@@ -64,6 +64,7 @@ import {
   getAdminByokStats,
   getAdminInstance,
   getAdminModels,
+  syncAdminModelCatalog,
   getAdminPlans,
   getAdminPolicies,
   getAdminProviderModelsDynamic,
@@ -298,6 +299,23 @@ export default function AIManagementPage() {
     } catch (e) {
       console.error('fetchProviders failed', e);
     }
+  };
+
+  const [syncingCatalog, setSyncingCatalog] = useState(false);
+  const [policyModelSearch, setPolicyModelSearch] = useState('');
+  const handleSyncCatalog = async () => {
+    setSyncingCatalog(true);
+    try {
+      const res = await syncAdminModelCatalog();
+      if (res.data?.code !== 0) throw new Error(res.data?.message || 'Catalog update failed');
+      const failed = res.data.data.providers.filter(provider => !provider.success);
+      if (failed.length) message.error(`Не удалось обновить: ${failed.map(p => p.provider).join(', ')}`);
+      else message.success(`Каталог из API обновлён: ${res.data.data.count} моделей. Выберите доступ отдельно для Plus и Pro.`);
+      await fetchModels();
+      await fetchPolicies(selectedPlanId);
+    } catch {
+      message.error('Не удалось обновить каталог моделей из API');
+    } finally { setSyncingCatalog(false); }
   };
 
   const fetchModels = async () => {
@@ -814,10 +832,10 @@ export default function AIManagementPage() {
         model_token_limit: 0,
         is_default_llm: false,
         is_default_embd: false,
-        enabled: true,
+        enabled: false,
       };
 
-      const updatedPolicy = { ...existing, model_token_limit: limit };
+      const updatedPolicy = { ...existing, enabled: existing.enabled ?? false, model_token_limit: limit };
       const res = await updateAdminPolicies(planId, [updatedPolicy]);
       if (res.data?.code === 0) {
         message.success(`Token limit updated for ${modelId}`);
@@ -1523,6 +1541,9 @@ export default function AIManagementPage() {
               </button>
             </div>
 
+            <Button size="sm" variant="outline" disabled={syncingCatalog} onClick={handleSyncCatalog} className="text-xs h-8">
+              <RefreshCw className={`size-3.5 mr-1 ${syncingCatalog ? 'animate-spin' : ''}`} /> Обновить каталог из API
+            </Button>
             <Button size="sm" onClick={handleOpenAddModel} className="text-xs h-8">
               <Plus className="size-3.5 mr-1" /> Add Platform Model
             </Button>
@@ -1952,7 +1973,7 @@ export default function AIManagementPage() {
                     <div>
                       <CardTitle className="text-base font-semibold">Model Access Policy Matrix (Level 4)</CardTitle>
                       <CardDescription className="text-xs">
-                        Define which models are authorized for each subscription plan. Users without per-user overrides inherit these rules.
+                        Выберите доступные модели отдельно для Free, Plus и Pro. Пользователи видят только разрешённые модели своего тарифа. Новые модели из API требуют включения администратором.
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1971,7 +1992,11 @@ export default function AIManagementPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="border border-border-button rounded-lg overflow-hidden">
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    <Input value={policyModelSearch} onChange={e => setPolicyModelSearch(e.target.value)} placeholder="Поиск модели или провайдера" className="max-w-sm" />
+                    <Button variant="outline" disabled={syncingCatalog} onClick={handleSyncCatalog}><RefreshCw className={`size-4 mr-2 ${syncingCatalog ? 'animate-spin' : ''}`} />Обновить каталог из API</Button>
+                  </div>
+                  <div className="border border-border-button rounded-lg overflow-x-auto">
                     <table className="w-full text-xs text-left">
                       <thead className="bg-bg-base text-text-secondary border-b border-border-button">
                         <tr>
@@ -1983,7 +2008,7 @@ export default function AIManagementPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border-button">
-                        {models.map((m) => {
+                        {models.filter(m => `${m.model_name} ${m.provider}`.toLowerCase().includes(policyModelSearch.toLowerCase())).map((m) => {
                           const policy = policies.find((p) => p.model_id === m.id);
                           const isEnabled = policy ? policy.enabled : false;
                           const limit = policy ? policy.model_token_limit : 0;

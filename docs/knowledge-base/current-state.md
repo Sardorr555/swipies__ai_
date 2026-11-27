@@ -217,3 +217,7 @@ Owner authorized release on `swipies_26`: tenant-scoped provider management, wri
 ## Prepared Telegram analytics (2026-11-26)
 
 [Telegram bot analytics](telegram-bot-analytics.md) and [ADR-011](decisions/ADR-011-telegram-bot-analytics.md) document the bot-scoped ledger, confirmed payments and revocable aggregate widgets. Combined with the CodeExec release; push authorized on 2026-11-26, production deployment deferred. See [handoff](handoffs/2026-11-26-telegram-analytics.md).
+
+## 2026-11-27 — model catalog, subscription access and shared analytics scrolling
+
+See [model catalog and subscription access](model-catalog-and-subscriptions.md) for provider API discovery, independent Plus/Pro permissions, runtime enforcement and the mobile shared-page scrolling fix.

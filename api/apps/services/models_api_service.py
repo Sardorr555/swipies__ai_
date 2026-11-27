@@ -216,6 +216,14 @@ def _get_model_info(tenant_id: str, default_model: str, model_type: str, model_i
             "enable": True,
         }
 
+    from api.db.db_models import AIModel
+    from api.db.services.ai_policy_service import AIPolicyManager
+    platform_matches = [m for m in AIModel.select().where(AIModel.is_global == True, AIModel.model_name == model_name)
+                        if not provider_name or m.provider.lower() == provider_name.lower()]
+    if platform_matches and not any(m.enabled and m.status in ("active", "verified") and
+        AIPolicyManager.check_model_access_extended(tenant_id, m.id, check_quotas=False)[0] for m in platform_matches):
+        return None
+
     # 1. Check Global Platform Models (AIModel & AIProvider)
     try:
         from api.db.services.ai_policy_service import AIModelService
@@ -243,7 +251,10 @@ def _get_model_info(tenant_id: str, default_model: str, model_type: str, model_i
             )
             if prov_match and name_match:
                 can_use = bool(gm.api_key and gm.api_key.strip()) or (gm_prov.lower() in active_provs)
-                if can_use:
+                from api.db.services.ai_policy_service import AIPolicyManager
+                if not AIPolicyManager.check_model_access_extended(tenant_id, gm.id, check_quotas=False)[0]:
+                    return None
+                if can_use and gm.status in ("active", "verified"):
                     return {
                         "model_id": gm.id,
                         "model_provider": gm_prov,
@@ -403,6 +414,8 @@ def list_tenant_default_models(tenant_id: str):
 
     models = []
     tenant_updates = {}
+    from api.db.services.ai_policy_service import AIPolicyManager
+    plan = AIPolicyManager.get_user_plan(tenant_id)
 
     for model_type, field_name in DEFAULT_MODEL_CAPABILITY_FIELDS.items():
         default_model = getattr(tenant, field_name, None)
@@ -416,13 +429,18 @@ def list_tenant_default_models(tenant_id: str):
         # 2. If tenant has no valid model, fallback to Admin Global Instance default
         if not model_info:
             cand_keys = GLOBAL_TYPE_KEY_MAP.get(model_type, [])
+            plan_field = {"chat": "default_llm_id", "embedding": "default_embd_id", "rerank": "default_rerank_id"}.get(model_type)
+            if plan_field and plan.get(plan_field):
+                model_info = _get_model_info(tenant_id, plan[plan_field], model_type)
+            if model_type == "chat":
+                cand_keys = [f"default_{plan['id']}_model_id", *cand_keys]
             global_def = ""
             for ck in cand_keys:
                 if g_stats.get(ck):
                     global_def = g_stats.get(ck)
                     break
 
-            if global_def:
+            if global_def and not model_info:
                 model_info = _get_model_info(tenant_id, global_def, model_type)
 
         # 3. Fallback to any active verified platform model of this type
@@ -485,7 +503,16 @@ def set_tenant_default_models(tenant_id: str, model_provider: str, model_instanc
     if model_id:
         model_ok, model_obj = TenantModelService.get_by_id(model_id)
         if not model_ok:
-            return False, f"model_id '{model_id}' not found"
+            try:
+                tenant_model_id = resolve_model_id(tenant_id, model_type, model_id)
+                info = _get_model_info(tenant_id, model_id, model_type, tenant_model_id)
+                if not info:
+                    return False, "Model is not available for this subscription."
+                canonical = f"{info['model_name']}@default@{info['model_provider']}"
+                TenantService.update_by_id(tenant_id, {field_name: canonical, tenant_field_name: tenant_model_id})
+                return True, "success"
+            except (LookupError, PermissionError):
+                return False, "Model is not available for this subscription."
 
         provider_ok, provider_obj = TenantModelProviderService.get_by_id(model_obj.provider_id)
         if not provider_ok:
@@ -507,6 +534,12 @@ def set_tenant_default_models(tenant_id: str, model_provider: str, model_instanc
         default_model = f"{model_obj.model_name}@{instance_obj.instance_name}@{provider_obj.provider_name}"
         tenant_model_id = model_id
     elif model_provider and model_instance and model_name:
+        # SDKs and persisted defaults may send a composite reference for an API-only model.
+        from api.db.db_models import AIModel
+        platform = next((m for m in AIModel.select().where(AIModel.is_global == True, AIModel.model_name == model_name)
+                         if m.provider.lower() == model_provider.lower()), None)
+        if platform and model_instance == 'default':
+            return set_tenant_default_models(tenant_id, '', '', '', model_type, platform.id)
         # Validate and set the default model
         success, msg = _check_model_available(tenant_id, model_provider, model_instance, model_name, model_type)
         if not success:
@@ -564,6 +597,10 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str = None):
     if not e:
         return False, "Tenant not found"
 
+    from api.db.services.ai_policy_service import AIPolicyManager
+    def allowed(model_ref):
+        return AIPolicyManager.check_model_access_extended(tenant_id, model_ref, check_quotas=False)[0]
+
     ensure_mineru_from_env(tenant_id)
     ensure_paddleocr_from_env(tenant_id)
     ensure_opendataloader_from_env(tenant_id)
@@ -578,7 +615,7 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str = None):
     factory_rank_mapping = {factory["name"]: -_to_int(factory.get("rank", "500")) for factory in FACTORY_LLM_INFOS}
     added_models = []
 
-    providers = TenantModelProviderService.get_by_tenant_id(tenant_id)
+    providers = TenantModelProviderService.get_by_tenant_id(tenant_id, include_admin=False)
     if providers:
         provider_ids = [provider.id for provider in providers]
         instances = TenantModelInstanceService.get_by_provider_ids(provider_ids)
@@ -603,6 +640,7 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str = None):
                     "rank": model_rank_map.get((provider_info_map[model_record.provider_id].provider_name, model_record.model_name), 500),
                 }
                 for model_record in target_type_records
+                if model_record.status == ActiveStatusEnum.ACTIVE.value and allowed(f"{model_record.model_name}@{provider_info_map[model_record.provider_id].provider_name}")
             ]
 
     # Add TEI Builtin embedding model if configured
@@ -645,6 +683,8 @@ def list_tenant_added_models(tenant_id: str, model_type_filter: str = None):
         for gm in global_models:
             gm_prov = gm.provider or ""
             gm_prov_lower = gm_prov.lower()
+            if gm.status not in ("active", "verified") or not allowed(gm.id):
+                continue
             if (gm_prov_lower, gm.model_name.lower()) not in existing_model_keys:
                 has_key = bool(gm.api_key and gm.api_key.strip()) or (gm_prov_lower in active_provs)
                 if not has_key:
